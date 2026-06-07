@@ -21,6 +21,10 @@ const Shift = require("./Shift");
 const ShiftLog = require("./ShiftLog");
 const Report = require("./Report");
 const ReportReply = require("./ReportReply");
+const EngineParameter = require("./EngineParameter");
+const DeckLog = require("./DeckLog");
+const EngineLog = require("./EngineLog");
+const EngineLogValue = require("./EngineLogValue");
 
 // ============ QUAN HỆ ============
 
@@ -60,6 +64,26 @@ RepairLog.belongsTo(Engine, { foreignKey: "engineId" });
 
 CrewProfile.hasMany(RepairLog, { foreignKey: "repairedBy" });
 RepairLog.belongsTo(CrewProfile, { foreignKey: "repairedBy" });
+
+// Engine 1-N EngineParameter
+Engine.hasMany(EngineParameter, { foreignKey: "engineId" });
+EngineParameter.belongsTo(Engine, { foreignKey: "engineId" });
+
+// ShiftLog 1-1 DeckLog
+ShiftLog.hasOne(DeckLog, { foreignKey: "shiftLogId" });
+DeckLog.belongsTo(ShiftLog, { foreignKey: "shiftLogId" });
+
+// ShiftLog 1-1 EngineLog
+ShiftLog.hasOne(EngineLog, { foreignKey: "shiftLogId" });
+EngineLog.belongsTo(ShiftLog, { foreignKey: "shiftLogId" });
+
+// EngineLog 1-N EngineLogValue
+EngineLog.hasMany(EngineLogValue, { foreignKey: "engineLogId" });
+EngineLogValue.belongsTo(EngineLog, { foreignKey: "engineLogId" });
+
+// EngineParameter 1-N EngineLogValue
+EngineParameter.hasMany(EngineLogValue, { foreignKey: "parameterId" });
+EngineLogValue.belongsTo(EngineParameter, { foreignKey: "parameterId" });
 
 // Voyage 1-N các bảng con
 Voyage.hasMany(VoyageCrew, { foreignKey: "voyageId" });
@@ -121,4 +145,8 @@ module.exports = {
   Attendance,
   Shift, ShiftLog,
   Report, ReportReply,
+  EngineParameter,
+  DeckLog,
+  EngineLog,
+  EngineLogValue,
 };
