@@ -29,11 +29,11 @@ const EngineLogValue = require("./EngineLogValue");
 // ============ QUAN HỆ ============
 
 // User 1-1 CrewProfile
-User.hasOne(CrewProfile, { foreignKey: { name: "userId", allowNull: false, unique: true } });
+User.hasOne(CrewProfile, { foreignKey: { name: "userId", allowNull: false, unique: true }, onDelete: 'CASCADE' });
 CrewProfile.belongsTo(User, { foreignKey: "userId" });
 
 // CrewProfile 1-N CrewCertificate
-CrewProfile.hasMany(CrewCertificate, { foreignKey: "crewId" });
+CrewProfile.hasMany(CrewCertificate, { foreignKey: "crewId", onDelete: 'CASCADE' });
 CrewCertificate.belongsTo(CrewProfile, { foreignKey: "crewId" });
 
 // Ship 1-N các bảng con
