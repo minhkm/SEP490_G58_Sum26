@@ -1,0 +1,253 @@
+/* ========== Register Page Container ========== */
+.register-page {
+  min-height: 100vh;
+  font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.register-page-bg {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  z-index: 1;
+}
+
+.register-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.4);
+  z-index: 2;
+}
+
+.register-content-wrapper {
+  flex: 1;
+  position: relative;
+  z-index: 3;
+  display: flex;
+  width: 100%;
+  justify-content: center;
+  align-items: center;
+  padding: 40px 20px;
+}
+
+/* ========== Form Container ========== */
+.register-form-container {
+  width: 100%;
+  max-width: 700px;
+  background: #f4f6f9;
+  border-radius: 12px;
+  padding: 40px 50px;
+  box-shadow: 0 15px 40px rgba(0, 0, 0, 0.3);
+}
+
+/* ========== Form Header ========== */
+.register-form-header {
+  text-align: center;
+  margin-bottom: 30px;
+}
+
+.register-logo {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.logo-icon {
+  font-size: 1.8rem;
+}
+
+.logo-text {
+  font-size: 1.4rem;
+  font-weight: 700;
+  color: #1a3a66;
+}
+
+.register-form-title {
+  font-size: 1.8rem;
+  font-weight: 700;
+  color: #1a1a1a;
+  margin-bottom: 10px;
+}
+
+.register-form-subtitle {
+  font-size: 0.95rem;
+  color: #666;
+  margin: 0;
+}
+
+/* ========== Form Elements ========== */
+.register-form {
+  margin-bottom: 24px;
+}
+
+.form-row {
+  display: flex;
+  gap: 20px;
+}
+
+.col-half {
+  flex: 1;
+}
+
+.register-form-group {
+  margin-bottom: 20px;
+}
+
+.register-form-label {
+  font-weight: 600;
+  color: #444;
+  font-size: 0.85rem;
+  margin-bottom: 8px;
+  display: block;
+  text-align: left;
+}
+
+.input-with-icon {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.input-icon {
+  position: absolute;
+  left: 14px;
+  color: #888;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+}
+
+.register-form-input {
+  width: 100%;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  padding: 10px 14px 10px 42px;
+  font-size: 0.95rem;
+  background-color: #fff;
+  transition: all 0.3s ease;
+  height: 44px;
+  box-sizing: border-box;
+}
+
+.register-form-input:focus {
+  border-color: #1a3a66;
+  box-shadow: 0 0 0 3px rgba(26, 58, 102, 0.1);
+  outline: none;
+}
+
+.register-password-toggle {
+  position: absolute;
+  right: 14px;
+  background: none;
+  border: none;
+  color: #888;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+}
+
+.register-password-toggle:hover {
+  color: #444;
+}
+
+/* ========== Actions ========== */
+.register-form-actions {
+  margin-bottom: 24px;
+  text-align: left;
+}
+
+.register-checkbox {
+  font-size: 0.85rem;
+  color: #444;
+}
+
+.register-checkbox input {
+  cursor: pointer;
+  margin-right: 8px;
+}
+
+.register-submit-btn {
+  background-color: #0d2342;
+  border: none;
+  color: white;
+  width: 100%;
+  height: 48px;
+  font-size: 1rem;
+  font-weight: 600;
+  border-radius: 6px;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.register-submit-btn:hover {
+  background-color: #08162b;
+}
+
+/* ========== Footer Links ========== */
+.register-footer-links {
+  text-align: center;
+  padding-top: 10px;
+}
+
+.login-signup-section {
+  font-size: 0.85rem;
+  margin-bottom: 8px;
+}
+
+.signup-text {
+  color: #666;
+}
+
+.signup-link {
+  color: #1a3a66;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.signup-link:hover {
+  text-decoration: underline;
+}
+
+.register-error-text {
+  color: #dc3545;
+  font-size: 0.8rem;
+  margin-top: 6px;
+  text-align: left;
+  font-weight: 500;
+}
+
+.register-form-input.is-invalid {
+  border-color: #dc3545;
+  background-color: #fff8f8;
+}
+
+.register-form-input.is-invalid:focus {
+  box-shadow: 0 0 0 3px rgba(220, 53, 69, 0.15);
+}
+
+@media (max-width: 768px) {
+  .form-row {
+    flex-direction: column;
+    gap: 0;
+  }
+  .register-form-container {
+    padding: 30px 20px;
+  }
+}
