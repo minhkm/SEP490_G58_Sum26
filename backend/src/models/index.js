@@ -1,0 +1,124 @@
+const sequelize = require("../configs/database");
+
+// --- Import tất cả models ---
+const User = require("./User");
+const CrewProfile = require("./CrewProfile");
+const CrewCertificate = require("./CrewCertificate");
+const Ship = require("./Ship");
+const ShipDocument = require("./ShipDocument");
+const ShipCapacity = require("./ShipCapacity");
+const Engine = require("./Engine");
+const Equipment = require("./Equipment");
+const RepairLog = require("./RepairLog");
+const CargoHold = require("./CargoHold");
+const CargoAllocation = require("./CargoAllocation");
+const Voyage = require("./Voyage");
+const VoyageCrew = require("./VoyageCrew");
+const Cargo = require("./Cargo");
+const CargoItem = require("./CargoItem");
+const Attendance = require("./Attendance");
+const Shift = require("./Shift");
+const ShiftLog = require("./ShiftLog");
+const Report = require("./Report");
+const ReportReply = require("./ReportReply");
+
+// ============ QUAN HỆ ============
+
+// User 1-1 CrewProfile
+User.hasOne(CrewProfile, { foreignKey: { name: "userId", allowNull: false, unique: true } });
+CrewProfile.belongsTo(User, { foreignKey: "userId" });
+
+// CrewProfile 1-N CrewCertificate
+CrewProfile.hasMany(CrewCertificate, { foreignKey: "crewId" });
+CrewCertificate.belongsTo(CrewProfile, { foreignKey: "crewId" });
+
+// Ship 1-N các bảng con
+Ship.hasMany(ShipDocument, { foreignKey: "shipId" });
+ShipDocument.belongsTo(Ship, { foreignKey: "shipId" });
+
+Ship.hasOne(ShipCapacity, { foreignKey: { name: "shipId", allowNull: false, unique: true } });
+ShipCapacity.belongsTo(Ship, { foreignKey: "shipId" });
+
+Ship.hasMany(Engine, { foreignKey: "shipId" });
+Engine.belongsTo(Ship, { foreignKey: "shipId" });
+
+Ship.hasMany(Equipment, { foreignKey: "shipId" });
+Equipment.belongsTo(Ship, { foreignKey: "shipId" });
+
+Ship.hasMany(CargoHold, { foreignKey: "shipId" });
+CargoHold.belongsTo(Ship, { foreignKey: "shipId" });
+
+Ship.hasMany(Voyage, { foreignKey: "shipId" });
+Voyage.belongsTo(Ship, { foreignKey: "shipId" });
+
+// Engine / Equipment 1-N RepairLog
+Equipment.hasMany(RepairLog, { foreignKey: "equipmentId" });
+RepairLog.belongsTo(Equipment, { foreignKey: "equipmentId" });
+
+Engine.hasMany(RepairLog, { foreignKey: "engineId" });
+RepairLog.belongsTo(Engine, { foreignKey: "engineId" });
+
+CrewProfile.hasMany(RepairLog, { foreignKey: "repairedBy" });
+RepairLog.belongsTo(CrewProfile, { foreignKey: "repairedBy" });
+
+// Voyage 1-N các bảng con
+Voyage.hasMany(VoyageCrew, { foreignKey: "voyageId" });
+VoyageCrew.belongsTo(Voyage, { foreignKey: "voyageId" });
+
+Voyage.hasMany(Cargo, { foreignKey: "voyageId" });
+Cargo.belongsTo(Voyage, { foreignKey: "voyageId" });
+
+Voyage.hasMany(Attendance, { foreignKey: "voyageId" });
+Attendance.belongsTo(Voyage, { foreignKey: "voyageId" });
+
+Voyage.hasMany(Shift, { foreignKey: "voyageId" });
+Shift.belongsTo(Voyage, { foreignKey: "voyageId" });
+
+// CrewProfile liên kết qua các bảng vận hành (crewId)
+CrewProfile.hasMany(VoyageCrew, { foreignKey: "crewId" });
+VoyageCrew.belongsTo(CrewProfile, { foreignKey: "crewId" });
+
+CrewProfile.hasMany(Attendance, { foreignKey: "crewId" });
+Attendance.belongsTo(CrewProfile, { foreignKey: "crewId" });
+
+CrewProfile.hasMany(Shift, { foreignKey: "crewId" });
+Shift.belongsTo(CrewProfile, { foreignKey: "crewId" });
+
+// Cargo 1-N CargoItem & CargoAllocation
+Cargo.hasMany(CargoItem, { foreignKey: "cargoId" });
+CargoItem.belongsTo(Cargo, { foreignKey: "cargoId" });
+
+Cargo.hasMany(CargoAllocation, { foreignKey: "cargoId" });
+CargoAllocation.belongsTo(Cargo, { foreignKey: "cargoId" });
+
+// CargoHold 1-N CargoAllocation
+CargoHold.hasMany(CargoAllocation, { foreignKey: "cargoHoldId" });
+CargoAllocation.belongsTo(CargoHold, { foreignKey: "cargoHoldId" });
+
+// Shift 1-N ShiftLog
+Shift.hasMany(ShiftLog, { foreignKey: "shiftId" });
+ShiftLog.belongsTo(Shift, { foreignKey: "shiftId" });
+
+// Report
+CrewProfile.hasMany(Report, { foreignKey: "createdBy" });
+Report.belongsTo(CrewProfile, { foreignKey: "createdBy" });
+
+Report.hasMany(ReportReply, { foreignKey: "reportId" });
+ReportReply.belongsTo(Report, { foreignKey: "reportId" });
+
+CrewProfile.hasMany(ReportReply, { foreignKey: "repliedBy" });
+ReportReply.belongsTo(CrewProfile, { foreignKey: "repliedBy" });
+
+// ============ EXPORT ============
+module.exports = {
+  sequelize,
+  User, CrewProfile, CrewCertificate,
+  Ship, ShipDocument, ShipCapacity,
+  Engine, Equipment, RepairLog,
+  CargoHold, CargoAllocation,
+  Voyage, VoyageCrew,
+  Cargo, CargoItem,
+  Attendance,
+  Shift, ShiftLog,
+  Report, ReportReply,
+};

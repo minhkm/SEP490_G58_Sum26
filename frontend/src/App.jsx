@@ -1,15 +1,7 @@
-import { Container, Button } from "react-bootstrap";
+import LandingPage from "./pages/LandingPage";
 
 function App() {
-  return (
-    <Container className="mt-5">
-      <h1>CargoOps</h1>
-
-      <Button variant="primary">
-        Test Button
-      </Button>
-    </Container>
-  );
+  return <LandingPage />;
 }
 
 export default App;
