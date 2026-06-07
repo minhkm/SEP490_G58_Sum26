@@ -1,17 +1,24 @@
 const express = require("express");
-const cors = require("cors");
+const { sequelize } = require("./models"); // ⬅ đổi chỗ này
+require("dotenv").config();
 
 const app = express();
-
-app.use(cors());
 app.use(express.json());
 
-app.get("/", (req, res) => {
-  res.send("CargoOps API Running");
-});
+const PORT = process.env.PORT || 5000;
 
-const PORT = 5000;
+async function start() {
+  try {
+    await sequelize.authenticate();
+    console.log("✅ Kết nối MySQL thành công");
 
-app.listen(PORT, () => {
-  console.log(`Server running on ${PORT}`);
-});
+    await sequelize.sync(); // alter: cập nhật bảng khi model đổi
+    console.log("✅ Đồng bộ models xong");
+
+    app.listen(PORT, () => console.log(`🚀 Server: http://localhost:${PORT}`));
+  } catch (err) {
+    console.error("❌ Lỗi:", err.message);
+  }
+}
+
+start();
