@@ -3,6 +3,8 @@ import LandingPage from "./pages/LandingPage";
 import LoginPage from "./pages/LoginPage";
 import RegisterPage from "./pages/RegisterPage";
 import MasterDashboard from "./pages/MasterDashboard";
+import AddVesselPage from "./pages/AddVesselPage";
+import CreateVoyagePage from "./pages/CreateVoyagePage";
 
 function App() {
   return (
@@ -12,6 +14,8 @@ function App() {
         <Route path="/login" element={<LoginPage />} />
         <Route path="/register" element={<RegisterPage />} />
         <Route path="/master-dashboard" element={<MasterDashboard />} />
+        <Route path="/vessels/new" element={<AddVesselPage />} />
+        <Route path="/voyages/new" element={<CreateVoyagePage />} />
       </Routes>
     </Router>
   );
