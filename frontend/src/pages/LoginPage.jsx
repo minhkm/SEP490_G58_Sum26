@@ -18,11 +18,11 @@ export default function LoginPage() {
       const response = await authService.login(email, password);
       localStorage.setItem("token", response.token);
       localStorage.setItem("user", JSON.stringify(response.user));
-      
+
       if (response.user.role === 'Master') {
-         navigate("/master-dashboard");
+        navigate("/master-dashboard");
       } else {
-         navigate("/"); 
+        navigate("/");
       }
     } catch (error) {
       if (error.response && error.response.data && error.response.data.message) {
@@ -68,7 +68,7 @@ export default function LoginPage() {
             <Form onSubmit={handleLogin} className="login-form">
               {/* Email Input */}
               <Form.Group className="login-form-group">
-                <Form.Label className="login-form-label">Email hoặc Mã nhân viên</Form.Label>
+                <Form.Label className="login-form-label">Email </Form.Label>
                 <div className="input-with-icon">
                   <span className="input-icon">
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>

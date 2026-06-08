@@ -33,7 +33,7 @@ export default function LandingPage({ onEnterSystem }) {
           </h1>
           <p className="lp-hero__subtitle mx-auto">
             Nền tảng toàn diện quản lý hàng hóa thương mại, số hóa ca trực và theo dõi nhân sự —
-            thiết kế chuyên biệt cho Master và phi hành đoàn để đảm bảo vận hành chính xác 24/7.
+            thiết kế chuyên biệt cho Thuyền trưởng và thủy thủ đoàn để đảm bảo vận hành chính xác 24/7.
           </p>
           <Button variant="light" size="lg" className="lp-cta-btn fw-semibold" onClick={goLogin}>
             Đăng nhập Hệ thống <span className="lp-arrow">→</span>

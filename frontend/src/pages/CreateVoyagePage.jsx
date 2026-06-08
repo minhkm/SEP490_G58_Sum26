@@ -1,0 +1,288 @@
+import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import {
+  Bell,
+  Search,
+  Plus,
+  Trash2,
+  Package,
+  Route as RouteIcon,
+  Users,
+  ArrowRight
+} from 'lucide-react';
+import MasterLayout from '../components/MasterLayout';
+import './CreateVoyagePage.css';
+
+export default function CreateVoyagePage() {
+  const navigate = useNavigate();
+
+  // Basic Info State
+  const [voyageId] = useState('');
+  const [shipId, setShipId] = useState('');
+
+  // Route State
+  const [routeInfo, setRouteInfo] = useState({
+    departurePort: '',
+    destinationPort: '',
+    departureDate: '',
+    arrivalDate: ''
+  });
+
+  // Cargo State
+  const [cargoList, setCargoList] = useState([]);
+
+  // Crew State
+  const [crewList, setCrewList] = useState([]);
+
+  // Handlers
+  const handleRouteInfoChange = (e) => {
+    const { name, value } = e.target;
+    setRouteInfo({ ...routeInfo, [name]: value });
+  };
+
+  const addCargo = () => {
+    const newId = cargoList.length > 0 ? Math.max(...cargoList.map(c => c.id)) + 1 : 1;
+    setCargoList([...cargoList, { id: newId, cargoName: '', cargoType: '', weight: '' }]);
+  };
+
+  const removeCargo = (id) => {
+    setCargoList(cargoList.filter(c => c.id !== id));
+  };
+
+  const handleCargoChange = (id, e) => {
+    const { name, value } = e.target;
+    setCargoList(cargoList.map(c => c.id === id ? { ...c, [name]: value } : c));
+  };
+
+  const addCrew = () => {
+    const newId = crewList.length > 0 ? Math.max(...crewList.map(c => c.id)) + 1 : 1;
+    setCrewList([...crewList, { id: newId, name: '', role: '' }]);
+  };
+
+  const removeCrew = (id) => {
+    setCrewList(crewList.filter(c => c.id !== id));
+  };
+
+  const handleCrewChange = (id, e) => {
+    const { name, value } = e.target;
+    setCrewList(crewList.map(c => c.id === id ? { ...c, [name]: value } : c));
+  };
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    console.log("Saving Voyage:", {
+      voyageId, shipId, routeInfo, cargoList, crewList
+    });
+    alert("Khởi tạo Hải trình thành công!");
+    navigate('/master-dashboard');
+  };
+
+  return (
+    <MasterLayout>
+      <div className="voyage-page-inner">
+        {/* Top Navigation Bar */}
+        <header className="voyage-top-bar">
+          <div className="voyage-top-left">
+            <div>
+              <div className="v-breadcrumb">
+                <RouteIcon size={12} style={{ display: 'inline', marginRight: '4px' }} />
+                Voyages / New
+              </div>
+              <h1 className="voyage-page-title">Tạo Hải trình Mới</h1>
+            </div>
+          </div>
+          
+          <div className="voyage-top-right">
+            <div className="vessel-search-box" style={{ marginRight: '16px' }}>
+              <Search size={16} className="v-search-icon" />
+              <input type="text" placeholder="Tìm kiếm..." />
+            </div>
+            <Bell className="v-icon-btn" size={20} style={{ marginRight: '16px' }} />
+            
+            <button className="btn-cancel" onClick={() => navigate(-1)}>Hủy</button>
+            <button className="btn-draft">Lưu Bản nháp</button>
+            <button className="btn-start" onClick={handleSubmit}>Khởi tạo Hải trình</button>
+          </div>
+        </header>
+
+        {/* Main Content */}
+        <div className="voyage-main-content">
+          <form className="voyage-grid" onSubmit={handleSubmit}>
+            
+            {/* LEFT COLUMN */}
+            <div className="voyage-col">
+              
+              {/* Card: Identity */}
+              <div className="vy-card">
+                <div className="vy-card-header">
+                  <h3>Thông tin Định danh</h3>
+                </div>
+                <div className="vy-form-row">
+                  <div className="vy-form-group">
+                    <label>Mã Hải trình (Tự động)</label>
+                    <input type="text" placeholder="(Sẽ tạo tự động)" value={voyageId} disabled style={{ backgroundColor: '#e2e8f0', color: '#64748b' }} />
+                  </div>
+                  <div className="vy-form-group">
+                    <label>Tàu Vận chuyển <span className="text-red">*</span></label>
+                    <select value={shipId} onChange={(e) => setShipId(e.target.value)} required>
+                      <option value="">Chọn tàu từ hệ thống...</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+
+              {/* Card: Route */}
+              <div className="vy-card">
+                <div className="vy-card-header">
+                  <h3>Chi tiết Tuyến đường</h3>
+                </div>
+                <div className="route-row">
+                  <div className="vy-form-group" style={{ flex: 1 }}>
+                    <label>Cảng đi <span className="text-red">*</span></label>
+                    <input type="text" name="departurePort" placeholder="📍 Nhập tên cảng..." value={routeInfo.departurePort} onChange={handleRouteInfoChange} required />
+                  </div>
+                  <ArrowRight size={20} className="route-arrow" />
+                  <div className="vy-form-group" style={{ flex: 1 }}>
+                    <label>Cảng đến <span className="text-red">*</span></label>
+                    <input type="text" name="destinationPort" placeholder="📍 Nhập tên cảng..." value={routeInfo.destinationPort} onChange={handleRouteInfoChange} required />
+                  </div>
+                </div>
+                <div className="vy-form-row" style={{ marginTop: '16px', marginBottom: 0 }}>
+                  <div className="vy-form-group">
+                    <label>Ngày Khởi hành (Dự kiến) <span className="text-red">*</span></label>
+                    <input type="date" name="departureDate" value={routeInfo.departureDate} onChange={handleRouteInfoChange} required />
+                  </div>
+                  <div className="vy-form-group">
+                    <label>Ngày Đến (Dự kiến) <span className="text-red">*</span></label>
+                    <input type="date" name="arrivalDate" value={routeInfo.arrivalDate} onChange={handleRouteInfoChange} required />
+                  </div>
+                </div>
+              </div>
+
+              {/* Card: Cargo */}
+              <div className="vy-card">
+                <div className="vy-card-header">
+                  <h3>Lô hàng Dự kiến (Tùy chọn)</h3>
+                  <button type="button" className="btn-text" onClick={addCargo}>
+                    <Plus size={16} /> Thêm Lô hàng
+                  </button>
+                </div>
+                
+                {cargoList.length === 0 ? (
+                  <div className="vy-empty-state">
+                    <Package size={32} color="#94a3b8" />
+                    <p>Chưa có lô hàng nào được liên kết với hải trình này.</p>
+                    <span>Bạn có thể thêm lô hàng sau khi lưu hải trình.</span>
+                  </div>
+                ) : (
+                  <div className="vy-list-container">
+                    {cargoList.map((cargo, index) => (
+                      <div className="vy-list-item" key={cargo.id}>
+                        <div className="vy-form-group">
+                          <label>Tên Lô hàng</label>
+                          <input type="text" name="cargoName" placeholder="Tên hàng hóa..." value={cargo.cargoName} onChange={(e) => handleCargoChange(cargo.id, e)} />
+                        </div>
+                        <div className="vy-form-group">
+                          <label>Loại hàng</label>
+                          <select name="cargoType" value={cargo.cargoType} onChange={(e) => handleCargoChange(cargo.id, e)}>
+                            <option value="">Chọn loại...</option>
+                            <option value="Container">Container</option>
+                            <option value="Dry Bulk">Hàng rời (Khô)</option>
+                            <option value="Liquid Bulk">Hàng rời (Lỏng)</option>
+                          </select>
+                        </div>
+                        <div className="vy-form-group">
+                          <label>Khối lượng (Tấn)</label>
+                          <input type="number" name="weight" placeholder="1000" value={cargo.weight} onChange={(e) => handleCargoChange(cargo.id, e)} />
+                        </div>
+                        <button type="button" className="v-btn-icon text-red" onClick={() => removeCargo(cargo.id)} style={{ marginBottom: '4px' }}>
+                          <Trash2 size={18} />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Card: Crew */}
+              <div className="vy-card">
+                <div className="vy-card-header">
+                  <h3>Nhân sự Dự kiến (Voyage Crew)</h3>
+                  <button type="button" className="btn-text" onClick={addCrew}>
+                    <Plus size={16} /> Thêm Nhân sự
+                  </button>
+                </div>
+                
+                {crewList.length === 0 ? (
+                  <div className="vy-empty-state">
+                    <Users size={32} color="#94a3b8" />
+                    <p>Chưa phân bổ nhân sự cho chuyến đi này.</p>
+                    <span>Chọn Thuyền trưởng và các thuyền viên quan trọng.</span>
+                  </div>
+                ) : (
+                  <div className="vy-list-container">
+                    {crewList.map((crew, index) => (
+                      <div className="vy-list-item" key={crew.id} style={{ gridTemplateColumns: '1fr 1fr auto' }}>
+                        <div className="vy-form-group">
+                          <label>Họ và Tên</label>
+                          <input type="text" name="name" placeholder="Nguyễn Văn A..." value={crew.name} onChange={(e) => handleCrewChange(crew.id, e)} />
+                        </div>
+                        <div className="vy-form-group">
+                          <label>Chức danh (Role)</label>
+                          <select name="role" value={crew.role} onChange={(e) => handleCrewChange(crew.id, e)}>
+                            <option value="">Chọn chức danh...</option>
+                            <option value="Thuyền trưởng (Master)">Thuyền trưởng (Master)</option>
+                            <option value="Đại phó (Chief Officer)">Đại phó (Chief Officer)</option>
+                            <option value="Máy trưởng (Chief Engineer)">Máy trưởng (Chief Engineer)</option>
+                            <option value="Thủy thủ (Seaman)">Thủy thủ (Seaman)</option>
+                          </select>
+                        </div>
+                        <button type="button" className="v-btn-icon text-red" onClick={() => removeCrew(crew.id)} style={{ marginBottom: '4px' }}>
+                          <Trash2 size={18} />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+            </div>
+
+            {/* RIGHT COLUMN */}
+            <div className="voyage-col">
+              
+              {/* Card: Status */}
+              <div className="vy-card">
+                <div className="vy-card-header">
+                  <h3>Trạng thái</h3>
+                </div>
+                <div className="status-indicator">
+                  <div className="status-dot"></div>
+                  <div className="status-info">
+                    <h4>Bản nháp (Draft)</h4>
+                    <p>Hải trình sẽ chuyển sang trạng thái "Đã lên kế hoạch" (Planned) sau khi được khởi tạo.</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Card: Map */}
+              <div className="vy-card">
+                <div className="vy-card-header">
+                  <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <RouteIcon size={16} /> Bản đồ Tuyến đường Dự kiến
+                  </h3>
+                </div>
+                <div className="map-placeholder">
+                  <RouteIcon size={32} color="#cbd5e1" />
+                  <p>Bản đồ sẽ hiển thị sau khi chọn Cảng đi và Cảng đến.</p>
+                </div>
+              </div>
+
+            </div>
+
+          </form>
+        </div>
+      </div>
+    </MasterLayout>
+  );
+}

@@ -42,9 +42,13 @@
   display: flex;
   align-items: center;
   overflow: hidden;
-  background:
-    radial-gradient(1200px 500px at 70% -10%, rgba(47,127,181,0.45), transparent 60%),
-    linear-gradient(180deg, #0f2c47 0%, #0a1e33 55%, #081626 100%);
+  background-image:
+    radial-gradient(1200px 500px at 70% -10%, rgba(47,127,181,0.3), transparent 60%),
+    linear-gradient(180deg, rgba(15,44,71,0.3) 0%, rgba(10,30,51,0.6) 60%, rgba(8,22,38,1) 100%),
+    url("/images/hero.png");
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
 }
 .lp-hero__overlay {
   position: absolute; inset: 0;
