@@ -24,7 +24,8 @@ import {
   FileText,
   CheckCircle,
   FilePlus,
-  History
+  History,
+  Box
 } from 'lucide-react';
 import './MasterDashboard.css';
 import MasterLayout from '../components/MasterLayout';
