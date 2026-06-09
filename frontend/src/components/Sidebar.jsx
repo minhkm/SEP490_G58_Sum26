@@ -39,7 +39,7 @@ export default function Sidebar() {
             <LayoutDashboard size={20} />
             <span>Tổng quan</span>
           </div>
-          <div className={`nav-item ${location.pathname.startsWith('/voyages') ? 'active' : ''}`} onClick={() => navigate('/voyages/new')} style={{ cursor: 'pointer' }}>
+          <div className={`nav-item ${location.pathname.startsWith('/voyages') ? 'active' : ''}`} onClick={() => navigate('/voyages')} style={{ cursor: 'pointer' }}>
             <Navigation size={20} />
             <span>Hải Trình</span>
           </div>

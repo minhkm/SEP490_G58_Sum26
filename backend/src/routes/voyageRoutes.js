@@ -1,7 +1,7 @@
 const express = require('express');
 const bcrypt = require('bcrypt');
 const crypto = require('crypto');
-const { sequelize, Voyage, User, CrewProfile, VoyageCrew } = require('../models');
+const { sequelize, Voyage, User, CrewProfile, VoyageCrew, Ship } = require('../models');
 const { sendCrewCredentialsEmail } = require('../services/emailService');
 
 const router = express.Router();
@@ -84,6 +84,29 @@ router.post('/', async (req, res) => {
     await t.rollback();
     console.error('Lỗi khi tạo voyage:', error);
     res.status(500).json({ message: 'Lỗi server khi tạo hải trình', error: error.message });
+  }
+});
+
+// Public endpoint: all users can view the voyage list.
+router.get("/", async (req, res) => {
+  try {
+    const voyages = await Voyage.findAll({
+      include: [
+        {
+          model: Ship,
+          attributes: ["id", "shipName", "imoNumber", "flag", "status"],
+        },
+      ],
+      order: [
+        ["departureDate", "DESC"],
+        ["id", "DESC"],
+      ],
+    });
+
+    res.json(voyages);
+  } catch (error) {
+    console.error("Error fetching voyages:", error);
+    res.status(500).json({ message: "Unable to fetch voyage list." });
   }
 });
 

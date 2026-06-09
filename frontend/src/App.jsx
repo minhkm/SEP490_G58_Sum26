@@ -6,6 +6,7 @@ import MasterDashboard from "./pages/MasterDashboard";
 import AddVesselPage from "./pages/AddVesselPage";
 import CreateVoyagePage from "./pages/CreateVoyagePage";
 import CargoPage from "./pages/CargoPage";
+import VoyageListPage from "./pages/VoyageListPage";
 
 function App() {
   return (
@@ -16,6 +17,7 @@ function App() {
         <Route path="/register" element={<RegisterPage />} />
         <Route path="/master-dashboard" element={<MasterDashboard />} />
         <Route path="/vessels/new" element={<AddVesselPage />} />
+        <Route path="/voyages" element={<VoyageListPage />} />
         <Route path="/voyages/new" element={<CreateVoyagePage />} />
         <Route path="/cargos" element={<CargoPage />} />
       </Routes>

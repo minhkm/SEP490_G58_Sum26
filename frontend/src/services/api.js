@@ -35,6 +35,10 @@ export const voyageService = {
   createVoyage: async (data) => {
     const response = await api.post('/voyages', data);
     return response.data;
+  },
+  getAll: async () => {
+    const response = await api.get('/voyages');
+    return response.data;
   }
 };
 
