@@ -10,6 +10,8 @@ app.use(cors());
 app.use(express.json());
 
 app.use("/api/auth", authRoutes);
+app.use("/api/voyages", require("./routes/voyageRoutes"));
+app.use("/api/cargos", require("./routes/cargoRoutes"));
 
 const PORT = process.env.PORT || 5000;
 

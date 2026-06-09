@@ -11,6 +11,7 @@ import {
   ArrowRight
 } from 'lucide-react';
 import MasterLayout from '../components/MasterLayout';
+import { voyageService } from '../services/api';
 import './CreateVoyagePage.css';
 
 export default function CreateVoyagePage() {
@@ -56,7 +57,7 @@ export default function CreateVoyagePage() {
 
   const addCrew = () => {
     const newId = crewList.length > 0 ? Math.max(...crewList.map(c => c.id)) + 1 : 1;
-    setCrewList([...crewList, { id: newId, name: '', role: '' }]);
+    setCrewList([...crewList, { id: newId, name: '', email: '', role: '' }]);
   };
 
   const removeCrew = (id) => {
@@ -68,13 +69,22 @@ export default function CreateVoyagePage() {
     setCrewList(crewList.map(c => c.id === id ? { ...c, [name]: value } : c));
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    console.log("Saving Voyage:", {
-      voyageId, shipId, routeInfo, cargoList, crewList
-    });
-    alert("Khởi tạo Hải trình thành công!");
-    navigate('/master-dashboard');
+    try {
+      if (!shipId) {
+        alert("Vui lòng chọn tàu vận chuyển!");
+        return;
+      }
+      const data = { shipId, routeInfo, cargoList, crewList };
+      console.log("Saving Voyage:", data);
+      await voyageService.createVoyage(data);
+      alert("Khởi tạo Hải trình thành công!");
+      navigate('/master-dashboard');
+    } catch (error) {
+      console.error("Lỗi khi tạo hải trình:", error);
+      alert("Lỗi khi khởi tạo hải trình. Vui lòng thử lại.");
+    }
   };
 
   return (
@@ -91,14 +101,14 @@ export default function CreateVoyagePage() {
               <h1 className="voyage-page-title">Tạo Hải trình Mới</h1>
             </div>
           </div>
-          
+
           <div className="voyage-top-right">
             <div className="vessel-search-box" style={{ marginRight: '16px' }}>
               <Search size={16} className="v-search-icon" />
               <input type="text" placeholder="Tìm kiếm..." />
             </div>
             <Bell className="v-icon-btn" size={20} style={{ marginRight: '16px' }} />
-            
+
             <button className="btn-cancel" onClick={() => navigate(-1)}>Hủy</button>
             <button className="btn-draft">Lưu Bản nháp</button>
             <button className="btn-start" onClick={handleSubmit}>Khởi tạo Hải trình</button>
@@ -108,10 +118,10 @@ export default function CreateVoyagePage() {
         {/* Main Content */}
         <div className="voyage-main-content">
           <form className="voyage-grid" onSubmit={handleSubmit}>
-            
+
             {/* LEFT COLUMN */}
             <div className="voyage-col">
-              
+
               {/* Card: Identity */}
               <div className="vy-card">
                 <div className="vy-card-header">
@@ -167,7 +177,7 @@ export default function CreateVoyagePage() {
                     <Plus size={16} /> Thêm Lô hàng
                   </button>
                 </div>
-                
+
                 {cargoList.length === 0 ? (
                   <div className="vy-empty-state">
                     <Package size={32} color="#94a3b8" />
@@ -212,7 +222,7 @@ export default function CreateVoyagePage() {
                     <Plus size={16} /> Thêm Nhân sự
                   </button>
                 </div>
-                
+
                 {crewList.length === 0 ? (
                   <div className="vy-empty-state">
                     <Users size={32} color="#94a3b8" />
@@ -222,19 +232,23 @@ export default function CreateVoyagePage() {
                 ) : (
                   <div className="vy-list-container">
                     {crewList.map((crew, index) => (
-                      <div className="vy-list-item" key={crew.id} style={{ gridTemplateColumns: '1fr 1fr auto' }}>
+                      <div className="vy-list-item" key={crew.id} style={{ gridTemplateColumns: '1fr 1.5fr 1fr auto' }}>
                         <div className="vy-form-group">
                           <label>Họ và Tên</label>
-                          <input type="text" name="name" placeholder="Nguyễn Văn A..." value={crew.name} onChange={(e) => handleCrewChange(crew.id, e)} />
+                          <input type="text" name="name" placeholder="Nguyễn Văn A..." value={crew.name} onChange={(e) => handleCrewChange(crew.id, e)} required />
+                        </div>
+                        <div className="vy-form-group">
+                          <label>Email cá nhân</label>
+                          <input type="email" name="email" placeholder="example@gmail.com" value={crew.email} onChange={(e) => handleCrewChange(crew.id, e)} required />
                         </div>
                         <div className="vy-form-group">
                           <label>Chức danh (Role)</label>
-                          <select name="role" value={crew.role} onChange={(e) => handleCrewChange(crew.id, e)}>
+                          <select name="role" value={crew.role} onChange={(e) => handleCrewChange(crew.id, e)} required>
                             <option value="">Chọn chức danh...</option>
-                            <option value="Thuyền trưởng (Master)">Thuyền trưởng (Master)</option>
+                            <option value="Sĩ quan boong (Deck Officer)">Sĩ quan boong (Deck Officer)</option>
                             <option value="Đại phó (Chief Officer)">Đại phó (Chief Officer)</option>
                             <option value="Máy trưởng (Chief Engineer)">Máy trưởng (Chief Engineer)</option>
-                            <option value="Thủy thủ (Seaman)">Thủy thủ (Seaman)</option>
+                            <option value="Thủy thủ (Crew)">Thủy thủ (Crew)</option>
                           </select>
                         </div>
                         <button type="button" className="v-btn-icon text-red" onClick={() => removeCrew(crew.id)} style={{ marginBottom: '4px' }}>
@@ -250,7 +264,7 @@ export default function CreateVoyagePage() {
 
             {/* RIGHT COLUMN */}
             <div className="voyage-col">
-              
+
               {/* Card: Status */}
               <div className="vy-card">
                 <div className="vy-card-header">

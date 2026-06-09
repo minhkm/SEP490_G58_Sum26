@@ -25,7 +25,7 @@ export default function Sidebar() {
   return (
     <aside className="sidebar">
       <div className="sidebar-top">
-        <div className="logo-container" onClick={() => navigate('/master-dashboard')} style={{cursor: 'pointer'}}>
+        <div className="logo-container" onClick={() => navigate('/master-dashboard')} style={{ cursor: 'pointer' }}>
           <div className="logo-icon-wrapper">
             <Ship className="logo-icon" size={24} color="#ffffff" />
           </div>
@@ -41,9 +41,9 @@ export default function Sidebar() {
           </div>
           <div className={`nav-item ${location.pathname.startsWith('/voyages') ? 'active' : ''}`} onClick={() => navigate('/voyages/new')} style={{ cursor: 'pointer' }}>
             <Navigation size={20} />
-            <span>Chuyến đi</span>
+            <span>Hải Trình</span>
           </div>
-          <div className="nav-item">
+          <div className={`nav-item ${location.pathname.startsWith('/cargos') ? 'active' : ''}`} onClick={() => navigate('/cargos')} style={{ cursor: 'pointer' }}>
             <Package size={20} />
             <span>Hàng hóa</span>
           </div>
@@ -61,7 +61,7 @@ export default function Sidebar() {
           </div>
         </nav>
       </div>
-      
+
       <div className="sidebar-bottom">
         <button className="btn-sail-plan">
           <Anchor size={18} />
