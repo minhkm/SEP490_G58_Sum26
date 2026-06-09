@@ -31,4 +31,11 @@ export const authService = {
   }
 };
 
+export const voyageService = {
+  getAll: async () => {
+    const response = await api.get('/voyages');
+    return response.data;
+  }
+};
+
 export default api;
