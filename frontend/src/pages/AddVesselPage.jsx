@@ -17,7 +17,7 @@ import {
   FileText,
   Box
 } from 'lucide-react';
-import './AddVesselPage.css';
+import './AddVesselPage.css'; 
 import MasterLayout from '../components/MasterLayout';
 
 export default function AddVesselPage() {
@@ -165,7 +165,7 @@ export default function AddVesselPage() {
             {/* Card: Basic Info */}
             <div className="v-card">
               <div className="v-card-header">
-                <Info size={18} color="#0f3b75" />
+                <Info size={18} color="#ffffff" />
                 <h3>THÔNG TIN CƠ BẢN (SHIP)</h3>
               </div>
               <div className="v-card-body">
@@ -231,7 +231,7 @@ export default function AddVesselPage() {
             {/* Card: Tech Specs & Equipment */}
             <div className="v-card mt-20">
               <div className="v-card-header">
-                <Settings size={18} color="#0f3b75" />
+                <Settings size={18} color="#ffffff" />
                 <h3>THÔNG SỐ KỸ THUẬT & THIẾT BỊ</h3>
               </div>
               <div className="v-card-body p-0">
@@ -297,7 +297,7 @@ export default function AddVesselPage() {
                   {generatorEngines.map((gen, index) => (
                     <div key={gen.id} style={{ marginBottom: '24px', paddingBottom: '16px', borderBottom: index < generatorEngines.length - 1 ? '1px dashed #cbd5e1' : 'none' }}>
                       <div className="v-sub-header" style={{ marginBottom: '8px' }}>
-                        <h5 style={{ margin: 0, fontSize: '13px', color: '#475569' }}>Máy đèn #{index + 1}</h5>
+                        <h5 style={{ margin: 0, fontSize: '13px', color: '#ffffff' }}>Máy đèn #{index + 1}</h5>
                         {generatorEngines.length > 1 && (
                           <button type="button" className="v-btn-icon text-red" onClick={() => removeGeneratorEngine(gen.id)}>
                             <Trash2 size={16} />
@@ -401,7 +401,7 @@ export default function AddVesselPage() {
             {/* Card: Capacity */}
             <div className="v-card">
               <div className="v-card-header">
-                <Box size={18} color="#0f3b75" />
+                <Box size={18} color="#ffffff" />
                 <h3>SỨC CHỨA & TẢI TRỌNG</h3>
               </div>
               <div className="v-card-body">
@@ -465,7 +465,7 @@ export default function AddVesselPage() {
             {/* Card: Documents */}
             <div className="v-card mt-20">
               <div className="v-card-header">
-                <FileText size={18} color="#0f3b75" />
+                <FileText size={18} color="#ffffff" />
                 <h3>TÀI LIỆU PHÁP LÝ (DOCUMENTS)</h3>
               </div>
               <div className="v-card-body">
@@ -475,24 +475,7 @@ export default function AddVesselPage() {
                   <span>Hỗ trợ: PDF, PNG, JPG (Tối đa 10MB)</span>
                 </div>
 
-                <div className="v-doc-list mt-16">
-                  <div className="v-doc-item">
-                    <div className="v-doc-icon bg-light-red">PDF</div>
-                    <div className="v-doc-details">
-                      <p>Chung_chi_dang_kiem.pdf</p>
-                      <span>Hết hạn: 20/12/2025</span>
-                    </div>
-                    <MoreVertical size={16} className="v-doc-more" />
-                  </div>
-                  <div className="v-doc-item">
-                    <div className="v-doc-icon bg-light-yellow">IMG</div>
-                    <div className="v-doc-details">
-                      <p>Bao_hiem_trach_nhiem.png</p>
-                      <span className="text-orange">Sắp hết hạn: 15/05/2024</span>
-                    </div>
-                    <MoreVertical size={16} className="v-doc-more" />
-                  </div>
-                </div>
+                {/* Data mẫu đã bị xóa */}
               </div>
             </div>
 
