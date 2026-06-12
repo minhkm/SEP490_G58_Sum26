@@ -6,59 +6,6 @@ const { User, CrewProfile, CrewCertificate } = require('../models');
 const router = express.Router();
 const JWT_SECRET = process.env.JWT_SECRET || 'super_secret_key';
 
-// Register Master
-router.post('/register', async (req, res) => {
-  try {
-    const { fullName, email, phone, idNumber, certificate, issueDate, expiryDate, password } = req.body;
-
-    // Check if user already exists
-    const existingUser = await User.findOne({ where: { username: email } });
-    if (existingUser) {
-      return res.status(400).json({ message: 'Email này đã được đăng ký.' });
-    }
-
-    // Hash password
-    const hashedPassword = await bcrypt.hash(password, 10);
-
-    // Create User with role 'Master'
-    const newUser = await User.create({
-      username: email,
-      password: hashedPassword,
-      role: 'Master',
-      status: 'Active'
-    });
-
-    // Create CrewProfile
-    const newProfile = await CrewProfile.create({
-      userId: newUser.id,
-      fullName: fullName,
-      email: email,
-      phone: phone,
-      cccd: idNumber,
-      department: 'Deck',
-      position: 'Master'
-    });
-
-    // Create CrewCertificate if provided
-    if (certificate) {
-      await CrewCertificate.create({
-        crewId: newProfile.id,
-        certificateName: certificate,
-        issueDate: issueDate || null,
-        expiryDate: expiryDate || null,
-        status: 'Valid'
-      });
-    }
-
-    res.status(201).json({ 
-      message: 'Đăng ký thành công!'
-    });
-  } catch (error) {
-    console.error('Lỗi khi đăng ký:', error);
-    res.status(500).json({ message: 'Lỗi server khi đăng ký.', error: error.message, stack: error.stack });
-  }
-});
-
 // Login
 router.post('/login', async (req, res) => {
   try {
@@ -83,11 +30,39 @@ router.post('/login', async (req, res) => {
     res.json({
       message: 'Đăng nhập thành công',
       token,
+      requirePasswordChange: user.requiresPasswordChange,
       user: { id: user.id, username: user.username, role: user.role, fullName: profile ? profile.fullName : '' }
     });
 
   } catch (error) {
     console.error('Lỗi đăng nhập:', error);
+    res.status(500).json({ message: 'Lỗi server.' });
+  }
+});
+
+// Change First Password
+router.post('/change-first-password', async (req, res) => {
+  try {
+    const { email, newPassword } = req.body;
+
+    const user = await User.findOne({ where: { username: email } });
+    if (!user) {
+      return res.status(400).json({ message: 'Tài khoản không tồn tại.' });
+    }
+
+    if (!user.requiresPasswordChange) {
+      return res.status(400).json({ message: 'Tài khoản này không yêu cầu đổi mật khẩu.' });
+    }
+
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+    await user.update({
+      password: hashedPassword,
+      requiresPasswordChange: false
+    });
+
+    res.json({ message: 'Đổi mật khẩu thành công.' });
+  } catch (error) {
+    console.error('Lỗi đổi mật khẩu:', error);
     res.status(500).json({ message: 'Lỗi server.' });
   }
 });

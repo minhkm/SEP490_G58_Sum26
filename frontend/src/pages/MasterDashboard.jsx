@@ -153,25 +153,6 @@ export default function MasterDashboard() {
             </div>
           </div>
 
-          {/* Management Card */}
-          <div className="management-card">
-            <div className="m-card-left">
-              <div className="m-card-icon">
-                <Ship size={24} color="#0b1a2c" />
-              </div>
-              <div className="m-card-info">
-                <h3>Quản lý Đội tàu</h3>
-                <p>Hệ thống hiện chưa có tàu nào. Vui lòng thêm tàu mới để bắt đầu quản lý hồ sơ và lịch trình.</p>
-              </div>
-            </div>
-            <div className="m-card-right">
-              <button className="btn-primary" onClick={() => navigate('/vessels/new')}>
-                <Plus size={16} />
-                Thêm tàu mới
-              </button>
-            </div>
-          </div>
-
           {/* Dashboard Main Grid */}
           <div className="dashboard-grid">
             {/* Left Column */}

@@ -3,6 +3,7 @@ const bcrypt = require('bcrypt');
 const crypto = require('crypto');
 const { sequelize, Voyage, User, CrewProfile, VoyageCrew, Ship } = require('../models');
 const { sendCrewCredentialsEmail } = require('../services/emailService');
+const authMiddleware = require('../middlewares/authMiddleware');
 
 const router = express.Router();
 
@@ -10,7 +11,7 @@ router.post('/', async (req, res) => {
   const t = await sequelize.transaction();
   try {
     const { shipId, routeInfo, cargoList, crewList } = req.body;
-    
+
     // 1. Khởi tạo Voyage
     const voyage = await Voyage.create({
       shipId,
@@ -31,14 +32,14 @@ router.post('/', async (req, res) => {
 
         if (!user) {
           // Tạo ngẫu nhiên 8 ký tự
-          randomPassword = crypto.randomBytes(4).toString('hex'); 
+          randomPassword = crypto.randomBytes(4).toString('hex');
           const hashedPassword = await bcrypt.hash(randomPassword, 10);
-          
+
           let roleCode = 'Sailor';
           if (crew.role.includes('Deck Officer')) roleCode = 'DeckOfficer';
           else if (crew.role.includes('Chief Officer')) roleCode = 'ChiefOfficer';
           else if (crew.role.includes('Chief Engineer')) roleCode = 'EngineOfficer';
-          
+
           user = await User.create({
             username: crew.email,
             password: hashedPassword,
@@ -52,7 +53,7 @@ router.post('/', async (req, res) => {
             department: roleCode === 'EngineOfficer' ? 'Engine' : 'Deck',
             position: crew.role
           }, { transaction: t });
-          
+
           isNewUser = true;
         } else {
           profile = await CrewProfile.findOne({ where: { userId: user.id } });
@@ -70,7 +71,7 @@ router.post('/', async (req, res) => {
         // Thường nên để nó bất đồng bộ để tránh bị nghẽn (timeout) request
         if (isNewUser) {
           sendCrewCredentialsEmail(crew.email, randomPassword, crew.role).catch(err => {
-             console.error("Lỗi khi gửi email:", err);
+            console.error("Lỗi khi gửi email:", err);
           });
         }
       }
@@ -87,10 +88,30 @@ router.post('/', async (req, res) => {
   }
 });
 
-// Public endpoint: all users can view the voyage list.
-router.get("/", async (req, res) => {
+// Public endpoint: all users can view the voyage list (Now Protected by RBAC)
+router.get("/", authMiddleware, async (req, res) => {
   try {
+    const userRole = req.user.role;
+    let whereClause = {};
+
+    if (userRole !== 'Admin' && userRole !== 'Agency') {
+      const profileId = req.user.profileId;
+      if (!profileId) {
+        return res.json([]); // Thủy thủ chưa có hồ sơ -> Không xem được gì
+      }
+
+      // Tìm các voyageId mà người này được phân công
+      const userVoyages = await VoyageCrew.findAll({
+        where: { crewId: profileId },
+        attributes: ['voyageId']
+      });
+      const voyageIds = userVoyages.map(vc => vc.voyageId);
+
+      whereClause = { id: voyageIds };
+    }
+
     const voyages = await Voyage.findAll({
+      where: whereClause,
       include: [
         {
           model: Ship,

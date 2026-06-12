@@ -1,12 +1,16 @@
 import { BrowserRouter as Router, Routes, Route, useNavigate } from "react-router-dom";
 import LandingPage from "./pages/LandingPage";
 import LoginPage from "./pages/LoginPage";
-import RegisterPage from "./pages/RegisterPage";
 import MasterDashboard from "./pages/MasterDashboard";
+import AgencyDashboard from "./pages/AgencyDashboard";
+import VesselListPage from "./pages/VesselListPage";
 import AddVesselPage from "./pages/AddVesselPage";
+import VesselDetailPage from "./pages/VesselDetailPage";
 import CreateVoyagePage from "./pages/CreateVoyagePage";
 import CargoPage from "./pages/CargoPage";
 import VoyageListPage from "./pages/VoyageListPage";
+import CrewListPage from "./pages/CrewListPage";
+import AddCrewPage from "./pages/AddCrewPage";
 
 function App() {
   return (
@@ -14,12 +18,18 @@ function App() {
       <Routes>
         <Route path="/" element={<LandingPageWrapper />} />
         <Route path="/login" element={<LoginPage />} />
-        <Route path="/register" element={<RegisterPage />} />
         <Route path="/master-dashboard" element={<MasterDashboard />} />
+        <Route path="/agency-dashboard" element={<AgencyDashboard />} />
+        <Route path="/vessels" element={<VesselListPage />} />
         <Route path="/vessels/new" element={<AddVesselPage />} />
+        <Route path="/vessels/edit/:id" element={<AddVesselPage />} />
+        <Route path="/vessels/view/:id" element={<VesselDetailPage />} />
         <Route path="/voyages" element={<VoyageListPage />} />
         <Route path="/voyages/new" element={<CreateVoyagePage />} />
         <Route path="/cargos" element={<CargoPage />} />
+        <Route path="/crews" element={<CrewListPage />} />
+        <Route path="/crews/new" element={<AddCrewPage />} />
+        <Route path="/crews/edit/:id" element={<AddCrewPage />} />
       </Routes>
     </Router>
   );

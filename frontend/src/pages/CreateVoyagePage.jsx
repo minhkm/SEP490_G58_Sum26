@@ -11,11 +11,15 @@ import {
   ArrowRight
 } from 'lucide-react';
 import MasterLayout from '../components/MasterLayout';
+import AgencyLayout from '../components/AgencyLayout';
 import { voyageService } from '../services/api';
 import './CreateVoyagePage.css';
 
 export default function CreateVoyagePage() {
   const navigate = useNavigate();
+
+  const user = JSON.parse(localStorage.getItem('user')) || {};
+  const Layout = (user.role === 'Admin' || user.role === 'Agency') ? AgencyLayout : MasterLayout;
 
   // Basic Info State
   const [voyageId] = useState('');
@@ -88,7 +92,7 @@ export default function CreateVoyagePage() {
   };
 
   return (
-    <MasterLayout>
+    <Layout>
       <div className="voyage-page-inner">
         {/* Top Navigation Bar */}
         <header className="voyage-top-bar">
@@ -297,6 +301,6 @@ export default function CreateVoyagePage() {
           </form>
         </div>
       </div>
-    </MasterLayout>
+    </Layout>
   );
 }
