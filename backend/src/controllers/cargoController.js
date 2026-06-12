@@ -1,9 +1,31 @@
-const { Cargo, Voyage, CargoAllocation, CargoHold, Ship, CargoItem } = require("../models");
+const { Cargo, Voyage, CargoAllocation, CargoHold, Ship, CargoItem, VoyageCrew } = require("../models");
 
 exports.getAllCargos = async (req, res) => {
   try {
+    const userRole = req.user.role;
+    let whereClause = {};
+    let shipIds = [];
+
+    if (userRole !== 'Admin' && userRole !== 'Agency') {
+      const profileId = req.user.profileId;
+      if (!profileId) {
+         return res.json({ success: true, stats: { totalWeight: 0, inTransit: 0, remainingCapacity: 0, remainingCapacityPercent: 0, delayed: 0 }, data: [] });
+      }
+
+      const userVoyages = await VoyageCrew.findAll({
+        where: { crewId: profileId },
+        attributes: ['voyageId']
+      });
+      const voyageIds = userVoyages.map(vc => vc.voyageId);
+      whereClause = { voyageId: voyageIds };
+
+      const voyagesInfo = await Voyage.findAll({ where: { id: voyageIds }, attributes: ['shipId'] });
+      shipIds = voyagesInfo.map(v => v.shipId);
+    }
+
     // Fetch all cargos with related data
     const cargos = await Cargo.findAll({
+      where: whereClause,
       include: [
         {
           model: Voyage,
@@ -31,8 +53,16 @@ exports.getAllCargos = async (req, res) => {
       if (c.status === "Chậm trễ" || c.status === "Delayed") delayed++;
     });
 
-    // Fetch all cargo holds to calculate total remaining capacity globally
-    const allHolds = await CargoHold.findAll();
+    // Fetch cargo holds to calculate total remaining capacity globally (or specific to ships)
+    let holdWhereClause = {};
+    if (shipIds.length > 0) {
+      holdWhereClause = { shipId: shipIds };
+    } else if (userRole !== 'Admin' && userRole !== 'Agency') {
+      // Nếu không phải admin và cũng ko có shipIds (do chưa gán tàu), cho maxCap = 0
+      holdWhereClause = { id: -1 }; 
+    }
+
+    const allHolds = await CargoHold.findAll({ where: holdWhereClause });
     let maxCap = 0;
     let currentUsage = 0;
     allHolds.forEach(h => {

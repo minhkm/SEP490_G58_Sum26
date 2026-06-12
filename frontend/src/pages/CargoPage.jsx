@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import MasterLayout from '../components/MasterLayout';
+import AgencyLayout from '../components/AgencyLayout';
 import { 
   Package, 
   Truck, 
@@ -27,6 +28,9 @@ export default function CargoPage() {
   });
   const [loading, setLoading] = useState(true);
   const [selectedCargo, setSelectedCargo] = useState(null);
+
+  const user = JSON.parse(localStorage.getItem('user')) || {};
+  const Layout = (user.role === 'Admin' || user.role === 'Agency') ? AgencyLayout : MasterLayout;
 
   useEffect(() => {
     const fetchCargos = async () => {
@@ -61,7 +65,7 @@ export default function CargoPage() {
   };
 
   return (
-    <MasterLayout>
+    <Layout>
       <div className="cargo-page">
         {/* Header */}
         <div className="cargo-header">
@@ -279,6 +283,6 @@ export default function CargoPage() {
           )}
         </div>
       </div>
-    </MasterLayout>
+    </Layout>
   );
 }

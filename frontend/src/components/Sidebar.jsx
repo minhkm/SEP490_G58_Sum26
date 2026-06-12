@@ -47,10 +47,6 @@ export default function Sidebar() {
             <Package size={20} />
             <span>Hàng hóa</span>
           </div>
-          <div className={`nav-item ${isVesselActive}`} onClick={() => navigate('/vessels/new')} style={{ cursor: 'pointer' }}>
-            <Ship size={20} />
-            <span>Đội tàu</span>
-          </div>
           <div className="nav-item">
             <BarChart2 size={20} />
             <span>Báo cáo</span>

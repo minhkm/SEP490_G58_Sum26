@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
 import {
   Search,
   Bell,
@@ -15,13 +15,22 @@ import {
   Gauge,
   Droplets,
   FileText,
-  Box
+  Box,
+  AlertTriangle,
+  CheckCircle
 } from 'lucide-react';
 import './AddVesselPage.css'; 
-import MasterLayout from '../components/MasterLayout';
+import AgencyLayout from '../components/AgencyLayout';
+import { vesselService } from '../services/api';
 
 export default function AddVesselPage() {
   const navigate = useNavigate();
+  const { id } = useParams();
+  const isEditMode = Boolean(id);
+
+  // Modal State
+  const [errorMsg, setErrorMsg] = useState('');
+  const [successMsg, setSuccessMsg] = useState('');
 
   // Basic Info State
   const [basicInfo, setBasicInfo] = useState({
@@ -65,6 +74,89 @@ export default function AddVesselPage() {
 
   // Equipment State
   const [equipment, setEquipment] = useState([]);
+
+  useEffect(() => {
+    if (isEditMode) {
+      const fetchVessel = async () => {
+        try {
+          const data = await vesselService.getById(id);
+          setBasicInfo({
+            shipName: data.shipName || '',
+            imoNumber: data.imoNumber || '',
+            flag: data.flag || '',
+            status: data.status || 'Hoạt động'
+          });
+          if (data.ShipCapacity) {
+            setCapacity({
+              maxWeight: data.ShipCapacity.maxCargoWeight || '',
+              maxVolume: data.ShipCapacity.maxCargoVolume || '',
+              maxCrew: data.ShipCapacity.maxCrew || 25
+            });
+          }
+
+          if (data.Engines && data.Engines.length > 0) {
+            // Máy chính: Giả định là máy đầu tiên không phải máy đèn
+            const me = data.Engines.find(e => e.engineType === 'Diesel 2-kỳ') || data.Engines[0];
+            if (me) {
+              const temp = me.EngineParameters?.find(p => p.name === 'Nhiệt độ')?.maxValue || '';
+              const press = me.EngineParameters?.find(p => p.name === 'Áp suất')?.maxValue || '';
+              const steam = me.EngineParameters?.find(p => p.name === 'Hơi nước')?.maxValue || '';
+              setMainEngine({
+                id: me.id,
+                engineName: me.engineName,
+                engineType: me.engineType,
+                status: me.status,
+                maxTemp: temp,
+                maxPressure: press,
+                maxSteam: steam
+              });
+            }
+
+            // Máy đèn
+            const gens = data.Engines.filter(e => e.id !== (me ? me.id : null));
+            if (gens.length > 0) {
+              setGeneratorEngines(gens.map(g => {
+                const temp = g.EngineParameters?.find(p => p.name === 'Nhiệt độ')?.maxValue || '';
+                const press = g.EngineParameters?.find(p => p.name === 'Áp suất')?.maxValue || '';
+                const steam = g.EngineParameters?.find(p => p.name === 'Hơi nước')?.maxValue || '';
+                return {
+                  id: g.id,
+                  engineName: g.engineName,
+                  engineType: g.engineType,
+                  status: g.status,
+                  maxTemp: temp,
+                  maxPressure: press,
+                  maxSteam: steam
+                };
+              }));
+            }
+          }
+
+          if (data.CargoHolds && data.CargoHolds.length > 0) {
+            setHolds(data.CargoHolds.map(h => ({
+              id: h.id,
+              name: h.holdName,
+              capacity: h.maxCapacity
+            })));
+          }
+
+          if (data.Equipment && data.Equipment.length > 0) {
+            setEquipment(data.Equipment.map(eq => ({
+              id: eq.id,
+              name: eq.equipmentName,
+              type: eq.equipmentType,
+              location: eq.location,
+              condition: eq.status
+            })));
+          }
+        } catch (error) {
+          console.error('Lỗi tải thông tin tàu:', error);
+          alert('Không thể tải thông tin tàu');
+        }
+      };
+      fetchVessel();
+    }
+  }, [id, isEditMode]);
 
   // Handlers
   const handleBasicInfoChange = (e) => {
@@ -111,6 +203,11 @@ export default function AddVesselPage() {
     setHolds([...holds, { id: newId, name: '', capacity: '' }]);
   };
 
+  const handleHoldChange = (id, e) => {
+    const { name, value } = e.target;
+    setHolds(holds.map(h => h.id === id ? { ...h, [name]: value } : h));
+  };
+
   const removeHold = (id) => {
     setHolds(holds.filter(h => h.id !== id));
   };
@@ -120,28 +217,110 @@ export default function AddVesselPage() {
     setEquipment([...equipment, { id: newId, name: '', type: '', location: '', condition: 'Đúng hạn' }]);
   };
 
+  const handleEquipmentChange = (id, e) => {
+    const { name, value } = e.target;
+    setEquipment(equipment.map(eq => eq.id === id ? { ...eq, [name]: value } : eq));
+  };
+
   const removeEquipment = (id) => {
     setEquipment(equipment.filter(e => e.id !== id));
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    console.log("Saving Vessel Data: ", { basicInfo, capacity, holds, mainEngine, generatorEngines, equipment });
-    alert("Dữ liệu tàu đã được lưu!");
-    navigate('/master-dashboard');
+
+    // Validation: Tổng thể tích khoang phải BẰNG Thể tích Max của tàu
+    if (holds && holds.length > 0 && capacity && capacity.maxVolume) {
+      const totalHoldsVolume = holds.reduce((sum, h) => sum + (parseFloat(h.capacity) || 0), 0);
+      const shipMaxVolume = parseFloat(capacity.maxVolume) || 0;
+      
+      if (totalHoldsVolume !== shipMaxVolume) {
+        setErrorMsg(`Tổng thể tích các khoang (${totalHoldsVolume.toLocaleString()} m³) đang không khớp với Thể tích Max của tàu (${shipMaxVolume.toLocaleString()} m³).\n\nVui lòng phân bổ lại sức chứa khoang hàng cho hợp lý!`);
+        return; // Dừng việc submit
+      }
+    }
+
+    try {
+      const payload = {
+        basicInfo,
+        capacity,
+        mainEngine,
+        generatorEngines,
+        holds,
+        equipment
+      };
+      
+      if (isEditMode) {
+        await vesselService.update(id, payload);
+        setSuccessMsg('Cập nhật thông tin tàu thành công!');
+      } else {
+        await vesselService.create(payload);
+        setSuccessMsg('Thêm tàu mới thành công!');
+      }
+      // Không gọi navigate ngay, đợi user click OK trên modal success
+    } catch (error) {
+      console.error('Lỗi lưu tàu:', error);
+      setErrorMsg('Có lỗi hệ thống xảy ra khi lưu thông tin tàu. Vui lòng thử lại sau.');
+    }
+  };
+
+  const handleSuccessClose = () => {
+    setSuccessMsg('');
+    navigate('/vessels');
   };
 
   return (
-    <MasterLayout>
+    <AgencyLayout>
+      {errorMsg && (
+        <div className="v-error-modal-overlay">
+          <div className="v-error-modal">
+            <div className="v-error-modal-header">
+              <div className="v-error-modal-icon">
+                <AlertTriangle size={20} />
+              </div>
+              <h3>Cảnh báo Phân bổ Sức chứa</h3>
+            </div>
+            <div className="v-error-modal-body">
+              {errorMsg.split('\n').map((line, idx) => (
+                <p key={idx} style={{ margin: '0 0 8px 0' }}>{line}</p>
+              ))}
+            </div>
+            <div className="v-error-modal-footer">
+              <button type="button" onClick={() => setErrorMsg('')} className="v-btn-error-close">
+                Đã hiểu & Sửa lại
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {successMsg && (
+        <div className="v-error-modal-overlay">
+          <div className="v-error-modal">
+            <div className="v-success-modal-header">
+              <div className="v-success-modal-icon">
+                <CheckCircle size={20} />
+              </div>
+              <h3>Thành công</h3>
+            </div>
+            <div className="v-error-modal-body">
+              <p style={{ margin: 0, fontSize: '15px', fontWeight: 500, color: '#0f172a' }}>{successMsg}</p>
+            </div>
+            <div className="v-error-modal-footer">
+              <button type="button" onClick={handleSuccessClose} className="v-btn-success-close">
+                Hoàn tất
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       <div className="add-vessel-layout-inner">
         {/* Top Navigation Bar */}
       <header className="vessel-top-bar">
         <div className="vessel-top-left">
-          <h1 className="vessel-page-title">Thêm Tàu Mới</h1>
+          <h1 className="vessel-page-title">{isEditMode ? 'Cập nhật Thông tin Tàu' : 'Thêm Tàu Mới'}</h1>
           <div className="vessel-tabs">
             <button className="v-tab active">Thông tin chung</button>
-            <button className="v-tab">Lịch sử bảo trì</button>
-            <button className="v-tab">Hồ sơ thủy thủ</button>
           </div>
         </div>
         
@@ -249,14 +428,6 @@ export default function AddVesselPage() {
                       <input type="text" name="engineName" placeholder="Wärtsilä 14RT" value={mainEngine.engineName} onChange={handleMainEngineChange}/>
                     </div>
                     <div className="v-form-group">
-                      <label>Loại động cơ</label>
-                      <select name="engineType" value={mainEngine.engineType} onChange={handleMainEngineChange}>
-                        <option value="Diesel 2-kỳ">Diesel 2-kỳ</option>
-                        <option value="Diesel 4-kỳ">Diesel 4-kỳ</option>
-                        <option value="Turbine">Tuabin khí</option>
-                      </select>
-                    </div>
-                    <div className="v-form-group">
                       <label>Trạng thái</label>
                       <select name="status" value={mainEngine.status} onChange={handleMainEngineChange}>
                         <option value="Hoạt động">Hoạt động</option>
@@ -308,14 +479,6 @@ export default function AddVesselPage() {
                         <div className="v-form-group">
                           <label>Tên máy</label>
                           <input type="text" name="engineName" placeholder="Caterpillar C32" value={gen.engineName} onChange={(e) => handleGeneratorEngineChange(gen.id, e)}/>
-                        </div>
-                        <div className="v-form-group">
-                          <label>Loại động cơ</label>
-                          <select name="engineType" value={gen.engineType} onChange={(e) => handleGeneratorEngineChange(gen.id, e)}>
-                            <option value="Diesel 2-kỳ">Diesel 2-kỳ</option>
-                            <option value="Diesel 4-kỳ">Diesel 4-kỳ</option>
-                            <option value="Turbine">Tuabin khí</option>
-                          </select>
                         </div>
                         <div className="v-form-group">
                           <label>Trạng thái</label>
@@ -371,13 +534,14 @@ export default function AddVesselPage() {
                       <tbody>
                         {equipment.map(item => (
                           <tr key={item.id}>
-                            <td><input type="text" className="v-input-sm" defaultValue={item.name} placeholder="Tên thiết bị..." /></td>
-                            <td><input type="text" className="v-input-sm" defaultValue={item.type} placeholder="Loại..." /></td>
-                            <td><input type="text" className="v-input-sm" defaultValue={item.location} placeholder="Vị trí..." /></td>
+                            <td><input type="text" name="name" className="v-input-sm" value={item.name} onChange={(e) => handleEquipmentChange(item.id, e)} placeholder="Tên thiết bị..." /></td>
+                            <td><input type="text" name="type" className="v-input-sm" value={item.type} onChange={(e) => handleEquipmentChange(item.id, e)} placeholder="Loại..." /></td>
+                            <td><input type="text" name="location" className="v-input-sm" value={item.location} onChange={(e) => handleEquipmentChange(item.id, e)} placeholder="Vị trí..." /></td>
                             <td>
-                              <span className={`v-status-dot ${item.condition === 'Đúng hạn' ? 'bg-green' : 'bg-blue'}`}>
-                                {item.condition}
-                              </span>
+                              <select name="condition" className="v-input-sm" value={item.condition} onChange={(e) => handleEquipmentChange(item.id, e)}>
+                                <option value="Đúng hạn">Đúng hạn</option>
+                                <option value="Quá hạn">Quá hạn</option>
+                              </select>
                             </td>
                             <td>
                               <button type="button" className="v-btn-icon text-red" onClick={() => removeEquipment(item.id)}>
@@ -443,9 +607,9 @@ export default function AddVesselPage() {
                     {holds.map(hold => (
                       <div className="v-hold-item" key={hold.id}>
                         <div className="v-hold-info">
-                          <input type="text" className="v-input-sm fw-bold" defaultValue={hold.name} placeholder="Tên khoang..." />
+                          <input type="text" name="name" className="v-input-sm fw-bold" value={hold.name} onChange={(e) => handleHoldChange(hold.id, e)} placeholder="Tên khoang..." />
                           <div className="v-hold-cap">
-                            Sức chứa: <input type="text" className="v-input-sm w-auto" defaultValue={hold.capacity} placeholder="10,000" /> m³
+                            Sức chứa: <input type="number" name="capacity" className="v-input-sm w-auto" value={hold.capacity} onChange={(e) => handleHoldChange(hold.id, e)} placeholder="10000" /> m³
                           </div>
                         </div>
                         <div className="v-hold-actions">
@@ -500,6 +664,6 @@ export default function AddVesselPage() {
       </footer>
 
       </div>
-    </MasterLayout>
+    </AgencyLayout>
   );
 }

@@ -11,6 +11,7 @@ import {
   Ship
 } from 'lucide-react';
 import MasterLayout from '../components/MasterLayout';
+import AgencyLayout from '../components/AgencyLayout';
 import { voyageService } from '../services/api';
 import './MasterDashboard.css';
 import './VoyageListPage.css';
@@ -41,6 +42,9 @@ export default function VoyageListPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
+  const user = JSON.parse(localStorage.getItem('user')) || {};
+  const Layout = (user.role === 'Admin' || user.role === 'Agency') ? AgencyLayout : MasterLayout;
+
   const loadVoyages = async () => {
     try {
       setLoading(true);
@@ -49,7 +53,7 @@ export default function VoyageListPage() {
       setVoyages(Array.isArray(data) ? data : []);
     } catch (requestError) {
       console.error('Unable to load voyages:', requestError);
-      setError('Không thể tải danh sách chuyến đi. Vui lòng kiểm tra kết nối máy chủ.');
+      setError('Không thể tải danh sách hải trình. Vui lòng kiểm tra kết nối máy chủ.');
     } finally {
       setLoading(false);
     }
@@ -74,7 +78,7 @@ export default function VoyageListPage() {
   }, [searchTerm, voyages]);
 
   return (
-    <MasterLayout>
+    <Layout>
       <div className="voyage-list-page">
         <header className="voyage-list-header">
           <div>
@@ -82,19 +86,19 @@ export default function VoyageListPage() {
               <Navigation size={12} />
               Voyages
             </div>
-            <h1>Danh sách chuyến đi</h1>
+            <h1>Danh sách hải trình</h1>
           </div>
 
           <button className="btn-primary" onClick={() => navigate('/voyages/new')}>
             <Plus size={16} />
-            Tạo chuyến đi
+            Tạo hải trình
           </button>
         </header>
 
         <div className="voyage-list-content">
           <div className="voyage-summary">
             <div>
-              <span>TỔNG SỐ CHUYẾN ĐI</span>
+              <span>TỔNG SỐ HẢI TRÌNH</span>
               <strong>{voyages.length}</strong>
             </div>
             <div>
@@ -114,7 +118,7 @@ export default function VoyageListPage() {
           <section className="voyage-list-card">
             <div className="voyage-list-toolbar">
               <div>
-                <h2>Tất cả chuyến đi</h2>
+                <h2>Tất cả hải trình</h2>
                 <p>Dữ liệu hành trình được lấy trực tiếp từ hệ thống.</p>
               </div>
 
@@ -137,7 +141,7 @@ export default function VoyageListPage() {
             {loading ? (
               <div className="voyage-state">
                 <RefreshCw size={28} className="spin" />
-                <p>Đang tải danh sách chuyến đi...</p>
+                <p>Đang tải danh sách hải trình...</p>
               </div>
             ) : error ? (
               <div className="voyage-state voyage-error">
@@ -148,12 +152,12 @@ export default function VoyageListPage() {
             ) : filteredVoyages.length === 0 ? (
               <div className="voyage-state">
                 <Navigation size={34} />
-                <h3>{searchTerm ? 'Không tìm thấy chuyến đi phù hợp' : 'Chưa có chuyến đi nào'}</h3>
-                <p>{searchTerm ? 'Hãy thử một từ khóa khác.' : 'Tạo chuyến đi đầu tiên để bắt đầu quản lý hành trình.'}</p>
+                <h3>{searchTerm ? 'Không tìm thấy hải trình phù hợp' : 'Chưa có hải trình nào'}</h3>
+                <p>{searchTerm ? 'Hãy thử một từ khóa khác.' : 'Tạo hải trình đầu tiên để bắt đầu quản lý hành trình.'}</p>
                 {!searchTerm && (
                   <button className="btn-primary" onClick={() => navigate('/voyages/new')}>
                     <Plus size={16} />
-                    Tạo chuyến đi
+                    Tạo hải trình
                   </button>
                 )}
               </div>
@@ -206,6 +210,6 @@ export default function VoyageListPage() {
           </section>
         </div>
       </div>
-    </MasterLayout>
+    </Layout>
   );
 }

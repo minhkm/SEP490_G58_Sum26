@@ -7,6 +7,7 @@ const User = sequelize.define("User", {
   password: { type: DataTypes.STRING, allowNull: false },
   role: { type: DataTypes.STRING, allowNull: false }, // Master, ChiefOfficer, DeckOfficer, EngineOfficer, Sailor
   status: { type: DataTypes.STRING, defaultValue: "Active" },
+  requiresPasswordChange: { type: DataTypes.BOOLEAN, defaultValue: false },
 }, {
   tableName: "User",
   timestamps: false,
