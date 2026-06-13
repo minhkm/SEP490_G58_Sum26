@@ -20,6 +20,13 @@ import './AgencyDashboard.css';
 export default function AgencyDashboard() {
   const navigate = useNavigate();
 
+  const currentDate = new Date().toLocaleDateString('vi-VN', {
+    weekday: 'long',
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric'
+  });
+
   const [data, setData] = useState({
     totalVessels: 0,
     totalCrews: 0,
@@ -81,7 +88,7 @@ export default function AgencyDashboard() {
           <div className="header-actions-section">
             <div className="date-picker-mock">
               <Calendar size={16} />
-              <span>Thứ Hai, 24 Tháng 5, 2024</span>
+              <span>{currentDate}</span>
             </div>
             
             <div className="header-icons">
@@ -98,10 +105,10 @@ export default function AgencyDashboard() {
             </div>
             
             <div className="header-buttons">
-              <button className="btn-add-vessel" onClick={() => alert('Đang mở form Thêm tàu mới')}>
+              <button className="btn-add-vessel" onClick={() => navigate('/vessels/new')}>
                 <Plus size={16} /> Thêm tàu mới
               </button>
-              <button className="btn-add-crew" onClick={() => alert('Đang mở form Tạo tài khoản thuyền viên')}>
+              <button className="btn-add-crew" onClick={() => navigate('/crews/new')}>
                 <UserPlus size={16} /> Tạo tài khoản thuyền viên
               </button>
             </div>

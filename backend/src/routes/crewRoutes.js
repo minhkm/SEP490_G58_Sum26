@@ -60,6 +60,22 @@ router.post('/', async (req, res) => {
       return res.status(400).json({ message: 'Email này đã được sử dụng cho một tài khoản khác!' });
     }
 
+    // Check CCCD tồn tại
+    if (cccd) {
+      const existingCccd = await CrewProfile.findOne({ where: { cccd } });
+      if (existingCccd) {
+        return res.status(400).json({ message: 'CCCD này đã tồn tại trong hệ thống!' });
+      }
+    }
+
+    // Check SĐT tồn tại
+    if (phone) {
+      const existingPhone = await CrewProfile.findOne({ where: { phone } });
+      if (existingPhone) {
+        return res.status(400).json({ message: 'Số điện thoại này đã tồn tại trong hệ thống!' });
+      }
+    }
+
     // Tự động sinh mật khẩu ngẫu nhiên 8 ký tự
     const generatedPassword = Math.random().toString(36).slice(-8);
     const hashedPassword = await bcrypt.hash(generatedPassword, 10);
@@ -100,7 +116,7 @@ router.post('/', async (req, res) => {
           <h3>Chào mừng ${fullName || 'bạn'} gia nhập đội ngũ CargoOps,</h3>
           <p>Tài khoản đăng nhập hệ thống nội bộ của bạn đã được khởi tạo thành công với các thông tin công tác như sau:</p>
           <ul style="color: #334155; line-height: 1.6;">
-            <li><strong>Bộ phận công tác:</strong> ${department === 'Deck' ? 'Boong (Deck)' : (department === 'Engine' ? 'Máy (Engine)' : department)}</li>
+            <li><strong>Bộ phận công tác:</strong> ${department === 'Deck' ? 'Boong (Deck)' : (department === 'Engine' ? 'Máy (Engine)' : (department === 'None' ? 'Không thuộc bộ phận' : department))}</li>
             <li><strong>Chức danh:</strong> ${position || 'Chưa cập nhật'}</li>
             <li><strong>Quyền hệ thống:</strong> ${role || 'Sailor'}</li>
           </ul>
@@ -135,6 +151,28 @@ router.put('/:id', async (req, res) => {
 
     const crew = await CrewProfile.findByPk(crewId);
     if (!crew) return res.status(404).json({ message: 'Không tìm thấy hồ sơ thủy thủ' });
+
+    // Check email tồn tại (trừ user hiện tại)
+    const existingUser = await User.findOne({ where: { username: email } });
+    if (existingUser && existingUser.id !== crew.userId) {
+      return res.status(400).json({ message: 'Email này đã được sử dụng cho một tài khoản khác!' });
+    }
+
+    // Check CCCD tồn tại
+    if (cccd) {
+      const existingCccd = await CrewProfile.findOne({ where: { cccd } });
+      if (existingCccd && existingCccd.id.toString() !== crewId) {
+        return res.status(400).json({ message: 'CCCD này đã tồn tại trong hệ thống!' });
+      }
+    }
+
+    // Check SĐT tồn tại
+    if (phone) {
+      const existingPhone = await CrewProfile.findOne({ where: { phone } });
+      if (existingPhone && existingPhone.id.toString() !== crewId) {
+        return res.status(400).json({ message: 'Số điện thoại này đã tồn tại trong hệ thống!' });
+      }
+    }
 
     const user = await User.findByPk(crew.userId);
 
