@@ -55,7 +55,22 @@ export default function AddCrewPage() {
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
+    if (name === 'role') {
+      if (value === 'Master') {
+        setFormData(prev => ({ ...prev, role: value, department: 'None', position: 'Thuyền trưởng' }));
+      } else if (value === 'ChiefOfficer') {
+        setFormData(prev => ({ ...prev, role: value, department: 'None', position: 'Đại phó' }));
+      } else {
+        setFormData(prev => ({
+          ...prev,
+          role: value,
+          department: prev.department === 'None' ? 'Deck' : prev.department,
+          position: (prev.role === 'Master' || prev.role === 'ChiefOfficer') ? '' : prev.position
+        }));
+      }
+    } else {
+      setFormData(prev => ({ ...prev, [name]: value }));
+    }
   };
 
   const handleSubmit = async (e) => {
@@ -63,6 +78,20 @@ export default function AddCrewPage() {
     if (!formData.email || !formData.fullName) {
       setErrorMsg('Vui lòng điền đầy đủ Họ tên và Email.');
       return;
+    }
+
+    if (formData.cccd) {
+      if (!formData.cccd.startsWith('0') || formData.cccd.length !== 12 || !/^\d+$/.test(formData.cccd)) {
+        setErrorMsg('CCCD phải bắt đầu bằng số 0 và bao gồm đúng 12 chữ số.');
+        return;
+      }
+    }
+
+    if (formData.phone) {
+      if (!formData.phone.startsWith('0') || formData.phone.length !== 10 || !/^\d+$/.test(formData.phone)) {
+        setErrorMsg('Số điện thoại phải bắt đầu bằng số 0 và bao gồm đúng 10 chữ số.');
+        return;
+      }
     }
 
     try {
@@ -161,7 +190,7 @@ export default function AddCrewPage() {
                 </div>
                 <div className="form-row">
                   <div className="form-group">
-                    <label>Hộ chiếu / CCCD</label>
+                    <label>CCCD</label>
                     <input type="text" name="cccd" value={formData.cccd} onChange={handleChange} placeholder="Mã định danh" />
                   </div>
                   <div className="form-group">
@@ -182,14 +211,28 @@ export default function AddCrewPage() {
                 <div className="form-row">
                   <div className="form-group">
                     <label>Bộ phận</label>
-                    <select name="department" value={formData.department} onChange={handleChange}>
+                    <select 
+                      name="department" 
+                      value={formData.department} 
+                      onChange={handleChange}
+                      disabled={formData.role === 'Master' || formData.role === 'ChiefOfficer'}
+                    >
+                      <option value="None">Không thuộc bộ phận (None)</option>
                       <option value="Deck">Bộ phận Boong (Deck)</option>
                       <option value="Engine">Bộ phận Máy (Engine)</option>
                     </select>
                   </div>
                   <div className="form-group">
                     <label>Chức vụ (Position)</label>
-                    <input type="text" name="position" value={formData.position} onChange={handleChange} placeholder="Ví dụ: Máy trưởng" />
+                    <input 
+                      type="text" 
+                      name="position" 
+                      value={formData.position} 
+                      onChange={handleChange} 
+                      placeholder="Ví dụ: Máy trưởng" 
+                      readOnly={formData.role === 'Master' || formData.role === 'ChiefOfficer'}
+                      style={{ backgroundColor: (formData.role === 'Master' || formData.role === 'ChiefOfficer') ? '#f1f5f9' : 'white', cursor: (formData.role === 'Master' || formData.role === 'ChiefOfficer') ? 'not-allowed' : 'text' }}
+                    />
                   </div>
                 </div>
                 <div className="form-row">

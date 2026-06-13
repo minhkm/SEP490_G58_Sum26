@@ -55,7 +55,7 @@ export default function CrewListPage() {
     return name.substring(0, 2).toUpperCase();
   };
 
-  const filteredCrews = crews.filter(c => 
+  const filteredCrews = crews.filter(c =>
     (c.fullName && c.fullName.toLowerCase().includes(searchTerm.toLowerCase())) ||
     (c.cccd && c.cccd.includes(searchTerm)) ||
     (c.position && c.position.toLowerCase().includes(searchTerm.toLowerCase()))
@@ -71,13 +71,13 @@ export default function CrewListPage() {
             </div>
             <h1>Quản lý Thủy thủ</h1>
           </div>
-          
+
           <div className="crew-actions">
             <div className="crew-search">
               <Search size={18} color="#94a3b8" />
-              <input 
-                type="text" 
-                placeholder="Tìm tên, CCCD, chức vụ..." 
+              <input
+                type="text"
+                placeholder="Tìm tên, CCCD, chức vụ..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
               />
@@ -97,7 +97,7 @@ export default function CrewListPage() {
               <thead>
                 <tr>
                   <th>Thủy thủ</th>
-                  <th>CCCD / Hộ chiếu</th>
+                  <th>CCCD</th>
                   <th>Bộ phận</th>
                   <th>Chức vụ</th>
                   <th>Quyền hệ thống</th>
