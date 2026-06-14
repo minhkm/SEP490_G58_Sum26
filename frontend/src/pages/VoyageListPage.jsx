@@ -46,7 +46,10 @@ export default function VoyageListPage() {
   const [selectedVoyage, setSelectedVoyage] = useState(null);
 
   const user = JSON.parse(localStorage.getItem('user')) || {};
-  const Layout = (user.role === 'Admin' || user.role === 'Agency') ? AgencyLayout : MasterLayout;
+  const userRole = (user.role || '').replace(/\s+/g, '').toLowerCase(); // Normalize role to lower case without spaces
+  const canEdit = ['admin', 'agency', 'chiefofficer'].includes(userRole);
+  
+  const Layout = (userRole === 'admin' || userRole === 'agency') ? AgencyLayout : MasterLayout;
 
   const loadVoyages = async () => {
     try {
@@ -175,7 +178,7 @@ export default function VoyageListPage() {
                       <th>Khởi hành</th>
                       <th>Dự kiến đến</th>
                       <th>Trạng thái</th>
-                      {['Admin', 'Agency', 'ChiefOfficer'].includes(user.role) && <th>Thao tác</th>}
+                      {canEdit && <th>Thao tác</th>}
                     </tr>
                   </thead>
                   <tbody>
@@ -205,7 +208,7 @@ export default function VoyageListPage() {
                             {voyage.status || 'Planned'}
                           </span>
                         </td>
-                        {['Admin', 'Agency', 'ChiefOfficer'].includes(user.role) && (
+                        {canEdit && (
                           <td>
                             <button
                               style={{ background: 'none', border: 'none', color: '#64748b', cursor: 'pointer' }}

@@ -170,7 +170,8 @@ router.get('/:id/crew', authMiddleware, async (req, res) => {
 router.put('/:id', authMiddleware, async (req, res) => {
   try {
     const { id } = req.params;
-    const userRole = req.user.role;
+    const rawUserRole = req.user.role || '';
+    const userRole = rawUserRole.replace(/\s+/g, '').toLowerCase();
     const profileId = req.user.profileId;
 
     const voyage = await Voyage.findByPk(id);
@@ -179,8 +180,8 @@ router.put('/:id', authMiddleware, async (req, res) => {
     }
 
     // Check authorization
-    if (userRole !== 'Admin' && userRole !== 'Agency') {
-      if (userRole !== 'ChiefOfficer') {
+    if (userRole !== 'admin' && userRole !== 'agency') {
+      if (userRole !== 'chiefofficer') {
         return res.status(403).json({ message: 'Bạn không có quyền cập nhật chuyến đi này' });
       }
       
