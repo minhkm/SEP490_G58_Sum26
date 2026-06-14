@@ -7,7 +7,8 @@ import {
   Navigation,
   Settings,
   LogOut,
-  User as UserIcon
+  User as UserIcon,
+  Gauge
 } from 'lucide-react';
 
 export default function AgencySidebar() {
@@ -60,6 +61,10 @@ export default function AgencySidebar() {
           <div className={`agency-nav-item ${isActive('/voyages')}`} onClick={() => navigate('/voyages')}>
             <Navigation size={20} />
             <span>Chuyến hải trình</span>
+          </div>
+          <div className={`agency-nav-item ${isActive('/engine-logs')}`} onClick={() => navigate('/engine-logs')}>
+            <Gauge size={20} />
+            <span>Nhật ký Kiểm tra Máy</span>
           </div>
           <div className={`agency-nav-item ${isActive('/settings')}`} onClick={() => navigate('/settings')}>
             <Settings size={20} />

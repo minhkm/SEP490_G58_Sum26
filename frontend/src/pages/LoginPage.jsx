@@ -37,7 +37,7 @@ export default function LoginPage() {
       } else if (response.user.role === 'Agency' || response.user.role === 'Admin') {
         navigate("/agency-dashboard");
       } else {
-        navigate("/");
+        navigate("/crew-dashboard");
       }
     } catch (error) {
       if (error.response && error.response.data && error.response.data.message) {
@@ -73,7 +73,7 @@ export default function LoginPage() {
       } else if (tempUser.user.role === 'Agency' || tempUser.user.role === 'Admin') {
         navigate("/agency-dashboard");
       } else {
-        navigate("/");
+        navigate("/crew-dashboard");
       }
     } catch (error) {
       setChangePassError(error.response?.data?.message || "Lỗi đổi mật khẩu.");
