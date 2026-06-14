@@ -1,7 +1,7 @@
 const express = require('express');
 const bcrypt = require('bcrypt');
 const crypto = require('crypto');
-const { sequelize, Voyage, User, CrewProfile, VoyageCrew, Ship } = require('../models');
+const { sequelize, Voyage, User, CrewProfile, VoyageCrew, Ship, Attendance } = require('../models');
 const { sendCrewCredentialsEmail } = require('../services/emailService');
 const authMiddleware = require('../middlewares/authMiddleware');
 
@@ -131,6 +131,42 @@ router.get("/", authMiddleware, async (req, res) => {
   }
 });
 
+// Lấy danh sách thuyền viên của một chuyến đi (kèm điểm danh)
+router.get('/:id/crew', authMiddleware, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const crewList = await VoyageCrew.findAll({
+      where: { voyageId: id },
+      include: [
+        {
+          model: CrewProfile,
+          attributes: ['id', 'fullName', 'position', 'department']
+        }
+      ]
+    });
+
+    const attendances = await Attendance.findAll({
+      where: { voyageId: id }
+    });
+    
+    const result = crewList.map(vc => {
+      const crewProfile = vc.CrewProfile || {};
+      const att = attendances.find(a => a.crewId === vc.crewId);
+      return {
+        crewId: vc.crewId,
+        fullName: crewProfile.fullName,
+        position: vc.role || crewProfile.position,
+        isPresent: att ? (att.status === 'Present') : false
+      };
+    });
+
+    res.json(result);
+  } catch (error) {
+    console.error('Lỗi khi lấy danh sách thuyền viên:', error);
+    res.status(500).json({ message: 'Lỗi server khi lấy danh sách thuyền viên', error: error.message });
+  }
+});
+
 router.put('/:id', authMiddleware, async (req, res) => {
   try {
     const { id } = req.params;
@@ -157,14 +193,43 @@ router.put('/:id', authMiddleware, async (req, res) => {
       }
     }
 
-    const { status, departureDate, arrivalDate, isCrewSufficient, isCargoLoaded, issueReason } = req.body;
+    const { status, departureDate, arrivalDate, isCargoLoaded, issueReason, attendanceList } = req.body;
 
     if (status) voyage.status = status;
     if (departureDate) voyage.departureDate = departureDate;
     if (arrivalDate) voyage.arrivalDate = arrivalDate;
-    if (isCrewSufficient !== undefined) voyage.isCrewSufficient = isCrewSufficient;
     if (isCargoLoaded !== undefined) voyage.isCargoLoaded = isCargoLoaded;
     if (issueReason !== undefined) voyage.issueReason = issueReason;
+
+    // Process attendanceList if provided
+    if (attendanceList && Array.isArray(attendanceList)) {
+      let allPresent = attendanceList.length > 0;
+      for (const item of attendanceList) {
+        if (!item.isPresent) allPresent = false;
+        
+        const existingAtt = await Attendance.findOne({
+          where: { voyageId: id, crewId: item.crewId }
+        });
+
+        if (existingAtt) {
+          existingAtt.status = item.isPresent ? 'Present' : 'Absent';
+          existingAtt.recordedAt = new Date();
+          await existingAtt.save();
+        } else {
+          await Attendance.create({
+            voyageId: id,
+            crewId: item.crewId,
+            status: item.isPresent ? 'Present' : 'Absent',
+            recordedAt: new Date()
+          });
+        }
+      }
+      voyage.isCrewSufficient = allPresent;
+    } else {
+      if (req.body.isCrewSufficient !== undefined) {
+         voyage.isCrewSufficient = req.body.isCrewSufficient;
+      }
+    }
 
     await voyage.save();
 

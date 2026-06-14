@@ -218,3 +218,41 @@
   opacity: 0.7;
   cursor: not-allowed;
 }
+
+.crew-attendance-table-wrapper {
+  max-height: 200px;
+  overflow-y: auto;
+  border: 1px solid var(--border-color, #cbd5e1);
+  border-radius: 6px;
+  background-color: #ffffff;
+}
+
+.crew-attendance-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+}
+
+.crew-attendance-table th,
+.crew-attendance-table td {
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border-color, #e2e8f0);
+  color: var(--text-primary, #334155);
+}
+
+.crew-attendance-table th {
+  background-color: var(--bg-hover, #f8fafc);
+  font-weight: 600;
+  text-align: left;
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+
+.crew-attendance-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.crew-attendance-table tbody tr:hover {
+  background-color: #f1f5f9;
+}

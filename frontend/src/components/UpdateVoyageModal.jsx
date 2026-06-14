@@ -12,6 +12,8 @@ export default function UpdateVoyageModal({ voyage, onClose, onUpdate }) {
     isCargoLoaded: false,
     issueReason: ''
   });
+  const [crewList, setCrewList] = useState([]);
+  const [fetchingCrew, setFetchingCrew] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -25,8 +27,29 @@ export default function UpdateVoyageModal({ voyage, onClose, onUpdate }) {
         isCargoLoaded: voyage.isCargoLoaded || false,
         issueReason: voyage.issueReason || ''
       });
+      fetchCrew(voyage.id);
     }
   }, [voyage]);
+
+  const fetchCrew = async (id) => {
+    try {
+      setFetchingCrew(true);
+      const data = await voyageService.getVoyageCrew(id);
+      setCrewList(data || []);
+    } catch (err) {
+      console.error('Failed to fetch crew:', err);
+    } finally {
+      setFetchingCrew(false);
+    }
+  };
+
+  const handleAttendanceChange = (crewId, isPresent) => {
+    setCrewList(prevList => 
+      prevList.map(crew => 
+        crew.crewId === crewId ? { ...crew, isPresent } : crew
+      )
+    );
+  };
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
@@ -41,7 +64,13 @@ export default function UpdateVoyageModal({ voyage, onClose, onUpdate }) {
     try {
       setLoading(true);
       setError('');
-      await voyageService.updateVoyage(voyage.id, formData);
+      
+      const payload = {
+        ...formData,
+        attendanceList: crewList.map(c => ({ crewId: c.crewId, isPresent: c.isPresent }))
+      };
+
+      await voyageService.updateVoyage(voyage.id, payload);
       onUpdate(); // refresh list
       onClose(); // close modal
     } catch (err) {
@@ -103,31 +132,46 @@ export default function UpdateVoyageModal({ voyage, onClose, onUpdate }) {
             </div>
           </div>
 
-          <div className="form-row two-cols">
-            <div className="form-group radio-group">
-              <label>Tình trạng nhân sự:</label>
-              <div className="radio-options">
-                <label className="radio-label">
-                  <input
-                    type="radio"
-                    name="isCrewSufficient"
-                    checked={formData.isCrewSufficient === true}
-                    onChange={() => setFormData({ ...formData, isCrewSufficient: true })}
-                  />
-                  <span>Đã đủ</span>
-                </label>
-                <label className="radio-label">
-                  <input
-                    type="radio"
-                    name="isCrewSufficient"
-                    checked={formData.isCrewSufficient === false}
-                    onChange={() => setFormData({ ...formData, isCrewSufficient: false })}
-                  />
-                  <span>Chưa đủ</span>
-                </label>
+          <div className="form-group">
+            <label>Danh sách điểm danh thuyền viên:</label>
+            {fetchingCrew ? (
+              <p className="loading-text" style={{ fontSize: '0.85rem', color: '#64748b' }}>Đang tải danh sách thuyền viên...</p>
+            ) : crewList.length === 0 ? (
+              <p className="empty-text" style={{ fontSize: '0.85rem', color: '#64748b' }}>Chưa có thuyền viên nào được phân công.</p>
+            ) : (
+              <div className="crew-attendance-table-wrapper">
+                <table className="crew-attendance-table">
+                  <thead>
+                    <tr>
+                      <th>STT</th>
+                      <th>Họ và tên</th>
+                      <th>Chức vụ</th>
+                      <th style={{ textAlign: 'center' }}>Có mặt</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {crewList.map((crew, idx) => (
+                      <tr key={crew.crewId}>
+                        <td>{idx + 1}</td>
+                        <td>{crew.fullName}</td>
+                        <td>{crew.position}</td>
+                        <td style={{ textAlign: 'center' }}>
+                          <input
+                            type="checkbox"
+                            checked={crew.isPresent}
+                            onChange={(e) => handleAttendanceChange(crew.crewId, e.target.checked)}
+                            style={{ width: '16px', height: '16px', cursor: 'pointer' }}
+                          />
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
-            </div>
+            )}
+          </div>
             
+          <div className="form-row">
             <div className="form-group radio-group">
               <label>Tình trạng hàng hóa:</label>
               <div className="radio-options">
