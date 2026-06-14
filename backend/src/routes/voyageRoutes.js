@@ -131,4 +131,48 @@ router.get("/", authMiddleware, async (req, res) => {
   }
 });
 
+router.put('/:id', authMiddleware, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const userRole = req.user.role;
+    const profileId = req.user.profileId;
+
+    const voyage = await Voyage.findByPk(id);
+    if (!voyage) {
+      return res.status(404).json({ message: 'Không tìm thấy chuyến đi' });
+    }
+
+    // Check authorization
+    if (userRole !== 'Admin' && userRole !== 'Agency') {
+      if (userRole !== 'ChiefOfficer') {
+        return res.status(403).json({ message: 'Bạn không có quyền cập nhật chuyến đi này' });
+      }
+      
+      // If ChiefOfficer, check if they are part of the voyage
+      const isAssigned = await VoyageCrew.findOne({
+        where: { voyageId: id, crewId: profileId }
+      });
+      if (!isAssigned) {
+        return res.status(403).json({ message: 'Bạn không được phân công vào chuyến đi này' });
+      }
+    }
+
+    const { status, departureDate, arrivalDate, isCrewSufficient, isCargoLoaded, issueReason } = req.body;
+
+    if (status) voyage.status = status;
+    if (departureDate) voyage.departureDate = departureDate;
+    if (arrivalDate) voyage.arrivalDate = arrivalDate;
+    if (isCrewSufficient !== undefined) voyage.isCrewSufficient = isCrewSufficient;
+    if (isCargoLoaded !== undefined) voyage.isCargoLoaded = isCargoLoaded;
+    if (issueReason !== undefined) voyage.issueReason = issueReason;
+
+    await voyage.save();
+
+    res.json({ message: 'Cập nhật chuyến đi thành công', voyage });
+  } catch (error) {
+    console.error('Lỗi khi cập nhật chuyến đi:', error);
+    res.status(500).json({ message: 'Lỗi server khi cập nhật chuyến đi', error: error.message });
+  }
+});
+
 module.exports = router;

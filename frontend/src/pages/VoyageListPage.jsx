@@ -8,10 +8,12 @@ import {
   Plus,
   RefreshCw,
   Search,
-  Ship
+  Ship,
+  Edit
 } from 'lucide-react';
 import MasterLayout from '../components/MasterLayout';
 import AgencyLayout from '../components/AgencyLayout';
+import UpdateVoyageModal from '../components/UpdateVoyageModal';
 import { voyageService } from '../services/api';
 import './MasterDashboard.css';
 import './VoyageListPage.css';
@@ -41,6 +43,7 @@ export default function VoyageListPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [selectedVoyage, setSelectedVoyage] = useState(null);
 
   const user = JSON.parse(localStorage.getItem('user')) || {};
   const Layout = (user.role === 'Admin' || user.role === 'Agency') ? AgencyLayout : MasterLayout;
@@ -172,6 +175,7 @@ export default function VoyageListPage() {
                       <th>Khởi hành</th>
                       <th>Dự kiến đến</th>
                       <th>Trạng thái</th>
+                      {['Admin', 'Agency', 'ChiefOfficer'].includes(user.role) && <th>Thao tác</th>}
                     </tr>
                   </thead>
                   <tbody>
@@ -201,6 +205,17 @@ export default function VoyageListPage() {
                             {voyage.status || 'Planned'}
                           </span>
                         </td>
+                        {['Admin', 'Agency', 'ChiefOfficer'].includes(user.role) && (
+                          <td>
+                            <button
+                              style={{ background: 'none', border: 'none', color: '#64748b', cursor: 'pointer' }}
+                              title="Cập nhật thông tin chuyến đi"
+                              onClick={() => setSelectedVoyage(voyage)}
+                            >
+                              <Edit size={16} />
+                            </button>
+                          </td>
+                        )}
                       </tr>
                     ))}
                   </tbody>
@@ -210,6 +225,13 @@ export default function VoyageListPage() {
           </section>
         </div>
       </div>
+      {selectedVoyage && (
+        <UpdateVoyageModal
+          voyage={selectedVoyage}
+          onClose={() => setSelectedVoyage(null)}
+          onUpdate={loadVoyages}
+        />
+      )}
     </Layout>
   );
 }
