@@ -7,25 +7,36 @@ import {
   Ship,
   BarChart2,
   Settings,
-  Anchor
+  Anchor,
+  UserCircle,
+  LogOut,
+  Clock,
 } from 'lucide-react';
 
 export default function Sidebar() {
   const navigate = useNavigate();
   const location = useLocation();
+  const user = JSON.parse(localStorage.getItem('user') || '{}');
+  const role = user.role || '';
 
-  const isActive = (path) => {
-    return location.pathname === path ? 'active' : '';
+  const isActive = (...paths) =>
+    paths.some(p => location.pathname === p || location.pathname.startsWith(p + '/')) ? 'active' : '';
+
+  const isMasterOrChief = role === 'Master' || role === 'ChiefOfficer';
+  const isCrewRole = !isMasterOrChief && role !== 'Admin' && role !== 'Agency';
+
+  const dashboardPath = isMasterOrChief ? '/master-dashboard' : '/crew-dashboard';
+
+  const handleLogout = () => {
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    navigate('/login');
   };
-
-  // Nếu đang ở màn /vessels/new thì Đội tàu sẽ active. 
-  // Thêm logic match prefix nếu cần.
-  const isVesselActive = location.pathname.startsWith('/vessels') ? 'active' : '';
 
   return (
     <aside className="sidebar">
       <div className="sidebar-top">
-        <div className="logo-container" onClick={() => navigate('/master-dashboard')} style={{ cursor: 'pointer' }}>
+        <div className="logo-container" onClick={() => navigate(dashboardPath)} style={{ cursor: 'pointer' }}>
           <div className="logo-icon-wrapper">
             <Ship className="logo-icon" size={24} color="#ffffff" />
           </div>
@@ -34,34 +45,87 @@ export default function Sidebar() {
             <span className="logo-subtitle">Maritime Logistics</span>
           </div>
         </div>
+
         <nav className="nav-menu">
-          <div className={`nav-item ${isActive('/master-dashboard')}`} onClick={() => navigate('/master-dashboard')} style={{ cursor: 'pointer' }}>
+          {/* Tổng quan — tất cả roles */}
+          <div
+            className={`nav-item ${isActive('/master-dashboard', '/crew-dashboard')}`}
+            onClick={() => navigate(dashboardPath)}
+            style={{ cursor: 'pointer' }}
+          >
             <LayoutDashboard size={20} />
             <span>Tổng quan</span>
           </div>
-          <div className={`nav-item ${location.pathname.startsWith('/voyages') ? 'active' : ''}`} onClick={() => navigate('/voyages')} style={{ cursor: 'pointer' }}>
+
+          {/* Hải Trình — tất cả roles */}
+          <div
+            className={`nav-item ${isActive('/voyages')}`}
+            onClick={() => navigate('/voyages')}
+            style={{ cursor: 'pointer' }}
+          >
             <Navigation size={20} />
             <span>Hải Trình</span>
           </div>
-          <div className={`nav-item ${location.pathname.startsWith('/cargos') ? 'active' : ''}`} onClick={() => navigate('/cargos')} style={{ cursor: 'pointer' }}>
-            <Package size={20} />
-            <span>Hàng hóa</span>
-          </div>
-          <div className="nav-item">
+
+          {/* Hàng hóa — chỉ Master/ChiefOfficer */}
+          {isMasterOrChief && (
+            <div
+              className={`nav-item ${isActive('/cargos')}`}
+              onClick={() => navigate('/cargos')}
+              style={{ cursor: 'pointer' }}
+            >
+              <Package size={20} />
+              <span>Hàng hóa</span>
+            </div>
+          )}
+
+          {/* Ca trực — DeckOfficer, EngineOfficer, Sailor (placeholder) */}
+          {isCrewRole && (
+            <div className="nav-item" style={{ cursor: 'default', opacity: 0.5 }}>
+              <Clock size={20} />
+              <span>Ca trực</span>
+            </div>
+          )}
+
+          {/* Báo cáo — tất cả */}
+          <div className="nav-item" style={{ cursor: 'default', opacity: isMasterOrChief ? 1 : 0.5 }}>
             <BarChart2 size={20} />
             <span>Báo cáo</span>
           </div>
-          <div className="nav-item">
-            <Settings size={20} />
-            <span>Cài đặt</span>
+
+          {/* Hồ sơ — tất cả trừ Master/ChiefOfficer đã có Settings */}
+          <div
+            className={`nav-item ${isActive('/crew-profile')}`}
+            onClick={() => navigate('/crew-profile')}
+            style={{ cursor: 'pointer' }}
+          >
+            <UserCircle size={20} />
+            <span>Hồ sơ của tôi</span>
           </div>
+
+          {isMasterOrChief && (
+            <div className="nav-item" style={{ cursor: 'default' }}>
+              <Settings size={20} />
+              <span>Cài đặt</span>
+            </div>
+          )}
         </nav>
       </div>
 
       <div className="sidebar-bottom">
-        <button className="btn-sail-plan">
-          <Anchor size={18} />
-          Thiết lập lộ trình
+        {isMasterOrChief && (
+          <button className="btn-sail-plan" style={{ marginBottom: '8px' }}>
+            <Anchor size={18} />
+            Thiết lập lộ trình
+          </button>
+        )}
+        <button
+          className="btn-sail-plan"
+          style={{ background: 'rgba(239,68,68,0.15)', color: '#ef4444', border: '1px solid rgba(239,68,68,0.3)' }}
+          onClick={handleLogout}
+        >
+          <LogOut size={18} />
+          Đăng xuất
         </button>
       </div>
     </aside>

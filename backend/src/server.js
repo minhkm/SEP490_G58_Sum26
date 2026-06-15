@@ -24,7 +24,7 @@ async function start() {
     await sequelize.authenticate();
     console.log("✅ Kết nối MySQL thành công");
 
-    await sequelize.sync(); // Dùng lại alter để giữ data
+    await sequelize.sync({ alter: true }); // Dùng lại alter để giữ data
     console.log("✅ Đồng bộ models xong");
 
     app.listen(PORT, () => console.log(`🚀 Server: http://localhost:${PORT}`));
