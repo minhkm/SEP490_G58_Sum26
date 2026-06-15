@@ -11,8 +11,9 @@ import CargoPage from "./pages/CargoPage";
 import VoyageListPage from "./pages/VoyageListPage";
 import CrewListPage from "./pages/CrewListPage";
 import AddCrewPage from "./pages/AddCrewPage";
-import EngineLogPage from "./pages/EngineLogPage";
 import CrewDashboard from "./pages/CrewDashboard";
+import CrewProfilePage from "./pages/CrewProfilePage";
+import EngineLogPage from "./pages/EngineLogPage";
 
 function App() {
   return (
@@ -32,8 +33,9 @@ function App() {
         <Route path="/crews" element={<CrewListPage />} />
         <Route path="/crews/new" element={<AddCrewPage />} />
         <Route path="/crews/edit/:id" element={<AddCrewPage />} />
-        <Route path="/engine-logs" element={<EngineLogPage />} />
         <Route path="/crew-dashboard" element={<CrewDashboard />} />
+        <Route path="/crew-profile" element={<CrewProfilePage />} />
+        <Route path="/engine-logs" element={<EngineLogPage />} />
       </Routes>
     </Router>
   );

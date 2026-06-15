@@ -1,9 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Gauge, Save, Clock, Ship, CheckCircle } from 'lucide-react';
-import CrewLayout from '../components/CrewLayout';
+import MasterLayout from '../components/MasterLayout';
 import { engineLogService } from '../services/api';
 import './EngineLogPage.css';
-import './CrewDashboard.css';
 
 export default function EngineLogPage() {
   // ===== STATE =====
@@ -138,11 +137,11 @@ export default function EngineLogPage() {
   const formatTime = (d) => d ? new Date(d).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }) : '';
 
   // ===== RENDER =====
-  if (loading) return <CrewLayout><div className="el-no-data">Đang tải dữ liệu...</div></CrewLayout>;
+  if (loading) return <MasterLayout><div className="el-no-data">Đang tải dữ liệu...</div></MasterLayout>;
 
   if (!activeVoyage) {
     return (
-      <CrewLayout>
+      <MasterLayout>
         <div className="el-page-header">
           <h1 className="el-page-title"><Gauge size={28} color="#2563eb" /> Nhật ký Kiểm tra Máy</h1>
         </div>
@@ -150,12 +149,12 @@ export default function EngineLogPage() {
           <p>⚠️ Không có hải trình nào đang hoạt động.</p>
           <p>Hệ thống tự động lấy hải trình có trạng thái "In Progress".</p>
         </div>
-      </CrewLayout>
+      </MasterLayout>
     );
   }
 
   return (
-    <CrewLayout>
+    <MasterLayout>
       {/* Success Toast */}
       {successMsg && (
         <div style={{
@@ -324,6 +323,6 @@ export default function EngineLogPage() {
           )}
         </div>
       )}
-    </CrewLayout>
+    </MasterLayout>
   );
 }

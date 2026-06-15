@@ -2,8 +2,123 @@ const express = require('express');
 const bcrypt = require('bcrypt');
 const nodemailer = require('nodemailer');
 const { CrewProfile, User, CrewCertificate } = require('../models');
+const authMiddleware = require('../middlewares/authMiddleware');
 
 const router = express.Router();
+
+// ================================================================
+// /me — endpoints cho crew tự xem/sửa profile của mình
+// ================================================================
+
+// GET /api/crews/me
+router.get('/me', authMiddleware, async (req, res) => {
+  try {
+    const profile = await CrewProfile.findOne({
+      where: { userId: req.user.id },
+      include: [
+        { model: User, attributes: ['id', 'username', 'role', 'status'] },
+        { model: CrewCertificate, order: [['expiryDate', 'ASC']] }
+      ]
+    });
+    if (!profile) return res.status(404).json({ message: 'Chưa có hồ sơ.' });
+    res.json(profile);
+  } catch (err) {
+    res.status(500).json({ message: 'Lỗi server.' });
+  }
+});
+
+// PUT /api/crews/me — cập nhật thông tin cá nhân (chỉ các trường tự chỉnh sửa được)
+router.put('/me', authMiddleware, async (req, res) => {
+  try {
+    const { fullName, phone } = req.body;
+    const profile = await CrewProfile.findOne({ where: { userId: req.user.id } });
+    if (!profile) return res.status(404).json({ message: 'Chưa có hồ sơ.' });
+
+    if (phone && phone !== profile.phone) {
+      const existing = await CrewProfile.findOne({ where: { phone } });
+      if (existing) return res.status(400).json({ message: 'Số điện thoại đã được sử dụng.' });
+    }
+
+    await profile.update({ fullName, phone });
+    res.json({ message: 'Cập nhật thành công.', profile });
+  } catch (err) {
+    res.status(500).json({ message: 'Lỗi server.' });
+  }
+});
+
+// GET /api/crews/me/certificates
+router.get('/me/certificates', authMiddleware, async (req, res) => {
+  try {
+    const profile = await CrewProfile.findOne({ where: { userId: req.user.id } });
+    if (!profile) return res.status(404).json({ message: 'Chưa có hồ sơ.' });
+    const certs = await CrewCertificate.findAll({
+      where: { crewId: profile.id },
+      order: [['expiryDate', 'ASC']]
+    });
+    res.json(certs);
+  } catch (err) {
+    res.status(500).json({ message: 'Lỗi server.' });
+  }
+});
+
+// POST /api/crews/me/certificates
+router.post('/me/certificates', authMiddleware, async (req, res) => {
+  try {
+    const { certificateName, issueDate, expiryDate, fileUrl } = req.body;
+    const profile = await CrewProfile.findOne({ where: { userId: req.user.id } });
+    if (!profile) return res.status(404).json({ message: 'Chưa có hồ sơ.' });
+
+    const today = new Date().toISOString().split('T')[0];
+    const cert = await CrewCertificate.create({
+      crewId: profile.id,
+      certificateName,
+      issueDate,
+      expiryDate,
+      fileUrl: fileUrl || null,
+      status: expiryDate >= today ? 'Valid' : 'Expired'
+    });
+    res.status(201).json({ message: 'Thêm chứng chỉ thành công.', cert });
+  } catch (err) {
+    res.status(500).json({ message: 'Lỗi server.' });
+  }
+});
+
+// PUT /api/crews/me/certificates/:certId
+router.put('/me/certificates/:certId', authMiddleware, async (req, res) => {
+  try {
+    const profile = await CrewProfile.findOne({ where: { userId: req.user.id } });
+    if (!profile) return res.status(404).json({ message: 'Chưa có hồ sơ.' });
+    const cert = await CrewCertificate.findOne({ where: { id: req.params.certId, crewId: profile.id } });
+    if (!cert) return res.status(404).json({ message: 'Không tìm thấy chứng chỉ.' });
+
+    const { certificateName, issueDate, expiryDate, fileUrl } = req.body;
+    const today = new Date().toISOString().split('T')[0];
+    await cert.update({
+      certificateName,
+      issueDate,
+      expiryDate,
+      fileUrl: fileUrl || null,
+      status: expiryDate >= today ? 'Valid' : 'Expired',
+    });
+    res.json({ message: 'Cập nhật chứng chỉ thành công.', cert });
+  } catch (err) {
+    res.status(500).json({ message: 'Lỗi server.' });
+  }
+});
+
+// DELETE /api/crews/me/certificates/:certId
+router.delete('/me/certificates/:certId', authMiddleware, async (req, res) => {
+  try {
+    const profile = await CrewProfile.findOne({ where: { userId: req.user.id } });
+    if (!profile) return res.status(404).json({ message: 'Chưa có hồ sơ.' });
+    const cert = await CrewCertificate.findOne({ where: { id: req.params.certId, crewId: profile.id } });
+    if (!cert) return res.status(404).json({ message: 'Không tìm thấy chứng chỉ.' });
+    await cert.destroy();
+    res.json({ message: 'Đã xóa chứng chỉ.' });
+  } catch (err) {
+    res.status(500).json({ message: 'Lỗi server.' });
+  }
+});
 
 // GET /api/crews - Lấy danh sách toàn bộ thủy thủ
 router.get('/', async (req, res) => {
