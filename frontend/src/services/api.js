@@ -106,4 +106,31 @@ export const vesselService = {
   }
 };
 
+export const profileService = {
+  getMe: async () => {
+    const response = await api.get('/crews/me');
+    return response.data;
+  },
+  updateMe: async (data) => {
+    const response = await api.put('/crews/me', data);
+    return response.data;
+  },
+  getCertificates: async () => {
+    const response = await api.get('/crews/me/certificates');
+    return response.data;
+  },
+  addCertificate: async (data) => {
+    const response = await api.post('/crews/me/certificates', data);
+    return response.data;
+  },
+  updateCertificate: async (certId, data) => {
+    const response = await api.put(`/crews/me/certificates/${certId}`, data);
+    return response.data;
+  },
+  deleteCertificate: async (certId) => {
+    const response = await api.delete(`/crews/me/certificates/${certId}`);
+    return response.data;
+  },
+};
+
 export default api;
