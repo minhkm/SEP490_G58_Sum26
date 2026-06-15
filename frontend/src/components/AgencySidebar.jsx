@@ -61,6 +61,7 @@ export default function AgencySidebar() {
             <Navigation size={20} />
             <span>Chuyến hải trình</span>
           </div>
+
           <div className={`agency-nav-item ${isActive('/settings')}`} onClick={() => navigate('/settings')}>
             <Settings size={20} />
             <span>Cài đặt Công ty</span>
