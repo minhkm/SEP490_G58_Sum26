@@ -67,11 +67,14 @@ router.post('/', async (req, res) => {
         engineType: mainEngine.engineType || 'Diesel 2-kỳ', 
         status: mainEngine.status || 'Hoạt động' 
       });
-      await EngineParameter.bulkCreate([
-        { engineId: me.id, name: 'Nhiệt độ', maxValue: mainEngine.maxTemp || 0 },
-        { engineId: me.id, name: 'Áp suất', maxValue: mainEngine.maxPressure || 0 },
-        { engineId: me.id, name: 'Hơi nước', maxValue: mainEngine.maxSteam || 0 }
-      ]);
+      // Tạo parameters động
+      if (mainEngine.parameters && mainEngine.parameters.length > 0) {
+        await EngineParameter.bulkCreate(
+          mainEngine.parameters.filter(p => p.name).map(p => ({
+            engineId: me.id, name: p.name, minValue: p.minValue || null, maxValue: p.maxValue || null
+          }))
+        );
+      }
     }
 
     // 4. Tạo Máy đèn
@@ -84,11 +87,13 @@ router.post('/', async (req, res) => {
           engineType: gen.engineType || 'Diesel 4-kỳ', 
           status: gen.status || 'Hoạt động' 
         });
-        await EngineParameter.bulkCreate([
-          { engineId: ge.id, name: 'Nhiệt độ', maxValue: gen.maxTemp || 0 },
-          { engineId: ge.id, name: 'Áp suất', maxValue: gen.maxPressure || 0 },
-          { engineId: ge.id, name: 'Hơi nước', maxValue: gen.maxSteam || 0 }
-        ]);
+        if (gen.parameters && gen.parameters.length > 0) {
+          await EngineParameter.bulkCreate(
+            gen.parameters.filter(p => p.name).map(p => ({
+              engineId: ge.id, name: p.name, minValue: p.minValue || null, maxValue: p.maxValue || null
+            }))
+          );
+        }
       }
     }
 
@@ -158,16 +163,16 @@ router.put('/:id', async (req, res) => {
     }
 
     // Hàm tiện ích để Sync Params cho Engine
-    const syncEngineParams = async (engineId, temp, pressure, steam) => {
-      const params = await EngineParameter.findAll({ where: { engineId } });
-      const updateOrCreate = async (name, value) => {
-        const p = params.find(x => x.name === name);
-        if (p) await p.update({ maxValue: value });
-        else await EngineParameter.create({ engineId, name, maxValue: value });
-      };
-      await updateOrCreate('Nhiệt độ', temp || 0);
-      await updateOrCreate('Áp suất', pressure || 0);
-      await updateOrCreate('Hơi nước', steam || 0);
+    const syncEngineParams = async (engineId, parameters) => {
+      // Xóa params cũ và tạo lại
+      await EngineParameter.destroy({ where: { engineId } });
+      if (parameters && parameters.length > 0) {
+        await EngineParameter.bulkCreate(
+          parameters.filter(p => p.name).map(p => ({
+            engineId, name: p.name, minValue: p.minValue || null, maxValue: p.maxValue || null
+          }))
+        );
+      }
     };
 
     // 2. Sync Main Engine
@@ -176,15 +181,15 @@ router.put('/:id', async (req, res) => {
         const me = await Engine.findByPk(mainEngine.id);
         if (me) {
           await me.update({ engineName: mainEngine.engineName, engineType: mainEngine.engineType, status: mainEngine.status });
-          await syncEngineParams(me.id, mainEngine.maxTemp, mainEngine.maxPressure, mainEngine.maxSteam);
+          await syncEngineParams(me.id, mainEngine.parameters);
         }
       } else if (mainEngine.engineName) {
         const me = await Engine.create({ shipId: vesselId, engineName: mainEngine.engineName, engineType: mainEngine.engineType, status: mainEngine.status });
-        await EngineParameter.bulkCreate([
-          { engineId: me.id, name: 'Nhiệt độ', maxValue: mainEngine.maxTemp || 0 },
-          { engineId: me.id, name: 'Áp suất', maxValue: mainEngine.maxPressure || 0 },
-          { engineId: me.id, name: 'Hơi nước', maxValue: mainEngine.maxSteam || 0 }
-        ]);
+        await EngineParameter.bulkCreate(
+          (mainEngine.parameters || []).filter(p => p.name).map(p => ({
+            engineId: me.id, name: p.name, minValue: p.minValue || null, maxValue: p.maxValue || null
+          }))
+        );
       }
     }
 
@@ -208,15 +213,15 @@ router.put('/:id', async (req, res) => {
           const ge = await Engine.findByPk(gen.id);
           if (ge) {
             await ge.update({ engineName: gen.engineName, engineType: gen.engineType, status: gen.status });
-            await syncEngineParams(ge.id, gen.maxTemp, gen.maxPressure, gen.maxSteam);
+            await syncEngineParams(ge.id, gen.parameters);
           }
         } else {
           const ge = await Engine.create({ shipId: vesselId, engineName: gen.engineName, engineType: gen.engineType, status: gen.status });
-          await EngineParameter.bulkCreate([
-            { engineId: ge.id, name: 'Nhiệt độ', maxValue: gen.maxTemp || 0 },
-            { engineId: ge.id, name: 'Áp suất', maxValue: gen.maxPressure || 0 },
-            { engineId: ge.id, name: 'Hơi nước', maxValue: gen.maxSteam || 0 }
-          ]);
+          await EngineParameter.bulkCreate(
+            (gen.parameters || []).filter(p => p.name).map(p => ({
+              engineId: ge.id, name: p.name, minValue: p.minValue || null, maxValue: p.maxValue || null
+            }))
+          );
         }
       }
     }

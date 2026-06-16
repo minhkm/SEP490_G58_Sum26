@@ -62,10 +62,7 @@ export default function AgencySidebar() {
             <Navigation size={20} />
             <span>Chuyến hải trình</span>
           </div>
-          <div className={`agency-nav-item ${isActive('/engine-logs')}`} onClick={() => navigate('/engine-logs')}>
-            <Gauge size={20} />
-            <span>Nhật ký Kiểm tra Máy</span>
-          </div>
+
           <div className={`agency-nav-item ${isActive('/settings')}`} onClick={() => navigate('/settings')}>
             <Settings size={20} />
             <span>Cài đặt Công ty</span>
