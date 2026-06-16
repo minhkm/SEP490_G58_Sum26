@@ -81,6 +81,10 @@ EngineLog.belongsTo(ShiftLog, { foreignKey: "shiftLogId" });
 EngineLog.hasMany(EngineLogValue, { foreignKey: "engineLogId" });
 EngineLogValue.belongsTo(EngineLog, { foreignKey: "engineLogId" });
 
+// Engine 1-N EngineLog
+Engine.hasMany(EngineLog, { foreignKey: "engineId" });
+EngineLog.belongsTo(Engine, { foreignKey: "engineId" });
+
 // EngineParameter 1-N EngineLogValue
 EngineParameter.hasMany(EngineLogValue, { foreignKey: "parameterId" });
 EngineLogValue.belongsTo(EngineParameter, { foreignKey: "parameterId" });

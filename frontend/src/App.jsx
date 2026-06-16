@@ -13,6 +13,7 @@ import CrewListPage from "./pages/CrewListPage";
 import AddCrewPage from "./pages/AddCrewPage";
 import CrewDashboard from "./pages/CrewDashboard";
 import CrewProfilePage from "./pages/CrewProfilePage";
+import EngineLogPage from "./pages/EngineLogPage";
 
 function App() {
   return (
@@ -34,6 +35,7 @@ function App() {
         <Route path="/crews/edit/:id" element={<AddCrewPage />} />
         <Route path="/crew-dashboard" element={<CrewDashboard />} />
         <Route path="/crew-profile" element={<CrewProfilePage />} />
+        <Route path="/engine-logs" element={<EngineLogPage />} />
       </Routes>
     </Router>
   );

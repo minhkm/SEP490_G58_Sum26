@@ -11,6 +11,7 @@ import {
   UserCircle,
   LogOut,
   Clock,
+  Gauge,
 } from 'lucide-react';
 
 export default function Sidebar() {
@@ -84,6 +85,18 @@ export default function Sidebar() {
             <div className="nav-item" style={{ cursor: 'default', opacity: 0.5 }}>
               <Clock size={20} />
               <span>Ca trực</span>
+            </div>
+          )}
+
+          {/* Nhật ký Kiểm tra Máy — EngineOfficer */}
+          {(role === 'EngineOfficer') && (
+            <div
+              className={`nav-item ${isActive('/engine-logs')}`}
+              onClick={() => navigate('/engine-logs')}
+              style={{ cursor: 'pointer' }}
+            >
+              <Gauge size={20} />
+              <span>Nhật ký Kiểm tra Máy</span>
             </div>
           )}
 
