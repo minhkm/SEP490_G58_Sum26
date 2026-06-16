@@ -32,12 +32,13 @@ export default function LoginPage() {
       localStorage.setItem("token", response.token);
       localStorage.setItem("user", JSON.stringify(response.user));
 
-      if (response.user.role === 'Master') {
+      const role = response.user.role;
+      if (role === 'Master' || role === 'ChiefOfficer') {
         navigate("/master-dashboard");
-      } else if (response.user.role === 'Agency' || response.user.role === 'Admin') {
+      } else if (role === 'Agency' || role === 'Admin') {
         navigate("/agency-dashboard");
       } else {
-        navigate("/");
+        navigate("/crew-dashboard");
       }
     } catch (error) {
       if (error.response && error.response.data && error.response.data.message) {
@@ -68,12 +69,13 @@ export default function LoginPage() {
       localStorage.setItem("token", tempUser.token);
       localStorage.setItem("user", JSON.stringify(tempUser.user));
 
-      if (tempUser.user.role === 'Master') {
+      const role = tempUser.user.role;
+      if (role === 'Master' || role === 'ChiefOfficer') {
         navigate("/master-dashboard");
-      } else if (tempUser.user.role === 'Agency' || tempUser.user.role === 'Admin') {
+      } else if (role === 'Agency' || role === 'Admin') {
         navigate("/agency-dashboard");
       } else {
-        navigate("/");
+        navigate("/crew-dashboard");
       }
     } catch (error) {
       setChangePassError(error.response?.data?.message || "Lỗi đổi mật khẩu.");
