@@ -50,14 +50,32 @@ export default function AddVesselPage() {
   // Holds State
   const [holds, setHolds] = useState([]);
 
+  // 3 thông số bắt buộc (fix cứng, không xóa được)
+  const REQUIRED_PARAMS = ['Fuel Oil Pressure (kg/cm²)', 'Exhaust Gas Temp XL2 (°C)', 'Cooling Water Temp (°C)'];
+
+  // 9 thông số kỹ thuật bổ sung (tùy chọn thêm)
+  const PARAM_OPTIONS = [
+    'RPM (Main Engine)',
+    'Scavenge Pressure (kg/cm²)',
+    'Air Pressure (kg/cm²)',
+    'Start Air Pressure (kg/cm²)',
+    'Lube Oil Temperature (°C)',
+    'Exhaust Gas Temp XL3 (°C)',
+    'Exhaust Gas Temp XL4 (°C)',
+    'Exhaust Gas Temp XL5 (°C)',
+    'Exhaust Gas Temp XL6 (°C)',
+  ];
+
+  const makeRequiredParams = () => REQUIRED_PARAMS.map((name, i) => ({
+    _uid: i + 1, name, minValue: '', maxValue: '', fixed: true
+  }));
+
   // Engine & Parameters State
   const [mainEngine, setMainEngine] = useState({
     engineName: '',
     engineType: 'Diesel 2-kỳ',
     status: 'Hoạt động',
-    maxTemp: '',
-    maxPressure: '',
-    maxSteam: ''
+    parameters: makeRequiredParams()
   });
 
   const [generatorEngines, setGeneratorEngines] = useState([
@@ -66,9 +84,7 @@ export default function AddVesselPage() {
       engineName: '',
       engineType: 'Diesel 4-kỳ',
       status: 'Hoạt động',
-      maxTemp: '',
-      maxPressure: '',
-      maxSteam: ''
+      parameters: makeRequiredParams()
     }
   ]);
 
@@ -95,39 +111,40 @@ export default function AddVesselPage() {
           }
 
           if (data.Engines && data.Engines.length > 0) {
-            // Máy chính: Giả định là máy đầu tiên không phải máy đèn
-            const me = data.Engines.find(e => e.engineType === 'Diesel 2-kỳ') || data.Engines[0];
+            const me = data.Engines.find(e => e.engineType === 'Main Engine' || e.engineType === 'Diesel 2-kỳ') || data.Engines[0];
             if (me) {
-              const temp = me.EngineParameters?.find(p => p.name === 'Nhiệt độ')?.maxValue || '';
-              const press = me.EngineParameters?.find(p => p.name === 'Áp suất')?.maxValue || '';
-              const steam = me.EngineParameters?.find(p => p.name === 'Hơi nước')?.maxValue || '';
+              // Load params từ DB, đánh dấu required
+              const dbParams = (me.EngineParameters || []).map((p, i) => ({
+                _uid: i + 1, id: p.id, name: p.name, minValue: p.minValue ?? '', maxValue: p.maxValue ?? '',
+                fixed: REQUIRED_PARAMS.includes(p.name)
+              }));
+              // Thêm các required param nếu DB chưa có
+              let uid = dbParams.length + 1;
+              for (const rp of REQUIRED_PARAMS) {
+                if (!dbParams.some(p => p.name === rp)) {
+                  dbParams.unshift({ _uid: uid++, name: rp, minValue: '', maxValue: '', fixed: true });
+                }
+              }
               setMainEngine({
-                id: me.id,
-                engineName: me.engineName,
-                engineType: me.engineType,
-                status: me.status,
-                maxTemp: temp,
-                maxPressure: press,
-                maxSteam: steam
+                id: me.id, engineName: me.engineName, engineType: me.engineType, status: me.status,
+                parameters: dbParams
               });
             }
 
-            // Máy đèn
             const gens = data.Engines.filter(e => e.id !== (me ? me.id : null));
             if (gens.length > 0) {
               setGeneratorEngines(gens.map(g => {
-                const temp = g.EngineParameters?.find(p => p.name === 'Nhiệt độ')?.maxValue || '';
-                const press = g.EngineParameters?.find(p => p.name === 'Áp suất')?.maxValue || '';
-                const steam = g.EngineParameters?.find(p => p.name === 'Hơi nước')?.maxValue || '';
-                return {
-                  id: g.id,
-                  engineName: g.engineName,
-                  engineType: g.engineType,
-                  status: g.status,
-                  maxTemp: temp,
-                  maxPressure: press,
-                  maxSteam: steam
-                };
+                const dbParams = (g.EngineParameters || []).map((p, i) => ({
+                  _uid: i + 1, id: p.id, name: p.name, minValue: p.minValue ?? '', maxValue: p.maxValue ?? '',
+                  fixed: REQUIRED_PARAMS.includes(p.name)
+                }));
+                let uid = dbParams.length + 1;
+                for (const rp of REQUIRED_PARAMS) {
+                  if (!dbParams.some(p => p.name === rp)) {
+                    dbParams.unshift({ _uid: uid++, name: rp, minValue: '', maxValue: '', fixed: true });
+                  }
+                }
+                return { id: g.id, engineName: g.engineName, engineType: g.engineType, status: g.status, parameters: dbParams };
               }));
             }
           }
@@ -181,6 +198,36 @@ export default function AddVesselPage() {
     ));
   };
 
+  // --- Dynamic Parameters Handlers ---
+  const addMainParam = () => {
+    const newUid = mainEngine.parameters.length > 0 ? Math.max(...mainEngine.parameters.map(p => p._uid)) + 1 : 1;
+    setMainEngine({ ...mainEngine, parameters: [...mainEngine.parameters, { _uid: newUid, name: '', minValue: '', maxValue: '' }] });
+  };
+  const removeMainParam = (uid) => {
+    setMainEngine({ ...mainEngine, parameters: mainEngine.parameters.filter(p => p._uid !== uid) });
+  };
+  const handleMainParamChange = (uid, field, value) => {
+    setMainEngine({ ...mainEngine, parameters: mainEngine.parameters.map(p => p._uid === uid ? { ...p, [field]: value } : p) });
+  };
+
+  const addGenParam = (genId) => {
+    setGeneratorEngines(generatorEngines.map(g => {
+      if (g.id !== genId) return g;
+      const newUid = g.parameters.length > 0 ? Math.max(...g.parameters.map(p => p._uid)) + 1 : 1;
+      return { ...g, parameters: [...g.parameters, { _uid: newUid, name: '', minValue: '', maxValue: '' }] };
+    }));
+  };
+  const removeGenParam = (genId, uid) => {
+    setGeneratorEngines(generatorEngines.map(g =>
+      g.id === genId ? { ...g, parameters: g.parameters.filter(p => p._uid !== uid) } : g
+    ));
+  };
+  const handleGenParamChange = (genId, uid, field, value) => {
+    setGeneratorEngines(generatorEngines.map(g =>
+      g.id === genId ? { ...g, parameters: g.parameters.map(p => p._uid === uid ? { ...p, [field]: value } : p) } : g
+    ));
+  };
+
   const addGeneratorEngine = () => {
     const newId = generatorEngines.length > 0 ? Math.max(...generatorEngines.map(e => e.id)) + 1 : 1;
     setGeneratorEngines([...generatorEngines, {
@@ -188,9 +235,7 @@ export default function AddVesselPage() {
       engineName: '',
       engineType: 'Diesel 4-kỳ',
       status: 'Hoạt động',
-      maxTemp: '',
-      maxPressure: '',
-      maxSteam: ''
+      parameters: makeRequiredParams()
     }]);
   };
 
@@ -436,23 +481,53 @@ export default function AddVesselPage() {
                     </div>
                   </div>
 
-                  {/* Engine Parameters Thresholds */}
+                  {/* Engine Parameters */}
                   <div className="v-threshold-box">
-                    <h5>Hạn mức chỉ số an toàn (Max Thresholds)</h5>
+                    {/* 3 thông số bắt buộc */}
+                    <h5 style={{ margin: '0 0 12px' }}>Hạn mức chỉ số an toàn (Bắt buộc)</h5>
                     <div className="v-form-row">
-                      <div className="v-form-group">
-                        <label><Thermometer size={14}/> Nhiệt độ Max (°C)</label>
-                        <input type="number" name="maxTemp" placeholder="vd: 95" value={mainEngine.maxTemp} onChange={handleMainEngineChange}/>
-                      </div>
-                      <div className="v-form-group">
-                        <label><Gauge size={14}/> Áp suất Max (Bar)</label>
-                        <input type="number" name="maxPressure" placeholder="vd: 15" value={mainEngine.maxPressure} onChange={handleMainEngineChange}/>
-                      </div>
-                      <div className="v-form-group">
-                        <label><Droplets size={14}/> Hơi nước Max (%)</label>
-                        <input type="number" name="maxSteam" placeholder="vd: 80" value={mainEngine.maxSteam} onChange={handleMainEngineChange}/>
-                      </div>
+                      {mainEngine.parameters.filter(p => p.fixed).map(param => (
+                        <div className="v-form-group" key={param._uid}>
+                          <label>{param.name === 'Fuel Oil Pressure (kg/cm²)' ? <><Gauge size={14}/> Fuel Oil Pressure</> : param.name === 'Exhaust Gas Temp XL2 (°C)' ? <><Thermometer size={14}/> Exhaust Gas Temp XL2</> : <><Droplets size={14}/> Cooling Water Temp</>}</label>
+                          <input type="number" placeholder={param.name === 'Fuel Oil Pressure (kg/cm²)' ? 'vd: 6.0' : param.name === 'Exhaust Gas Temp XL2 (°C)' ? 'vd: 420' : 'vd: 75'} value={param.maxValue} onChange={(e) => handleMainParamChange(param._uid, 'maxValue', e.target.value)}/>
+                        </div>
+                      ))}
                     </div>
+
+                    {/* Thông số bổ sung */}
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', margin: '16px 0 12px', borderTop: '1px dashed #e2e8f0', paddingTop: 14 }}>
+                      <h5 style={{ margin: 0 }}>Thông số bổ sung ({mainEngine.parameters.filter(p => !p.fixed).length})</h5>
+                      <button type="button" className="v-btn-text" onClick={addMainParam} style={{ fontSize: 12 }}>
+                        <Plus size={12}/> Thêm thông số
+                      </button>
+                    </div>
+                    {mainEngine.parameters.filter(p => !p.fixed).length === 0 && (
+                      <p style={{ color: '#94a3b8', fontSize: 13, fontStyle: 'italic', margin: 0 }}>Chưa có thông số bổ sung nào.</p>
+                    )}
+                    {mainEngine.parameters.filter(p => !p.fixed).map((param, idx) => (
+                      <div key={param._uid} className="v-form-row" style={{ marginBottom: 8, alignItems: 'flex-end' }}>
+                        <div className="v-form-group" style={{ flex: 2 }}>
+                          {idx === 0 && <label>Tên thông số</label>}
+                          <select value={param.name} onChange={(e) => handleMainParamChange(param._uid, 'name', e.target.value)}>
+                            <option value="">-- Chọn thông số --</option>
+                            {PARAM_OPTIONS.map(opt => (
+                              <option key={opt} value={opt} disabled={mainEngine.parameters.some(p => p._uid !== param._uid && p.name === opt)}>{opt}</option>
+                            ))}
+                          </select>
+                        </div>
+                        <div className="v-form-group" style={{ flex: 1 }}>
+                          {idx === 0 && <label>Min</label>}
+                          <input type="number" placeholder="Min" value={param.minValue} onChange={(e) => handleMainParamChange(param._uid, 'minValue', e.target.value)}/>
+                        </div>
+                        <div className="v-form-group" style={{ flex: 1 }}>
+                          {idx === 0 && <label>Max</label>}
+                          <input type="number" placeholder="Max" value={param.maxValue} onChange={(e) => handleMainParamChange(param._uid, 'maxValue', e.target.value)}/>
+                        </div>
+                        <button type="button" className="v-btn-icon text-red" onClick={() => removeMainParam(param._uid)} style={{ marginBottom: 4 }}>
+                          <Trash2 size={14}/>
+                        </button>
+                      </div>
+                    ))}
                   </div>
                 </div>
 
@@ -489,23 +564,53 @@ export default function AddVesselPage() {
                         </div>
                       </div>
 
-                      {/* Engine Parameters Thresholds */}
+                      {/* Engine Parameters */}
                       <div className="v-threshold-box" style={{ marginTop: '8px' }}>
-                        <h5>Hạn mức chỉ số an toàn (Max Thresholds)</h5>
+                        {/* 3 thông số bắt buộc */}
+                        <h5 style={{ margin: '0 0 12px' }}>Hạn mức chỉ số an toàn (Bắt buộc)</h5>
                         <div className="v-form-row" style={{ marginBottom: 0 }}>
-                          <div className="v-form-group">
-                            <label><Thermometer size={14}/> Nhiệt độ Max (°C)</label>
-                            <input type="number" name="maxTemp" placeholder="vd: 90" value={gen.maxTemp} onChange={(e) => handleGeneratorEngineChange(gen.id, e)}/>
-                          </div>
-                          <div className="v-form-group">
-                            <label><Gauge size={14}/> Áp suất Max (Bar)</label>
-                            <input type="number" name="maxPressure" placeholder="vd: 12" value={gen.maxPressure} onChange={(e) => handleGeneratorEngineChange(gen.id, e)}/>
-                          </div>
-                          <div className="v-form-group">
-                            <label><Droplets size={14}/> Hơi nước Max (%)</label>
-                            <input type="number" name="maxSteam" placeholder="vd: 75" value={gen.maxSteam} onChange={(e) => handleGeneratorEngineChange(gen.id, e)}/>
-                          </div>
+                          {gen.parameters.filter(p => p.fixed).map(param => (
+                            <div className="v-form-group" key={param._uid}>
+                              <label>{param.name === 'Fuel Oil Pressure (kg/cm²)' ? <><Gauge size={14}/> Fuel Oil Pressure</> : param.name === 'Exhaust Gas Temp XL2 (°C)' ? <><Thermometer size={14}/> Exhaust Gas Temp XL2</> : <><Droplets size={14}/> Cooling Water Temp</>}</label>
+                              <input type="number" placeholder={param.name === 'Fuel Oil Pressure (kg/cm²)' ? 'vd: 6.0' : param.name === 'Exhaust Gas Temp XL2 (°C)' ? 'vd: 420' : 'vd: 75'} value={param.maxValue} onChange={(e) => handleGenParamChange(gen.id, param._uid, 'maxValue', e.target.value)}/>
+                            </div>
+                          ))}
                         </div>
+
+                        {/* Thông số bổ sung */}
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', margin: '16px 0 12px', borderTop: '1px dashed #e2e8f0', paddingTop: 14 }}>
+                          <h5 style={{ margin: 0 }}>Thông số bổ sung ({gen.parameters.filter(p => !p.fixed).length})</h5>
+                          <button type="button" className="v-btn-text" onClick={() => addGenParam(gen.id)} style={{ fontSize: 12 }}>
+                            <Plus size={12}/> Thêm thông số
+                          </button>
+                        </div>
+                        {gen.parameters.filter(p => !p.fixed).length === 0 && (
+                          <p style={{ color: '#94a3b8', fontSize: 13, fontStyle: 'italic', margin: 0 }}>Chưa có thông số bổ sung nào.</p>
+                        )}
+                        {gen.parameters.filter(p => !p.fixed).map((param, idx) => (
+                          <div key={param._uid} className="v-form-row" style={{ marginBottom: 8, alignItems: 'flex-end' }}>
+                            <div className="v-form-group" style={{ flex: 2 }}>
+                              {idx === 0 && <label>Tên thông số</label>}
+                              <select value={param.name} onChange={(e) => handleGenParamChange(gen.id, param._uid, 'name', e.target.value)}>
+                                <option value="">-- Chọn thông số --</option>
+                                {PARAM_OPTIONS.map(opt => (
+                                  <option key={opt} value={opt} disabled={gen.parameters.some(p => p._uid !== param._uid && p.name === opt)}>{opt}</option>
+                                ))}
+                              </select>
+                            </div>
+                            <div className="v-form-group" style={{ flex: 1 }}>
+                              {idx === 0 && <label>Min</label>}
+                              <input type="number" placeholder="Min" value={param.minValue} onChange={(e) => handleGenParamChange(gen.id, param._uid, 'minValue', e.target.value)}/>
+                            </div>
+                            <div className="v-form-group" style={{ flex: 1 }}>
+                              {idx === 0 && <label>Max</label>}
+                              <input type="number" placeholder="Max" value={param.maxValue} onChange={(e) => handleGenParamChange(gen.id, param._uid, 'maxValue', e.target.value)}/>
+                            </div>
+                            <button type="button" className="v-btn-icon text-red" onClick={() => removeGenParam(gen.id, param._uid)} style={{ marginBottom: 4 }}>
+                              <Trash2 size={14}/>
+                            </button>
+                          </div>
+                        ))}
                       </div>
                     </div>
                   ))}

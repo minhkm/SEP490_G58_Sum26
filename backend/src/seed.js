@@ -16,6 +16,10 @@ const {
 } = require('./models');
 
 async function seed() {
+  // Thêm dòng này để xóa toàn bộ bảng cũ và tạo lại bảng mới theo Model
+  await sequelize.sync({ force: true });
+  console.log('🔄 Đã đồng bộ lại Database (xóa cũ, tạo mới)...');
+
   const t = await sequelize.transaction();
   try {
     console.log('🌱 Bắt đầu seed data...');
@@ -394,6 +398,7 @@ async function seed() {
       }, { transaction: t });
       const eLog   = await EngineLog.create({
         shiftLogId: eSLog.id,
+        engineId: eVQSMain.id,
         note: `Main engine running normally at 660 RPM. All pressures and temperatures within normal range. Generator No.1 on load, No.2 on standby.`,
       }, { transaction: t });
 
@@ -410,7 +415,7 @@ async function seed() {
     const s66ShiftEt = new Date('2026-05-20T12:00:00');
     const s66Shift = await Shift.create({ voyageId: vS6601.id, crewId: cpTrong.id, startTime: s66ShiftSt, endTime: s66ShiftEt, status: 'Completed' }, { transaction: t });
     const s66SLog  = await ShiftLog.create({ shiftId: s66Shift.id, logType: 'Engine', content: 'Ca máy 08-12H. Hành trình đến Kuching. Máy chính ổn định. RPM 660. Các thông số bình thường.', createdAt: s66ShiftEt }, { transaction: t });
-    const s66ELog  = await EngineLog.create({ shiftLogId: s66SLog.id, note: 'Sea area: South China Sea. Main engine 660 RPM. All parameters normal.' }, { transaction: t });
+    const s66ELog  = await EngineLog.create({ shiftLogId: s66SLog.id, engineId: eS66Main.id, note: 'Sea area: South China Sea. Main engine 660 RPM. All parameters normal.' }, { transaction: t });
     for (let i = 0; i < actualEngineValues.length; i++) {
       if (epS66[i]) {
         await EngineLogValue.create({ engineLogId: s66ELog.id, parameterId: epS66[i].id, value: actualEngineValues[i] }, { transaction: t });
