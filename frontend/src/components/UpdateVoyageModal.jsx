@@ -13,7 +13,9 @@ export default function UpdateVoyageModal({ voyage, onClose, onUpdate }) {
     issueReason: ''
   });
   const [crewList, setCrewList] = useState([]);
+  const [cargoList, setCargoList] = useState([]);
   const [fetchingCrew, setFetchingCrew] = useState(false);
+  const [fetchingCargo, setFetchingCargo] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -28,6 +30,7 @@ export default function UpdateVoyageModal({ voyage, onClose, onUpdate }) {
         issueReason: voyage.issueReason || ''
       });
       fetchCrew(voyage.id);
+      fetchCargo(voyage.id);
     }
   }, [voyage]);
 
@@ -43,10 +46,30 @@ export default function UpdateVoyageModal({ voyage, onClose, onUpdate }) {
     }
   };
 
+  const fetchCargo = async (id) => {
+    try {
+      setFetchingCargo(true);
+      const data = await voyageService.getVoyageCargo(id);
+      setCargoList(data || []);
+    } catch (err) {
+      console.error('Failed to fetch cargo:', err);
+    } finally {
+      setFetchingCargo(false);
+    }
+  };
+
   const handleAttendanceChange = (crewId, isPresent) => {
     setCrewList(prevList => 
       prevList.map(crew => 
         crew.crewId === crewId ? { ...crew, isPresent } : crew
+      )
+    );
+  };
+
+  const handleCargoLoadChange = (itemId, isLoaded) => {
+    setCargoList(prevList =>
+      prevList.map(cargo =>
+        cargo.itemId === itemId ? { ...cargo, isLoaded } : cargo
       )
     );
   };
@@ -67,7 +90,8 @@ export default function UpdateVoyageModal({ voyage, onClose, onUpdate }) {
       
       const payload = {
         ...formData,
-        attendanceList: crewList.map(c => ({ crewId: c.crewId, isPresent: c.isPresent }))
+        attendanceList: crewList.map(c => ({ crewId: c.crewId, isPresent: c.isPresent })),
+        cargoList: cargoList.map(c => ({ itemId: c.itemId, isLoaded: c.isLoaded }))
       };
 
       await voyageService.updateVoyage(voyage.id, payload);
@@ -171,30 +195,48 @@ export default function UpdateVoyageModal({ voyage, onClose, onUpdate }) {
             )}
           </div>
             
-          <div className="form-row">
-            <div className="form-group radio-group">
-              <label>Tình trạng hàng hóa:</label>
-              <div className="radio-options">
-                <label className="radio-label">
-                  <input
-                    type="radio"
-                    name="isCargoLoaded"
-                    checked={formData.isCargoLoaded === true}
-                    onChange={() => setFormData({ ...formData, isCargoLoaded: true })}
-                  />
-                  <span>Đã lên đủ</span>
-                </label>
-                <label className="radio-label">
-                  <input
-                    type="radio"
-                    name="isCargoLoaded"
-                    checked={formData.isCargoLoaded === false}
-                    onChange={() => setFormData({ ...formData, isCargoLoaded: false })}
-                  />
-                  <span>Chưa lên đủ</span>
-                </label>
+          <div className="form-group">
+            <label>Danh sách kiểm tra hàng hóa:</label>
+            {fetchingCargo ? (
+              <p className="loading-text" style={{ fontSize: '0.85rem', color: '#64748b' }}>Đang tải danh sách hàng hóa...</p>
+            ) : cargoList.length === 0 ? (
+              <p className="empty-text" style={{ fontSize: '0.85rem', color: '#64748b' }}>Chưa có hàng hóa nào được đăng ký cho chuyến đi này.</p>
+            ) : (
+              <div className="crew-attendance-table-wrapper">
+                <table className="crew-attendance-table">
+                  <thead>
+                    <tr>
+                      <th>STT</th>
+                      <th>Lô hàng</th>
+                      <th>Chi tiết / Quy cách</th>
+                      <th>Số lượng</th>
+                      <th>Khối lượng</th>
+                      <th style={{ textAlign: 'center' }}>Đã lên tàu</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {cargoList.map((cargo, idx) => (
+                      <tr key={cargo.itemId || idx}>
+                        <td>{idx + 1}</td>
+                        <td>{cargo.cargoName}</td>
+                        <td>{cargo.itemName}</td>
+                        <td>{cargo.quantity}</td>
+                        <td>{cargo.weight} MT</td>
+                        <td style={{ textAlign: 'center' }}>
+                          <input
+                            type="checkbox"
+                            checked={cargo.isLoaded}
+                            onChange={(e) => handleCargoLoadChange(cargo.itemId, e.target.checked)}
+                            style={{ width: '16px', height: '16px', cursor: 'pointer' }}
+                            disabled={!cargo.itemId}
+                          />
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
-            </div>
+            )}
           </div>
 
           {(!formData.isCrewSufficient || !formData.isCargoLoaded) && (

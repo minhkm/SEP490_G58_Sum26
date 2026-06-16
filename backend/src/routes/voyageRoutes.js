@@ -1,7 +1,7 @@
 const express = require('express');
 const bcrypt = require('bcrypt');
 const crypto = require('crypto');
-const { sequelize, Voyage, User, CrewProfile, VoyageCrew, Ship, Attendance } = require('../models');
+const { sequelize, Voyage, User, CrewProfile, VoyageCrew, Ship, Attendance, Cargo, CargoItem } = require('../models');
 const { sendCrewCredentialsEmail } = require('../services/emailService');
 const authMiddleware = require('../middlewares/authMiddleware');
 
@@ -167,6 +167,56 @@ router.get('/:id/crew', authMiddleware, async (req, res) => {
   }
 });
 
+// Lấy danh sách hàng hóa của một chuyến đi
+router.get('/:id/cargo', authMiddleware, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const cargos = await Cargo.findAll({
+      where: { voyageId: id },
+      include: [
+        {
+          model: CargoItem,
+          attributes: ['id', 'itemName', 'quantity', 'weight', 'isLoaded']
+        }
+      ]
+    });
+
+    let result = [];
+    for (const cargo of cargos) {
+      if (cargo.CargoItems && cargo.CargoItems.length > 0) {
+         cargo.CargoItems.forEach(item => {
+           result.push({
+             cargoId: cargo.id,
+             cargoName: cargo.cargoName,
+             cargoType: cargo.cargoType,
+             itemId: item.id,
+             itemName: item.itemName,
+             quantity: item.quantity,
+             weight: item.weight,
+             isLoaded: item.isLoaded
+           });
+         });
+      } else {
+         result.push({
+           cargoId: cargo.id,
+           cargoName: cargo.cargoName,
+           cargoType: cargo.cargoType,
+           itemId: null,
+           itemName: 'Chưa có chi tiết',
+           quantity: 0,
+           weight: cargo.totalWeight,
+           isLoaded: false
+         });
+      }
+    }
+    
+    res.json(result);
+  } catch (error) {
+    console.error('Lỗi khi lấy danh sách hàng hóa:', error);
+    res.status(500).json({ message: 'Lỗi server khi lấy danh sách hàng hóa', error: error.message });
+  }
+});
+
 router.put('/:id', authMiddleware, async (req, res) => {
   try {
     const { id } = req.params;
@@ -194,7 +244,7 @@ router.put('/:id', authMiddleware, async (req, res) => {
       }
     }
 
-    const { status, departureDate, arrivalDate, isCargoLoaded, issueReason, attendanceList } = req.body;
+    const { status, departureDate, arrivalDate, isCargoLoaded, issueReason, attendanceList, cargoList } = req.body;
 
     if (status) voyage.status = status;
     if (departureDate) voyage.departureDate = departureDate;
@@ -230,6 +280,27 @@ router.put('/:id', authMiddleware, async (req, res) => {
       if (req.body.isCrewSufficient !== undefined) {
          voyage.isCrewSufficient = req.body.isCrewSufficient;
       }
+    }
+
+    // Process cargoList if provided
+    if (cargoList && Array.isArray(cargoList)) {
+      if (cargoList.length > 0) {
+        let allCargoLoaded = true;
+        for (const item of cargoList) {
+          if (!item.isLoaded) allCargoLoaded = false;
+          
+          if (item.itemId) {
+             const cargoItem = await CargoItem.findByPk(item.itemId);
+             if (cargoItem) {
+               cargoItem.isLoaded = item.isLoaded;
+               await cargoItem.save();
+             }
+          }
+        }
+        voyage.isCargoLoaded = allCargoLoaded;
+      }
+    } else if (req.body.isCargoLoaded !== undefined) {
+      voyage.isCargoLoaded = req.body.isCargoLoaded;
     }
 
     await voyage.save();
