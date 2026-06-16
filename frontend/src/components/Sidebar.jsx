@@ -13,6 +13,7 @@ import {
   Clock,
   Gauge,
 } from 'lucide-react';
+import { CARGO_ROLES } from '../config/roles';
 
 export default function Sidebar() {
   const navigate = useNavigate();
@@ -68,8 +69,8 @@ export default function Sidebar() {
             <span>Hải Trình</span>
           </div>
 
-          {/* Hàng hóa — chỉ Master/ChiefOfficer */}
-          {isMasterOrChief && (
+          {/* Hàng hóa — chỉ role được phép */}
+          {CARGO_ROLES.includes(role) && (
             <div
               className={`nav-item ${isActive('/cargos')}`}
               onClick={() => navigate('/cargos')}

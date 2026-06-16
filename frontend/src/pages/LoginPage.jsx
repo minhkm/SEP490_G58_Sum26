@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Form, Button } from "react-bootstrap";
 import { useNavigate } from "react-router-dom";
 import { authService } from "../services/api";
+import { getDashboardPath } from "../config/roles";
 import "./LoginPage.css";
 
 export default function LoginPage() {
@@ -32,14 +33,7 @@ export default function LoginPage() {
       localStorage.setItem("token", response.token);
       localStorage.setItem("user", JSON.stringify(response.user));
 
-      const role = response.user.role;
-      if (role === 'Master' || role === 'ChiefOfficer') {
-        navigate("/master-dashboard");
-      } else if (role === 'Agency' || role === 'Admin') {
-        navigate("/agency-dashboard");
-      } else {
-        navigate("/crew-dashboard");
-      }
+      navigate(getDashboardPath(response.user.role));
     } catch (error) {
       if (error.response && error.response.data && error.response.data.message) {
         setApiError(error.response.data.message);
@@ -69,14 +63,7 @@ export default function LoginPage() {
       localStorage.setItem("token", tempUser.token);
       localStorage.setItem("user", JSON.stringify(tempUser.user));
 
-      const role = tempUser.user.role;
-      if (role === 'Master' || role === 'ChiefOfficer') {
-        navigate("/master-dashboard");
-      } else if (role === 'Agency' || role === 'Admin') {
-        navigate("/agency-dashboard");
-      } else {
-        navigate("/crew-dashboard");
-      }
+      navigate(getDashboardPath(tempUser.user.role));
     } catch (error) {
       setChangePassError(error.response?.data?.message || "Lỗi đổi mật khẩu.");
     }

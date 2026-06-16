@@ -14,6 +14,8 @@ import AddCrewPage from "./pages/AddCrewPage";
 import CrewDashboard from "./pages/CrewDashboard";
 import CrewProfilePage from "./pages/CrewProfilePage";
 import EngineLogPage from "./pages/EngineLogPage";
+import RequireRole from "./components/RequireRole";
+import { CARGO_ROLES } from "./config/roles";
 
 function App() {
   return (
@@ -29,7 +31,14 @@ function App() {
         <Route path="/vessels/view/:id" element={<VesselDetailPage />} />
         <Route path="/voyages" element={<VoyageListPage />} />
         <Route path="/voyages/new" element={<CreateVoyagePage />} />
-        <Route path="/cargos" element={<CargoPage />} />
+        <Route
+          path="/cargos"
+          element={
+            <RequireRole allow={CARGO_ROLES}>
+              <CargoPage />
+            </RequireRole>
+          }
+        />
         <Route path="/crews" element={<CrewListPage />} />
         <Route path="/crews/new" element={<AddCrewPage />} />
         <Route path="/crews/edit/:id" element={<AddCrewPage />} />

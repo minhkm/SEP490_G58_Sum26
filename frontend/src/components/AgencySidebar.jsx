@@ -5,11 +5,13 @@ import {
   Ship,
   Users,
   Navigation,
+  Package,
   Settings,
   LogOut,
   User as UserIcon,
   Gauge
 } from 'lucide-react';
+import { CARGO_ROLES } from '../config/roles';
 
 export default function AgencySidebar() {
   const navigate = useNavigate();
@@ -20,6 +22,8 @@ export default function AgencySidebar() {
     username: 'admin@vinhquang.vn',
     role: 'ADMIN'
   };
+
+  const role = user.role || '';
 
   const isActive = (path) => {
     if (path === '/vessels' && location.pathname.startsWith('/vessels')) return 'active';
@@ -62,6 +66,14 @@ export default function AgencySidebar() {
             <Navigation size={20} />
             <span>Chuyến hải trình</span>
           </div>
+
+          {/* Hàng hóa — chỉ role được phép (trong layout này thực tế là Admin) */}
+          {CARGO_ROLES.includes(role) && (
+            <div className={`agency-nav-item ${isActive('/cargos')}`} onClick={() => navigate('/cargos')}>
+              <Package size={20} />
+              <span>Hàng hóa</span>
+            </div>
+          )}
 
           <div className={`agency-nav-item ${isActive('/settings')}`} onClick={() => navigate('/settings')}>
             <Settings size={20} />
