@@ -90,3 +90,73 @@ exports.getAllCargos = async (req, res) => {
     res.status(500).json({ success: false, message: "Lỗi lấy dữ liệu hàng hóa" });
   }
 };
+
+exports.createCargo = async (req, res) => {
+  try {
+    const { voyageId, cargoName, cargoType, totalWeight, status } = req.body;
+    
+    if (!voyageId) {
+      return res.status(400).json({ success: false, message: "Vui lòng chọn hải trình" });
+    }
+
+    const newCargo = await Cargo.create({
+      voyageId,
+      cargoName,
+      cargoType,
+      totalWeight,
+      status: status || "Registered"
+    });
+
+    res.json({ success: true, message: "Thêm lô hàng thành công", data: newCargo });
+  } catch (error) {
+    console.error("Error creating cargo:", error);
+    res.status(500).json({ success: false, message: "Lỗi thêm lô hàng" });
+  }
+};
+
+exports.updateCargo = async (req, res) => {
+  try {
+    const cargoId = req.params.id;
+    const { voyageId, cargoName, cargoType, totalWeight, status } = req.body;
+
+    const cargo = await Cargo.findByPk(cargoId);
+    if (!cargo) {
+      return res.status(404).json({ success: false, message: "Không tìm thấy lô hàng" });
+    }
+
+    await cargo.update({
+      voyageId: voyageId || cargo.voyageId,
+      cargoName: cargoName || cargo.cargoName,
+      cargoType: cargoType || cargo.cargoType,
+      totalWeight: totalWeight !== undefined ? totalWeight : cargo.totalWeight,
+      status: status || cargo.status
+    });
+
+    res.json({ success: true, message: "Cập nhật lô hàng thành công", data: cargo });
+  } catch (error) {
+    console.error("Error updating cargo:", error);
+    res.status(500).json({ success: false, message: "Lỗi cập nhật lô hàng" });
+  }
+};
+
+exports.deleteCargo = async (req, res) => {
+  try {
+    const cargoId = req.params.id;
+
+    const cargo = await Cargo.findByPk(cargoId);
+    if (!cargo) {
+      return res.status(404).json({ success: false, message: "Không tìm thấy lô hàng" });
+    }
+
+    // Delete related allocations and items first to avoid foreign key constraints
+    await CargoAllocation.destroy({ where: { cargoId: cargoId } });
+    await CargoItem.destroy({ where: { cargoId: cargoId } });
+
+    await cargo.destroy();
+
+    res.json({ success: true, message: "Xoá lô hàng thành công" });
+  } catch (error) {
+    console.error("Error deleting cargo:", error);
+    res.status(500).json({ success: false, message: "Lỗi xoá lô hàng" });
+  }
+};

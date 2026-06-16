@@ -11,10 +11,11 @@ import {
   ChevronLeft, 
   ChevronRight,
   Edit2,
+  Trash2,
   X,
   Plus
 } from 'lucide-react';
-import { cargoService } from '../services/api';
+import { cargoService, voyageService } from '../services/api';
 import './CargoPage.css';
 
 export default function CargoPage() {
@@ -28,29 +29,108 @@ export default function CargoPage() {
   });
   const [loading, setLoading] = useState(true);
   const [selectedCargo, setSelectedCargo] = useState(null);
+  
+  // CRUD state
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingId, setEditingId] = useState(null);
+  const [voyages, setVoyages] = useState([]);
+  const [formData, setFormData] = useState({
+    voyageId: '',
+    cargoName: '',
+    cargoType: '',
+    totalWeight: '',
+    status: 'Registered'
+  });
 
   const user = JSON.parse(localStorage.getItem('user')) || {};
   const Layout = (user.role === 'Admin' || user.role === 'Agency') ? AgencyLayout : MasterLayout;
 
   useEffect(() => {
-    const fetchCargos = async () => {
-      try {
-        const res = await cargoService.getAllCargos();
-        if (res.success) {
-          setCargos(res.data);
-          setStats(res.stats);
-          if (res.data.length > 0) {
-            setSelectedCargo(res.data[0]);
-          }
-        }
-      } catch (error) {
-        console.error("Failed to fetch cargos:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchCargos();
+    fetchData();
   }, []);
+
+  const fetchData = async () => {
+    try {
+      setLoading(true);
+      const [cargoRes, voyageRes] = await Promise.all([
+        cargoService.getAllCargos(),
+        voyageService.getAll().catch(() => [])
+      ]);
+      
+      if (cargoRes.success) {
+        setCargos(cargoRes.data);
+        setStats(cargoRes.stats);
+        if (cargoRes.data.length > 0 && !selectedCargo) {
+          setSelectedCargo(cargoRes.data[0]);
+        }
+      }
+      
+      // voyageRes is directly an array from the backend API
+      if (Array.isArray(voyageRes)) {
+        setVoyages(voyageRes);
+      }
+    } catch (error) {
+      console.error("Failed to fetch data:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleInputChange = (e) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({ ...prev, [name]: value }));
+  };
+
+  const openModal = (cargo = null) => {
+    if (cargo) {
+      setEditingId(cargo.id);
+      setFormData({
+        voyageId: cargo.voyageId || '',
+        cargoName: cargo.cargoName || '',
+        cargoType: cargo.cargoType || '',
+        totalWeight: cargo.totalWeight || '',
+        status: cargo.status || 'Registered'
+      });
+    } else {
+      setEditingId(null);
+      setFormData({ voyageId: '', cargoName: '', cargoType: '', totalWeight: '', status: 'Registered' });
+    }
+    setIsModalOpen(true);
+  };
+
+  const closeModal = () => {
+    setIsModalOpen(false);
+    setEditingId(null);
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    try {
+      if (editingId) {
+        await cargoService.update(editingId, formData);
+      } else {
+        await cargoService.create(formData);
+      }
+      closeModal();
+      fetchData();
+    } catch (err) {
+      alert("Có lỗi xảy ra: " + (err.response?.data?.message || err.message));
+    }
+  };
+
+  const handleDelete = async (id) => {
+    if (window.confirm("Bạn có chắc chắn muốn xoá lô hàng này? Dữ liệu liên quan cũng sẽ bị xoá.")) {
+      try {
+        await cargoService.delete(id);
+        if (selectedCargo?.id === id) {
+          setSelectedCargo(null);
+        }
+        fetchData();
+      } catch (err) {
+        alert("Lỗi xoá lô hàng");
+      }
+    }
+  };
 
   const getStatusClass = (status) => {
     const s = (status || '').toLowerCase();
@@ -73,7 +153,7 @@ export default function CargoPage() {
             <h1>Quản lý Hàng hóa</h1>
             <p>Tổng quan lô hàng và phân bổ hầm tàu</p>
           </div>
-          <button className="btn-add-cargo">
+          <button className="btn-add-cargo" onClick={() => openModal()}>
             <Plus size={16} /> Thêm Lô hàng Mới
           </button>
         </div>
@@ -218,8 +298,9 @@ export default function CargoPage() {
                   <span>ID: C60-{selectedCargo.id}</span>
                 </div>
                 <div className="detail-actions">
-                  <button className="btn-icon"><Edit2 size={16} /></button>
-                  <button className="btn-icon" onClick={() => setSelectedCargo(null)}><X size={16} /></button>
+                  <button className="btn-icon" onClick={() => openModal(selectedCargo)} title="Sửa lô hàng"><Edit2 size={16} /></button>
+                  <button className="btn-icon" onClick={() => handleDelete(selectedCargo.id)} title="Xóa lô hàng"><Trash2 size={16} color="#dc2626" /></button>
+                  <button className="btn-icon" onClick={() => setSelectedCargo(null)} title="Đóng"><X size={16} /></button>
                 </div>
               </div>
 
@@ -282,6 +363,87 @@ export default function CargoPage() {
             </div>
           )}
         </div>
+
+        {/* Modal Thêm/Sửa */}
+        {isModalOpen && (
+          <div className="cargo-modal-overlay">
+            <div className="cargo-modal-content">
+              <div className="cargo-modal-header">
+                <h2>{editingId ? 'Cập nhật Lô hàng' : 'Thêm Lô hàng Mới'}</h2>
+                <button className="btn-icon" onClick={closeModal}><X size={20} /></button>
+              </div>
+              <form onSubmit={handleSubmit} className="cargo-modal-form">
+                <div className="form-group">
+                  <label>Tên Lô Hàng</label>
+                  <input 
+                    type="text" 
+                    name="cargoName" 
+                    value={formData.cargoName} 
+                    onChange={handleInputChange} 
+                    required 
+                    placeholder="VD: Vietnam White Rice..."
+                  />
+                </div>
+                
+                <div className="form-row">
+                  <div className="form-group">
+                    <label>Loại Hàng</label>
+                    <input 
+                      type="text" 
+                      name="cargoType" 
+                      value={formData.cargoType} 
+                      onChange={handleInputChange} 
+                      placeholder="VD: Rice, Coal..."
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label>Tổng Khối Lượng (Tấn)</label>
+                    <input 
+                      type="number" 
+                      step="0.01"
+                      name="totalWeight" 
+                      value={formData.totalWeight} 
+                      onChange={handleInputChange} 
+                      required 
+                    />
+                  </div>
+                </div>
+
+                <div className="form-row">
+                  <div className="form-group">
+                    <label>Trạng Thái</label>
+                    <select name="status" value={formData.status} onChange={handleInputChange}>
+                      <option value="Registered">Registered (Đã đăng ký)</option>
+                      <option value="Loaded">Loaded (Đã xếp hàng)</option>
+                      <option value="InProgress">In Progress (Đang vận chuyển)</option>
+                      <option value="Discharged">Discharged (Đã dỡ hàng)</option>
+                      <option value="Delayed">Delayed (Chậm trễ)</option>
+                    </select>
+                  </div>
+                  <div className="form-group">
+                    <label>Hải Trình (Voyage)</label>
+                    <select name="voyageId" value={formData.voyageId} onChange={handleInputChange} required>
+                      <option value="">-- Chọn Hải Trình --</option>
+                      {voyages.map(v => (
+                        <option key={v.id} value={v.id}>
+                          {v.id} - {v.departurePort || 'N/A'} → {v.destinationPort || 'N/A'}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                <div className="cargo-modal-actions">
+                  <button type="button" className="btn-cancel" onClick={closeModal}>Hủy</button>
+                  <button type="submit" className="btn-submit">
+                    {editingId ? 'Cập nhật' : 'Thêm mới'}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
+
       </div>
     </Layout>
   );
