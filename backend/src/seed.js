@@ -16,6 +16,9 @@ const {
 } = require('./models');
 
 async function seed() {
+  console.log('🔄 Đang xoá dữ liệu cũ và đồng bộ lại database...');
+  await sequelize.sync({ force: true });
+
   const t = await sequelize.transaction();
   try {
     console.log('🌱 Bắt đầu seed data...');
