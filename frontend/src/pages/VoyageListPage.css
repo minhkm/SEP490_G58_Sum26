@@ -242,6 +242,16 @@
   color: #dc2626;
 }
 
+.voyage-status.arrived {
+  background: #fffbeb;
+  color: #b45309;
+}
+
+.voyage-status.loading {
+  background: #fdf4ff;
+  color: #a21caf;
+}
+
 .voyage-state {
   min-height: 360px;
   padding: 48px 24px;

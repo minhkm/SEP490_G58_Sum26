@@ -22,7 +22,7 @@ export default function UpdateVoyageModal({ voyage, onClose, onUpdate }) {
   useEffect(() => {
     if (voyage) {
       setFormData({
-        status: voyage.status || 'Planned',
+        status: voyage.status || 'Planning',
         departureDate: voyage.departureDate || '',
         arrivalDate: voyage.arrivalDate || '',
         isCrewSufficient: voyage.isCrewSufficient || false,
@@ -107,6 +107,10 @@ export default function UpdateVoyageModal({ voyage, onClose, onUpdate }) {
 
   if (!voyage) return null;
 
+  const user = JSON.parse(localStorage.getItem('user')) || {};
+  const userRole = (user.role || '').replace(/\s+/g, '').toLowerCase();
+  const isAttendanceAllowed = (formData.status === 'Loaded' || formData.status === 'Discharged') && (userRole === 'chiefofficer' || userRole === 'master' || userRole === 'admin');
+
   return (
     <div className="modal-overlay">
       <div className="modal-content update-voyage-modal">
@@ -127,8 +131,15 @@ export default function UpdateVoyageModal({ voyage, onClose, onUpdate }) {
             <div className="form-group">
               <label>Trạng thái</label>
               <select name="status" value={formData.status} onChange={handleChange}>
-                <option value="Planned">Đã lên kế hoạch (Planned)</option>
-                <option value="In Progress">Đang tiến hành (In Progress)</option>
+                <option value="Planning">Đang lên kế hoạch (Planning)</option>
+                <option value="Loading">Đang làm hàng (Loading)</option>
+                <option value="Loaded">Đã làm hàng xong (Loaded)</option>
+                <option value="Underway">Đang di chuyển (Underway)</option>
+                <option value="Arrived">Cập bến (Arrived)</option>
+                <option value="Discharge">Dỡ hàng (Discharge)</option>
+                <option value="Discharged">Đã dỡ hàng xong (Discharged)</option>
+                <option value="Homeward Bounding">Đang quay về cảng xuất phát (Homeward Bounding)</option>
+                <option value="At Anchor">Đang neo đậu (At Anchor)</option>
                 <option value="Completed">Đã hoàn thành (Completed)</option>
                 <option value="Cancelled">Đã hủy (Cancelled)</option>
               </select>
@@ -184,7 +195,9 @@ export default function UpdateVoyageModal({ voyage, onClose, onUpdate }) {
                             type="checkbox"
                             checked={crew.isPresent}
                             onChange={(e) => handleAttendanceChange(crew.crewId, e.target.checked)}
-                            style={{ width: '16px', height: '16px', cursor: 'pointer' }}
+                            style={{ width: '16px', height: '16px', cursor: isAttendanceAllowed ? 'pointer' : 'not-allowed' }}
+                            disabled={!isAttendanceAllowed}
+                            title={!isAttendanceAllowed ? 'Chỉ được điểm danh khi trạng thái là Loaded hoặc Discharged và bạn là thuyền trưởng' : ''}
                           />
                         </td>
                       </tr>

@@ -31,9 +31,11 @@ const formatDate = (date) => {
 const getStatusClass = (status) => {
   const normalizedStatus = (status || '').toLowerCase();
 
-  if (normalizedStatus === 'completed') return 'completed';
-  if (normalizedStatus === 'in progress' || normalizedStatus === 'active') return 'active';
+  if (normalizedStatus === 'completed' || normalizedStatus === 'discharged') return 'completed';
+  if (normalizedStatus === 'underway' || normalizedStatus === 'homeward bounding') return 'active';
   if (normalizedStatus === 'cancelled') return 'cancelled';
+  if (normalizedStatus === 'arrived' || normalizedStatus === 'at anchor') return 'arrived';
+  if (normalizedStatus === 'loading' || normalizedStatus === 'loaded' || normalizedStatus === 'discharge') return 'loading';
   return 'planned';
 };
 
@@ -110,13 +112,13 @@ export default function VoyageListPage() {
             <div>
               <span>ĐANG HOẠT ĐỘNG</span>
               <strong>
-                {voyages.filter((voyage) => ['active', 'in progress'].includes((voyage.status || '').toLowerCase())).length}
+                {voyages.filter((voyage) => ['underway', 'homeward bounding', 'active', 'in progress'].includes((voyage.status || '').toLowerCase())).length}
               </strong>
             </div>
             <div>
               <span>ĐÃ LÊN KẾ HOẠCH</span>
               <strong>
-                {voyages.filter((voyage) => (voyage.status || '').toLowerCase() === 'planned').length}
+                {voyages.filter((voyage) => ['planned', 'planning'].includes((voyage.status || '').toLowerCase())).length}
               </strong>
             </div>
           </div>
@@ -205,7 +207,7 @@ export default function VoyageListPage() {
                         <td><span className="voyage-date"><CalendarDays size={14} />{formatDate(voyage.arrivalDate)}</span></td>
                         <td>
                           <span className={`voyage-status ${getStatusClass(voyage.status)}`}>
-                            {voyage.status || 'Planned'}
+                            {voyage.status || 'Planning'}
                           </span>
                         </td>
                         {canEdit && (

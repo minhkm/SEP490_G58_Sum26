@@ -19,7 +19,7 @@ router.post('/', async (req, res) => {
       destinationPort: routeInfo.destinationPort,
       departureDate: routeInfo.departureDate,
       arrivalDate: routeInfo.arrivalDate,
-      status: 'Planned'
+      status: 'Planning'
     }, { transaction: t });
 
     // 2. Phân bổ nhân sự và Tự động tạo tài khoản
@@ -231,11 +231,11 @@ router.put('/:id', authMiddleware, async (req, res) => {
 
     // Check authorization
     if (userRole !== 'admin' && userRole !== 'agency') {
-      if (userRole !== 'chiefofficer') {
+      if (userRole !== 'chiefofficer' && userRole !== 'master') {
         return res.status(403).json({ message: 'Bạn không có quyền cập nhật chuyến đi này' });
       }
       
-      // If ChiefOfficer, check if they are part of the voyage
+      // If ChiefOfficer or Master, check if they are part of the voyage
       const isAssigned = await VoyageCrew.findOne({
         where: { voyageId: id, crewId: profileId }
       });
@@ -245,6 +245,9 @@ router.put('/:id', authMiddleware, async (req, res) => {
     }
 
     const { status, departureDate, arrivalDate, isCargoLoaded, issueReason, attendanceList, cargoList } = req.body;
+
+    const nextStatus = status || voyage.status;
+    let nextIsCrewSufficient = voyage.isCrewSufficient;
 
     if (status) voyage.status = status;
     if (departureDate) voyage.departureDate = departureDate;
@@ -263,9 +266,12 @@ router.put('/:id', authMiddleware, async (req, res) => {
         });
 
         if (existingAtt) {
-          existingAtt.status = item.isPresent ? 'Present' : 'Absent';
-          existingAtt.recordedAt = new Date();
-          await existingAtt.save();
+          // Update only if changing
+          if (existingAtt.status !== (item.isPresent ? 'Present' : 'Absent')) {
+            existingAtt.status = item.isPresent ? 'Present' : 'Absent';
+            existingAtt.recordedAt = new Date();
+            await existingAtt.save();
+          }
         } else {
           await Attendance.create({
             voyageId: id,
@@ -275,10 +281,20 @@ router.put('/:id', authMiddleware, async (req, res) => {
           });
         }
       }
+      nextIsCrewSufficient = allPresent;
       voyage.isCrewSufficient = allPresent;
     } else {
       if (req.body.isCrewSufficient !== undefined) {
+         nextIsCrewSufficient = req.body.isCrewSufficient;
          voyage.isCrewSufficient = req.body.isCrewSufficient;
+      }
+    }
+
+    // Business Logic Validation: Cannot transition to Underway if captain hasn't taken attendance or crew is not sufficient
+    if (nextStatus === 'Underway') {
+      // Assuming isCrewSufficient being false means attendance is missing or crew is absent
+      if (!nextIsCrewSufficient) {
+        return res.status(400).json({ message: 'Thuyền trưởng chưa điểm danh hoặc nhân sự chưa đủ, không thể chuyển trạng thái Đang di chuyển (Underway)!' });
       }
     }
 
