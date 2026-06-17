@@ -7,6 +7,7 @@ const CargoItem = sequelize.define("CargoItem", {
   itemName: { type: DataTypes.STRING },
   quantity: { type: DataTypes.INTEGER },
   weight: { type: DataTypes.FLOAT },
+  isLoaded: { type: DataTypes.BOOLEAN, defaultValue: false },
 }, { tableName: "CargoItem", timestamps: false });
 
 module.exports = CargoItem;

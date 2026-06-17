@@ -1,7 +1,7 @@
 const express = require('express');
 const bcrypt = require('bcrypt');
 const crypto = require('crypto');
-const { sequelize, Voyage, User, CrewProfile, VoyageCrew, Ship } = require('../models');
+const { sequelize, Voyage, User, CrewProfile, VoyageCrew, Ship, Attendance, Cargo, CargoItem } = require('../models');
 const { sendCrewCredentialsEmail } = require('../services/emailService');
 const authMiddleware = require('../middlewares/authMiddleware');
 
@@ -128,6 +128,187 @@ router.get("/", authMiddleware, async (req, res) => {
   } catch (error) {
     console.error("Error fetching voyages:", error);
     res.status(500).json({ message: "Unable to fetch voyage list." });
+  }
+});
+
+// Lấy danh sách thuyền viên của một chuyến đi (kèm điểm danh)
+router.get('/:id/crew', authMiddleware, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const crewList = await VoyageCrew.findAll({
+      where: { voyageId: id },
+      include: [
+        {
+          model: CrewProfile,
+          attributes: ['id', 'fullName', 'position', 'department']
+        }
+      ]
+    });
+
+    const attendances = await Attendance.findAll({
+      where: { voyageId: id }
+    });
+    
+    const result = crewList.map(vc => {
+      const crewProfile = vc.CrewProfile || {};
+      const att = attendances.find(a => a.crewId === vc.crewId);
+      return {
+        crewId: vc.crewId,
+        fullName: crewProfile.fullName,
+        position: vc.role || crewProfile.position,
+        isPresent: att ? (att.status === 'Present') : false
+      };
+    });
+
+    res.json(result);
+  } catch (error) {
+    console.error('Lỗi khi lấy danh sách thuyền viên:', error);
+    res.status(500).json({ message: 'Lỗi server khi lấy danh sách thuyền viên', error: error.message });
+  }
+});
+
+// Lấy danh sách hàng hóa của một chuyến đi
+router.get('/:id/cargo', authMiddleware, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const cargos = await Cargo.findAll({
+      where: { voyageId: id },
+      include: [
+        {
+          model: CargoItem,
+          attributes: ['id', 'itemName', 'quantity', 'weight', 'isLoaded']
+        }
+      ]
+    });
+
+    let result = [];
+    for (const cargo of cargos) {
+      if (cargo.CargoItems && cargo.CargoItems.length > 0) {
+         cargo.CargoItems.forEach(item => {
+           result.push({
+             cargoId: cargo.id,
+             cargoName: cargo.cargoName,
+             cargoType: cargo.cargoType,
+             itemId: item.id,
+             itemName: item.itemName,
+             quantity: item.quantity,
+             weight: item.weight,
+             isLoaded: item.isLoaded
+           });
+         });
+      } else {
+         result.push({
+           cargoId: cargo.id,
+           cargoName: cargo.cargoName,
+           cargoType: cargo.cargoType,
+           itemId: null,
+           itemName: 'Chưa có chi tiết',
+           quantity: 0,
+           weight: cargo.totalWeight,
+           isLoaded: false
+         });
+      }
+    }
+    
+    res.json(result);
+  } catch (error) {
+    console.error('Lỗi khi lấy danh sách hàng hóa:', error);
+    res.status(500).json({ message: 'Lỗi server khi lấy danh sách hàng hóa', error: error.message });
+  }
+});
+
+router.put('/:id', authMiddleware, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const rawUserRole = req.user.role || '';
+    const userRole = rawUserRole.replace(/\s+/g, '').toLowerCase();
+    const profileId = req.user.profileId;
+
+    const voyage = await Voyage.findByPk(id);
+    if (!voyage) {
+      return res.status(404).json({ message: 'Không tìm thấy chuyến đi' });
+    }
+
+    // Check authorization
+    if (userRole !== 'admin' && userRole !== 'agency') {
+      if (userRole !== 'chiefofficer') {
+        return res.status(403).json({ message: 'Bạn không có quyền cập nhật chuyến đi này' });
+      }
+      
+      // If ChiefOfficer, check if they are part of the voyage
+      const isAssigned = await VoyageCrew.findOne({
+        where: { voyageId: id, crewId: profileId }
+      });
+      if (!isAssigned) {
+        return res.status(403).json({ message: 'Bạn không được phân công vào chuyến đi này' });
+      }
+    }
+
+    const { status, departureDate, arrivalDate, isCargoLoaded, issueReason, attendanceList, cargoList } = req.body;
+
+    if (status) voyage.status = status;
+    if (departureDate) voyage.departureDate = departureDate;
+    if (arrivalDate) voyage.arrivalDate = arrivalDate;
+    if (isCargoLoaded !== undefined) voyage.isCargoLoaded = isCargoLoaded;
+    if (issueReason !== undefined) voyage.issueReason = issueReason;
+
+    // Process attendanceList if provided
+    if (attendanceList && Array.isArray(attendanceList)) {
+      let allPresent = attendanceList.length > 0;
+      for (const item of attendanceList) {
+        if (!item.isPresent) allPresent = false;
+        
+        const existingAtt = await Attendance.findOne({
+          where: { voyageId: id, crewId: item.crewId }
+        });
+
+        if (existingAtt) {
+          existingAtt.status = item.isPresent ? 'Present' : 'Absent';
+          existingAtt.recordedAt = new Date();
+          await existingAtt.save();
+        } else {
+          await Attendance.create({
+            voyageId: id,
+            crewId: item.crewId,
+            status: item.isPresent ? 'Present' : 'Absent',
+            recordedAt: new Date()
+          });
+        }
+      }
+      voyage.isCrewSufficient = allPresent;
+    } else {
+      if (req.body.isCrewSufficient !== undefined) {
+         voyage.isCrewSufficient = req.body.isCrewSufficient;
+      }
+    }
+
+    // Process cargoList if provided
+    if (cargoList && Array.isArray(cargoList)) {
+      if (cargoList.length > 0) {
+        let allCargoLoaded = true;
+        for (const item of cargoList) {
+          if (!item.isLoaded) allCargoLoaded = false;
+          
+          if (item.itemId) {
+             const cargoItem = await CargoItem.findByPk(item.itemId);
+             if (cargoItem) {
+               cargoItem.isLoaded = item.isLoaded;
+               await cargoItem.save();
+             }
+          }
+        }
+        voyage.isCargoLoaded = allCargoLoaded;
+      }
+    } else if (req.body.isCargoLoaded !== undefined) {
+      voyage.isCargoLoaded = req.body.isCargoLoaded;
+    }
+
+    await voyage.save();
+
+    res.json({ message: 'Cập nhật chuyến đi thành công', voyage });
+  } catch (error) {
+    console.error('Lỗi khi cập nhật chuyến đi:', error);
+    res.status(500).json({ message: 'Lỗi server khi cập nhật chuyến đi', error: error.message });
   }
 });
 

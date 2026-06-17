@@ -9,6 +9,9 @@ const Voyage = sequelize.define("Voyage", {
   departureDate: { type: DataTypes.DATEONLY },
   arrivalDate: { type: DataTypes.DATEONLY },
   status: { type: DataTypes.STRING, defaultValue: "Planned" },
+  isCrewSufficient: { type: DataTypes.BOOLEAN, defaultValue: false },
+  isCargoLoaded: { type: DataTypes.BOOLEAN, defaultValue: false },
+  issueReason: { type: DataTypes.TEXT },
 }, { tableName: "Voyage", timestamps: false });
 
 module.exports = Voyage;
