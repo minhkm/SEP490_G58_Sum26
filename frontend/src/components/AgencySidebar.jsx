@@ -1,4 +1,3 @@
-import React from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import {
   LayoutDashboard,
@@ -7,9 +6,7 @@ import {
   Navigation,
   Package,
   Settings,
-  LogOut,
-  User as UserIcon,
-  Gauge
+  LogOut
 } from 'lucide-react';
 import { CARGO_ROLES } from '../config/roles';
 
