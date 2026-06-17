@@ -1,7 +1,7 @@
 const express = require('express');
 const bcrypt = require('bcrypt');
 const crypto = require('crypto');
-const { sequelize, Voyage, User, CrewProfile, VoyageCrew, Ship, Attendance, Cargo, CargoItem } = require('../models');
+const { sequelize, Voyage, User, CrewProfile, VoyageCrew, Ship, Attendance, Cargo, CargoItem, ShipCapacity } = require('../models');
 const { sendCrewCredentialsEmail } = require('../services/emailService');
 const authMiddleware = require('../middlewares/authMiddleware');
 
@@ -11,6 +11,32 @@ router.post('/', async (req, res) => {
   const t = await sequelize.transaction();
   try {
     const { shipId, routeInfo, cargoList, crewList } = req.body;
+
+    // Validate Ship Capacity against selected Cargo
+    if (cargoList && cargoList.length > 0) {
+      const shipCap = await ShipCapacity.findOne({ where: { shipId } });
+      if (shipCap) {
+        let totalWeight = 0;
+        let totalVolume = 0;
+        for (const cargoItem of cargoList) {
+          if (!cargoItem.cargoId) continue;
+          const cargo = await Cargo.findByPk(cargoItem.cargoId);
+          if (cargo) {
+            totalWeight += cargo.totalWeight || 0;
+            totalVolume += cargo.totalVolume || 0;
+          }
+        }
+        
+        if (totalWeight > shipCap.maxCargoWeight) {
+          await t.rollback();
+          return res.status(400).json({ message: `Vượt quá tải trọng tàu. (Tối đa: ${shipCap.maxCargoWeight} MT, Hiện tại: ${totalWeight} MT)` });
+        }
+        if (totalVolume > shipCap.maxCargoVolume) {
+          await t.rollback();
+          return res.status(400).json({ message: `Vượt quá thể tích tàu. (Tối đa: ${shipCap.maxCargoVolume} CBM, Hiện tại: ${totalVolume} CBM)` });
+        }
+      }
+    }
 
     // 1. Khởi tạo Voyage
     const voyage = await Voyage.create({
@@ -22,62 +48,31 @@ router.post('/', async (req, res) => {
       status: 'Planning'
     }, { transaction: t });
 
-    // 2. Phân bổ nhân sự và Tự động tạo tài khoản
+    // 2. Phân bổ nhân sự (sử dụng ID thủy thủ đã chọn từ Frontend)
     if (crewList && crewList.length > 0) {
       for (const crew of crewList) {
-        let user = await User.findOne({ where: { username: crew.email } });
-        let profile = null;
-        let isNewUser = false;
-        let randomPassword = '';
-
-        if (!user) {
-          // Tạo ngẫu nhiên 8 ký tự
-          randomPassword = crypto.randomBytes(4).toString('hex');
-          const hashedPassword = await bcrypt.hash(randomPassword, 10);
-
-          let roleCode = 'Sailor';
-          if (crew.role.includes('Deck Officer')) roleCode = 'DeckOfficer';
-          else if (crew.role.includes('Chief Officer')) roleCode = 'ChiefOfficer';
-          else if (crew.role.includes('Chief Engineer')) roleCode = 'EngineOfficer';
-
-          user = await User.create({
-            username: crew.email,
-            password: hashedPassword,
-            role: roleCode
-          }, { transaction: t });
-
-          profile = await CrewProfile.create({
-            userId: user.id,
-            fullName: crew.name,
-            email: crew.email,
-            department: roleCode === 'EngineOfficer' ? 'Engine' : 'Deck',
-            position: crew.role
-          }, { transaction: t });
-
-          isNewUser = true;
-        } else {
-          profile = await CrewProfile.findOne({ where: { userId: user.id } });
-        }
-
+        if (!crew.crewId) continue;
+        
         // Tạo liên kết vào chuyến đi
         await VoyageCrew.create({
           voyageId: voyage.id,
-          crewId: profile ? profile.id : null,
+          crewId: crew.crewId,
           role: crew.role
         }, { transaction: t });
-
-        // Gửi email báo pass nếu là user mới
-        // Đoạn này ta có thể gọi bất đồng bộ hoặc chờ nó gửi xong (await). 
-        // Thường nên để nó bất đồng bộ để tránh bị nghẽn (timeout) request
-        if (isNewUser) {
-          sendCrewCredentialsEmail(crew.email, randomPassword, crew.role).catch(err => {
-            console.error("Lỗi khi gửi email:", err);
-          });
-        }
       }
     }
 
-    // (Tuỳ chọn: Bạn có thể thêm logic xử lý Cargo ở đây sau này)
+    // (Tuỳ chọn: Logic gán lô hàng vào chuyến đi nếu có cargoId)
+    if (cargoList && cargoList.length > 0) {
+      for (const cargo of cargoList) {
+        if (!cargo.cargoId) continue;
+        
+        await Cargo.update(
+          { voyageId: voyage.id },
+          { where: { id: cargo.cargoId }, transaction: t }
+        );
+      }
+    }
 
     await t.commit();
     res.status(201).json({ message: 'Khởi tạo hải trình thành công', voyage });
@@ -255,8 +250,10 @@ router.put('/:id', authMiddleware, async (req, res) => {
     if (isCargoLoaded !== undefined) voyage.isCargoLoaded = isCargoLoaded;
     if (issueReason !== undefined) voyage.issueReason = issueReason;
 
-    // Process attendanceList if provided
-    if (attendanceList && Array.isArray(attendanceList)) {
+    const isShipStaff = userRole === 'chiefofficer' || userRole === 'master';
+
+    // Process attendanceList if provided and allowed
+    if (isShipStaff && attendanceList && Array.isArray(attendanceList)) {
       let allPresent = attendanceList.length > 0;
       for (const item of attendanceList) {
         if (!item.isPresent) allPresent = false;
@@ -298,8 +295,8 @@ router.put('/:id', authMiddleware, async (req, res) => {
       }
     }
 
-    // Process cargoList if provided
-    if (cargoList && Array.isArray(cargoList)) {
+    // Process cargoList if provided and allowed
+    if (isShipStaff && cargoList && Array.isArray(cargoList)) {
       if (cargoList.length > 0) {
         let allCargoLoaded = true;
         for (const item of cargoList) {
