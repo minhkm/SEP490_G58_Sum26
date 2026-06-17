@@ -109,7 +109,9 @@ export default function UpdateVoyageModal({ voyage, onClose, onUpdate }) {
 
   const user = JSON.parse(localStorage.getItem('user')) || {};
   const userRole = (user.role || '').replace(/\s+/g, '').toLowerCase();
-  const isAttendanceAllowed = (formData.status === 'Loaded' || formData.status === 'Discharged') && (userRole === 'chiefofficer' || userRole === 'master' || userRole === 'admin');
+  
+  const isShipStaff = userRole === 'chiefofficer' || userRole === 'master';
+  const isAttendanceAllowed = (formData.status === 'Loaded' || formData.status === 'Discharged') && isShipStaff;
 
   return (
     <div className="modal-overlay">
@@ -240,8 +242,9 @@ export default function UpdateVoyageModal({ voyage, onClose, onUpdate }) {
                             type="checkbox"
                             checked={cargo.isLoaded}
                             onChange={(e) => handleCargoLoadChange(cargo.itemId, e.target.checked)}
-                            style={{ width: '16px', height: '16px', cursor: 'pointer' }}
-                            disabled={!cargo.itemId}
+                            style={{ width: '16px', height: '16px', cursor: isShipStaff ? 'pointer' : 'not-allowed' }}
+                            disabled={!cargo.itemId || !isShipStaff}
+                            title={!isShipStaff ? 'Chỉ thuyền trưởng/đại phó mới có quyền đánh dấu hàng lên tàu' : ''}
                           />
                         </td>
                       </tr>

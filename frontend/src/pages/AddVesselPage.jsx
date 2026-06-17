@@ -274,13 +274,13 @@ export default function AddVesselPage() {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    // Validation: Tổng thể tích khoang phải BẰNG Thể tích Max của tàu
+    // Validation: Tổng thể tích khoang KHÔNG ĐƯỢC VƯỢT QUÁ Thể tích Max của tàu
     if (holds && holds.length > 0 && capacity && capacity.maxVolume) {
       const totalHoldsVolume = holds.reduce((sum, h) => sum + (parseFloat(h.capacity) || 0), 0);
       const shipMaxVolume = parseFloat(capacity.maxVolume) || 0;
       
-      if (totalHoldsVolume !== shipMaxVolume) {
-        setErrorMsg(`Tổng thể tích các khoang (${totalHoldsVolume.toLocaleString()} m³) đang không khớp với Thể tích Max của tàu (${shipMaxVolume.toLocaleString()} m³).\n\nVui lòng phân bổ lại sức chứa khoang hàng cho hợp lý!`);
+      if (totalHoldsVolume > shipMaxVolume) {
+        setErrorMsg(`Tổng thể tích các khoang (${totalHoldsVolume.toLocaleString()} m³) đang vượt quá Thể tích Max của tàu (${shipMaxVolume.toLocaleString()} m³).\n\nVui lòng phân bổ lại sức chứa khoang hàng cho hợp lý!`);
         return; // Dừng việc submit
       }
     }

@@ -12,7 +12,8 @@ import {
 } from 'lucide-react';
 import MasterLayout from '../components/MasterLayout';
 import AgencyLayout from '../components/AgencyLayout';
-import { voyageService } from '../services/api';
+import { voyageService, vesselService, crewService, cargoService } from '../services/api';
+import { useEffect } from 'react';
 import './CreateVoyagePage.css';
 
 export default function CreateVoyagePage() {
@@ -39,6 +40,68 @@ export default function CreateVoyagePage() {
   // Crew State
   const [crewList, setCrewList] = useState([]);
 
+  // Options State
+  const [availableShips, setAvailableShips] = useState([]);
+  const [availableCargos, setAvailableCargos] = useState([]);
+  const [availableCrews, setAvailableCrews] = useState([]);
+  
+  // Capacity Calculations
+  const [selectedShipCapacity, setSelectedShipCapacity] = useState({ maxWeight: 0, maxVolume: 0 });
+  const [currentCargoTotal, setCurrentCargoTotal] = useState({ weight: 0, volume: 0 });
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const shipsRes = await vesselService.getAll();
+        setAvailableShips(shipsRes || []);
+
+        const crewsRes = await crewService.getAll();
+        setAvailableCrews(crewsRes || []);
+
+        const cargosRes = await cargoService.getAllCargos();
+        if (cargosRes && cargosRes.data) {
+          setAvailableCargos(cargosRes.data);
+        }
+      } catch (err) {
+        console.error("Failed to fetch reference data", err);
+      }
+    };
+    fetchData();
+  }, []);
+
+  // Update selected ship capacity when shipId changes
+  useEffect(() => {
+    if (shipId) {
+      const ship = availableShips.find(s => s.id === parseInt(shipId));
+      if (ship && ship.ShipCapacities && ship.ShipCapacities.length > 0) {
+        setSelectedShipCapacity({
+          maxWeight: ship.ShipCapacities[0].maxCargoWeight || 0,
+          maxVolume: ship.ShipCapacities[0].maxCargoVolume || 0
+        });
+      } else {
+        setSelectedShipCapacity({ maxWeight: 0, maxVolume: 0 });
+      }
+    } else {
+      setSelectedShipCapacity({ maxWeight: 0, maxVolume: 0 });
+    }
+  }, [shipId, availableShips]);
+
+  // Update current cargo totals when cargoList changes
+  useEffect(() => {
+    let tWeight = 0;
+    let tVolume = 0;
+    cargoList.forEach(item => {
+      if (item.cargoId) {
+        const cargo = availableCargos.find(c => c.id === parseInt(item.cargoId));
+        if (cargo) {
+          tWeight += cargo.totalWeight || 0;
+          tVolume += cargo.totalVolume || 0;
+        }
+      }
+    });
+    setCurrentCargoTotal({ weight: tWeight, volume: tVolume });
+  }, [cargoList, availableCargos]);
+
   // Handlers
   const handleRouteInfoChange = (e) => {
     const { name, value } = e.target;
@@ -47,7 +110,7 @@ export default function CreateVoyagePage() {
 
   const addCargo = () => {
     const newId = cargoList.length > 0 ? Math.max(...cargoList.map(c => c.id)) + 1 : 1;
-    setCargoList([...cargoList, { id: newId, cargoName: '', cargoType: '', weight: '' }]);
+    setCargoList([...cargoList, { id: newId, cargoId: '' }]);
   };
 
   const removeCargo = (id) => {
@@ -61,7 +124,7 @@ export default function CreateVoyagePage() {
 
   const addCrew = () => {
     const newId = crewList.length > 0 ? Math.max(...crewList.map(c => c.id)) + 1 : 1;
-    setCrewList([...crewList, { id: newId, name: '', email: '', role: '' }]);
+    setCrewList([...crewList, { id: newId, crewId: '', role: '' }]);
   };
 
   const removeCrew = (id) => {
@@ -75,11 +138,16 @@ export default function CreateVoyagePage() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (!shipId) return alert('Vui lòng chọn tàu vận chuyển!');
+
+    if (currentCargoTotal.weight > selectedShipCapacity.maxWeight) {
+      return alert(`Tổng trọng lượng hàng (${currentCargoTotal.weight} MT) vượt quá tải trọng của tàu (${selectedShipCapacity.maxWeight} MT)! Vui lòng điều chỉnh.`);
+    }
+    if (currentCargoTotal.volume > selectedShipCapacity.maxVolume) {
+      return alert(`Tổng thể tích hàng (${currentCargoTotal.volume} CBM) vượt quá dung tích của tàu (${selectedShipCapacity.maxVolume} CBM)! Vui lòng điều chỉnh.`);
+    }
+
     try {
-      if (!shipId) {
-        alert("Vui lòng chọn tàu vận chuyển!");
-        return;
-      }
       const data = { shipId, routeInfo, cargoList, crewList };
       console.log("Saving Voyage:", data);
       await voyageService.createVoyage(data);
@@ -140,6 +208,9 @@ export default function CreateVoyagePage() {
                     <label>Tàu Vận chuyển <span className="text-red">*</span></label>
                     <select value={shipId} onChange={(e) => setShipId(e.target.value)} required>
                       <option value="">Chọn tàu từ hệ thống...</option>
+                      {availableShips.map(ship => (
+                        <option key={ship.id} value={ship.id}>{ship.shipName} (IMO: {ship.imoNumber})</option>
+                      ))}
                     </select>
                   </div>
                 </div>
@@ -190,24 +261,41 @@ export default function CreateVoyagePage() {
                   </div>
                 ) : (
                   <div className="vy-list-container">
+                    {/* Hiển thị Capacity Indicator */}
+                    {shipId && selectedShipCapacity.maxWeight > 0 && (
+                      <div className="capacity-indicator" style={{ 
+                        marginBottom: '15px', padding: '10px', 
+                        backgroundColor: (currentCargoTotal.weight > selectedShipCapacity.maxWeight || currentCargoTotal.volume > selectedShipCapacity.maxVolume) ? '#fef2f2' : '#f0fdf4',
+                        border: `1px solid ${(currentCargoTotal.weight > selectedShipCapacity.maxWeight || currentCargoTotal.volume > selectedShipCapacity.maxVolume) ? '#f87171' : '#86efac'}`,
+                        borderRadius: '8px'
+                      }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+                          <strong>Kiểm tra tải trọng (Weight):</strong>
+                          <span style={{ color: currentCargoTotal.weight > selectedShipCapacity.maxWeight ? 'red' : 'green', fontWeight: 'bold' }}>
+                            {currentCargoTotal.weight.toFixed(2)} / {selectedShipCapacity.maxWeight} MT
+                          </span>
+                        </div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                          <strong>Kiểm tra thể tích (Volume):</strong>
+                          <span style={{ color: currentCargoTotal.volume > selectedShipCapacity.maxVolume ? 'red' : 'green', fontWeight: 'bold' }}>
+                            {currentCargoTotal.volume.toFixed(2)} / {selectedShipCapacity.maxVolume} CBM
+                          </span>
+                        </div>
+                      </div>
+                    )}
+                    
                     {cargoList.map((cargo, index) => (
                       <div className="vy-list-item" key={cargo.id}>
-                        <div className="vy-form-group">
-                          <label>Tên Lô hàng</label>
-                          <input type="text" name="cargoName" placeholder="Tên hàng hóa..." value={cargo.cargoName} onChange={(e) => handleCargoChange(cargo.id, e)} />
-                        </div>
-                        <div className="vy-form-group">
-                          <label>Loại hàng</label>
-                          <select name="cargoType" value={cargo.cargoType} onChange={(e) => handleCargoChange(cargo.id, e)}>
-                            <option value="">Chọn loại...</option>
-                            <option value="Container">Container</option>
-                            <option value="Dry Bulk">Hàng rời (Khô)</option>
-                            <option value="Liquid Bulk">Hàng rời (Lỏng)</option>
+                        <div className="vy-form-group" style={{ flex: 1 }}>
+                          <label>Chọn Lô hàng</label>
+                          <select name="cargoId" value={cargo.cargoId} onChange={(e) => handleCargoChange(cargo.id, e)}>
+                            <option value="">Chọn lô hàng từ hệ thống...</option>
+                            {availableCargos.map(ac => (
+                              <option key={ac.id} value={ac.id}>
+                                {ac.cargoName || `Cargo #${ac.id}`} - {ac.cargoType} ({ac.totalWeight} MT | {ac.totalVolume} CBM)
+                              </option>
+                            ))}
                           </select>
-                        </div>
-                        <div className="vy-form-group">
-                          <label>Khối lượng (Tấn)</label>
-                          <input type="number" name="weight" placeholder="1000" value={cargo.weight} onChange={(e) => handleCargoChange(cargo.id, e)} />
                         </div>
                         <button type="button" className="v-btn-icon text-red" onClick={() => removeCargo(cargo.id)} style={{ marginBottom: '4px' }}>
                           <Trash2 size={18} />
@@ -236,19 +324,23 @@ export default function CreateVoyagePage() {
                 ) : (
                   <div className="vy-list-container">
                     {crewList.map((crew, index) => (
-                      <div className="vy-list-item" key={crew.id} style={{ gridTemplateColumns: '1fr 1.5fr 1fr auto' }}>
+                      <div className="vy-list-item" key={crew.id} style={{ gridTemplateColumns: '1.5fr 1fr auto' }}>
                         <div className="vy-form-group">
-                          <label>Họ và Tên</label>
-                          <input type="text" name="name" placeholder="Nguyễn Văn A..." value={crew.name} onChange={(e) => handleCrewChange(crew.id, e)} required />
+                          <label>Chọn Nhân sự</label>
+                          <select name="crewId" value={crew.crewId} onChange={(e) => handleCrewChange(crew.id, e)} required>
+                            <option value="">Chọn thủy thủ...</option>
+                            {availableCrews.map(ac => (
+                              <option key={ac.id} value={ac.id}>
+                                {ac.fullName} ({ac.email}) - {ac.position}
+                              </option>
+                            ))}
+                          </select>
                         </div>
                         <div className="vy-form-group">
-                          <label>Email cá nhân</label>
-                          <input type="email" name="email" placeholder="example@gmail.com" value={crew.email} onChange={(e) => handleCrewChange(crew.id, e)} required />
-                        </div>
-                        <div className="vy-form-group">
-                          <label>Chức danh (Role)</label>
+                          <label>Chức danh cho chuyến đi</label>
                           <select name="role" value={crew.role} onChange={(e) => handleCrewChange(crew.id, e)} required>
                             <option value="">Chọn chức danh...</option>
+                            <option value="Captain (CAPT)">Thuyền trưởng (Captain)</option>
                             <option value="Sĩ quan boong (Deck Officer)">Sĩ quan boong (Deck Officer)</option>
                             <option value="Đại phó (Chief Officer)">Đại phó (Chief Officer)</option>
                             <option value="Máy trưởng (Chief Engineer)">Máy trưởng (Chief Engineer)</option>
