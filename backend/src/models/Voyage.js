@@ -8,7 +8,7 @@ const Voyage = sequelize.define("Voyage", {
   destinationPort: { type: DataTypes.STRING },
   departureDate: { type: DataTypes.DATEONLY },
   arrivalDate: { type: DataTypes.DATEONLY },
-  status: { type: DataTypes.STRING, defaultValue: "Planned" },
+  status: { type: DataTypes.STRING, defaultValue: "Planning" },
   isCrewSufficient: { type: DataTypes.BOOLEAN, defaultValue: false },
   isCargoLoaded: { type: DataTypes.BOOLEAN, defaultValue: false },
   issueReason: { type: DataTypes.TEXT },

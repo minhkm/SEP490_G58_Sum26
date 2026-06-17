@@ -278,7 +278,7 @@ export default function CreateVoyagePage() {
                   <div className="status-dot"></div>
                   <div className="status-info">
                     <h4>Bản nháp (Draft)</h4>
-                    <p>Hải trình sẽ chuyển sang trạng thái "Đã lên kế hoạch" (Planned) sau khi được khởi tạo.</p>
+                    <p>Hải trình sẽ chuyển sang trạng thái "Đang lên kế hoạch" (Planning) sau khi được khởi tạo.</p>
                   </div>
                 </div>
               </div>
