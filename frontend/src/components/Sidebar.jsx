@@ -101,8 +101,8 @@ export default function Sidebar() {
             </div>
           )}
 
-          {/* Sửa chữa & Bảo trì — EngineOfficer, Master, ChiefOfficer */}
-          {(role === 'EngineOfficer' || role === 'ChiefEngineer' || role === 'Master' || role === 'ChiefOfficer') && (
+          {/* Sửa chữa & Bảo trì — EngineOfficer, EngineCrew, Master, ChiefOfficer */}
+          {(role === 'EngineOfficer' || role === 'ChiefEngineer' || role === 'EngineCrew' || role === 'Master' || role === 'ChiefOfficer') && (
             <div
               className={`nav-item ${isActive('/repair-tasks')}`}
               onClick={() => navigate('/repair-tasks')}
