@@ -3,28 +3,31 @@ const router = express.Router();
 const auth = require('../middlewares/authMiddleware');
 const repair = require('../controllers/repairController');
 
-// Engine Officer báo lỗi máy
-router.post('/report', auth, repair.reportFailure);
+// Engine Officer tạo repair task (dựa trên nhật ký ca trực)
+router.post('/tasks', auth, repair.createRepairTask);
 
-// Lấy danh sách repair tasks (tất cả roles đều xem được)
+// Lấy danh sách repair tasks
 router.get('/tasks', auth, repair.getRepairTasks);
 
-// Lấy danh sách crew có thể giao việc
+// Lấy danh sách thợ máy có thể giao việc
 router.get('/available-crew', auth, repair.getAvailableCrew);
+
+// Lấy máy đèn dự phòng còn hoạt động
+router.get('/standby-generators', auth, repair.getStandbyGenerators);
 
 // Engine Officer giao việc sửa
 router.put('/:id/assign', auth, repair.assignTask);
 
-// Maintenance Crew bắt đầu sửa
+// Thợ máy bắt đầu sửa
 router.put('/:id/start', auth, repair.startRepair);
 
-// Maintenance Crew hoàn thành sửa + nộp báo cáo
-router.put('/:id/complete', auth, repair.completeRepair);
+// Thợ máy sửa xong → gửi báo cáo (Repair Log)
+router.put('/:id/submit-log', auth, repair.submitRepairLog);
 
-// Engine Officer xác nhận kết quả
-router.put('/:id/verify', auth, repair.verifyRepair);
+// Engine Officer kiểm tra + ghi nhận (Record Repair Log)
+router.put('/:id/verify', auth, repair.verifyAndRecord);
 
-// Master duyệt báo cáo cuối cùng
+// Thuyền trưởng duyệt báo cáo
 router.put('/:id/review', auth, repair.masterReview);
 
 module.exports = router;

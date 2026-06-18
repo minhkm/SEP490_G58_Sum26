@@ -4,62 +4,83 @@ const {
 const { Op } = require('sequelize');
 
 // ============================================================
-// 1. Engine Officer báo lỗi máy
-//    → Tạo RepairTask + Set Engine.status = 'Failed'
-//    → Nếu Main Engine → Set Voyage.status = 'Suspended'
+// 1. Engine Officer tạo Repair Task
+//    - Dựa trên nhật ký ca trực / thông số vượt ngưỡng
+//    - Máy chính hỏng → PHẢI dừng tàu (Voyage = Suspended)
+//    - Máy đèn hỏng → Chuyển sang máy đèn dự phòng
 // ============================================================
-const reportFailure = async (req, res) => {
+const createRepairTask = async (req, res) => {
   try {
-    const { engineId, description, priority } = req.body;
+    const { engineId, description, priority, assignedTo, standbyEngineId } = req.body;
     const userId = req.user?.id;
 
-    // Lấy crewProfile từ userId
     const crew = await CrewProfile.findOne({ where: { userId } });
     if (!crew) return res.status(403).json({ message: 'Không tìm thấy hồ sơ thuyền viên' });
 
-    // Lấy thông tin engine
     const engine = await Engine.findByPk(engineId, { include: [Ship] });
     if (!engine) return res.status(404).json({ message: 'Không tìm thấy máy' });
+
+    // Xác định loại máy
+    const isMainEngine = engine.engineType === 'Diesel 2-kỳ' || engine.engineType === 'Main Engine';
+
+    // Set Engine = Failed
+    await engine.update({ status: 'Failed' });
+
+    // === MÁY CHÍNH HỎNG → Bắt buộc dừng tàu ===
+    let voyageSuspended = false;
+    if (isMainEngine) {
+      const activeVoyage = await Voyage.findOne({
+        where: { shipId: engine.shipId, status: { [Op.in]: ['InProgress', 'Planning'] } }
+      });
+      if (activeVoyage) {
+        await activeVoyage.update({ 
+          status: 'Suspended', 
+          issueReason: `Máy chính hỏng: ${description}` 
+        });
+        voyageSuspended = true;
+      }
+    }
+
+    // === MÁY ĐÈN HỎNG → Chuyển sang máy đèn dự phòng ===
+    let standbyActivated = null;
+    if (!isMainEngine && standbyEngineId) {
+      const standbyEngine = await Engine.findByPk(standbyEngineId);
+      if (standbyEngine) {
+        await standbyEngine.update({ status: 'Running' });
+        standbyActivated = standbyEngine.engineName;
+      }
+    }
 
     // Tạo RepairTask
     const task = await RepairTask.create({
       engineId,
       shipId: engine.shipId,
       reportedBy: crew.id,
+      assignedTo: assignedTo || null,
       description: description || 'Máy gặp sự cố',
-      priority: priority || 'Medium',
-      status: 'Reported',
-      reportedAt: new Date()
+      priority: priority || (isMainEngine ? 'High' : 'Medium'),
+      status: assignedTo ? 'Assigned' : 'Reported',
+      reportedAt: new Date(),
+      assignedAt: assignedTo ? new Date() : null
     });
-
-    // Set Engine status = Failed
-    await engine.update({ status: 'Failed' });
-
-    // Nếu Main Engine → Set Voyage = Suspended
-    const isMainEngine = engine.engineType === 'Diesel 2-kỳ' || engine.engineType === 'Main Engine';
-    if (isMainEngine) {
-      const activeVoyage = await Voyage.findOne({
-        where: { shipId: engine.shipId, status: { [Op.in]: ['InProgress', 'Planning'] } }
-      });
-      if (activeVoyage) {
-        await activeVoyage.update({ status: 'Suspended', issueReason: `Main Engine failure: ${description}` });
-      }
-    }
 
     res.status(201).json({ 
-      message: 'Đã báo lỗi máy thành công',
+      message: isMainEngine 
+        ? '⚠️ Máy chính hỏng — Tàu đã dừng để sửa chữa' 
+        : `Đã tạo lệnh sửa chữa máy đèn${standbyActivated ? ` — Đã chuyển sang ${standbyActivated}` : ''}`,
       task,
-      engineStatus: 'Failed',
-      voyageSuspended: isMainEngine
+      isMainEngine,
+      voyageSuspended,
+      standbyActivated
     });
   } catch (error) {
-    console.error('Lỗi báo lỗi máy:', error);
+    console.error('Lỗi tạo repair task:', error);
     res.status(500).json({ message: 'Lỗi server', error: error.message });
   }
 };
 
 // ============================================================
-// 2. Lấy danh sách repair tasks (filter theo role)
+// 2. Lấy danh sách repair tasks
 // ============================================================
 const getRepairTasks = async (req, res) => {
   try {
@@ -71,10 +92,10 @@ const getRepairTasks = async (req, res) => {
     const tasks = await RepairTask.findAll({
       where,
       include: [
-        { model: Engine, attributes: ['engineName', 'engineType', 'status'] },
-        { model: Ship, attributes: ['shipName'] },
-        { model: CrewProfile, as: 'Reporter', attributes: ['fullName', 'position'] },
-        { model: CrewProfile, as: 'Assignee', attributes: ['fullName', 'position'] }
+        { model: Engine, attributes: ['id', 'engineName', 'engineType', 'status'] },
+        { model: Ship, attributes: ['id', 'shipName'] },
+        { model: CrewProfile, as: 'Reporter', attributes: ['id', 'fullName', 'position'] },
+        { model: CrewProfile, as: 'Assignee', attributes: ['id', 'fullName', 'position'] }
       ],
       order: [['reportedAt', 'DESC']]
     });
@@ -87,7 +108,7 @@ const getRepairTasks = async (req, res) => {
 };
 
 // ============================================================
-// 3. Engine Officer giao việc sửa cho Maintenance Crew
+// 3. Engine Officer giao việc sửa cho thợ máy
 // ============================================================
 const assignTask = async (req, res) => {
   try {
@@ -111,7 +132,7 @@ const assignTask = async (req, res) => {
 };
 
 // ============================================================
-// 4. Maintenance Crew bắt đầu sửa
+// 4. Thợ máy bắt đầu sửa
 // ============================================================
 const startRepair = async (req, res) => {
   try {
@@ -127,9 +148,9 @@ const startRepair = async (req, res) => {
 };
 
 // ============================================================
-// 5. Maintenance Crew hoàn thành + nộp báo cáo
+// 5. Thợ máy sửa xong → Gửi báo cáo sửa chữa (Repair Log)
 // ============================================================
-const completeRepair = async (req, res) => {
+const submitRepairLog = async (req, res) => {
   try {
     const { id } = req.params;
     const { repairNote } = req.body;
@@ -143,54 +164,62 @@ const completeRepair = async (req, res) => {
       completedAt: new Date()
     });
 
-    res.json({ message: 'Đã nộp báo cáo sửa chữa', task });
+    res.json({ message: 'Đã gửi báo cáo sửa chữa', task });
   } catch (error) {
     res.status(500).json({ message: 'Lỗi server', error: error.message });
   }
 };
 
 // ============================================================
-// 6. Engine Officer xác nhận kết quả sửa
-//    → Set Engine.status = 'Running' hoặc 'Standby'
-//    → Resume Voyage nếu Main Engine
+// 6. Engine Officer kiểm tra + ghi nhận báo cáo (Record Repair Log)
+//    → Set Engine.status = Operational / Standby
+//    → Máy chính sửa xong → Resume Voyage
 // ============================================================
-const verifyRepair = async (req, res) => {
+const verifyAndRecord = async (req, res) => {
   try {
     const { id } = req.params;
-    const { verifyNote, engineStatus } = req.body; // engineStatus: 'Running' or 'Standby'
+    const { verifyNote, engineStatus } = req.body;
 
     const task = await RepairTask.findByPk(id, { include: [Engine] });
     if (!task) return res.status(404).json({ message: 'Không tìm thấy task' });
 
+    // Ghi nhận kết quả
     await task.update({
       status: 'Verified',
       verifyNote: verifyNote || '',
       verifiedAt: new Date()
     });
 
-    // Set Engine status back
+    // Cập nhật trạng thái máy
     const newStatus = engineStatus || 'Operational';
     await task.Engine.update({ status: newStatus });
 
-    // Resume Voyage nếu Main Engine
+    // Máy chính sửa xong → Resume Voyage
     const isMainEngine = task.Engine.engineType === 'Diesel 2-kỳ' || task.Engine.engineType === 'Main Engine';
-    if (isMainEngine) {
+    let voyageResumed = false;
+    if (isMainEngine && newStatus === 'Operational') {
       const voyage = await Voyage.findOne({
         where: { shipId: task.shipId, status: 'Suspended' }
       });
       if (voyage) {
         await voyage.update({ status: 'InProgress', issueReason: null });
+        voyageResumed = true;
       }
     }
 
-    res.json({ message: 'Đã xác nhận sửa chữa thành công', task });
+    res.json({ 
+      message: voyageResumed 
+        ? '✅ Máy chính đã sửa xong — Tàu tiếp tục hành trình' 
+        : '✅ Đã ghi nhận kết quả sửa chữa',
+      task, voyageResumed 
+    });
   } catch (error) {
     res.status(500).json({ message: 'Lỗi server', error: error.message });
   }
 };
 
 // ============================================================
-// 7. Master duyệt báo cáo cuối cùng
+// 7. Thuyền trưởng (Master) duyệt báo cáo cuối cùng
 // ============================================================
 const masterReview = async (req, res) => {
   try {
@@ -206,27 +235,30 @@ const masterReview = async (req, res) => {
       reviewedAt: new Date()
     });
 
-    res.json({ message: 'Master đã duyệt báo cáo', task });
+    res.json({ message: 'Thuyền trưởng đã duyệt báo cáo', task });
   } catch (error) {
     res.status(500).json({ message: 'Lỗi server', error: error.message });
   }
 };
 
 // ============================================================
-// 8. Lấy danh sách crew có thể giao việc (Maintenance)
+// 8. Lấy danh sách thợ máy có thể giao việc
 // ============================================================
 const getAvailableCrew = async (req, res) => {
   try {
     const { shipId } = req.query;
     
-    // Lấy crew đang on voyage của tàu này
     const crews = await CrewProfile.findAll({
       include: [{
         model: VoyageCrew,
-        include: [{ model: Voyage, where: { shipId, status: { [Op.in]: ['InProgress', 'Suspended'] } } }]
+        required: true,
+        include: [{ 
+          model: Voyage, 
+          where: { shipId, status: { [Op.in]: ['InProgress', 'Suspended'] } } 
+        }]
       }],
       where: {
-        department: { [Op.in]: ['Engine', 'Deck'] }
+        department: 'Engine'
       }
     });
 
@@ -236,13 +268,36 @@ const getAvailableCrew = async (req, res) => {
   }
 };
 
+// ============================================================
+// 9. Lấy danh sách máy đèn dự phòng (còn hoạt động)
+// ============================================================
+const getStandbyGenerators = async (req, res) => {
+  try {
+    const { shipId, excludeEngineId } = req.query;
+    
+    const generators = await Engine.findAll({
+      where: {
+        shipId,
+        id: { [Op.ne]: excludeEngineId || 0 },
+        engineType: { [Op.notIn]: ['Diesel 2-kỳ', 'Main Engine'] },
+        status: { [Op.in]: ['Operational', 'Standby'] }
+      }
+    });
+
+    res.json(generators);
+  } catch (error) {
+    res.status(500).json({ message: 'Lỗi server', error: error.message });
+  }
+};
+
 module.exports = {
-  reportFailure,
+  createRepairTask,
   getRepairTasks,
   assignTask,
   startRepair,
-  completeRepair,
-  verifyRepair,
+  submitRepairLog,
+  verifyAndRecord,
   masterReview,
   getAvailableCrew,
+  getStandbyGenerators,
 };

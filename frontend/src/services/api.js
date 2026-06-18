@@ -169,8 +169,8 @@ export const profileService = {
 };
 
 export const repairService = {
-  reportFailure: async (data) => {
-    const response = await api.post('/repairs/report', data);
+  createTask: async (data) => {
+    const response = await api.post('/repairs/tasks', data);
     return response.data;
   },
   getTasks: async (params) => {
@@ -181,6 +181,10 @@ export const repairService = {
     const response = await api.get('/repairs/available-crew', { params: { shipId } });
     return response.data;
   },
+  getStandbyGenerators: async (shipId, excludeEngineId) => {
+    const response = await api.get('/repairs/standby-generators', { params: { shipId, excludeEngineId } });
+    return response.data;
+  },
   assignTask: async (id, data) => {
     const response = await api.put(`/repairs/${id}/assign`, data);
     return response.data;
@@ -189,11 +193,11 @@ export const repairService = {
     const response = await api.put(`/repairs/${id}/start`);
     return response.data;
   },
-  completeRepair: async (id, data) => {
-    const response = await api.put(`/repairs/${id}/complete`, data);
+  submitRepairLog: async (id, data) => {
+    const response = await api.put(`/repairs/${id}/submit-log`, data);
     return response.data;
   },
-  verifyRepair: async (id, data) => {
+  verifyAndRecord: async (id, data) => {
     const response = await api.put(`/repairs/${id}/verify`, data);
     return response.data;
   },
