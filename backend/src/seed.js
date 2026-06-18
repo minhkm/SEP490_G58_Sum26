@@ -264,6 +264,16 @@ async function seed() {
       status: 'Planned',
     }, { transaction: t });
 
+    // VQS 04/2026 - InProgress (hành trình test hiện tại)
+    const vVQS04 = await Voyage.create({
+      shipId: shipVQS.id,
+      departurePort: 'Cảng Hồ Chí Minh, Việt Nam',
+      destinationPort: 'Manila, Philippines',
+      departureDate: '2026-06-15',
+      arrivalDate: '2026-06-25',
+      status: 'InProgress',
+    }, { transaction: t });
+
     console.log('✅ Voyages xong');
 
     // ================================================================
@@ -296,7 +306,7 @@ async function seed() {
       { crewId: cpNam.id, role: 'Engine Crew' },
     ];
 
-    for (const v of [vVQS01, vVQS02, vVQS03]) {
+    for (const v of [vVQS01, vVQS02, vVQS03, vVQS04]) {
       await VoyageCrew.bulkCreate(vqsCrewList.map(c => ({ voyageId: v.id, ...c })), { transaction: t });
     }
     for (const v of [vS6601, vS6602]) {
@@ -550,7 +560,7 @@ async function seed() {
     console.log('  [Thợ máy]  ldkhoa@vqs.vn       → CargoOps@2026  (VQS)');
     console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
     console.log('🚢 TÀUAU:  MV VINH QUANG SUN (IMO 9215672)  |  MV STAR 66 (IMO 9588548)');
-    console.log('🗺️  HÀNH TRÌNH: 3× VQS (Completed) | 1× S66 (InProgress) | 1× S66 (Planned)');
+    console.log('🗺️  HÀNH TRÌNH: 3× VQS (Completed) | 1× VQS (InProgress) | 1× S66 (InProgress) | 1× S66 (Planned)');
     console.log('📦 HÀNG HOÁ:  VQS-03: 112,000 bao 25kg gạo (2,810 MT, Discharged)');
     console.log('              S66-01: 55,935 bao 50kg gạo (2,797 MT, Loaded)');
     console.log('📝 REPORTS:   4 báo cáo (Resolved/Open/InProgress/Resolved)');

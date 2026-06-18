@@ -88,8 +88,8 @@ export default function Sidebar() {
             </div>
           )}
 
-          {/* Nhật ký Kiểm tra Máy — EngineOfficer */}
-          {(role === 'EngineOfficer') && (
+          {/* Nhật ký Kiểm tra Máy — EngineOfficer, EngineCrew, ChiefEngineer */}
+          {(role === 'EngineOfficer' || role === 'EngineCrew' || role === 'ChiefEngineer') && (
             <div
               className={`nav-item ${isActive('/engine-logs')}`}
               onClick={() => navigate('/engine-logs')}
