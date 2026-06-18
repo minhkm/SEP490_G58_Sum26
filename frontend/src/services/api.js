@@ -168,27 +168,4 @@ export const profileService = {
   },
 };
 
-export const repairService = {
-  getTasks: async (params) => {
-    const response = await api.get('/repairs/tasks', { params });
-    return response.data;
-  },
-  getStandbyGenerators: async (shipId, excludeEngineId) => {
-    const response = await api.get('/repairs/standby-generators', { params: { shipId, excludeEngineId } });
-    return response.data;
-  },
-  startRepair: async (data) => {
-    const response = await api.post('/repairs/start', data);
-    return response.data;
-  },
-  submitReport: async (id, data) => {
-    const response = await api.put(`/repairs/${id}/report`, data);
-    return response.data;
-  },
-  masterReview: async (id, data) => {
-    const response = await api.put(`/repairs/${id}/review`, data);
-    return response.data;
-  },
-};
-
 export default api;

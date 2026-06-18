@@ -25,7 +25,6 @@ const EngineParameter = require("./EngineParameter");
 const DeckLog = require("./DeckLog");
 const EngineLog = require("./EngineLog");
 const EngineLogValue = require("./EngineLogValue");
-const RepairTask = require("./RepairTask");
 
 // ============ QUAN HỆ ============
 
@@ -89,19 +88,6 @@ EngineLog.belongsTo(Engine, { foreignKey: "engineId" });
 // EngineParameter 1-N EngineLogValue
 EngineParameter.hasMany(EngineLogValue, { foreignKey: "parameterId" });
 EngineLogValue.belongsTo(EngineParameter, { foreignKey: "parameterId" });
-
-// RepairTask associations
-Engine.hasMany(RepairTask, { foreignKey: "engineId" });
-RepairTask.belongsTo(Engine, { foreignKey: "engineId" });
-
-Ship.hasMany(RepairTask, { foreignKey: "shipId" });
-RepairTask.belongsTo(Ship, { foreignKey: "shipId" });
-
-CrewProfile.hasMany(RepairTask, { as: 'ReportedTasks', foreignKey: "reportedBy" });
-RepairTask.belongsTo(CrewProfile, { as: 'Reporter', foreignKey: "reportedBy" });
-
-CrewProfile.hasMany(RepairTask, { as: 'AssignedTasks', foreignKey: "assignedTo" });
-RepairTask.belongsTo(CrewProfile, { as: 'Assignee', foreignKey: "assignedTo" });
 
 // Voyage 1-N các bảng con
 Voyage.hasMany(VoyageCrew, { foreignKey: "voyageId" });
@@ -167,5 +153,4 @@ module.exports = {
   DeckLog,
   EngineLog,
   EngineLogValue,
-  RepairTask,
 };

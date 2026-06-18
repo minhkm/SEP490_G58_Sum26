@@ -12,7 +12,6 @@ import {
   LogOut,
   Clock,
   Gauge,
-  Wrench,
 } from 'lucide-react';
 
 export default function Sidebar() {
@@ -98,18 +97,6 @@ export default function Sidebar() {
             >
               <Gauge size={20} />
               <span>Nhật ký Kiểm tra Máy</span>
-            </div>
-          )}
-
-          {/* Sửa chữa & Bảo trì — EngineOfficer, EngineCrew, Master, ChiefOfficer */}
-          {(role === 'EngineOfficer' || role === 'ChiefEngineer' || role === 'EngineCrew' || role === 'Master' || role === 'ChiefOfficer') && (
-            <div
-              className={`nav-item ${isActive('/repair-tasks')}`}
-              onClick={() => navigate('/repair-tasks')}
-              style={{ cursor: 'pointer' }}
-            >
-              <Wrench size={20} />
-              <span>Sửa chữa & Bảo trì</span>
             </div>
           )}
 
