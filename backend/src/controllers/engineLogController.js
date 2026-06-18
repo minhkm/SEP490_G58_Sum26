@@ -1,23 +1,50 @@
+const { Op } = require('sequelize');
 const { 
-  Voyage, Ship, Engine, EngineParameter, 
+  Voyage, VoyageCrew, Ship, Engine, EngineParameter, 
   Shift, ShiftLog, EngineLog, EngineLogValue, 
   CrewProfile 
 } = require('../models');
 
 // ============================================================
-// 1. Lấy Hải trình đang hoạt động (Auto-detect, không cho chọn)
+// 1. Lấy Hải trình mà MÌNH đang tham gia (chưa hoàn thành)
+//    - Check user có trong VoyageCrew không
+//    - Chỉ lấy hải trình InProgress hoặc Suspended
 // ============================================================
 const getActiveVoyage = async (req, res) => {
   try {
+    const userId = req.user?.id;
+    if (!userId) return res.status(401).json({ message: 'Chưa đăng nhập' });
+
+    // Bước 1: Tìm CrewProfile
+    const crew = await CrewProfile.findOne({ where: { userId } });
+    if (!crew) return res.status(403).json({ message: 'Không tìm thấy hồ sơ thuyền viên' });
+
+    // Bước 2: Tìm các voyageId mà crew tham gia
+    const myVoyageCrews = await VoyageCrew.findAll({
+      where: { crewId: crew.id },
+      attributes: ['voyageId']
+    });
+
+    if (!myVoyageCrews.length) {
+      return res.status(404).json({ message: 'Bạn chưa được phân công hải trình nào' });
+    }
+
+    const myVoyageIds = myVoyageCrews.map(vc => vc.voyageId);
+
+    // Bước 3: Tìm hải trình đang hoạt động trong danh sách đó
     const activeVoyage = await Voyage.findOne({
-      where: { status: 'InProgress' },
+      where: { 
+        id: { [Op.in]: myVoyageIds },
+        status: { [Op.in]: ['InProgress', 'Suspended'] }
+      },
       include: [
         { model: Ship, include: [{ model: Engine, include: [EngineParameter] }] }
-      ]
+      ],
+      order: [['departureDate', 'DESC']]
     });
 
     if (!activeVoyage) {
-      return res.status(404).json({ message: 'Không có hải trình nào đang hoạt động' });
+      return res.status(404).json({ message: 'Bạn không có hải trình nào đang hoạt động' });
     }
 
     res.json(activeVoyage);

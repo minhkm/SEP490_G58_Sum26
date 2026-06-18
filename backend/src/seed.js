@@ -45,6 +45,9 @@ async function seed() {
     const uHung = await User.create({ username: 'nvhung@star66.vn', password: defPass, role: 'Sailor', status: 'Active' }, { transaction: t });
     const uHao = await User.create({ username: 'chhao@star66.vn', password: defPass, role: 'Sailor', status: 'Active' }, { transaction: t });
     const uQuangS = await User.create({ username: 'pmquang@star66.vn', password: defPass, role: 'Sailor', status: 'Active' }, { transaction: t });
+    // Thợ máy STAR 66
+    const uLong = await User.create({ username: 'ntlong@star66.vn', password: defPass, role: 'EngineCrew', status: 'Active' }, { transaction: t });
+    const uNam = await User.create({ username: 'tvnam@star66.vn', password: defPass, role: 'EngineCrew', status: 'Active' }, { transaction: t });
 
     // --- MV VINH QUANG SUN crew ---
     const uMinh = await User.create({ username: 'nqminh@vqs.vn', password: defPass, role: 'Master', status: 'Active' }, { transaction: t });
@@ -55,6 +58,9 @@ async function seed() {
     const uViet = await User.create({ username: 'tqviet@vqs.vn', password: defPass, role: 'Sailor', status: 'Active' }, { transaction: t });
     const uPhuc = await User.create({ username: 'hvphuc@vqs.vn', password: defPass, role: 'Sailor', status: 'Active' }, { transaction: t });
     const uThang = await User.create({ username: 'nbthang@vqs.vn', password: defPass, role: 'Sailor', status: 'Active' }, { transaction: t });
+    // Thợ máy VQS
+    const uKhoa = await User.create({ username: 'ldkhoa@vqs.vn', password: defPass, role: 'EngineCrew', status: 'Active' }, { transaction: t });
+    const uDat = await User.create({ username: 'ntdat@vqs.vn', password: defPass, role: 'EngineCrew', status: 'Active' }, { transaction: t });
 
     // --- CrewProfiles: STAR 66 (dữ liệu thực từ crew list) ---
     const cpDuong = await CrewProfile.create({ userId: uDuong.id, fullName: 'Nguyễn Viết Dương', email: 'nvduong@star66.vn', phone: '0912000001', cccd: 'C9598172', department: 'Deck', position: 'Captain (CAPT)' }, { transaction: t });
@@ -67,6 +73,8 @@ async function seed() {
     const cpHung = await CrewProfile.create({ userId: uHung.id, fullName: 'Nguyễn Văn Hùng', email: 'nvhung@star66.vn', phone: '0912000008', cccd: 'C543525', department: 'Deck', position: 'Ordinary Seaman Deck (OSD)' }, { transaction: t });
     const cpHao = await CrewProfile.create({ userId: uHao.id, fullName: 'Cao Hữu Hào', email: 'chhao@star66.vn', phone: '0912000009', cccd: 'C935390', department: 'Engine', position: 'Able Seaman Engine (ABE)' }, { transaction: t });
     const cpQuangS = await CrewProfile.create({ userId: uQuangS.id, fullName: 'Phan Minh Quang', email: 'pmquang@star66.vn', phone: '0912000010', cccd: 'K0505651', department: 'Deck', position: 'Cook' }, { transaction: t });
+    const cpLong = await CrewProfile.create({ userId: uLong.id, fullName: 'Nguyễn Thành Long', email: 'ntlong@star66.vn', phone: '0912000011', cccd: 'C1234567', department: 'Engine', position: 'Engine Crew (Thợ máy)' }, { transaction: t });
+    const cpNam = await CrewProfile.create({ userId: uNam.id, fullName: 'Trần Văn Nam', email: 'tvnam@star66.vn', phone: '0912000012', cccd: 'C7654321', department: 'Engine', position: 'Engine Crew (Thợ máy)' }, { transaction: t });
 
     // --- CrewProfiles: MV VINH QUANG SUN ---
     const cpMinh = await CrewProfile.create({ userId: uMinh.id, fullName: 'Nguyễn Quang Minh', email: 'nqminh@vqs.vn', phone: '0987000001', cccd: 'VHQ001001', department: 'Deck', position: 'Captain (CAPT)' }, { transaction: t });
@@ -77,6 +85,8 @@ async function seed() {
     const cpViet = await CrewProfile.create({ userId: uViet.id, fullName: 'Trần Quốc Việt', email: 'tqviet@vqs.vn', phone: '0987000006', cccd: 'VHQ001006', department: 'Deck', position: 'Able Seaman Deck (ABD)' }, { transaction: t });
     const cpPhuc = await CrewProfile.create({ userId: uPhuc.id, fullName: 'Hoàng Văn Phúc', email: 'hvphuc@vqs.vn', phone: '0987000007', cccd: 'VHQ001007', department: 'Deck', position: 'Ordinary Seaman Deck (OSD)' }, { transaction: t });
     const cpThang = await CrewProfile.create({ userId: uThang.id, fullName: 'Nguyễn Bá Thắng', email: 'nbthang@vqs.vn', phone: '0987000008', cccd: 'VHQ001008', department: 'Engine', position: 'Engine Crew' }, { transaction: t });
+    const cpKhoa = await CrewProfile.create({ userId: uKhoa.id, fullName: 'Lê Đức Khoa', email: 'ldkhoa@vqs.vn', phone: '0987000009', cccd: 'VHQ001009', department: 'Engine', position: 'Engine Crew (Thợ máy)' }, { transaction: t });
+    const cpDat = await CrewProfile.create({ userId: uDat.id, fullName: 'Nguyễn Thanh Đạt', email: 'ntdat@vqs.vn', phone: '0987000010', cccd: 'VHQ001010', department: 'Engine', position: 'Engine Crew (Thợ máy)' }, { transaction: t });
 
     // --- Certificates: Nguyễn Viết Dương (từ tài liệu thực) ---
     await CrewCertificate.bulkCreate([
@@ -161,6 +171,19 @@ async function seed() {
     const epS66 = [];
     for (const p of paramDefs) {
       epS66.push(await EngineParameter.create({ engineId: eS66Main.id, ...p }, { transaction: t }));
+    }
+
+    // 3 thông số bắt buộc cho máy đèn (Generator) — giống form thêm tàu
+    const genParamDefs = [
+      { name: 'Fuel Oil Pressure', minValue: 3.0, maxValue: 6.0 },
+      { name: 'Exhaust Gas Temp XL2 (°C)', minValue: 300, maxValue: 420 },
+      { name: 'Cooling Water Temp (°C)', minValue: 40, maxValue: 75 },
+    ];
+
+    for (const gen of [eVQSGen1, eVQSGen2, eS66Gen1, eS66Gen2]) {
+      for (const p of genParamDefs) {
+        await EngineParameter.create({ engineId: gen.id, ...p }, { transaction: t });
+      }
     }
 
     console.log('✅ Engines & Parameters xong');
@@ -254,6 +277,16 @@ async function seed() {
       status: 'Planned',
     }, { transaction: t });
 
+    // VQS 04/2026 - InProgress (hành trình test hiện tại)
+    const vVQS04 = await Voyage.create({
+      shipId: shipVQS.id,
+      departurePort: 'Cảng Hồ Chí Minh, Việt Nam',
+      destinationPort: 'Manila, Philippines',
+      departureDate: '2026-06-15',
+      arrivalDate: '2026-06-25',
+      status: 'InProgress',
+    }, { transaction: t });
+
     console.log('✅ Voyages xong');
 
     // ================================================================
@@ -268,6 +301,8 @@ async function seed() {
       { crewId: cpViet.id, role: 'Able Seaman Deck' },
       { crewId: cpPhuc.id, role: 'Ordinary Seaman Deck' },
       { crewId: cpThang.id, role: 'Engine Crew' },
+      { crewId: cpKhoa.id, role: 'Engine Crew' },
+      { crewId: cpDat.id, role: 'Engine Crew' },
     ];
     const s66CrewList = [
       { crewId: cpDuong.id, role: 'Master' },
@@ -280,9 +315,11 @@ async function seed() {
       { crewId: cpHung.id, role: 'Ordinary Seaman Deck' },
       { crewId: cpHao.id, role: 'Able Seaman Engine' },
       { crewId: cpQuangS.id, role: 'Cook' },
+      { crewId: cpLong.id, role: 'Engine Crew' },
+      { crewId: cpNam.id, role: 'Engine Crew' },
     ];
 
-    for (const v of [vVQS01, vVQS02, vVQS03]) {
+    for (const v of [vVQS01, vVQS02, vVQS03, vVQS04]) {
       await VoyageCrew.bulkCreate(vqsCrewList.map(c => ({ voyageId: v.id, ...c })), { transaction: t });
     }
     for (const v of [vS6601, vS6602]) {
@@ -424,6 +461,60 @@ async function seed() {
       }
     }
 
+    // ================================================================
+    // CA TRỰC CHO VQS-04 (Hải trình test — InProgress)
+    // 3 ngày: 15, 16, 17/06/2026 — mỗi ngày 6 ca (4h/ca)
+    // Thợ máy trực: cpKhoa (ldkhoa@vqs.vn), cpDat, cpThang
+    // Sỹ quan máy: cpThanh (E/O), cpQuan
+    // ================================================================
+    const vqs04WatchDef = [
+      { label: '00-04', sh: 0, eh: 4, engCrew: cpKhoa.id, deckCrew: cpAn.id },
+      { label: '04-08', sh: 4, eh: 8, engCrew: cpDat.id, deckCrew: cpHungV.id },
+      { label: '08-12', sh: 8, eh: 12, engCrew: cpThang.id, deckCrew: cpAn.id },
+      { label: '12-16', sh: 12, eh: 16, engCrew: cpKhoa.id, deckCrew: cpHungV.id },
+      { label: '16-20', sh: 16, eh: 20, engCrew: cpDat.id, deckCrew: cpAn.id },
+      { label: '20-24', sh: 20, eh: 0, engCrew: cpThang.id, deckCrew: cpHungV.id },
+    ];
+
+    const vqs04Days = ['2026-06-15', '2026-06-16', '2026-06-17'];
+    for (const day of vqs04Days) {
+      for (const w of vqs04WatchDef) {
+        const st = new Date(day);
+        st.setHours(w.sh, 0, 0, 0);
+        const et = new Date(day);
+        if (w.eh === 0) { et.setDate(et.getDate() + 1); et.setHours(0, 0, 0, 0); }
+        else et.setHours(w.eh, 0, 0, 0);
+
+        const isPast = et < new Date();
+        const shiftStatus = isPast ? 'Completed' : 'InProgress';
+
+        // Ca máy — thợ máy trực
+        await Shift.create({ 
+          voyageId: vVQS04.id, crewId: w.engCrew, 
+          startTime: st, endTime: et, status: shiftStatus 
+        }, { transaction: t });
+
+        // Ca boong
+        await Shift.create({ 
+          voyageId: vVQS04.id, crewId: w.deckCrew, 
+          startTime: st, endTime: et, status: shiftStatus 
+        }, { transaction: t });
+      }
+    }
+
+    // Ca trực riêng cho Sỹ quan máy (E/O) — cpThanh, cpQuan
+    for (const day of vqs04Days) {
+      // E/O ca sáng 08-16
+      const eoSt1 = new Date(day); eoSt1.setHours(8, 0, 0, 0);
+      const eoEt1 = new Date(day); eoEt1.setHours(16, 0, 0, 0);
+      await Shift.create({ voyageId: vVQS04.id, crewId: cpThanh.id, startTime: eoSt1, endTime: eoEt1, status: eoEt1 < new Date() ? 'Completed' : 'InProgress' }, { transaction: t });
+
+      // E/O ca đêm 20-04
+      const eoSt2 = new Date(day); eoSt2.setHours(20, 0, 0, 0);
+      const eoEt2 = new Date(day); eoEt2.setDate(eoEt2.getDate() + 1); eoEt2.setHours(4, 0, 0, 0);
+      await Shift.create({ voyageId: vVQS04.id, crewId: cpQuan.id, startTime: eoSt2, endTime: eoEt2, status: eoEt2 < new Date() ? 'Completed' : 'InProgress' }, { transaction: t });
+    }
+
     console.log('✅ Shifts & Logs xong');
 
     // ================================================================
@@ -530,11 +621,13 @@ async function seed() {
     console.log('  [Master]   nvduong@star66.vn   → CargoOps@2026  (STAR 66)');
     console.log('  [C/O]      tvtuong@star66.vn   → CargoOps@2026');
     console.log('  [C/E]      pcduc@star66.vn     → CargoOps@2026');
+    console.log('  [Thợ máy]  ntlong@star66.vn    → CargoOps@2026  (STAR 66)');
     console.log('  [Master]   nqminh@vqs.vn       → CargoOps@2026  (VINH QUANG SUN)');
     console.log('  [C/O]      tvhung@vqs.vn       → CargoOps@2026');
+    console.log('  [Thợ máy]  ldkhoa@vqs.vn       → CargoOps@2026  (VQS)');
     console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
     console.log('🚢 TÀUAU:  MV VINH QUANG SUN (IMO 9215672)  |  MV STAR 66 (IMO 9588548)');
-    console.log('🗺️  HÀNH TRÌNH: 3× VQS (Completed) | 1× S66 (InProgress) | 1× S66 (Planned)');
+    console.log('🗺️  HÀNH TRÌNH: 3× VQS (Completed) | 1× VQS (InProgress) | 1× S66 (InProgress) | 1× S66 (Planned)');
     console.log('📦 HÀNG HOÁ:  VQS-03: 112,000 bao 25kg gạo (2,810 MT, Discharged)');
     console.log('              S66-01: 55,935 bao 50kg gạo (2,797 MT, Loaded)');
     console.log('📝 REPORTS:   4 báo cáo (Resolved/Open/InProgress/Resolved)');
