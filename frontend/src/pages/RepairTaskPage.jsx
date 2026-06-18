@@ -115,8 +115,7 @@ export default function RepairTaskPage() {
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
           <h2><Wrench size={24} /> Quản lý Sửa chữa & Bảo trì</h2>
           {(role === 'EngineOfficer' || role === 'ChiefEngineer') && (
-            <button className="btn-danger" style={{ padding: '10px 20px', borderRadius: 10, border: 'none', fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}
-              onClick={() => setShowReportModal(true)}>
+            <button className="btn-report-failure" onClick={() => setShowReportModal(true)}>
               <AlertTriangle size={16} /> Báo lỗi máy
             </button>
           )}
@@ -180,18 +179,18 @@ export default function RepairTaskPage() {
                 <div className="task-desc">{task.description || 'Không có mô tả'}</div>
 
                 {task.repairNote && (
-                  <div className="task-desc" style={{ background: 'rgba(34,197,94,0.08)', padding: 10, borderRadius: 8, borderLeft: '3px solid #22c55e' }}>
-                    <strong style={{ color: '#22c55e' }}>📝 Báo cáo sửa:</strong> {task.repairNote}
+                  <div className="repair-note repair">
+                    <strong>📝 Báo cáo sửa:</strong> {task.repairNote}
                   </div>
                 )}
                 {task.verifyNote && (
-                  <div className="task-desc" style={{ background: 'rgba(139,92,246,0.08)', padding: 10, borderRadius: 8, borderLeft: '3px solid #8b5cf6', marginTop: 6 }}>
-                    <strong style={{ color: '#8b5cf6' }}>✅ Xác nhận:</strong> {task.verifyNote}
+                  <div className="repair-note verify">
+                    <strong>✅ Xác nhận:</strong> {task.verifyNote}
                   </div>
                 )}
                 {task.reviewNote && (
-                  <div className="task-desc" style={{ background: 'rgba(56,189,248,0.08)', padding: 10, borderRadius: 8, borderLeft: '3px solid #38bdf8', marginTop: 6 }}>
-                    <strong style={{ color: '#38bdf8' }}>🔍 Master duyệt:</strong> {task.reviewNote}
+                  <div className="repair-note review">
+                    <strong>🔍 Master duyệt:</strong> {task.reviewNote}
                   </div>
                 )}
 
@@ -275,7 +274,7 @@ export default function RepairTaskPage() {
             <div className="modal-content" onClick={e => e.stopPropagation()}>
               {showActionModal.type === 'assign' && (<>
                 <h3><Send size={20} style={{ color: '#f59e0b' }} /> Giao việc sửa chữa</h3>
-                <p style={{ color: '#94a3b8', fontSize: 13 }}>Ticket #{showActionModal.task.id} — {showActionModal.task.Engine?.engineName}</p>
+                <p style={{ color: '#64748b', fontSize: 13 }}>Ticket #{showActionModal.task.id} — {showActionModal.task.Engine?.engineName}</p>
                 <label>Crew ID được giao</label>
                 <input type="number" placeholder="Nhập ID crew..." value={formData.assignedTo} onChange={e => setFormData({...formData, assignedTo: e.target.value})} />
                 <div className="modal-actions">
@@ -286,7 +285,7 @@ export default function RepairTaskPage() {
 
               {showActionModal.type === 'complete' && (<>
                 <h3><CheckCircle size={20} style={{ color: '#22c55e' }} /> Hoàn thành sửa chữa</h3>
-                <p style={{ color: '#94a3b8', fontSize: 13 }}>Ticket #{showActionModal.task.id} — {showActionModal.task.Engine?.engineName}</p>
+                <p style={{ color: '#64748b', fontSize: 13 }}>Ticket #{showActionModal.task.id} — {showActionModal.task.Engine?.engineName}</p>
                 <label>Ghi chú sửa chữa</label>
                 <textarea placeholder="Mô tả công việc đã thực hiện..." value={formData.note} onChange={e => setFormData({...formData, note: e.target.value})} />
                 <div className="modal-actions">
@@ -297,7 +296,7 @@ export default function RepairTaskPage() {
 
               {showActionModal.type === 'verify' && (<>
                 <h3><Shield size={20} style={{ color: '#8b5cf6' }} /> Xác nhận kết quả sửa chữa</h3>
-                <p style={{ color: '#94a3b8', fontSize: 13 }}>Ticket #{showActionModal.task.id} — {showActionModal.task.Engine?.engineName}</p>
+                <p style={{ color: '#64748b', fontSize: 13 }}>Ticket #{showActionModal.task.id} — {showActionModal.task.Engine?.engineName}</p>
                 <label>Trạng thái máy sau sửa</label>
                 <select value={formData.engineStatus} onChange={e => setFormData({...formData, engineStatus: e.target.value})}>
                   <option value="Operational">Hoạt động (Operational)</option>
@@ -313,7 +312,7 @@ export default function RepairTaskPage() {
 
               {showActionModal.type === 'review' && (<>
                 <h3><Eye size={20} style={{ color: '#38bdf8' }} /> Master duyệt báo cáo</h3>
-                <p style={{ color: '#94a3b8', fontSize: 13 }}>Ticket #{showActionModal.task.id} — {showActionModal.task.Engine?.engineName}</p>
+                <p style={{ color: '#64748b', fontSize: 13 }}>Ticket #{showActionModal.task.id} — {showActionModal.task.Engine?.engineName}</p>
                 <label>Ghi chú duyệt</label>
                 <textarea placeholder="Nhận xét của thuyền trưởng..." value={formData.note} onChange={e => setFormData({...formData, note: e.target.value})} />
                 <div className="modal-actions">
