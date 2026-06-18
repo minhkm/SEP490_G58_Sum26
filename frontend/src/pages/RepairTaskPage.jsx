@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { Wrench, AlertTriangle, Clock, User, Ship, CheckCircle, Eye, Play, Shield, FileText } from 'lucide-react';
+import { Wrench, AlertTriangle, Clock, User, Ship, CheckCircle, Eye, FileText } from 'lucide-react';
 import MasterLayout from '../components/MasterLayout';
 import { repairService, engineLogService } from '../services/api';
 import './RepairTaskPage.css';
 
 const STATUS_MAP = {
-  Reported: 'Đã báo lỗi', Assigned: 'Chờ sửa', InProgress: 'Đang sửa',
-  Completed: 'Chờ E/O kiểm tra', Verified: 'Đã ghi nhận', Reviewed: 'Master đã duyệt'
+  Repairing: 'Đang sửa chữa',
+  Completed: 'Chờ thuyền trưởng duyệt',
+  Reviewed: 'Đã duyệt'
 };
 
 export default function RepairTaskPage() {
@@ -20,18 +21,15 @@ export default function RepairTaskPage() {
   const [loading, setLoading] = useState(true);
   const [filterStatus, setFilterStatus] = useState('');
   
-  const [showCreateModal, setShowCreateModal] = useState(false);
-  const [showActionModal, setShowActionModal] = useState(null);
+  const [showModal, setShowModal] = useState(null); // 'startRepair' | { type: 'report'|'review', task }
   const [formData, setFormData] = useState({ 
-    engineId: '', description: '', priority: 'Medium', 
-    note: '', engineStatus: 'Operational', standbyEngineId: '' 
+    engineId: '', issue: '', standbyEngineId: '',
+    repairNote: '', engineStatus: 'Operational', reviewNote: ''
   });
 
   const isEngineOfficer = role === 'EngineOfficer' || role === 'ChiefEngineer';
-  const isEngineCrew = role === 'EngineCrew';
   const isMaster = role === 'Master' || role === 'ChiefOfficer';
 
-  // Load data
   const loadTasks = async () => {
     try {
       const data = await repairService.getTasks(filterStatus ? { status: filterStatus } : {});
@@ -50,39 +48,36 @@ export default function RepairTaskPage() {
 
   useEffect(() => { loadTasks(); loadEngines(); }, [filterStatus]);
 
-  // Khi chọn engine → load standby generators nếu là máy đèn
+  const isMainEngine = (engine) => 
+    engine.engineType === 'Diesel 2-kỳ' || engine.engineType === 'Main Engine';
+
+  const selectedEngine = engines.find(e => e.id === parseInt(formData.engineId));
+
   const handleEngineSelect = async (engineId) => {
     setFormData(prev => ({ ...prev, engineId, standbyEngineId: '' }));
     const engine = engines.find(e => e.id === parseInt(engineId));
     if (engine && !isMainEngine(engine)) {
       try {
-        const generators = await repairService.getStandbyGenerators(
+        const gens = await repairService.getStandbyGenerators(
           engine.shipId || activeVoyage?.Ship?.id, engineId
         );
-        setStandbyGenerators(generators);
-      } catch (err) { setStandbyGenerators([]); }
+        setStandbyGenerators(gens);
+      } catch { setStandbyGenerators([]); }
     } else {
       setStandbyGenerators([]);
     }
   };
 
-  const isMainEngine = (engine) => 
-    engine.engineType === 'Diesel 2-kỳ' || engine.engineType === 'Main Engine';
-  const selectedEngine = engines.find(e => e.id === parseInt(formData.engineId));
-
-  // === ACTIONS ===
-
-  // Engine Officer tạo lệnh sửa (dựa trên note của thợ máy)
-  const handleCreateTask = async () => {
-    if (!formData.engineId) return alert('Chọn máy cần sửa chữa');
+  // E/O bắt đầu sửa máy
+  const handleStartRepair = async () => {
+    if (!formData.engineId) return alert('Chọn máy cần sửa');
     try {
-      const result = await repairService.createTask({
+      const result = await repairService.startRepair({
         engineId: parseInt(formData.engineId),
-        description: formData.description,
-        priority: formData.priority,
+        issue: formData.issue,
         standbyEngineId: formData.standbyEngineId ? parseInt(formData.standbyEngineId) : null
       });
-      setShowCreateModal(false);
+      setShowModal(null);
       resetForm();
       loadTasks();
       loadEngines();
@@ -90,58 +85,43 @@ export default function RepairTaskPage() {
     } catch (err) { alert('Lỗi: ' + (err.response?.data?.message || err.message)); }
   };
 
-  // Thợ máy bắt đầu sửa (cả nhóm cùng sửa)
-  const handleStart = async (taskId) => {
-    try { await repairService.startRepair(taskId); loadTasks(); } 
-    catch (err) { alert('Lỗi: ' + err.message); }
-  };
-
-  // Thợ máy gửi báo cáo sửa chữa (ghi lại cái gì hỏng, sửa ra sao)
-  const handleSubmitLog = async () => {
-    if (!formData.note) return alert('Vui lòng ghi lại chi tiết sửa chữa');
+  // E/O sửa xong → viết báo cáo
+  const handleSubmitReport = async () => {
+    if (!formData.repairNote) return alert('Vui lòng ghi chi tiết sửa chữa');
     try {
-      await repairService.submitRepairLog(showActionModal.task.id, { repairNote: formData.note });
-      setShowActionModal(null);
-      loadTasks();
-      alert('✅ Đã gửi báo cáo sửa chữa cho Sỹ quan máy');
-    } catch (err) { alert('Lỗi: ' + err.message); }
-  };
-
-  // Engine Officer kiểm tra máy + ghi nhận kết quả
-  const handleVerify = async () => {
-    try {
-      const result = await repairService.verifyAndRecord(showActionModal.task.id, {
-        verifyNote: formData.note,
+      const result = await repairService.submitReport(showModal.task.id, {
+        repairNote: formData.repairNote,
         engineStatus: formData.engineStatus
       });
-      setShowActionModal(null);
+      setShowModal(null);
       loadTasks();
       loadEngines();
       alert(result.message);
     } catch (err) { alert('Lỗi: ' + err.message); }
   };
 
-  // Thuyền trưởng duyệt báo cáo
+  // Thuyền trưởng duyệt
   const handleReview = async () => {
     try {
-      await repairService.masterReview(showActionModal.task.id, { reviewNote: formData.note });
-      setShowActionModal(null);
+      const result = await repairService.masterReview(showModal.task.id, { 
+        reviewNote: formData.reviewNote 
+      });
+      setShowModal(null);
       loadTasks();
-      alert('✅ Đã duyệt — Tiếp tục hải trình');
+      alert(result.message);
     } catch (err) { alert('Lỗi: ' + err.message); }
   };
 
   const resetForm = () => setFormData({ 
-    engineId: '', description: '', priority: 'Medium', 
-    note: '', engineStatus: 'Operational', standbyEngineId: '' 
+    engineId: '', issue: '', standbyEngineId: '',
+    repairNote: '', engineStatus: 'Operational', reviewNote: ''
   });
 
-  // Stats
   const stats = {
     total: tasks.length,
-    pending: tasks.filter(t => ['Reported', 'Assigned'].includes(t.status)).length,
-    inProgress: tasks.filter(t => t.status === 'InProgress').length,
-    done: tasks.filter(t => ['Completed', 'Verified', 'Reviewed'].includes(t.status)).length,
+    repairing: tasks.filter(t => t.status === 'Repairing').length,
+    waiting: tasks.filter(t => t.status === 'Completed').length,
+    done: tasks.filter(t => t.status === 'Reviewed').length,
   };
 
   const formatDate = (d) => d ? new Date(d).toLocaleString('vi-VN') : '—';
@@ -149,47 +129,39 @@ export default function RepairTaskPage() {
   return (
     <MasterLayout>
       <div className="repair-page">
-        {/* Header */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
           <h2><Wrench size={24} /> Sửa chữa & Bảo trì</h2>
           {isEngineOfficer && (
-            <button className="btn-report-failure" onClick={() => { resetForm(); setShowCreateModal(true); }}>
-              <AlertTriangle size={16} /> Tạo lệnh sửa chữa
+            <button className="btn-report-failure" onClick={() => { resetForm(); setShowModal('startRepair'); }}>
+              <AlertTriangle size={16} /> Bắt đầu sửa máy
             </button>
           )}
-        </div>
-
-        {/* Role info */}
-        <div style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: 10, padding: '12px 16px', marginBottom: 16, fontSize: 13, color: '#64748b' }}>
-          {isEngineOfficer && '👨‍✈️ Sỹ quan máy — Tạo lệnh sửa, kiểm tra kết quả, báo cáo thuyền trưởng'}
-          {isEngineCrew && '🔧 Thợ máy — Xem lệnh sửa, sửa máy, ghi báo cáo sửa chữa'}
-          {isMaster && '🚢 Thuyền trưởng — Duyệt báo cáo sửa chữa để tiếp tục hải trình'}
         </div>
 
         {/* Stats */}
         <div className="repair-stats">
           <div className="repair-stat-card">
             <div className="stat-num">{stats.total}</div>
-            <div className="stat-label">Tổng lệnh</div>
+            <div className="stat-label">Tổng</div>
           </div>
           <div className="repair-stat-card danger">
-            <div className="stat-num">{stats.pending}</div>
-            <div className="stat-label">Chờ xử lý</div>
+            <div className="stat-num">{stats.repairing}</div>
+            <div className="stat-label">Đang sửa</div>
           </div>
           <div className="repair-stat-card warning">
-            <div className="stat-num">{stats.inProgress}</div>
-            <div className="stat-label">Đang sửa</div>
+            <div className="stat-num">{stats.waiting}</div>
+            <div className="stat-label">Chờ duyệt</div>
           </div>
           <div className="repair-stat-card success">
             <div className="stat-num">{stats.done}</div>
-            <div className="stat-label">Hoàn thành</div>
+            <div className="stat-label">Đã duyệt</div>
           </div>
         </div>
 
-        {/* Filters */}
+        {/* Filter */}
         <div className="repair-filters">
           <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)}>
-            <option value="">Tất cả trạng thái</option>
+            <option value="">Tất cả</option>
             {Object.entries(STATUS_MAP).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
           </select>
         </div>
@@ -200,7 +172,7 @@ export default function RepairTaskPage() {
         ) : tasks.length === 0 ? (
           <div className="empty-state">
             <CheckCircle size={48} />
-            <p>Không có lệnh sửa chữa nào</p>
+            <p>Chưa có lịch sử sửa chữa</p>
           </div>
         ) : (
           <div className="repair-task-list">
@@ -214,12 +186,11 @@ export default function RepairTaskPage() {
                       #{task.id} — {task.Engine?.engineName || 'N/A'}
                       {taskIsMain 
                         ? <span className="task-priority high">MÁY CHÍNH</span>
-                        : <span className="task-priority medium">MÁY ĐÈN</span>
-                      }
+                        : <span className="task-priority medium">MÁY ĐÈN</span>}
                     </h4>
                     <div className="task-engine-info">
-                      <Ship size={12} /> {task.Ship?.shipName || 'N/A'} • {task.Engine?.engineType || ''}
-                      {taskIsMain && !['Verified', 'Reviewed'].includes(task.status) && (
+                      <Ship size={12} /> {task.Ship?.shipName}
+                      {taskIsMain && task.status === 'Repairing' && (
                         <span style={{ color: '#dc2626', fontWeight: 600, marginLeft: 8 }}>⚠️ Tàu đang dừng</span>
                       )}
                     </div>
@@ -229,57 +200,50 @@ export default function RepairTaskPage() {
                   </span>
                 </div>
 
-                <div className="task-desc">{task.description || 'Không có mô tả'}</div>
+                {/* Vấn đề */}
+                <div className="task-desc">
+                  <strong>Vấn đề:</strong> {task.description}
+                </div>
 
+                {/* Báo cáo sửa chữa của E/O */}
                 {task.repairNote && (
                   <div className="repair-note repair">
-                    <strong>📝 Báo cáo sửa chữa (thợ máy):</strong> {task.repairNote}
+                    <strong>🔧 Trưởng máy báo cáo:</strong> {task.repairNote}
                   </div>
                 )}
-                {task.verifyNote && (
-                  <div className="repair-note verify">
-                    <strong>✅ Sỹ quan máy ghi nhận:</strong> {task.verifyNote}
-                  </div>
-                )}
+
+                {/* Thuyền trưởng duyệt */}
                 {task.reviewNote && (
                   <div className="repair-note review">
-                    <strong>🔍 Thuyền trưởng duyệt:</strong> {task.reviewNote}
+                    <strong>🚢 Thuyền trưởng:</strong> {task.reviewNote}
                   </div>
                 )}
 
                 <div className="task-meta">
-                  <span><User size={12} /> E/O: {task.Reporter?.fullName || '—'}</span>
+                  <span><User size={12} /> Trưởng máy: {task.Reporter?.fullName || '—'}</span>
                   <span><Clock size={12} /> {formatDate(task.reportedAt)}</span>
-                  {task.completedAt && <span><Clock size={12} /> Sửa xong: {formatDate(task.completedAt)}</span>}
+                  {task.completedAt && <span><Clock size={12} /> Xong: {formatDate(task.completedAt)}</span>}
                 </div>
 
-                {/* === ACTION BUTTONS theo role === */}
+                {/* Actions */}
                 <div className="task-actions">
-                  {/* Thợ máy / E/O: Bắt đầu sửa (khi đã tạo lệnh) */}
-                  {(isEngineCrew || isEngineOfficer) && task.status === 'Reported' && (
-                    <button className="btn-start" onClick={() => handleStart(task.id)}>
-                      <Play size={13} /> Bắt đầu sửa
+                  {/* E/O: Sửa xong → viết báo cáo */}
+                  {isEngineOfficer && task.status === 'Repairing' && (
+                    <button className="btn-complete" onClick={() => { 
+                      setFormData(p => ({...p, repairNote: '', engineStatus: 'Operational'})); 
+                      setShowModal({ type: 'report', task }); 
+                    }}>
+                      <FileText size={13} /> Sửa xong — Viết báo cáo
                     </button>
                   )}
 
-                  {/* Thợ máy / E/O: Gửi báo cáo sửa chữa (khi đang sửa) */}
-                  {(isEngineCrew || isEngineOfficer) && task.status === 'InProgress' && (
-                    <button className="btn-complete" onClick={() => { setFormData(p => ({...p, note: ''})); setShowActionModal({ type: 'submitLog', task }); }}>
-                      <FileText size={13} /> Gửi báo cáo sửa
-                    </button>
-                  )}
-
-                  {/* E/O: Kiểm tra máy + ghi nhận (khi thợ máy đã gửi báo cáo) */}
-                  {isEngineOfficer && task.status === 'Completed' && (
-                    <button className="btn-verify" onClick={() => { setFormData(p => ({...p, note: '', engineStatus: 'Operational'})); setShowActionModal({ type: 'verify', task }); }}>
-                      <Shield size={13} /> Kiểm tra & Ghi nhận
-                    </button>
-                  )}
-
-                  {/* Thuyền trưởng: Duyệt (khi E/O đã ghi nhận) */}
-                  {isMaster && task.status === 'Verified' && (
-                    <button className="btn-review" onClick={() => { setFormData(p => ({...p, note: ''})); setShowActionModal({ type: 'review', task }); }}>
-                      <Eye size={13} /> Duyệt báo cáo
+                  {/* Thuyền trưởng: Duyệt */}
+                  {isMaster && task.status === 'Completed' && (
+                    <button className="btn-review" onClick={() => { 
+                      setFormData(p => ({...p, reviewNote: ''})); 
+                      setShowModal({ type: 'review', task }); 
+                    }}>
+                      <Eye size={13} /> Duyệt & Tiếp tục hải trình
                     </button>
                   )}
                 </div>
@@ -288,154 +252,122 @@ export default function RepairTaskPage() {
           </div>
         )}
 
-        {/* ===== CREATE REPAIR TASK MODAL (E/O only) ===== */}
-        {showCreateModal && (
-          <div className="modal-overlay" onClick={() => setShowCreateModal(false)}>
+        {/* ===== MODAL: Bắt đầu sửa máy ===== */}
+        {showModal === 'startRepair' && (
+          <div className="modal-overlay" onClick={() => setShowModal(null)}>
             <div className="modal-content" onClick={e => e.stopPropagation()}>
-              <h3><Wrench size={20} style={{ color: '#dc2626' }} /> Tạo lệnh sửa chữa</h3>
+              <h3><Wrench size={20} style={{ color: '#dc2626' }} /> Sửa chữa máy</h3>
               <p style={{ color: '#64748b', fontSize: 13, marginBottom: 16 }}>
-                Dựa trên báo cáo từ thợ máy trong ca trực, tạo lệnh sửa chữa.
+                Dựa trên thông tin từ nhật ký kiểm tra máy (note của thợ máy trực ca).
               </p>
 
-              <label>Máy cần sửa chữa</label>
+              <label>Máy cần sửa</label>
               <select value={formData.engineId} onChange={e => handleEngineSelect(e.target.value)}>
                 <option value="">-- Chọn máy --</option>
                 {engines.map(e => (
                   <option key={e.id} value={e.id}>
-                    {e.engineName} ({e.engineType}) {e.status === 'Failed' ? '⚠️ Đang hỏng' : ''}
+                    {e.engineName} ({e.engineType})
                   </option>
                 ))}
               </select>
 
-              {/* Cảnh báo máy chính */}
               {selectedEngine && isMainEngine(selectedEngine) && (
                 <div style={{ background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 8, padding: 12, marginBottom: 14, fontSize: 13, color: '#991b1b' }}>
-                  <strong>⚠️ MÁY CHÍNH — Chỉ có 1:</strong> Tàu sẽ <strong>bắt buộc dừng</strong> để sửa chữa. Hải trình chuyển sang Suspended.
+                  ⚠️ <strong>Máy chính chỉ có 1</strong> — Tàu sẽ bắt buộc dừng để sửa.
                 </div>
               )}
 
-              {/* Máy đèn hỏng → chọn máy đèn dự phòng */}
               {selectedEngine && !isMainEngine(selectedEngine) && standbyGenerators.length > 0 && (
                 <>
                   <label>🔄 Chuyển sang máy đèn dự phòng</label>
                   <select value={formData.standbyEngineId} onChange={e => setFormData(p => ({...p, standbyEngineId: e.target.value}))}>
-                    <option value="">-- Không chuyển --</option>
+                    <option value="">-- Chọn --</option>
                     {standbyGenerators.map(g => (
                       <option key={g.id} value={g.id}>{g.engineName} ({g.status})</option>
                     ))}
                   </select>
-                  <p style={{ fontSize: 12, color: '#64748b', marginTop: -8 }}>
-                    Máy đèn có nhiều cái — hỏng 1 sẽ chuyển sang cái còn lại
-                  </p>
                 </>
               )}
 
-              <label>Mức độ ưu tiên</label>
-              <select value={formData.priority} onChange={e => setFormData(p => ({...p, priority: e.target.value}))}>
-                <option value="High">🔴 Khẩn cấp</option>
-                <option value="Medium">🟡 Trung bình</option>
-                <option value="Low">🟢 Thấp</option>
-              </select>
-
-              <label>Mô tả sự cố (từ note thợ máy trong ca trực)</label>
+              <label>Mô tả vấn đề (từ nhật ký thợ máy)</label>
               <textarea 
-                placeholder="VD: Thông số nhiệt độ vượt ngưỡng 95°C, máy phát tiếng kêu lạ..." 
-                value={formData.description} 
-                onChange={e => setFormData(p => ({...p, description: e.target.value}))} 
+                placeholder="VD: Nhiệt độ nước làm mát vượt 95°C, áp suất dầu thấp..." 
+                value={formData.issue} 
+                onChange={e => setFormData(p => ({...p, issue: e.target.value}))} 
               />
               
               <div className="modal-actions">
-                <button className="btn-cancel" onClick={() => setShowCreateModal(false)}>Hủy</button>
-                <button className="btn-danger" onClick={handleCreateTask}>
-                  {selectedEngine && isMainEngine(selectedEngine) ? '⚠️ Dừng tàu & Tạo lệnh' : '🔧 Tạo lệnh sửa'}
+                <button className="btn-cancel" onClick={() => setShowModal(null)}>Hủy</button>
+                <button className="btn-danger" onClick={handleStartRepair}>
+                  🔧 Bắt đầu sửa
                 </button>
               </div>
             </div>
           </div>
         )}
 
-        {/* ===== ACTION MODALS ===== */}
-        {showActionModal && (
-          <div className="modal-overlay" onClick={() => setShowActionModal(null)}>
+        {/* ===== MODAL: E/O viết báo cáo sau sửa ===== */}
+        {showModal?.type === 'report' && (
+          <div className="modal-overlay" onClick={() => setShowModal(null)}>
             <div className="modal-content" onClick={e => e.stopPropagation()}>
-              
-              {/* Thợ máy gửi báo cáo sửa chữa */}
-              {showActionModal.type === 'submitLog' && (<>
-                <h3><FileText size={20} style={{ color: '#16a34a' }} /> Báo cáo sửa chữa</h3>
-                <p style={{ color: '#64748b', fontSize: 13 }}>
-                  #{showActionModal.task.id} — {showActionModal.task.Engine?.engineName}
-                </p>
-                <p style={{ color: '#475569', fontSize: 13, marginBottom: 12 }}>
-                  Ghi lại chi tiết: cái gì hỏng và đã sửa như thế nào.
-                </p>
-                <label>Chi tiết sửa chữa</label>
-                <textarea 
-                  placeholder="VD: Bộ phận bơm dầu bị kẹt, đã thay seal mới, vệ sinh đường ống, kiểm tra áp suất ổn định 3.5 bar..." 
-                  value={formData.note} 
-                  onChange={e => setFormData(p => ({...p, note: e.target.value}))}
-                  style={{ minHeight: 120 }}
-                />
-                <div className="modal-actions">
-                  <button className="btn-cancel" onClick={() => setShowActionModal(null)}>Hủy</button>
-                  <button className="btn-complete" onClick={handleSubmitLog}>📝 Gửi báo cáo</button>
-                </div>
-              </>)}
+              <h3><FileText size={20} style={{ color: '#16a34a' }} /> Báo cáo sửa chữa</h3>
+              <p style={{ color: '#64748b', fontSize: 13 }}>
+                #{showModal.task.id} — {showModal.task.Engine?.engineName}
+              </p>
+              <div style={{ background: '#fef2f2', borderRadius: 8, padding: 10, marginBottom: 14, fontSize: 13, color: '#991b1b' }}>
+                <strong>Vấn đề:</strong> {showModal.task.description}
+              </div>
 
-              {/* E/O kiểm tra & ghi nhận */}
-              {showActionModal.type === 'verify' && (<>
-                <h3><Shield size={20} style={{ color: '#7c3aed' }} /> Kiểm tra & Ghi nhận</h3>
-                <p style={{ color: '#64748b', fontSize: 13 }}>
-                  #{showActionModal.task.id} — {showActionModal.task.Engine?.engineName}
-                </p>
-                {showActionModal.task.repairNote && (
-                  <div className="repair-note repair" style={{ marginBottom: 14 }}>
-                    <strong>📝 Báo cáo từ thợ máy:</strong> {showActionModal.task.repairNote}
-                  </div>
-                )}
-                <label>Trạng thái máy sau kiểm tra</label>
-                <select value={formData.engineStatus} onChange={e => setFormData(p => ({...p, engineStatus: e.target.value}))}>
-                  <option value="Operational">✅ Hoạt động bình thường</option>
-                  <option value="Standby">⏸️ Dự phòng</option>
-                </select>
-                <label>Nhận xét của Sỹ quan máy</label>
-                <textarea 
-                  placeholder="Máy đã hoạt động ổn định, thông số trong ngưỡng cho phép..." 
-                  value={formData.note} 
-                  onChange={e => setFormData(p => ({...p, note: e.target.value}))} 
-                />
-                <div className="modal-actions">
-                  <button className="btn-cancel" onClick={() => setShowActionModal(null)}>Hủy</button>
-                  <button className="btn-verify" onClick={handleVerify}>✅ Ghi nhận & Báo cáo thuyền trưởng</button>
-                </div>
-              </>)}
+              <label>Chi tiết sửa chữa</label>
+              <textarea 
+                placeholder="VD: Đã thay seal bơm dầu, vệ sinh bộ lọc, kiểm tra áp suất ổn định 3.5 bar. Nhiệt độ sau sửa: 75°C..." 
+                value={formData.repairNote} 
+                onChange={e => setFormData(p => ({...p, repairNote: e.target.value}))}
+                style={{ minHeight: 120 }}
+              />
 
-              {/* Thuyền trưởng duyệt */}
-              {showActionModal.type === 'review' && (<>
-                <h3><Eye size={20} style={{ color: '#2563eb' }} /> Thuyền trưởng duyệt</h3>
-                <p style={{ color: '#64748b', fontSize: 13 }}>
-                  #{showActionModal.task.id} — {showActionModal.task.Engine?.engineName}
-                </p>
-                {showActionModal.task.repairNote && (
-                  <div className="repair-note repair" style={{ marginBottom: 8 }}>
-                    <strong>📝 Thợ máy:</strong> {showActionModal.task.repairNote}
-                  </div>
-                )}
-                {showActionModal.task.verifyNote && (
-                  <div className="repair-note verify" style={{ marginBottom: 14 }}>
-                    <strong>✅ Sỹ quan máy:</strong> {showActionModal.task.verifyNote}
-                  </div>
-                )}
-                <label>Nhận xét của thuyền trưởng</label>
-                <textarea 
-                  placeholder="Phê duyệt, ghi chú thêm..." 
-                  value={formData.note} 
-                  onChange={e => setFormData(p => ({...p, note: e.target.value}))} 
-                />
-                <div className="modal-actions">
-                  <button className="btn-cancel" onClick={() => setShowActionModal(null)}>Hủy</button>
-                  <button className="btn-review" onClick={handleReview}>🔍 Duyệt & Tiếp tục hải trình</button>
+              <label>Trạng thái máy sau sửa</label>
+              <select value={formData.engineStatus} onChange={e => setFormData(p => ({...p, engineStatus: e.target.value}))}>
+                <option value="Operational">✅ Hoạt động bình thường</option>
+                <option value="Standby">⏸️ Dự phòng</option>
+              </select>
+
+              <div className="modal-actions">
+                <button className="btn-cancel" onClick={() => setShowModal(null)}>Hủy</button>
+                <button className="btn-complete" onClick={handleSubmitReport}>📝 Gửi báo cáo cho thuyền trưởng</button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ===== MODAL: Thuyền trưởng duyệt ===== */}
+        {showModal?.type === 'review' && (
+          <div className="modal-overlay" onClick={() => setShowModal(null)}>
+            <div className="modal-content" onClick={e => e.stopPropagation()}>
+              <h3><Eye size={20} style={{ color: '#2563eb' }} /> Duyệt báo cáo sửa chữa</h3>
+              <p style={{ color: '#64748b', fontSize: 13 }}>
+                #{showModal.task.id} — {showModal.task.Engine?.engineName}
+              </p>
+
+              <div style={{ background: '#fef2f2', borderRadius: 8, padding: 10, marginBottom: 8, fontSize: 13, color: '#991b1b' }}>
+                <strong>Vấn đề:</strong> {showModal.task.description}
+              </div>
+              {showModal.task.repairNote && (
+                <div className="repair-note repair" style={{ marginBottom: 14 }}>
+                  <strong>🔧 Trưởng máy:</strong> {showModal.task.repairNote}
                 </div>
-              </>)}
+              )}
+
+              <label>Nhận xét của thuyền trưởng</label>
+              <textarea 
+                placeholder="Phê duyệt, ghi chú thêm nếu cần..." 
+                value={formData.reviewNote} 
+                onChange={e => setFormData(p => ({...p, reviewNote: e.target.value}))} 
+              />
+              <div className="modal-actions">
+                <button className="btn-cancel" onClick={() => setShowModal(null)}>Hủy</button>
+                <button className="btn-review" onClick={handleReview}>✅ Duyệt & Tiếp tục hải trình</button>
+              </div>
             </div>
           </div>
         )}
