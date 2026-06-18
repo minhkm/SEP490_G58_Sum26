@@ -15,28 +15,39 @@ const getActiveVoyage = async (req, res) => {
     const userId = req.user?.id;
     if (!userId) return res.status(401).json({ message: 'Chưa đăng nhập' });
 
-    // Tìm CrewProfile của user
+    // Bước 1: Tìm CrewProfile
     const crew = await CrewProfile.findOne({ where: { userId } });
     if (!crew) return res.status(403).json({ message: 'Không tìm thấy hồ sơ thuyền viên' });
 
-    // Tìm hải trình mà user đang tham gia (chưa Completed)
-    const voyageCrew = await VoyageCrew.findOne({
+    // Bước 2: Tìm các voyageId mà crew tham gia
+    const myVoyageCrews = await VoyageCrew.findAll({
       where: { crewId: crew.id },
-      include: [{
-        model: Voyage,
-        where: { status: { [Op.in]: ['InProgress', 'Suspended', 'Planning'] } },
-        include: [
-          { model: Ship, include: [{ model: Engine, include: [EngineParameter] }] }
-        ]
-      }],
-      order: [[Voyage, 'departureDate', 'DESC']]
+      attributes: ['voyageId']
     });
 
-    if (!voyageCrew || !voyageCrew.Voyage) {
+    if (!myVoyageCrews.length) {
+      return res.status(404).json({ message: 'Bạn chưa được phân công hải trình nào' });
+    }
+
+    const myVoyageIds = myVoyageCrews.map(vc => vc.voyageId);
+
+    // Bước 3: Tìm hải trình đang hoạt động trong danh sách đó
+    const activeVoyage = await Voyage.findOne({
+      where: { 
+        id: { [Op.in]: myVoyageIds },
+        status: { [Op.in]: ['InProgress', 'Suspended'] }
+      },
+      include: [
+        { model: Ship, include: [{ model: Engine, include: [EngineParameter] }] }
+      ],
+      order: [['departureDate', 'DESC']]
+    });
+
+    if (!activeVoyage) {
       return res.status(404).json({ message: 'Bạn không có hải trình nào đang hoạt động' });
     }
 
-    res.json(voyageCrew.Voyage);
+    res.json(activeVoyage);
   } catch (error) {
     console.error('Lỗi lấy hải trình:', error);
     res.status(500).json({ message: 'Lỗi server', error: error.message });

@@ -173,6 +173,19 @@ async function seed() {
       epS66.push(await EngineParameter.create({ engineId: eS66Main.id, ...p }, { transaction: t }));
     }
 
+    // 3 thông số bắt buộc cho máy đèn (Generator) — giống form thêm tàu
+    const genParamDefs = [
+      { name: 'Fuel Oil Pressure', minValue: 3.0, maxValue: 6.0 },
+      { name: 'Exhaust Gas Temp XL2 (°C)', minValue: 300, maxValue: 420 },
+      { name: 'Cooling Water Temp (°C)', minValue: 40, maxValue: 75 },
+    ];
+
+    for (const gen of [eVQSGen1, eVQSGen2, eS66Gen1, eS66Gen2]) {
+      for (const p of genParamDefs) {
+        await EngineParameter.create({ engineId: gen.id, ...p }, { transaction: t });
+      }
+    }
+
     console.log('✅ Engines & Parameters xong');
 
     // ================================================================
@@ -446,6 +459,60 @@ async function seed() {
       if (epS66[i]) {
         await EngineLogValue.create({ engineLogId: s66ELog.id, parameterId: epS66[i].id, value: actualEngineValues[i] }, { transaction: t });
       }
+    }
+
+    // ================================================================
+    // CA TRỰC CHO VQS-04 (Hải trình test — InProgress)
+    // 3 ngày: 15, 16, 17/06/2026 — mỗi ngày 6 ca (4h/ca)
+    // Thợ máy trực: cpKhoa (ldkhoa@vqs.vn), cpDat, cpThang
+    // Sỹ quan máy: cpThanh (E/O), cpQuan
+    // ================================================================
+    const vqs04WatchDef = [
+      { label: '00-04', sh: 0, eh: 4, engCrew: cpKhoa.id, deckCrew: cpAn.id },
+      { label: '04-08', sh: 4, eh: 8, engCrew: cpDat.id, deckCrew: cpHungV.id },
+      { label: '08-12', sh: 8, eh: 12, engCrew: cpThang.id, deckCrew: cpAn.id },
+      { label: '12-16', sh: 12, eh: 16, engCrew: cpKhoa.id, deckCrew: cpHungV.id },
+      { label: '16-20', sh: 16, eh: 20, engCrew: cpDat.id, deckCrew: cpAn.id },
+      { label: '20-24', sh: 20, eh: 0, engCrew: cpThang.id, deckCrew: cpHungV.id },
+    ];
+
+    const vqs04Days = ['2026-06-15', '2026-06-16', '2026-06-17'];
+    for (const day of vqs04Days) {
+      for (const w of vqs04WatchDef) {
+        const st = new Date(day);
+        st.setHours(w.sh, 0, 0, 0);
+        const et = new Date(day);
+        if (w.eh === 0) { et.setDate(et.getDate() + 1); et.setHours(0, 0, 0, 0); }
+        else et.setHours(w.eh, 0, 0, 0);
+
+        const isPast = et < new Date();
+        const shiftStatus = isPast ? 'Completed' : 'InProgress';
+
+        // Ca máy — thợ máy trực
+        await Shift.create({ 
+          voyageId: vVQS04.id, crewId: w.engCrew, 
+          startTime: st, endTime: et, status: shiftStatus 
+        }, { transaction: t });
+
+        // Ca boong
+        await Shift.create({ 
+          voyageId: vVQS04.id, crewId: w.deckCrew, 
+          startTime: st, endTime: et, status: shiftStatus 
+        }, { transaction: t });
+      }
+    }
+
+    // Ca trực riêng cho Sỹ quan máy (E/O) — cpThanh, cpQuan
+    for (const day of vqs04Days) {
+      // E/O ca sáng 08-16
+      const eoSt1 = new Date(day); eoSt1.setHours(8, 0, 0, 0);
+      const eoEt1 = new Date(day); eoEt1.setHours(16, 0, 0, 0);
+      await Shift.create({ voyageId: vVQS04.id, crewId: cpThanh.id, startTime: eoSt1, endTime: eoEt1, status: eoEt1 < new Date() ? 'Completed' : 'InProgress' }, { transaction: t });
+
+      // E/O ca đêm 20-04
+      const eoSt2 = new Date(day); eoSt2.setHours(20, 0, 0, 0);
+      const eoEt2 = new Date(day); eoEt2.setDate(eoEt2.getDate() + 1); eoEt2.setHours(4, 0, 0, 0);
+      await Shift.create({ voyageId: vVQS04.id, crewId: cpQuan.id, startTime: eoSt2, endTime: eoEt2, status: eoEt2 < new Date() ? 'Completed' : 'InProgress' }, { transaction: t });
     }
 
     console.log('✅ Shifts & Logs xong');
