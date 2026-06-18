@@ -168,4 +168,39 @@ export const profileService = {
   },
 };
 
+export const repairService = {
+  reportFailure: async (data) => {
+    const response = await api.post('/repairs/report', data);
+    return response.data;
+  },
+  getTasks: async (params) => {
+    const response = await api.get('/repairs/tasks', { params });
+    return response.data;
+  },
+  getAvailableCrew: async (shipId) => {
+    const response = await api.get('/repairs/available-crew', { params: { shipId } });
+    return response.data;
+  },
+  assignTask: async (id, data) => {
+    const response = await api.put(`/repairs/${id}/assign`, data);
+    return response.data;
+  },
+  startRepair: async (id) => {
+    const response = await api.put(`/repairs/${id}/start`);
+    return response.data;
+  },
+  completeRepair: async (id, data) => {
+    const response = await api.put(`/repairs/${id}/complete`, data);
+    return response.data;
+  },
+  verifyRepair: async (id, data) => {
+    const response = await api.put(`/repairs/${id}/verify`, data);
+    return response.data;
+  },
+  masterReview: async (id, data) => {
+    const response = await api.put(`/repairs/${id}/review`, data);
+    return response.data;
+  },
+};
+
 export default api;
