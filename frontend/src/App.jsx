@@ -8,6 +8,8 @@ import AddVesselPage from "./pages/AddVesselPage";
 import VesselDetailPage from "./pages/VesselDetailPage";
 import CreateVoyagePage from "./pages/CreateVoyagePage";
 import CargoPage from "./pages/CargoPage";
+import AddCargoPage from "./pages/AddCargoPage";
+import CargoDetailPage from "./pages/CargoDetailPage";
 import VoyageListPage from "./pages/VoyageListPage";
 import CrewListPage from "./pages/CrewListPage";
 import AddCrewPage from "./pages/AddCrewPage";
@@ -36,6 +38,30 @@ function App() {
           element={
             <RequireRole allow={CARGO_ROLES}>
               <CargoPage />
+            </RequireRole>
+          }
+        />
+        <Route
+          path="/cargos/new"
+          element={
+            <RequireRole allow={CARGO_ROLES}>
+              <AddCargoPage />
+            </RequireRole>
+          }
+        />
+        <Route
+          path="/cargos/edit/:id"
+          element={
+            <RequireRole allow={CARGO_ROLES}>
+              <AddCargoPage />
+            </RequireRole>
+          }
+        />
+        <Route
+          path="/cargos/view/:id"
+          element={
+            <RequireRole allow={CARGO_ROLES}>
+              <CargoDetailPage />
             </RequireRole>
           }
         />

@@ -63,6 +63,10 @@ export const cargoService = {
     const response = await api.get('/cargos');
     return response.data;
   },
+  getById: async (id) => {
+    const response = await api.get(`/cargos/${id}`);
+    return response.data;
+  },
   create: async (data) => {
     const response = await api.post('/cargos', data);
     return response.data;

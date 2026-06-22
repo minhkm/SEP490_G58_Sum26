@@ -91,10 +91,39 @@ exports.getAllCargos = async (req, res) => {
   }
 };
 
+exports.getCargoById = async (req, res) => {
+  try {
+    const cargo = await Cargo.findByPk(req.params.id, {
+      include: [
+        {
+          model: Voyage,
+          include: [{ model: Ship }]
+        },
+        {
+          model: CargoAllocation,
+          include: [{ model: CargoHold }]
+        },
+        {
+          model: CargoItem
+        }
+      ]
+    });
+
+    if (!cargo) {
+      return res.status(404).json({ success: false, message: "Không tìm thấy lô hàng" });
+    }
+
+    res.json({ success: true, data: cargo });
+  } catch (error) {
+    console.error("Error fetching cargo detail:", error);
+    res.status(500).json({ success: false, message: "Lỗi lấy chi tiết lô hàng" });
+  }
+};
+
 exports.createCargo = async (req, res) => {
   try {
-    const { voyageId, cargoName, cargoType, totalWeight, status } = req.body;
-    
+    const { voyageId, cargoName, cargoType, totalWeight, totalVolume, status } = req.body;
+
     if (!voyageId) {
       return res.status(400).json({ success: false, message: "Vui lòng chọn hải trình" });
     }
@@ -104,6 +133,7 @@ exports.createCargo = async (req, res) => {
       cargoName,
       cargoType,
       totalWeight,
+      totalVolume,
       status: status || "Registered"
     });
 
@@ -117,7 +147,7 @@ exports.createCargo = async (req, res) => {
 exports.updateCargo = async (req, res) => {
   try {
     const cargoId = req.params.id;
-    const { voyageId, cargoName, cargoType, totalWeight, status } = req.body;
+    const { voyageId, cargoName, cargoType, totalWeight, totalVolume, status } = req.body;
 
     const cargo = await Cargo.findByPk(cargoId);
     if (!cargo) {
@@ -129,6 +159,7 @@ exports.updateCargo = async (req, res) => {
       cargoName: cargoName || cargo.cargoName,
       cargoType: cargoType || cargo.cargoType,
       totalWeight: totalWeight !== undefined ? totalWeight : cargo.totalWeight,
+      totalVolume: totalVolume !== undefined ? totalVolume : cargo.totalVolume,
       status: status || cargo.status
     });
 

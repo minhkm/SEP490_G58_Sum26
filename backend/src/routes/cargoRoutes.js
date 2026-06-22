@@ -8,6 +8,7 @@ const requireRole = require('../middlewares/roleMiddleware');
 const cargoRoles = requireRole('Admin', 'Master', 'ChiefOfficer');
 
 router.get('/', authMiddleware, cargoRoles, cargoController.getAllCargos);
+router.get('/:id', authMiddleware, cargoRoles, cargoController.getCargoById);
 router.post('/', authMiddleware, cargoRoles, cargoController.createCargo);
 router.put('/:id', authMiddleware, cargoRoles, cargoController.updateCargo);
 router.delete('/:id', authMiddleware, cargoRoles, cargoController.deleteCargo);
