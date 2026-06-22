@@ -16,9 +16,9 @@ const {
 } = require('./models');
 
 async function seed() {
-  // Thêm dòng này để xóa toàn bộ bảng cũ và tạo lại bảng mới theo Model
+  // Xóa toàn bộ bảng cũ và tạo lại bảng mới theo Model
+  console.log('🔄 Đang xoá dữ liệu cũ và đồng bộ lại database...');
   await sequelize.sync({ force: true });
-  console.log('🔄 Đã đồng bộ lại Database (xóa cũ, tạo mới)...');
 
   const t = await sequelize.transaction();
   try {
