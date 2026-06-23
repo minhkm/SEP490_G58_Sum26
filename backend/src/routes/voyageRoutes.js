@@ -325,4 +325,139 @@ router.put('/:id', authMiddleware, async (req, res) => {
   }
 });
 
+// Lấy danh sách điểm danh chi tiết theo ngày và loại điểm danh
+router.get('/:id/attendances', authMiddleware, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { date, type } = req.query; // date (YYYY-MM-DD), type (PreDeparture, Daily, PostDischarge)
+
+    const voyage = await Voyage.findByPk(id);
+    if (!voyage) {
+      return res.status(404).json({ message: 'Không tìm thấy chuyến đi' });
+    }
+
+    // Lấy danh sách thuyền viên của chuyến đi
+    const crewList = await VoyageCrew.findAll({
+      where: { voyageId: id },
+      include: [{ model: CrewProfile, attributes: ['id', 'fullName', 'position', 'department'] }]
+    });
+
+    let whereClause = { voyageId: id };
+    if (type) whereClause.attendanceType = type;
+
+    const attendances = await Attendance.findAll({
+      where: whereClause
+    });
+
+    // Nếu lọc theo ngày (chỉ cho loại Daily)
+    let filteredAttendances = attendances;
+    if (type === 'Daily' && date) {
+      filteredAttendances = attendances.filter(a => {
+        if (!a.recordedAt) return false;
+        const attDate = new Date(a.recordedAt).toISOString().split('T')[0];
+        return attDate === date;
+      });
+    } else if (type === 'PreDeparture' || type === 'PostDischarge') {
+      // Đối với 2 loại này, thường chỉ có 1 lần điểm danh cho mỗi thuyền viên
+      filteredAttendances = attendances.filter(a => a.attendanceType === type);
+    }
+
+    const result = crewList.map(vc => {
+      const crewProfile = vc.CrewProfile || {};
+      const att = filteredAttendances.find(a => a.crewId === vc.crewId);
+      return {
+        crewId: vc.crewId,
+        fullName: crewProfile.fullName,
+        position: vc.role || crewProfile.position,
+        isPresent: att ? (att.status === 'Present') : false,
+        recordedAt: att ? att.recordedAt : null
+      };
+    });
+
+    res.json(result);
+  } catch (error) {
+    console.error('Lỗi khi lấy danh sách điểm danh:', error);
+    res.status(500).json({ message: 'Lỗi server khi lấy danh sách điểm danh' });
+  }
+});
+
+// Cập nhật điểm danh chi tiết
+router.post('/:id/attendances', authMiddleware, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { type, date, attendanceList } = req.body;
+    
+    const userRole = (req.user.role || '').replace(/\s+/g, '').toLowerCase();
+    const allowedRoles = ['admin', 'master', 'chiefofficer', 'deckofficer'];
+    
+    if (!allowedRoles.includes(userRole)) {
+      return res.status(403).json({ message: 'Bạn không có quyền thực hiện điểm danh' });
+    }
+
+    const voyage = await Voyage.findByPk(id);
+    if (!voyage) {
+      return res.status(404).json({ message: 'Không tìm thấy chuyến đi' });
+    }
+
+    if (!attendanceList || !Array.isArray(attendanceList)) {
+      return res.status(400).json({ message: 'Danh sách điểm danh không hợp lệ' });
+    }
+
+    // Với Daily, dùng date được gửi lên (thường là ngày hiện tại). 
+    // Với PreDeparture/PostDischarge, không cần quan tâm date.
+    
+    for (const item of attendanceList) {
+      let whereClause = { voyageId: id, crewId: item.crewId, attendanceType: type };
+      
+      const existingAttendances = await Attendance.findAll({ where: whereClause });
+      let targetAtt = null;
+
+      if (type === 'Daily') {
+        // Tìm attendance của ngày đó
+        targetAtt = existingAttendances.find(a => {
+           if (!a.recordedAt) return false;
+           return new Date(a.recordedAt).toISOString().split('T')[0] === date;
+        });
+      } else {
+        // PreDeparture, PostDischarge thường chỉ có 1
+        targetAtt = existingAttendances[0];
+      }
+
+      if (targetAtt) {
+        targetAtt.status = item.isPresent ? 'Present' : 'Absent';
+        targetAtt.recordedAt = new Date(); // Cập nhật lại thời gian record
+        await targetAtt.save();
+      } else {
+        // Tạo mới
+        // Nếu Daily, cố gắng set recordedAt đúng ngày (nhưng giờ hiện tại)
+        let recordDate = new Date();
+        if (type === 'Daily' && date) {
+           const [year, month, day] = date.split('-');
+           recordDate = new Date(year, month - 1, day, recordDate.getHours(), recordDate.getMinutes(), recordDate.getSeconds());
+        }
+        
+        await Attendance.create({
+          voyageId: id,
+          crewId: item.crewId,
+          attendanceType: type,
+          status: item.isPresent ? 'Present' : 'Absent',
+          recordedAt: recordDate
+        });
+      }
+    }
+
+    // Nếu điểm danh PreDeparture hoặc PostDischarge, có thể ảnh hưởng đến isCrewSufficient của Voyage
+    if (type === 'PreDeparture') {
+       let allPresent = attendanceList.every(item => item.isPresent);
+       voyage.isCrewSufficient = allPresent;
+       await voyage.save();
+    }
+
+    res.json({ message: 'Lưu điểm danh thành công' });
+  } catch (error) {
+    console.error('Lỗi khi lưu điểm danh:', error);
+    res.status(500).json({ message: 'Lỗi server khi lưu điểm danh' });
+  }
+});
+
 module.exports = router;
