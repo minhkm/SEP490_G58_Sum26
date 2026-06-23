@@ -489,7 +489,7 @@ export default function AddVesselPage() {
                       {mainEngine.parameters.filter(p => p.fixed).map(param => (
                         <div className="v-form-group" key={param._uid}>
                           <label>{param.name === 'Fuel Oil Pressure (kg/cm²)' ? <><Gauge size={14}/> Fuel Oil Pressure</> : param.name === 'Exhaust Gas Temp XL2 (°C)' ? <><Thermometer size={14}/> Exhaust Gas Temp XL2</> : <><Droplets size={14}/> Cooling Water Temp</>}</label>
-                          <input type="number" placeholder={param.name === 'Fuel Oil Pressure (kg/cm²)' ? 'vd: 6.0' : param.name === 'Exhaust Gas Temp XL2 (°C)' ? 'vd: 420' : 'vd: 75'} value={param.maxValue} onChange={(e) => handleMainParamChange(param._uid, 'maxValue', e.target.value)}/>
+                          <input type="number" min="0" placeholder={param.name === 'Fuel Oil Pressure (kg/cm²)' ? 'vd: 6.0' : param.name === 'Exhaust Gas Temp XL2 (°C)' ? 'vd: 420' : 'vd: 75'} value={param.maxValue} onChange={(e) => handleMainParamChange(param._uid, 'maxValue', e.target.value)}/>
                         </div>
                       ))}
                     </div>
@@ -516,12 +516,8 @@ export default function AddVesselPage() {
                           </select>
                         </div>
                         <div className="v-form-group" style={{ flex: 1 }}>
-                          {idx === 0 && <label>Min</label>}
-                          <input type="number" placeholder="Min" value={param.minValue} onChange={(e) => handleMainParamChange(param._uid, 'minValue', e.target.value)}/>
-                        </div>
-                        <div className="v-form-group" style={{ flex: 1 }}>
-                          {idx === 0 && <label>Max</label>}
-                          <input type="number" placeholder="Max" value={param.maxValue} onChange={(e) => handleMainParamChange(param._uid, 'maxValue', e.target.value)}/>
+                          {idx === 0 && <label>Max (Không âm)</label>}
+                          <input type="number" min="0" placeholder="Max" value={param.maxValue} onChange={(e) => handleMainParamChange(param._uid, 'maxValue', e.target.value)}/>
                         </div>
                         <button type="button" className="v-btn-icon text-red" onClick={() => removeMainParam(param._uid)} style={{ marginBottom: 4 }}>
                           <Trash2 size={14}/>
@@ -572,7 +568,7 @@ export default function AddVesselPage() {
                           {gen.parameters.filter(p => p.fixed).map(param => (
                             <div className="v-form-group" key={param._uid}>
                               <label>{param.name === 'Fuel Oil Pressure (kg/cm²)' ? <><Gauge size={14}/> Fuel Oil Pressure</> : param.name === 'Exhaust Gas Temp XL2 (°C)' ? <><Thermometer size={14}/> Exhaust Gas Temp XL2</> : <><Droplets size={14}/> Cooling Water Temp</>}</label>
-                              <input type="number" placeholder={param.name === 'Fuel Oil Pressure (kg/cm²)' ? 'vd: 6.0' : param.name === 'Exhaust Gas Temp XL2 (°C)' ? 'vd: 420' : 'vd: 75'} value={param.maxValue} onChange={(e) => handleGenParamChange(gen.id, param._uid, 'maxValue', e.target.value)}/>
+                              <input type="number" min="0" placeholder={param.name === 'Fuel Oil Pressure (kg/cm²)' ? 'vd: 6.0' : param.name === 'Exhaust Gas Temp XL2 (°C)' ? 'vd: 420' : 'vd: 75'} value={param.maxValue} onChange={(e) => handleGenParamChange(gen.id, param._uid, 'maxValue', e.target.value)}/>
                             </div>
                           ))}
                         </div>
@@ -599,12 +595,8 @@ export default function AddVesselPage() {
                               </select>
                             </div>
                             <div className="v-form-group" style={{ flex: 1 }}>
-                              {idx === 0 && <label>Min</label>}
-                              <input type="number" placeholder="Min" value={param.minValue} onChange={(e) => handleGenParamChange(gen.id, param._uid, 'minValue', e.target.value)}/>
-                            </div>
-                            <div className="v-form-group" style={{ flex: 1 }}>
-                              {idx === 0 && <label>Max</label>}
-                              <input type="number" placeholder="Max" value={param.maxValue} onChange={(e) => handleGenParamChange(gen.id, param._uid, 'maxValue', e.target.value)}/>
+                              {idx === 0 && <label>Max (Không âm)</label>}
+                              <input type="number" min="0" placeholder="Max" value={param.maxValue} onChange={(e) => handleGenParamChange(gen.id, param._uid, 'maxValue', e.target.value)}/>
                             </div>
                             <button type="button" className="v-btn-icon text-red" onClick={() => removeGenParam(gen.id, param._uid)} style={{ marginBottom: 4 }}>
                               <Trash2 size={14}/>

@@ -149,18 +149,18 @@ async function seed() {
     // Engine parameters từ Engine Log thực tế (Voyage 1/4, Sea Area: Nam Biển Đông)
     // Giá trị thực: RPM=660, FO Press=4.8, Scav=5.2, Air=2.0, Start=1.2, LubOil=65°C, CoolWater=59°C, ExhGas=385~390°C
     const paramDefs = [
-      { name: 'RPM (Main Engine)', minValue: 500, maxValue: 750 },
-      { name: 'Fuel Oil Pressure (kg/cm²)', minValue: 3.5, maxValue: 6.0 },
-      { name: 'Scavenge Pressure (kg/cm²)', minValue: 4.0, maxValue: 6.5 },
-      { name: 'Air Pressure (kg/cm²)', minValue: 1.5, maxValue: 2.5 },
-      { name: 'Start Air Pressure (kg/cm²)', minValue: 0.8, maxValue: 1.5 },
-      { name: 'Lube Oil Temperature (°C)', minValue: 50, maxValue: 80 },
-      { name: 'Cooling Water Temp (°C)', minValue: 45, maxValue: 75 },
-      { name: 'Exhaust Gas Temp XL2 (°C)', minValue: 340, maxValue: 420 },
-      { name: 'Exhaust Gas Temp XL3 (°C)', minValue: 340, maxValue: 420 },
-      { name: 'Exhaust Gas Temp XL4 (°C)', minValue: 340, maxValue: 420 },
-      { name: 'Exhaust Gas Temp XL5 (°C)', minValue: 340, maxValue: 420 },
-      { name: 'Exhaust Gas Temp XL6 (°C)', minValue: 340, maxValue: 420 },
+      { name: 'RPM (Main Engine)', maxValue: 750 },
+      { name: 'Fuel Oil Pressure (kg/cm²)', maxValue: 6.0 },
+      { name: 'Scavenge Pressure (kg/cm²)', maxValue: 6.5 },
+      { name: 'Air Pressure (kg/cm²)', maxValue: 2.5 },
+      { name: 'Start Air Pressure (kg/cm²)', maxValue: 1.5 },
+      { name: 'Lube Oil Temperature (°C)', maxValue: 80 },
+      { name: 'Cooling Water Temp (°C)', maxValue: 75 },
+      { name: 'Exhaust Gas Temp XL2 (°C)', maxValue: 420 },
+      { name: 'Exhaust Gas Temp XL3 (°C)', maxValue: 420 },
+      { name: 'Exhaust Gas Temp XL4 (°C)', maxValue: 420 },
+      { name: 'Exhaust Gas Temp XL5 (°C)', maxValue: 420 },
+      { name: 'Exhaust Gas Temp XL6 (°C)', maxValue: 420 },
     ];
 
     const epVQS = [];
@@ -175,9 +175,9 @@ async function seed() {
 
     // 3 thông số bắt buộc cho máy đèn (Generator) — giống form thêm tàu
     const genParamDefs = [
-      { name: 'Fuel Oil Pressure', minValue: 3.0, maxValue: 6.0 },
-      { name: 'Exhaust Gas Temp XL2 (°C)', minValue: 300, maxValue: 420 },
-      { name: 'Cooling Water Temp (°C)', minValue: 40, maxValue: 75 },
+      { name: 'Fuel Oil Pressure', maxValue: 6.0 },
+      { name: 'Exhaust Gas Temp XL2 (°C)', maxValue: 420 },
+      { name: 'Cooling Water Temp (°C)', maxValue: 75 },
     ];
 
     for (const gen of [eVQSGen1, eVQSGen2, eS66Gen1, eS66Gen2]) {

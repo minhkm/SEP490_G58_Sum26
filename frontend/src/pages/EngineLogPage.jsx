@@ -244,14 +244,13 @@ export default function EngineLogPage() {
                     </div>
                     <input
                       type="number"
+                      min="0"
                       className={`el-param-input ${status === 'danger' ? 'danger' : status === 'warning' ? 'warning' : ''}`}
                       placeholder="Nhập giá trị"
                       value={paramValues[param.id] || ''}
                       onChange={(e) => handleParamChange(param.id, e.target.value)}
                     />
                     <div className="el-param-range">
-                      {param.minValue != null && `Min: ${param.minValue}`}
-                      {param.minValue != null && param.maxValue != null && ' | '}
                       {param.maxValue != null && `Max: ${param.maxValue}`}
                     </div>
                   </div>
