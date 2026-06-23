@@ -16,6 +16,7 @@ import AddCrewPage from "./pages/AddCrewPage";
 import CrewDashboard from "./pages/CrewDashboard";
 import CrewProfilePage from "./pages/CrewProfilePage";
 import EngineLogPage from "./pages/EngineLogPage";
+import AttendancePage from "./pages/AttendancePage";
 import RequireRole from "./components/RequireRole";
 import { CARGO_ROLES } from "./config/roles";
 
@@ -33,6 +34,7 @@ function App() {
         <Route path="/vessels/view/:id" element={<VesselDetailPage />} />
         <Route path="/voyages" element={<VoyageListPage />} />
         <Route path="/voyages/new" element={<CreateVoyagePage />} />
+        <Route path="/voyages/:id/attendance" element={<AttendancePage />} />
         <Route
           path="/cargos"
           element={
