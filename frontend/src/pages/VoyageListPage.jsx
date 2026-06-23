@@ -9,7 +9,8 @@ import {
   RefreshCw,
   Search,
   Ship,
-  Edit
+  Edit,
+  Users
 } from 'lucide-react';
 import MasterLayout from '../components/MasterLayout';
 import AgencyLayout from '../components/AgencyLayout';
@@ -212,6 +213,13 @@ export default function VoyageListPage() {
                         </td>
                         {canEdit && (
                           <td>
+                            <button
+                              style={{ background: 'none', border: 'none', color: '#64748b', cursor: 'pointer', marginRight: '12px' }}
+                              title="Điểm danh thuyền viên"
+                              onClick={() => navigate(`/voyages/${voyage.id}/attendance`)}
+                            >
+                              <Users size={16} />
+                            </button>
                             <button
                               style={{ background: 'none', border: 'none', color: '#64748b', cursor: 'pointer' }}
                               title="Cập nhật thông tin chuyến đi"
