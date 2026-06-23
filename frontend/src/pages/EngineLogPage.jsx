@@ -6,7 +6,8 @@ import './EngineLogPage.css';
 
 export default function EngineLogPage() {
   // ===== STATE =====
-  const [activeVoyage, setActiveVoyage] = useState(null);
+  const [voyages, setVoyages] = useState([]);
+  const [selectedVoyage, setSelectedVoyage] = useState(null);
   const [shifts, setShifts] = useState([]);
   const [selectedShift, setSelectedShift] = useState(null);
   const [engines, setEngines] = useState([]);
@@ -17,27 +18,47 @@ export default function EngineLogPage() {
   const [loading, setLoading] = useState(true);
   const [successMsg, setSuccessMsg] = useState('');
 
-  // ===== BƯỚC 1: Auto-detect Hải trình đang hoạt động =====
+  // ===== BƯỚC 1: Lấy danh sách hải trình =====
   useEffect(() => {
-    const fetchActiveVoyage = async () => {
+    const fetchVoyages = async () => {
       try {
-        const data = await engineLogService.getActiveVoyage();
-        setActiveVoyage(data);
-        // Lấy danh sách máy từ tàu của hải trình này
-        if (data.Ship && data.Ship.Engines) {
-          setEngines(data.Ship.Engines);
+        const data = await engineLogService.getMyVoyages();
+        setVoyages(data);
+        if (data.length > 0) {
+          const active = data.find(v => v.status !== 'Completed') || data[0];
+          setSelectedVoyage(active);
+          if (active.Ship && active.Ship.Engines) {
+            setEngines(active.Ship.Engines);
+          }
+          const shiftsData = await engineLogService.getShifts(active.id);
+          setShifts(shiftsData);
         }
-        // Lấy danh sách ca trực
-        const shiftsData = await engineLogService.getShifts(data.id);
-        setShifts(shiftsData);
       } catch (error) {
-        console.error('Không tìm thấy hải trình đang hoạt động:', error);
+        console.error('Không tìm thấy hải trình:', error);
       } finally {
         setLoading(false);
       }
     };
-    fetchActiveVoyage();
+    fetchVoyages();
   }, []);
+
+  // Khi đổi hải trình
+  const handleVoyageChange = async (e) => {
+    const vId = e.target.value;
+    if (!vId) return;
+    const v = voyages.find(v => v.id === parseInt(vId));
+    setSelectedVoyage(v);
+    setSelectedShift(null);
+    setHistory([]);
+    setSelectedEngine(null);
+    setParamValues({});
+    setNote('');
+    if (v) {
+      if (v.Ship && v.Ship.Engines) setEngines(v.Ship.Engines);
+      const shiftsData = await engineLogService.getShifts(v.id);
+      setShifts(shiftsData);
+    }
+  };
 
   // ===== BƯỚC 2: Khi chọn Ca trực -> Load lịch sử =====
   const handleShiftChange = async (e) => {
@@ -139,7 +160,7 @@ export default function EngineLogPage() {
   // ===== RENDER =====
   if (loading) return <MasterLayout><div className="el-no-data">Đang tải dữ liệu...</div></MasterLayout>;
 
-  if (!activeVoyage) {
+  if (!selectedVoyage) {
     return (
       <MasterLayout>
         <div className="el-page-header">
@@ -147,7 +168,7 @@ export default function EngineLogPage() {
         </div>
         <div className="el-no-data">
           <p>⚠️ Không có hải trình nào đang hoạt động.</p>
-          <p>Hệ thống tự động lấy hải trình có trạng thái "In Progress".</p>
+          <p>Hệ thống tự động lấy danh sách hải trình mà bạn đã hoặc đang tham gia.</p>
         </div>
       </MasterLayout>
     );
@@ -171,14 +192,17 @@ export default function EngineLogPage() {
         <h1 className="el-page-title"><Gauge size={28} color="#2563eb" /> Nhật ký Kiểm tra Máy</h1>
       </div>
 
-      {/* Thông tin Hải trình (Auto-detect) */}
+      {/* Chọn Hải trình và Ca trực */}
       <div className="el-info-bar">
-        <div className="el-info-card">
-          <div className="el-info-card-label"><Ship size={14} /> Hải trình hiện tại</div>
-          <div className="el-info-card-value">{activeVoyage.Ship?.shipName || 'N/A'}</div>
-          <div className="el-info-card-sub">
-            {activeVoyage.departurePort} → {activeVoyage.destinationPort} | {formatDate(activeVoyage.departureDate)} - {formatDate(activeVoyage.arrivalDate)}
-          </div>
+        <div className="el-info-card shift">
+          <div className="el-info-card-label"><Ship size={14} /> Chọn Hải trình</div>
+          <select className="el-shift-select" onChange={handleVoyageChange} value={selectedVoyage?.id || ''}>
+            {voyages.map(v => (
+              <option key={v.id} value={v.id}>
+                {v.Ship?.shipName} | {v.departurePort} → {v.destinationPort} ({v.status})
+              </option>
+            ))}
+          </select>
         </div>
 
         <div className="el-info-card shift">
@@ -197,33 +221,42 @@ export default function EngineLogPage() {
       {/* Danh sách Máy (Chỉ hiện khi đã chọn ca trực) */}
       {selectedShift && (
         <>
-          <h3 style={{ margin: '0 0 12px', color: '#334155', fontSize: 15 }}>
-            Chọn máy cần kiểm tra ({engines.length} máy)
-          </h3>
-          <div className="el-engine-grid">
-            {engines.map(engine => (
-              <div
-                key={engine.id}
-                className={`el-engine-card ${selectedEngine?.id === engine.id ? 'active' : ''}`}
-                onClick={() => handleSelectEngine(engine)}
-              >
-                <div className="el-engine-card-header">
-                  <h4>{engine.engineName}</h4>
-                  <span className={`el-engine-type-badge ${engine.engineType?.includes('2') ? 'badge-main' : 'badge-gen'}`}>
-                    {engine.engineType?.includes('2') ? 'Máy chính' : 'Máy đèn'}
-                  </span>
-                </div>
-                <div className="el-engine-card-body">
-                  <div className="el-engine-status">
-                    <span className="dot"></span> {engine.status}
+          {selectedVoyage.status === 'Completed' && (
+            <div style={{ color: '#ef4444', marginBottom: 16, fontSize: 14, fontWeight: 500 }}>
+              ⚠️ Hải trình này đã kết thúc, bạn chỉ có thể xem lại lịch sử kiểm tra chứ không thể thêm mới.
+            </div>
+          )}
+          {selectedVoyage.status !== 'Completed' && (
+            <>
+              <h3 style={{ margin: '0 0 12px', color: '#334155', fontSize: 15 }}>
+                Chọn máy cần kiểm tra ({engines.length} máy)
+              </h3>
+              <div className="el-engine-grid">
+                {engines.map(engine => (
+                  <div
+                    key={engine.id}
+                    className={`el-engine-card ${selectedEngine?.id === engine.id ? 'active' : ''}`}
+                    onClick={() => handleSelectEngine(engine)}
+                  >
+                    <div className="el-engine-card-header">
+                      <h4>{engine.engineName}</h4>
+                      <span className={`el-engine-type-badge ${engine.engineType?.includes('2') ? 'badge-main' : 'badge-gen'}`}>
+                        {engine.engineType?.includes('2') ? 'Máy chính' : 'Máy đèn'}
+                      </span>
+                    </div>
+                    <div className="el-engine-card-body">
+                      <div className="el-engine-status">
+                        <span className="dot"></span> {engine.status}
+                      </div>
+                      <div style={{ fontSize: 12, color: '#94a3b8', marginTop: 6 }}>
+                        {engine.EngineParameters?.length || 0} thông số cần kiểm tra
+                      </div>
+                    </div>
                   </div>
-                  <div style={{ fontSize: 12, color: '#94a3b8', marginTop: 6 }}>
-                    {engine.EngineParameters?.length || 0} thông số cần kiểm tra
-                  </div>
-                </div>
+                ))}
               </div>
-            ))}
-          </div>
+            </>
+          )}
         </>
       )}
 

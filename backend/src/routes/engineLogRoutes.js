@@ -6,8 +6,8 @@ const authMiddleware = require('../middlewares/authMiddleware');
 // Áp dụng xác thực cho toàn bộ routes này
 router.use(authMiddleware);
 
-// Lấy hải trình đang hoạt động (auto-detect)
-router.get('/active-voyage', ctrl.getActiveVoyage);
+// Lấy danh sách hải trình của user
+router.get('/my-voyages', ctrl.getMyVoyages);
 
 // Lấy danh sách ca trực của người dùng hiện tại
 router.get('/shifts/:voyageId', ctrl.getShiftsForCurrentUser);

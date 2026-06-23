@@ -119,8 +119,8 @@ export const vesselService = {
 };
 
 export const engineLogService = {
-  getActiveVoyage: async () => {
-    const response = await api.get('/engine-logs/active-voyage');
+  getMyVoyages: async () => {
+    const response = await api.get('/engine-logs/my-voyages');
     return response.data;
   },
   getShifts: async (voyageId) => {
@@ -137,6 +137,25 @@ export const engineLogService = {
   },
   getHistoryByVoyage: async (voyageId) => {
     const response = await api.get(`/engine-logs/history/voyage/${voyageId}`);
+    return response.data;
+  }
+};
+
+export const deckLogService = {
+  getMyVoyages: async () => {
+    const response = await api.get('/deck-logs/my-voyages');
+    return response.data;
+  },
+  getShifts: async (voyageId) => {
+    const response = await api.get(`/deck-logs/shifts/${voyageId}`);
+    return response.data;
+  },
+  create: async (data) => {
+    const response = await api.post('/deck-logs', data);
+    return response.data;
+  },
+  getHistoryByShift: async (shiftId) => {
+    const response = await api.get(`/deck-logs/history/${shiftId}`);
     return response.data;
   }
 };

@@ -6,11 +6,9 @@ const {
 } = require('../models');
 
 // ============================================================
-// 1. Lấy Hải trình mà MÌNH đang tham gia (chưa hoàn thành)
-//    - Check user có trong VoyageCrew không
-//    - Chỉ lấy hải trình InProgress hoặc Suspended
+// 1. Lấy danh sách Hải trình mà MÌNH đang tham gia
 // ============================================================
-const getActiveVoyage = async (req, res) => {
+const getMyVoyages = async (req, res) => {
   try {
     const userId = req.user?.id;
     if (!userId) return res.status(401).json({ message: 'Chưa đăng nhập' });
@@ -31,11 +29,10 @@ const getActiveVoyage = async (req, res) => {
 
     const myVoyageIds = myVoyageCrews.map(vc => vc.voyageId);
 
-    // Bước 3: Tìm hải trình đang hoạt động trong danh sách đó
-    const activeVoyage = await Voyage.findOne({
+    // Bước 3: Tìm tất cả hải trình trong danh sách đó
+    const myVoyages = await Voyage.findAll({
       where: { 
-        id: { [Op.in]: myVoyageIds },
-        status: { [Op.in]: ['InProgress', 'Suspended'] }
+        id: { [Op.in]: myVoyageIds }
       },
       include: [
         { model: Ship, include: [{ model: Engine, include: [EngineParameter] }] }
@@ -43,11 +40,11 @@ const getActiveVoyage = async (req, res) => {
       order: [['departureDate', 'DESC']]
     });
 
-    if (!activeVoyage) {
-      return res.status(404).json({ message: 'Bạn không có hải trình nào đang hoạt động' });
+    if (!myVoyages.length) {
+      return res.status(404).json({ message: 'Bạn không có hải trình nào' });
     }
 
-    res.json(activeVoyage);
+    res.json(myVoyages);
   } catch (error) {
     console.error('Lỗi lấy hải trình:', error);
     res.status(500).json({ message: 'Lỗi server', error: error.message });
@@ -199,7 +196,7 @@ const getEngineLogsByVoyage = async (req, res) => {
 };
 
 module.exports = {
-  getActiveVoyage,
+  getMyVoyages,
   getShiftsForCurrentUser,
   createEngineLog,
   getEngineLogsByShift,
