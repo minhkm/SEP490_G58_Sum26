@@ -10,6 +10,8 @@ import CreateVoyagePage from "./pages/CreateVoyagePage";
 import CargoPage from "./pages/CargoPage";
 import AddCargoPage from "./pages/AddCargoPage";
 import CargoDetailPage from "./pages/CargoDetailPage";
+import CargoTypePage from "./pages/CargoTypePage";
+import SettingsPage from "./pages/SettingsPage";
 import VoyageListPage from "./pages/VoyageListPage";
 import CrewListPage from "./pages/CrewListPage";
 import AddCrewPage from "./pages/AddCrewPage";
@@ -64,6 +66,22 @@ function App() {
           element={
             <RequireRole allow={CARGO_ROLES}>
               <CargoDetailPage />
+            </RequireRole>
+          }
+        />
+        <Route
+          path="/settings"
+          element={
+            <RequireRole allow={['Admin']}>
+              <SettingsPage />
+            </RequireRole>
+          }
+        />
+        <Route
+          path="/cargo-types"
+          element={
+            <RequireRole allow={['Admin']}>
+              <CargoTypePage />
             </RequireRole>
           }
         />

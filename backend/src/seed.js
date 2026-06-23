@@ -9,7 +9,7 @@ const {
   Ship, ShipCapacity, ShipDocument,
   Engine, EngineParameter,
   Equipment, RepairLog,
-  CargoHold, Cargo, CargoItem, CargoAllocation,
+  CargoHold, Cargo, CargoItem, CargoAllocation, CargoType,
   Voyage, VoyageCrew,
   Attendance, Shift, ShiftLog, DeckLog, EngineLog, EngineLogValue,
   Report, ReportReply,
@@ -327,6 +327,18 @@ async function seed() {
     }
 
     console.log('✅ VoyageCrew xong');
+
+    // ================================================================
+    // CARGO TYPES (loại hàng cấu hình được)
+    // ================================================================
+    await CargoType.bulkCreate([
+      { name: 'Rice', description: 'Gạo' },
+      { name: 'Coal', description: 'Than đá' },
+      { name: 'Stores', description: 'Vật tư, lương thực' },
+      { name: 'Container', description: 'Hàng container' },
+      { name: 'Steel', description: 'Sắt thép' },
+      { name: 'Cement', description: 'Xi măng' },
+    ], { transaction: t });
 
     // ================================================================
     // CARGO, CARGO ITEMS, CARGO ALLOCATION

@@ -14,6 +14,7 @@ import {
   Plus
 } from 'lucide-react';
 import { cargoService } from '../services/api';
+import Swal from 'sweetalert2';
 import './CargoPage.css';
 
 export default function CargoPage() {
@@ -23,6 +24,8 @@ export default function CargoPage() {
 
   const user = JSON.parse(localStorage.getItem('user')) || {};
   const Layout = (user.role === 'Admin' || user.role === 'Agency') ? AgencyLayout : MasterLayout;
+  // Chỉ Admin được chỉnh sửa/xoá; thuyền trưởng (Master) & thuyền phó (ChiefOfficer) chỉ được xem
+  const canEdit = user.role === 'Admin';
 
   const fetchData = async () => {
     try {
@@ -41,14 +44,23 @@ export default function CargoPage() {
     fetchData();
   }, []);
 
-  const handleDelete = async (id) => {
-    if (window.confirm("Bạn có chắc chắn muốn xoá lô hàng này? Dữ liệu liên quan cũng sẽ bị xoá.")) {
-      try {
-        await cargoService.delete(id);
-        fetchData();
-      } catch {
-        alert("Lỗi xoá lô hàng");
-      }
+  const handleDelete = async (cargo) => {
+    const result = await Swal.fire({
+      title: 'Xoá lô hàng?',
+      html: `Bạn có chắc chắn muốn xoá lô hàng <b>${cargo.cargoName || `C60-${cargo.id}`}</b>?<br/>Dữ liệu liên quan cũng sẽ bị xoá.`,
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonText: 'Xoá',
+      cancelButtonText: 'Hủy',
+      confirmButtonColor: '#ef4444',
+    });
+    if (!result.isConfirmed) return;
+    try {
+      await cargoService.delete(cargo.id);
+      await fetchData();
+      Swal.fire({ icon: 'success', title: 'Đã xoá', text: 'Lô hàng đã được xoá thành công.', timer: 1500, showConfirmButton: false });
+    } catch {
+      Swal.fire('Lỗi', 'Không thể xoá lô hàng.', 'error');
     }
   };
 
@@ -112,7 +124,6 @@ export default function CargoPage() {
                     <th>Khối lượng</th>
                     <th>Thể tích</th>
                     <th>Hành trình</th>
-                    <th>Vị trí hầm</th>
                     <th>Trạng thái</th>
                     <th style={{ textAlign: 'center' }}>Thao tác</th>
                   </tr>
@@ -147,15 +158,6 @@ export default function CargoPage() {
                         )}
                       </td>
                       <td>
-                        {cargo.CargoAllocations && cargo.CargoAllocations.length > 0 ? (
-                          <div className="col-hold">
-                            Hold {cargo.CargoAllocations.map(a => a.CargoHold?.holdName || `#${a.cargoHoldId}`).join(', ')}
-                          </div>
-                        ) : (
-                          <span className="text-muted">Chưa phân bổ</span>
-                        )}
-                      </td>
-                      <td>
                         <span className={`status-badge ${getStatusClass(cargo.status)}`}>
                           {cargo.status || 'Chờ xử lý'}
                         </span>
@@ -168,20 +170,29 @@ export default function CargoPage() {
                         >
                           <Eye size={18} />
                         </button>
-                        <button
-                          className="cargo-action-btn act-edit"
-                          title="Chỉnh sửa"
-                          onClick={(e) => { e.stopPropagation(); navigate(`/cargos/edit/${cargo.id}`); }}
-                        >
-                          <Edit2 size={18} />
-                        </button>
-                        <button
-                          className="cargo-action-btn act-delete"
-                          title="Xóa lô hàng"
-                          onClick={(e) => { e.stopPropagation(); handleDelete(cargo.id); }}
-                        >
-                          <Trash2 size={18} />
-                        </button>
+                        {canEdit && !cargo.Voyage && (
+                          <>
+                            <button
+                              className="cargo-action-btn act-edit"
+                              title="Chỉnh sửa"
+                              onClick={(e) => { e.stopPropagation(); navigate(`/cargos/edit/${cargo.id}`); }}
+                            >
+                              <Edit2 size={18} />
+                            </button>
+                            <button
+                              className="cargo-action-btn act-delete"
+                              title="Xóa lô hàng"
+                              onClick={(e) => { e.stopPropagation(); handleDelete(cargo); }}
+                            >
+                              <Trash2 size={18} />
+                            </button>
+                          </>
+                        )}
+                        {canEdit && cargo.Voyage && (
+                          <span className="text-muted" style={{ fontSize: '0.75rem', fontStyle: 'italic' }} title="Lô hàng đã thuộc hải trình nên không thể sửa/xoá">
+                            Đã khoá
+                          </span>
+                        )}
                       </td>
                     </tr>
                   ))}
