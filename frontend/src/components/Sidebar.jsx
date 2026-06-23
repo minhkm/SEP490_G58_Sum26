@@ -12,6 +12,7 @@ import {
   LogOut,
   Clock,
   Gauge,
+  Compass,
 } from 'lucide-react';
 
 export default function Sidebar() {
@@ -85,6 +86,18 @@ export default function Sidebar() {
             <div className="nav-item" style={{ cursor: 'default', opacity: 0.5 }}>
               <Clock size={20} />
               <span>Ca trực</span>
+            </div>
+          )}
+
+          {/* Nhật ký Trực Boong — Sailor, ChiefOfficer, Master */}
+          {(role === 'Sailor' || role === 'ChiefOfficer' || role === 'Master') && (
+            <div
+              className={`nav-item ${isActive('/deck-logs')}`}
+              onClick={() => navigate('/deck-logs')}
+              style={{ cursor: 'pointer' }}
+            >
+              <Compass size={20} />
+              <span>Nhật ký Trực boong</span>
             </div>
           )}
 

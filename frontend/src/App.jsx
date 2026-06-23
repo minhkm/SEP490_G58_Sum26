@@ -15,6 +15,8 @@ import CrewDashboard from "./pages/CrewDashboard";
 import CrewProfilePage from "./pages/CrewProfilePage";
 import EngineLogPage from "./pages/EngineLogPage";
 
+import DeckLogPage from "./pages/DeckLogPage";
+
 function App() {
   return (
     <Router>
@@ -36,6 +38,7 @@ function App() {
         <Route path="/crew-dashboard" element={<CrewDashboard />} />
         <Route path="/crew-profile" element={<CrewProfilePage />} />
         <Route path="/engine-logs" element={<EngineLogPage />} />
+        <Route path="/deck-logs" element={<DeckLogPage />} />
       </Routes>
     </Router>
   );
