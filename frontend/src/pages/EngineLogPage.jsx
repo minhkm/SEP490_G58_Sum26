@@ -1,8 +1,13 @@
-import React, { useState, useEffect } from 'react';
-import { Gauge, Save, Clock, Ship, CheckCircle } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Select, Input, InputNumber, Button, Table, Card, Tag, Spin, Empty, Typography, Space, Row, Col } from 'antd';
+import { DashboardOutlined, SaveOutlined, ClockCircleOutlined, CompassOutlined } from '@ant-design/icons';
 import MasterLayout from '../components/MasterLayout';
 import { engineLogService } from '../services/api';
+import { PageHeader, notifyWarning, notifySuccess, notifyError } from '../components/common';
 import './EngineLogPage.css';
+
+const { Title, Text } = Typography;
+const { TextArea } = Input;
 
 export default function EngineLogPage() {
   // ===== STATE =====
@@ -15,7 +20,6 @@ export default function EngineLogPage() {
   const [note, setNote] = useState('');
   const [history, setHistory] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [successMsg, setSuccessMsg] = useState('');
 
   // ===== BƯỚC 1: Auto-detect Hải trình đang hoạt động =====
   useEffect(() => {
@@ -40,14 +44,13 @@ export default function EngineLogPage() {
   }, []);
 
   // ===== BƯỚC 2: Khi chọn Ca trực -> Load lịch sử =====
-  const handleShiftChange = async (e) => {
-    const shiftId = e.target.value;
+  const handleShiftChange = async (shiftId) => {
     if (!shiftId) {
       setSelectedShift(null);
       setHistory([]);
       return;
     }
-    const shift = shifts.find(s => s.id === parseInt(shiftId));
+    const shift = shifts.find((s) => s.id === parseInt(shiftId));
     setSelectedShift(shift);
     setSelectedEngine(null);
     setParamValues({});
@@ -67,7 +70,9 @@ export default function EngineLogPage() {
     // Reset form
     const defaultValues = {};
     if (engine.EngineParameters) {
-      engine.EngineParameters.forEach(p => { defaultValues[p.id] = ''; });
+      engine.EngineParameters.forEach((p) => {
+        defaultValues[p.id] = '';
+      });
     }
     setParamValues(defaultValues);
     setNote('');
@@ -91,7 +96,7 @@ export default function EngineLogPage() {
   // ===== BƯỚC 5: Lưu nhật ký =====
   const handleSubmit = async () => {
     if (!selectedShift || !selectedEngine) {
-      alert('Vui lòng chọn ca trực và máy cần kiểm tra');
+      notifyWarning('Vui lòng chọn ca trực và máy cần kiểm tra');
       return;
     }
 
@@ -99,11 +104,11 @@ export default function EngineLogPage() {
       .filter(([, val]) => val !== '' && val !== null)
       .map(([paramId, value]) => ({
         parameterId: parseInt(paramId),
-        value: parseFloat(value)
+        value: parseFloat(value),
       }));
 
     if (values.length === 0) {
-      alert('Vui lòng nhập ít nhất 1 thông số');
+      notifyWarning('Vui lòng nhập ít nhất 1 thông số');
       return;
     }
 
@@ -112,11 +117,10 @@ export default function EngineLogPage() {
         shiftId: selectedShift.id,
         engineId: selectedEngine.id,
         note: note,
-        values: values
+        values: values,
       });
 
-      setSuccessMsg(`Ghi nhận kiểm tra "${selectedEngine.engineName}" thành công!`);
-      setTimeout(() => setSuccessMsg(''), 3000);
+      notifySuccess(`Ghi nhận kiểm tra "${selectedEngine.engineName}" thành công!`);
 
       // Refresh lịch sử
       const logs = await engineLogService.getHistoryByShift(selectedShift.id);
@@ -128,201 +132,236 @@ export default function EngineLogPage() {
       setNote('');
     } catch (error) {
       console.error('Lỗi lưu nhật ký:', error);
-      alert('Có lỗi xảy ra khi lưu nhật ký');
+      notifyError('Có lỗi xảy ra khi lưu nhật ký');
     }
   };
 
   // ===== Format =====
-  const formatDate = (d) => d ? new Date(d).toLocaleDateString('vi-VN') : '';
-  const formatTime = (d) => d ? new Date(d).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }) : '';
+  const formatDate = (d) => (d ? new Date(d).toLocaleDateString('vi-VN') : '');
+  const formatTime = (d) =>
+    d ? new Date(d).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }) : '';
+
+  const statusBorderColor = (status) =>
+    status === 'danger' ? '#dc2626' : status === 'warning' ? '#f59e0b' : undefined;
 
   // ===== RENDER =====
-  if (loading) return <MasterLayout><div className="el-no-data">Đang tải dữ liệu...</div></MasterLayout>;
-
-  if (!activeVoyage) {
+  if (loading) {
     return (
       <MasterLayout>
-        <div className="el-page-header">
-          <h1 className="el-page-title"><Gauge size={28} color="#2563eb" /> Nhật ký Kiểm tra Máy</h1>
-        </div>
-        <div className="el-no-data">
-          <p>⚠️ Không có hải trình nào đang hoạt động.</p>
-          <p>Hệ thống tự động lấy hải trình có trạng thái "In Progress".</p>
+        <div style={{ display: 'flex', justifyContent: 'center', padding: 80 }}>
+          <Spin size="large" tip="Đang tải dữ liệu..." />
         </div>
       </MasterLayout>
     );
   }
 
+  if (!activeVoyage) {
+    return (
+      <MasterLayout>
+        <div style={{ padding: '24px 32px' }}>
+          <PageHeader
+            icon={<DashboardOutlined style={{ color: '#2563eb' }} />}
+            breadcrumb="Engine Log"
+            title="Nhật ký Kiểm tra Máy"
+          />
+          <Card>
+            <Empty
+              description={
+                <div>
+                  <p>Không có hải trình nào đang hoạt động.</p>
+                  <p>Hệ thống tự động lấy hải trình có trạng thái "In Progress".</p>
+                </div>
+              }
+            />
+          </Card>
+        </div>
+      </MasterLayout>
+    );
+  }
+
+  const historyColumns = [
+    {
+      title: 'Thời gian',
+      dataIndex: 'createdAt',
+      render: (d) => formatTime(d),
+    },
+    {
+      title: 'Máy',
+      key: 'engine',
+      render: (_, log) => (
+        <strong>{log.EngineLog?.Engine?.engineName || 'N/A'}</strong>
+      ),
+    },
+    {
+      title: 'Thông số đo',
+      key: 'values',
+      render: (_, log) =>
+        log.EngineLog?.EngineLogValues?.map((v) => {
+          const param = v.EngineParameter;
+          const color =
+            param?.maxValue && v.value > param.maxValue
+              ? 'red'
+              : param?.maxValue && v.value > param.maxValue * 0.9
+              ? 'orange'
+              : 'green';
+          return (
+            <Tag key={v.id} color={color} style={{ marginBottom: 4 }}>
+              {param?.name}: {v.value}
+            </Tag>
+          );
+        }),
+    },
+    {
+      title: 'Ghi chú',
+      key: 'note',
+      render: (_, log) => log.EngineLog?.note || log.content,
+    },
+  ];
+
   return (
     <MasterLayout>
-      {/* Success Toast */}
-      {successMsg && (
-        <div style={{
-          position: 'fixed', top: 20, right: 20, background: '#16a34a', color: 'white',
-          padding: '12px 20px', borderRadius: 8, zIndex: 9999, display: 'flex',
-          alignItems: 'center', gap: 8, boxShadow: '0 4px 12px rgba(0,0,0,0.15)'
-        }}>
-          <CheckCircle size={18} /> {successMsg}
-        </div>
-      )}
+      <div style={{ padding: '24px 32px' }}>
+        {/* Header */}
+        <PageHeader
+          icon={<DashboardOutlined style={{ color: '#2563eb' }} />}
+          breadcrumb="Engine Log"
+          title="Nhật ký Kiểm tra Máy"
+        />
 
-      {/* Header */}
-      <div className="el-page-header">
-        <h1 className="el-page-title"><Gauge size={28} color="#2563eb" /> Nhật ký Kiểm tra Máy</h1>
-      </div>
-
-      {/* Thông tin Hải trình (Auto-detect) */}
-      <div className="el-info-bar">
-        <div className="el-info-card">
-          <div className="el-info-card-label"><Ship size={14} /> Hải trình hiện tại</div>
-          <div className="el-info-card-value">{activeVoyage.Ship?.shipName || 'N/A'}</div>
-          <div className="el-info-card-sub">
-            {activeVoyage.departurePort} → {activeVoyage.destinationPort} | {formatDate(activeVoyage.departureDate)} - {formatDate(activeVoyage.arrivalDate)}
-          </div>
-        </div>
-
-        <div className="el-info-card shift">
-          <div className="el-info-card-label"><Clock size={14} /> Chọn Ca trực</div>
-          <select className="el-shift-select" onChange={handleShiftChange} value={selectedShift?.id || ''}>
-            <option value="">-- Chọn ca trực --</option>
-            {shifts.map(s => (
-              <option key={s.id} value={s.id}>
-                {s.CrewProfile?.fullName} | {formatTime(s.startTime)} - {formatTime(s.endTime)} ({s.status})
-              </option>
-            ))}
-          </select>
-        </div>
-      </div>
-
-      {/* Danh sách Máy (Chỉ hiện khi đã chọn ca trực) */}
-      {selectedShift && (
-        <>
-          <h3 style={{ margin: '0 0 12px', color: '#334155', fontSize: 15 }}>
-            Chọn máy cần kiểm tra ({engines.length} máy)
-          </h3>
-          <div className="el-engine-grid">
-            {engines.map(engine => (
-              <div
-                key={engine.id}
-                className={`el-engine-card ${selectedEngine?.id === engine.id ? 'active' : ''}`}
-                onClick={() => handleSelectEngine(engine)}
-              >
-                <div className="el-engine-card-header">
-                  <h4>{engine.engineName}</h4>
-                  <span className={`el-engine-type-badge ${engine.engineType?.includes('2') ? 'badge-main' : 'badge-gen'}`}>
-                    {engine.engineType?.includes('2') ? 'Máy chính' : 'Máy đèn'}
-                  </span>
-                </div>
-                <div className="el-engine-card-body">
-                  <div className="el-engine-status">
-                    <span className="dot"></span> {engine.status}
-                  </div>
-                  <div style={{ fontSize: 12, color: '#94a3b8', marginTop: 6 }}>
-                    {engine.EngineParameters?.length || 0} thông số cần kiểm tra
-                  </div>
-                </div>
+        {/* Thông tin Hải trình (Auto-detect) */}
+        <Card style={{ marginBottom: 16 }}>
+          <Space size={48} wrap align="start">
+            <div>
+              <Text type="secondary">
+                <CompassOutlined /> Hải trình hiện tại
+              </Text>
+              <div style={{ fontWeight: 600, fontSize: 16 }}>{activeVoyage.Ship?.shipName || 'N/A'}</div>
+              <Text type="secondary" style={{ fontSize: 12 }}>
+                {activeVoyage.departurePort} → {activeVoyage.destinationPort} |{' '}
+                {formatDate(activeVoyage.departureDate)} - {formatDate(activeVoyage.arrivalDate)}
+              </Text>
+            </div>
+            <div style={{ minWidth: 320 }}>
+              <div style={{ marginBottom: 6 }}>
+                <Text type="secondary">
+                  <ClockCircleOutlined /> Chọn Ca trực
+                </Text>
               </div>
-            ))}
-          </div>
-        </>
-      )}
+              <Select
+                style={{ width: '100%' }}
+                placeholder="-- Chọn ca trực --"
+                allowClear
+                value={selectedShift?.id || undefined}
+                onChange={handleShiftChange}
+                options={shifts.map((s) => ({
+                  value: s.id,
+                  label: `${s.CrewProfile?.fullName} | ${formatTime(s.startTime)} - ${formatTime(
+                    s.endTime
+                  )} (${s.status})`,
+                }))}
+              />
+            </div>
+          </Space>
+        </Card>
 
-      {/* Form nhập thông số (Chỉ hiện khi đã chọn máy) */}
-      {selectedEngine && (
-        <div className="el-inspect-panel">
-          <div className="el-inspect-header">
-            <h3>📋 Kiểm tra: {selectedEngine.engineName} ({selectedEngine.engineType})</h3>
-          </div>
-          <div className="el-inspect-body">
-            <div className="el-param-grid">
-              {selectedEngine.EngineParameters?.map(param => {
+        {/* Danh sách Máy (Chỉ hiện khi đã chọn ca trực) */}
+        {selectedShift && (
+          <>
+            <Title level={5} style={{ marginBottom: 12 }}>
+              Chọn máy cần kiểm tra ({engines.length} máy)
+            </Title>
+            <Row gutter={[16, 16]}>
+              {engines.map((engine) => (
+                <Col xs={24} sm={12} lg={8} key={engine.id}>
+                  <Card
+                    hoverable
+                    onClick={() => handleSelectEngine(engine)}
+                    style={{
+                      borderColor: selectedEngine?.id === engine.id ? '#1677ff' : undefined,
+                      borderWidth: selectedEngine?.id === engine.id ? 2 : 1,
+                    }}
+                  >
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <h4 style={{ margin: 0 }}>{engine.engineName}</h4>
+                      <Tag color={engine.engineType?.includes('2') ? 'blue' : 'gold'}>
+                        {engine.engineType?.includes('2') ? 'Máy chính' : 'Máy đèn'}
+                      </Tag>
+                    </div>
+                    <div style={{ marginTop: 8 }}>
+                      <Tag>{engine.status}</Tag>
+                    </div>
+                    <Text type="secondary" style={{ fontSize: 12 }}>
+                      {engine.EngineParameters?.length || 0} thông số cần kiểm tra
+                    </Text>
+                  </Card>
+                </Col>
+              ))}
+            </Row>
+          </>
+        )}
+
+        {/* Form nhập thông số (Chỉ hiện khi đã chọn máy) */}
+        {selectedEngine && (
+          <Card
+            style={{ marginTop: 16 }}
+            title={`Kiểm tra: ${selectedEngine.engineName} (${selectedEngine.engineType})`}
+          >
+            <Row gutter={[16, 16]}>
+              {selectedEngine.EngineParameters?.map((param) => {
                 const status = getValueStatus(param, paramValues[param.id]);
                 return (
-                  <div key={param.id} className="el-param-item">
-                    <div className="el-param-label">
-                      {param.name}
-                    </div>
-                    <input
-                      type="number"
-                      className={`el-param-input ${status === 'danger' ? 'danger' : status === 'warning' ? 'warning' : ''}`}
+                  <Col xs={24} sm={12} lg={8} key={param.id}>
+                    <div style={{ fontWeight: 500, marginBottom: 4 }}>{param.name}</div>
+                    <InputNumber
+                      style={{ width: '100%', borderColor: statusBorderColor(status) }}
                       placeholder="Nhập giá trị"
-                      value={paramValues[param.id] || ''}
-                      onChange={(e) => handleParamChange(param.id, e.target.value)}
+                      value={paramValues[param.id] === '' ? null : paramValues[param.id]}
+                      onChange={(value) => handleParamChange(param.id, value === null ? '' : value)}
                     />
-                    <div className="el-param-range">
+                    <Text type="secondary" style={{ fontSize: 12 }}>
                       {param.minValue != null && `Min: ${param.minValue}`}
                       {param.minValue != null && param.maxValue != null && ' | '}
                       {param.maxValue != null && `Max: ${param.maxValue}`}
-                    </div>
-                  </div>
+                    </Text>
+                  </Col>
                 );
               })}
-            </div>
+            </Row>
 
             <div style={{ marginTop: 16 }}>
               <label style={{ fontSize: 14, fontWeight: 500, color: '#475569', marginBottom: 8, display: 'block' }}>
                 Ghi chú (Tình trạng máy, vấn đề phát hiện...)
               </label>
-              <textarea
-                className="el-note-textarea"
+              <TextArea
+                rows={3}
                 placeholder="VD: Máy chạy ổn định, không có tiếng kêu bất thường..."
                 value={note}
                 onChange={(e) => setNote(e.target.value)}
               />
             </div>
-          </div>
-          <div className="el-inspect-footer">
-            <button className="btn-cancel" onClick={() => setSelectedEngine(null)}>Hủy</button>
-            <button className="btn-save" onClick={handleSubmit}>
-              <Save size={16} /> Lưu Nhật ký
-            </button>
-          </div>
-        </div>
-      )}
 
-      {/* Lịch sử kiểm tra trong ca trực này */}
-      {selectedShift && (
-        <div className="el-history-card">
-          <div className="el-history-header">
-            <h3>📜 Lịch sử kiểm tra trong ca này</h3>
-          </div>
-          {history.length > 0 ? (
-            <table className="el-history-table">
-              <thead>
-                <tr>
-                  <th>Thời gian</th>
-                  <th>Máy</th>
-                  <th>Thông số đo</th>
-                  <th>Ghi chú</th>
-                </tr>
-              </thead>
-              <tbody>
-                {history.map(log => (
-                  <tr key={log.id}>
-                    <td>{formatTime(log.createdAt)}</td>
-                    <td style={{ fontWeight: 500 }}>{log.EngineLog?.Engine?.engineName || 'N/A'}</td>
-                    <td>
-                      {log.EngineLog?.EngineLogValues?.map(v => {
-                        const param = v.EngineParameter;
-                        const status = param?.maxValue && v.value > param.maxValue ? 'value-danger'
-                          : param?.maxValue && v.value > param.maxValue * 0.9 ? 'value-warn' : 'value-ok';
-                        return (
-                          <span key={v.id} className={`el-value-badge ${status}`} style={{ marginRight: 6 }}>
-                            {param?.name}: {v.value}
-                          </span>
-                        );
-                      })}
-                    </td>
-                    <td>{log.EngineLog?.note || log.content}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          ) : (
-            <div className="el-no-data">Chưa có kiểm tra nào trong ca trực này.</div>
-          )}
-        </div>
-      )}
+            <div style={{ marginTop: 16, display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+              <Button onClick={() => setSelectedEngine(null)}>Hủy</Button>
+              <Button type="primary" icon={<SaveOutlined />} onClick={handleSubmit}>
+                Lưu Nhật ký
+              </Button>
+            </div>
+          </Card>
+        )}
+
+        {/* Lịch sử kiểm tra trong ca trực này */}
+        {selectedShift && (
+          <Card title="Lịch sử kiểm tra trong ca này" style={{ marginTop: 16 }}>
+            <Table
+              rowKey="id"
+              columns={historyColumns}
+              dataSource={history}
+              pagination={{ pageSize: 10, hideOnSinglePage: true }}
+              locale={{ emptyText: 'Chưa có kiểm tra nào trong ca trực này.' }}
+            />
+          </Card>
+        )}
+      </div>
     </MasterLayout>
   );
 }

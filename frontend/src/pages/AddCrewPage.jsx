@@ -1,30 +1,21 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { AlertTriangle, CheckCircle, Save, Users, ArrowLeft } from 'lucide-react';
+import { Form, Input, Select, Button, Card, Row, Col, Space, Spin, Alert } from 'antd';
+import { SaveOutlined, TeamOutlined, WarningOutlined } from '@ant-design/icons';
 import AgencyLayout from '../components/AgencyLayout';
 import { crewService } from '../services/api';
-import './AddCrewPage.css';
+import { PageHeader, notifySuccess, notifyError } from '../components/common';
 
 export default function AddCrewPage() {
   const navigate = useNavigate();
   const { id } = useParams();
   const isEditMode = Boolean(id);
+  const [form] = Form.useForm();
 
-  const [formData, setFormData] = useState({
-    fullName: '',
-    email: '',
-    phone: '',
-    cccd: '',
-    department: 'Deck',
-    position: '',
-    role: 'Sailor',
-    status: 'Active',
-    password: ''
-  });
-
-  const [errorMsg, setErrorMsg] = useState('');
-  const [successMsg, setSuccessMsg] = useState('');
   const [loading, setLoading] = useState(isEditMode);
+  const [submitting, setSubmitting] = useState(false);
+  // Theo dõi role để khóa/mở các trường phụ thuộc
+  const [role, setRole] = useState('Sailor');
 
   useEffect(() => {
     if (isEditMode) {
@@ -35,265 +26,246 @@ export default function AddCrewPage() {
   const fetchCrew = async () => {
     try {
       const data = await crewService.getById(id);
-      setFormData({
+      const nextRole = data.User?.role || 'Sailor';
+      setRole(nextRole);
+      form.setFieldsValue({
         fullName: data.fullName || '',
         email: data.email || '',
         phone: data.phone || '',
         cccd: data.cccd || '',
         department: data.department || 'Deck',
         position: data.position || '',
-        role: data.User?.role || 'Sailor',
+        role: nextRole,
         status: data.User?.status || 'Active',
       });
     } catch (error) {
       console.error('Lỗi khi lấy thông tin:', error);
-      setErrorMsg('Không thể tải thông tin thủy thủ.');
+      notifyError('Không thể tải thông tin thủy thủ.');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    if (name === 'role') {
-      if (value === 'Master') {
-        setFormData(prev => ({ ...prev, role: value, department: 'None', position: 'Thuyền trưởng' }));
-      } else if (value === 'ChiefOfficer') {
-        setFormData(prev => ({ ...prev, role: value, department: 'None', position: 'Đại phó' }));
-      } else {
-        setFormData(prev => ({
-          ...prev,
-          role: value,
-          department: prev.department === 'None' ? 'Deck' : prev.department,
-          position: (prev.role === 'Master' || prev.role === 'ChiefOfficer') ? '' : prev.position
-        }));
-      }
+  const isLockedRole = role === 'Master' || role === 'ChiefOfficer';
+
+  const handleRoleChange = (value) => {
+    setRole(value);
+    if (value === 'Master') {
+      form.setFieldsValue({ role: value, department: 'None', position: 'Thuyền trưởng' });
+    } else if (value === 'ChiefOfficer') {
+      form.setFieldsValue({ role: value, department: 'None', position: 'Đại phó' });
     } else {
-      setFormData(prev => ({ ...prev, [name]: value }));
+      const prevDepartment = form.getFieldValue('department');
+      const prevRole = form.getFieldValue('role');
+      form.setFieldsValue({
+        role: value,
+        department: prevDepartment === 'None' ? 'Deck' : prevDepartment,
+        position: prevRole === 'Master' || prevRole === 'ChiefOfficer' ? '' : form.getFieldValue('position'),
+      });
     }
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    if (!formData.email || !formData.fullName) {
-      setErrorMsg('Vui lòng điền đầy đủ Họ tên và Email.');
-      return;
-    }
-
-    if (formData.cccd) {
-      if (!formData.cccd.startsWith('0') || formData.cccd.length !== 12 || !/^\d+$/.test(formData.cccd)) {
-        setErrorMsg('CCCD phải bắt đầu bằng số 0 và bao gồm đúng 12 chữ số.');
+  const handleSubmit = async (values) => {
+    if (values.cccd) {
+      if (!values.cccd.startsWith('0') || values.cccd.length !== 12 || !/^\d+$/.test(values.cccd)) {
+        notifyError('CCCD phải bắt đầu bằng số 0 và bao gồm đúng 12 chữ số.');
         return;
       }
     }
 
-    if (formData.phone) {
-      if (!formData.phone.startsWith('0') || formData.phone.length !== 10 || !/^\d+$/.test(formData.phone)) {
-        setErrorMsg('Số điện thoại phải bắt đầu bằng số 0 và bao gồm đúng 10 chữ số.');
+    if (values.phone) {
+      if (!values.phone.startsWith('0') || values.phone.length !== 10 || !/^\d+$/.test(values.phone)) {
+        notifyError('Số điện thoại phải bắt đầu bằng số 0 và bao gồm đúng 10 chữ số.');
         return;
       }
     }
 
+    setSubmitting(true);
     try {
       if (isEditMode) {
-        await crewService.update(id, formData);
-        setSuccessMsg('Cập nhật thông tin thủy thủ thành công!');
+        await crewService.update(id, values);
+        notifySuccess('Cập nhật thông tin thủy thủ thành công!');
       } else {
-        await crewService.create(formData);
-        setSuccessMsg('Thêm thủy thủ mới thành công!');
+        await crewService.create(values);
+        notifySuccess('Thêm thủy thủ mới thành công!');
       }
+      navigate('/crews');
     } catch (error) {
       console.error('Lỗi lưu thủy thủ:', error);
-      setErrorMsg(error.response?.data?.message || 'Có lỗi hệ thống xảy ra khi lưu thông tin thủy thủ.');
+      notifyError(error.response?.data?.message || 'Có lỗi hệ thống xảy ra khi lưu thông tin thủy thủ.');
+    } finally {
+      setSubmitting(false);
     }
   };
 
-  const handleSuccessClose = () => {
-    setSuccessMsg('');
-    navigate('/crews');
-  };
-
-  if (loading) return <AgencyLayout><div style={{ padding: '40px' }}>Đang tải dữ liệu...</div></AgencyLayout>;
+  if (loading) {
+    return (
+      <AgencyLayout>
+        <div style={{ display: 'flex', justifyContent: 'center', padding: 60 }}>
+          <Spin tip="Đang tải dữ liệu..." />
+        </div>
+      </AgencyLayout>
+    );
+  }
 
   return (
     <AgencyLayout>
-      {/* ERROR MODAL */}
-      {errorMsg && (
-        <div className="v-error-modal-overlay">
-          <div className="v-error-modal">
-            <div className="v-error-modal-header">
-              <div className="v-error-modal-icon">
-                <AlertTriangle size={20} />
-              </div>
-              <h3>Lỗi Cập nhật</h3>
-            </div>
-            <div className="v-error-modal-body">
-              {errorMsg.split('\n').map((line, idx) => (
-                <p key={idx} style={{ margin: '0 0 8px 0' }}>{line}</p>
-              ))}
-            </div>
-            <div className="v-error-modal-footer">
-              <button type="button" onClick={() => setErrorMsg('')} className="v-btn-error-close">
-                Đã hiểu & Sửa lại
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <div style={{ padding: '24px 32px', maxWidth: 1000, margin: '0 auto' }}>
+        <PageHeader
+          onBack={() => navigate('/crews')}
+          title={isEditMode ? 'Cập nhật Thủy thủ' : 'Thêm Thủy thủ mới'}
+          breadcrumb="Điền thông tin hồ sơ và tài khoản đăng nhập"
+        />
 
-      {/* SUCCESS MODAL */}
-      {successMsg && (
-        <div className="v-error-modal-overlay">
-          <div className="v-error-modal">
-            <div className="v-success-modal-header">
-              <div className="v-success-modal-icon">
-                <CheckCircle size={20} />
-              </div>
-              <h3>Thành công</h3>
-            </div>
-            <div className="v-error-modal-body">
-              <p style={{ margin: 0, fontSize: '15px', fontWeight: 500, color: '#0f172a' }}>{successMsg}</p>
-            </div>
-            <div className="v-error-modal-footer">
-              <button type="button" onClick={handleSuccessClose} className="v-btn-success-close">
-                Hoàn tất
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+        <Form
+          form={form}
+          layout="vertical"
+          onFinish={handleSubmit}
+          initialValues={{
+            fullName: '',
+            email: '',
+            phone: '',
+            cccd: '',
+            department: 'Deck',
+            position: '',
+            role: 'Sailor',
+            status: 'Active',
+            password: '',
+          }}
+        >
+          <Row gutter={16}>
+            <Col xs={24} lg={12}>
+              <Card
+                title={
+                  <Space>
+                    <TeamOutlined />
+                    Thông tin Cá nhân
+                  </Space>
+                }
+                style={{ marginBottom: 16 }}
+              >
+                <Form.Item
+                  label="Họ và Tên"
+                  name="fullName"
+                  rules={[{ required: true, message: 'Vui lòng điền đầy đủ Họ tên và Email.' }]}
+                >
+                  <Input placeholder="Ví dụ: Nguyễn Văn A" />
+                </Form.Item>
+                <Row gutter={16}>
+                  <Col span={12}>
+                    <Form.Item label="CCCD" name="cccd">
+                      <Input placeholder="Mã định danh" />
+                    </Form.Item>
+                  </Col>
+                  <Col span={12}>
+                    <Form.Item label="Số điện thoại" name="phone">
+                      <Input placeholder="+84..." />
+                    </Form.Item>
+                  </Col>
+                </Row>
+              </Card>
+            </Col>
 
-      <div className="add-crew-layout">
-        <header className="add-crew-header">
-          <div className="header-left" onClick={() => navigate('/crews')} style={{ cursor: 'pointer' }}>
-            <ArrowLeft size={24} color="#64748b" />
-            <div className="header-title-box">
-              <h1 className="header-title">{isEditMode ? 'Cập nhật Thủy thủ' : 'Thêm Thủy thủ mới'}</h1>
-              <span className="header-subtitle">Điền thông tin hồ sơ và tài khoản đăng nhập</span>
-            </div>
-          </div>
-        </header>
+            <Col xs={24} lg={12}>
+              <Card
+                title={
+                  <Space>
+                    <TeamOutlined />
+                    Phân công Công tác
+                  </Space>
+                }
+                style={{ marginBottom: 16 }}
+              >
+                <Row gutter={16}>
+                  <Col span={12}>
+                    <Form.Item label="Bộ phận" name="department">
+                      <Select disabled={isLockedRole}>
+                        <Select.Option value="None">Không thuộc bộ phận (None)</Select.Option>
+                        <Select.Option value="Deck">Bộ phận Boong (Deck)</Select.Option>
+                        <Select.Option value="Engine">Bộ phận Máy (Engine)</Select.Option>
+                      </Select>
+                    </Form.Item>
+                  </Col>
+                  <Col span={12}>
+                    <Form.Item label="Chức vụ (Position)" name="position">
+                      <Input placeholder="Ví dụ: Máy trưởng" readOnly={isLockedRole} />
+                    </Form.Item>
+                  </Col>
+                </Row>
+                <Row gutter={16}>
+                  <Col span={12}>
+                    <Form.Item label="Quyền hệ thống (Role)" name="role">
+                      <Select onChange={handleRoleChange}>
+                        <Select.Option value="Master">Thuyền trưởng (Master)</Select.Option>
+                        <Select.Option value="ChiefOfficer">Đại phó (Chief Officer)</Select.Option>
+                        <Select.Option value="DeckOfficer">Sĩ quan boong (Deck Officer)</Select.Option>
+                        <Select.Option value="EngineOfficer">Sĩ quan máy (Engine Officer)</Select.Option>
+                        <Select.Option value="Sailor">Thủy thủ (Sailor)</Select.Option>
+                      </Select>
+                    </Form.Item>
+                  </Col>
+                  <Col span={12}>
+                    <Form.Item label="Trạng thái" name="status">
+                      <Select>
+                        <Select.Option value="Active">Đang công tác (Active)</Select.Option>
+                        <Select.Option value="Inactive">Tạm nghỉ (Inactive)</Select.Option>
+                      </Select>
+                    </Form.Item>
+                  </Col>
+                </Row>
+              </Card>
+            </Col>
 
-        <form className="add-crew-content" onSubmit={handleSubmit}>
-          <div className="crew-form-grid">
-            
-            {/* THÔNG TIN CÁ NHÂN */}
-            <div className="crew-card">
-              <div className="crew-card-header">
-                <Users size={18} />
-                <h2>Thông tin Cá nhân</h2>
-              </div>
-              <div className="crew-card-body">
-                <div className="form-group">
-                  <label>Họ và Tên *</label>
-                  <input type="text" name="fullName" value={formData.fullName} onChange={handleChange} required placeholder="Ví dụ: Nguyễn Văn A" />
-                </div>
-                <div className="form-row">
-                  <div className="form-group">
-                    <label>CCCD</label>
-                    <input type="text" name="cccd" value={formData.cccd} onChange={handleChange} placeholder="Mã định danh" />
-                  </div>
-                  <div className="form-group">
-                    <label>Số điện thoại</label>
-                    <input type="text" name="phone" value={formData.phone} onChange={handleChange} placeholder="+84..." />
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* THÔNG TIN CÔNG VIỆC */}
-            <div className="crew-card">
-              <div className="crew-card-header">
-                <Users size={18} />
-                <h2>Phân công Công tác</h2>
-              </div>
-              <div className="crew-card-body">
-                <div className="form-row">
-                  <div className="form-group">
-                    <label>Bộ phận</label>
-                    <select 
-                      name="department" 
-                      value={formData.department} 
-                      onChange={handleChange}
-                      disabled={formData.role === 'Master' || formData.role === 'ChiefOfficer'}
-                    >
-                      <option value="None">Không thuộc bộ phận (None)</option>
-                      <option value="Deck">Bộ phận Boong (Deck)</option>
-                      <option value="Engine">Bộ phận Máy (Engine)</option>
-                    </select>
-                  </div>
-                  <div className="form-group">
-                    <label>Chức vụ (Position)</label>
-                    <input 
-                      type="text" 
-                      name="position" 
-                      value={formData.position} 
-                      onChange={handleChange} 
-                      placeholder="Ví dụ: Máy trưởng" 
-                      readOnly={formData.role === 'Master' || formData.role === 'ChiefOfficer'}
-                      style={{ backgroundColor: (formData.role === 'Master' || formData.role === 'ChiefOfficer') ? '#f1f5f9' : 'white', cursor: (formData.role === 'Master' || formData.role === 'ChiefOfficer') ? 'not-allowed' : 'text' }}
-                    />
-                  </div>
-                </div>
-                <div className="form-row">
-                  <div className="form-group">
-                    <label>Quyền hệ thống (Role)</label>
-                    <select name="role" value={formData.role} onChange={handleChange}>
-                      <option value="Master">Thuyền trưởng (Master)</option>
-                      <option value="ChiefOfficer">Đại phó (Chief Officer)</option>
-                      <option value="DeckOfficer">Sĩ quan boong (Deck Officer)</option>
-                      <option value="EngineOfficer">Sĩ quan máy (Engine Officer)</option>
-                      <option value="Sailor">Thủy thủ (Sailor)</option>
-                    </select>
-                  </div>
-                  <div className="form-group">
-                    <label>Trạng thái</label>
-                    <select name="status" value={formData.status} onChange={handleChange}>
-                      <option value="Active">Đang công tác (Active)</option>
-                      <option value="Inactive">Tạm nghỉ (Inactive)</option>
-                    </select>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* TÀI KHOẢN ĐĂNG NHẬP */}
-            <div className="crew-card">
-              <div className="crew-card-header" style={{ background: '#fef2f2', borderBottom: '1px solid #fee2e2' }}>
-                <AlertTriangle size={18} color="#dc2626" />
-                <h2 style={{ color: '#991b1b' }}>Tài khoản Đăng nhập</h2>
-              </div>
-              <div className="crew-card-body">
-                <div className="form-group">
-                  <label>Email (Tên đăng nhập) *</label>
-                  <input type="email" name="email" value={formData.email} onChange={handleChange} required placeholder="abc@cargoops.vn" disabled={isEditMode} style={{ backgroundColor: isEditMode ? '#f1f5f9' : 'white' }} />
-                </div>
+            <Col span={24}>
+              <Card
+                title={
+                  <Space>
+                    <WarningOutlined style={{ color: '#dc2626' }} />
+                    <span style={{ color: '#991b1b' }}>Tài khoản Đăng nhập</span>
+                  </Space>
+                }
+                style={{ marginBottom: 16 }}
+              >
+                <Form.Item
+                  label="Email (Tên đăng nhập)"
+                  name="email"
+                  rules={[
+                    { required: true, message: 'Vui lòng điền đầy đủ Họ tên và Email.' },
+                    { type: 'email', message: 'Email không hợp lệ.' },
+                  ]}
+                >
+                  <Input placeholder="abc@cargoops.vn" disabled={isEditMode} />
+                </Form.Item>
                 {isEditMode ? (
-                  <div className="form-group">
-                    <label>Mật khẩu mới (Bỏ trống nếu không đổi)</label>
-                    <input type="text" name="password" value={formData.password || ''} onChange={handleChange} placeholder="Tự nhập mật khẩu" />
-                  </div>
+                  <Form.Item label="Mật khẩu mới (Bỏ trống nếu không đổi)" name="password">
+                    <Input placeholder="Tự nhập mật khẩu" />
+                  </Form.Item>
                 ) : (
-                  <div style={{ padding: '12px', background: '#eff6ff', borderRadius: '8px', borderLeft: '4px solid #3b82f6', marginTop: '8px' }}>
-                    <p style={{ margin: 0, fontSize: '13px', color: '#1e40af', lineHeight: '1.5' }}>
-                      <strong>Bảo mật tài khoản:</strong> Mật khẩu sẽ được hệ thống tự động sinh ngẫu nhiên (chống đoán ngược) và gửi trực tiếp về địa chỉ Email trên.<br/>
-                      Thủy thủ sẽ <strong>bắt buộc phải đổi mật khẩu</strong> ở lần đăng nhập đầu tiên vào hệ thống.
-                    </p>
-                  </div>
+                  <Alert
+                    type="info"
+                    showIcon
+                    message={
+                      <span style={{ fontSize: 13 }}>
+                        <strong>Bảo mật tài khoản:</strong> Mật khẩu sẽ được hệ thống tự động sinh ngẫu
+                        nhiên (chống đoán ngược) và gửi trực tiếp về địa chỉ Email trên.
+                        <br />
+                        Thủy thủ sẽ <strong>bắt buộc phải đổi mật khẩu</strong> ở lần đăng nhập đầu tiên
+                        vào hệ thống.
+                      </span>
+                    }
+                  />
                 )}
-              </div>
-            </div>
+              </Card>
+            </Col>
+          </Row>
 
-          </div>
-
-          <div className="crew-bottom-bar">
-            <button type="button" className="c-btn-cancel" onClick={() => navigate('/crews')}>Hủy bỏ</button>
-            <button type="submit" className="c-btn-save">
-              <Save size={18} />
+          <Space style={{ justifyContent: 'flex-end', width: '100%' }}>
+            <Button onClick={() => navigate('/crews')}>Hủy bỏ</Button>
+            <Button type="primary" htmlType="submit" icon={<SaveOutlined />} loading={submitting}>
               {isEditMode ? 'Lưu thay đổi' : 'Khởi tạo Thủy thủ'}
-            </button>
-          </div>
-        </form>
+            </Button>
+          </Space>
+        </Form>
       </div>
     </AgencyLayout>
   );
