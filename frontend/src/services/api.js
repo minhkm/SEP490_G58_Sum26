@@ -91,6 +91,25 @@ export const cargoService = {
   }
 };
 
+export const cargoTypeService = {
+  getAll: async () => {
+    const response = await api.get('/cargo-types');
+    return response.data;
+  },
+  create: async (data) => {
+    const response = await api.post('/cargo-types', data);
+    return response.data;
+  },
+  update: async (id, data) => {
+    const response = await api.put(`/cargo-types/${id}`, data);
+    return response.data;
+  },
+  delete: async (id) => {
+    const response = await api.delete(`/cargo-types/${id}`);
+    return response.data;
+  }
+};
+
 export const dashboardService = {
   getAgencyDashboardData: async () => {
     const response = await api.get('/dashboard/agency');

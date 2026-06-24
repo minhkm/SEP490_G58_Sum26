@@ -14,6 +14,7 @@ app.use("/api/auth", authRoutes);
 app.use("/api/voyages", voyageRoutes);
 app.use("/api/vessels", require("./routes/vesselRoutes"));
 app.use("/api/cargos", require("./routes/cargoRoutes"));
+app.use("/api/cargo-types", require("./routes/cargoTypeRoutes"));
 app.use("/api/dashboard", require("./routes/dashboardRoutes"));
 app.use("/api/crews", require("./routes/crewRoutes"));
 app.use("/api/engine-logs", require("./routes/engineLogRoutes"));

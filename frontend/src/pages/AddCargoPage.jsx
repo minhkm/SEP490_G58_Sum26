@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeft, Package, Save, AlertCircle } from 'lucide-react';
+import Swal from 'sweetalert2';
 import AgencyLayout from '../components/AgencyLayout';
 import MasterLayout from '../components/MasterLayout';
-import { cargoService, voyageService } from '../services/api';
+import { cargoService, cargoTypeService } from '../services/api';
 
 export default function AddCargoPage() {
   const navigate = useNavigate();
@@ -12,23 +13,27 @@ export default function AddCargoPage() {
 
   const user = JSON.parse(localStorage.getItem('user')) || {};
   const Layout = (user.role === 'Admin' || user.role === 'Agency') ? AgencyLayout : MasterLayout;
+  const canEdit = user.role === 'Admin';
 
-  const [voyages, setVoyages] = useState([]);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [cargoTypes, setCargoTypes] = useState([]);
   const [formData, setFormData] = useState({
     voyageId: '',
     cargoName: '',
     cargoType: '',
     totalWeight: '',
     totalVolume: '',
-    status: 'Registered'
+    status: 'Đã ở cảng'
   });
 
+  const loadCargoTypes = () =>
+    cargoTypeService.getAll()
+      .then(res => { if (res.success) setCargoTypes(res.data); })
+      .catch(() => {}); // Không chặn form nếu lỗi tải loại hàng
+
   useEffect(() => {
-    voyageService.getAll().then(data => {
-      if (Array.isArray(data)) setVoyages(data);
-    }).catch(() => {});
+    loadCargoTypes();
 
     if (isEditMode) {
       cargoService.getById(id).then(res => {
@@ -40,7 +45,7 @@ export default function AddCargoPage() {
             cargoType: c.cargoType || '',
             totalWeight: c.totalWeight ?? '',
             totalVolume: c.totalVolume ?? '',
-            status: c.status || 'Registered'
+            status: c.status || 'Đã ở cảng'
           });
         }
       }).catch(err => {
@@ -53,6 +58,44 @@ export default function AddCargoPage() {
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
+  };
+
+  const handleCargoTypeChange = async (e) => {
+    const { value } = e.target;
+    if (value !== '__add__') {
+      setFormData(prev => ({ ...prev, cargoType: value }));
+      return;
+    }
+
+    // Tạo loại hàng mới ngay trong dropdown
+    const { value: formValues } = await Swal.fire({
+      title: 'Thêm loại hàng mới',
+      html:
+        '<input id="swal-ct-name" class="swal2-input" placeholder="Tên loại hàng (VD: Rice)">' +
+        '<input id="swal-ct-desc" class="swal2-input" placeholder="Mô tả (tuỳ chọn)">',
+      focusConfirm: false,
+      showCancelButton: true,
+      confirmButtonText: 'Tạo',
+      cancelButtonText: 'Hủy',
+      preConfirm: () => {
+        const name = document.getElementById('swal-ct-name').value.trim();
+        if (!name) {
+          Swal.showValidationMessage('Vui lòng nhập tên loại hàng');
+          return false;
+        }
+        return { name, description: document.getElementById('swal-ct-desc').value.trim() };
+      },
+    });
+    if (!formValues) return;
+
+    try {
+      const res = await cargoTypeService.create(formValues);
+      await loadCargoTypes();
+      setFormData(prev => ({ ...prev, cargoType: res.data?.name || formValues.name }));
+      Swal.fire({ icon: 'success', title: 'Đã thêm', text: 'Loại hàng mới đã được tạo.', timer: 1500, showConfirmButton: false });
+    } catch (err) {
+      Swal.fire('Lỗi', err.response?.data?.message || 'Không thể tạo loại hàng.', 'error');
+    }
   };
 
   const handleSubmit = async (e) => {
@@ -117,24 +160,32 @@ export default function AddCargoPage() {
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginBottom: '20px' }}>
             <div>
               <label style={labelStyle}>Loại Hàng</label>
-              <input
-                type="text"
+              <select
                 name="cargoType"
                 value={formData.cargoType}
-                onChange={handleChange}
-                placeholder="VD: Rice, Coal..."
+                onChange={handleCargoTypeChange}
                 style={inputStyle}
-              />
+              >
+                <option value="">-- Chọn loại hàng --</option>
+                {cargoTypes.map(t => (
+                  <option key={t.id} value={t.name}>{t.name}</option>
+                ))}
+                {/* Trường hợp loại hàng cũ không còn trong danh mục vẫn hiển thị */}
+                {formData.cargoType && !cargoTypes.some(t => t.name === formData.cargoType) && (
+                  <option value={formData.cargoType}>{formData.cargoType}</option>
+                )}
+                {canEdit && <option value="__add__">➕ Tạo loại hàng mới…</option>}
+              </select>
             </div>
             <div>
               <label style={labelStyle}>Trạng Thái</label>
-              <select name="status" value={formData.status} onChange={handleChange} style={inputStyle}>
-                <option value="Registered">Registered (Đã đăng ký)</option>
-                <option value="Loaded">Loaded (Đã xếp hàng)</option>
-                <option value="InProgress">In Progress (Đang vận chuyển)</option>
-                <option value="Discharged">Discharged (Đã dỡ hàng)</option>
-                <option value="Delayed">Delayed (Chậm trễ)</option>
-              </select>
+              <input
+                type="text"
+                name="status"
+                value={formData.status}
+                readOnly
+                style={{ ...inputStyle, backgroundColor: '#f1f5f9', color: '#64748b', cursor: 'not-allowed' }}
+              />
             </div>
           </div>
 
@@ -166,19 +217,7 @@ export default function AddCargoPage() {
             </div>
           </div>
 
-          <div style={{ marginBottom: '24px' }}>
-            <label style={labelStyle}>Hải Trình (Voyage) <span style={{ color: '#dc2626' }}>*</span></label>
-            <select name="voyageId" value={formData.voyageId} onChange={handleChange} required style={inputStyle}>
-              <option value="">-- Chọn Hải Trình --</option>
-              {voyages.map(v => (
-                <option key={v.id} value={v.id}>
-                  {v.id} - {v.departurePort || 'N/A'} → {v.destinationPort || 'N/A'}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', borderTop: '1px solid #e2e8f0', paddingTop: '20px' }}>
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', borderTop: '1px solid #e2e8f0', paddingTop: '20px', marginTop: '4px' }}>
             <button
               type="button"
               onClick={() => navigate('/cargos')}

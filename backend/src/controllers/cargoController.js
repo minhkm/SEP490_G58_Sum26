@@ -124,12 +124,8 @@ exports.createCargo = async (req, res) => {
   try {
     const { voyageId, cargoName, cargoType, totalWeight, totalVolume, status } = req.body;
 
-    if (!voyageId) {
-      return res.status(400).json({ success: false, message: "Vui lòng chọn hải trình" });
-    }
-
     const newCargo = await Cargo.create({
-      voyageId,
+      voyageId: voyageId || null,
       cargoName,
       cargoType,
       totalWeight,
