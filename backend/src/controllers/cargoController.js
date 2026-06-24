@@ -133,6 +133,16 @@ exports.createCargo = async (req, res) => {
       status: status || "Registered"
     });
 
+    // Tự động tạo 1 CargoItem mặc định bằng toàn bộ khối lượng lô hàng
+    await CargoItem.create({
+      cargoId: newCargo.id,
+      itemName: cargoName,
+      quantity: 1,
+      weight: totalWeight,
+      volume: totalVolume,
+      isLoaded: false
+    });
+
     res.json({ success: true, message: "Thêm lô hàng thành công", data: newCargo });
   } catch (error) {
     console.error("Error creating cargo:", error);
