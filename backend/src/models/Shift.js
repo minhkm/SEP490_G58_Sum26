@@ -7,7 +7,9 @@ const Shift = sequelize.define("Shift", {
   crewId: { type: DataTypes.INTEGER, allowNull: false },
   startTime: { type: DataTypes.DATE },
   endTime: { type: DataTypes.DATE },
-  status: { type: DataTypes.STRING, defaultValue: "Scheduled" },
+  position: { type: DataTypes.STRING }, // vị trí/nhiệm vụ trong ca (preset theo bộ phận)
+  note: { type: DataTypes.TEXT },
+  status: { type: DataTypes.STRING, defaultValue: "Scheduled" }, // Scheduled, InProgress, Completed, Cancelled
 }, { tableName: "Shift", timestamps: false });
 
 module.exports = Shift;

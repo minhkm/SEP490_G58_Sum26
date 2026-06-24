@@ -16,8 +16,11 @@ import AddCrewPage from "./pages/AddCrewPage";
 import CrewDashboard from "./pages/CrewDashboard";
 import CrewProfilePage from "./pages/CrewProfilePage";
 import EngineLogPage from "./pages/EngineLogPage";
+import ShiftSchedulePage from "./pages/ShiftSchedulePage";
+import ShiftViewPage from "./pages/ShiftViewPage";
 import RequireRole from "./components/RequireRole";
 import { CARGO_ROLES } from "./config/roles";
+import { SHIFT_OFFICER_ROLES } from "./config/shifts";
 
 function App() {
   return (
@@ -71,6 +74,15 @@ function App() {
         <Route path="/crew-dashboard" element={<CrewDashboard />} />
         <Route path="/crew-profile" element={<CrewProfilePage />} />
         <Route path="/engine-logs" element={<EngineLogPage />} />
+        <Route path="/shifts" element={<ShiftViewPage />} />
+        <Route
+          path="/shifts/manage"
+          element={
+            <RequireRole allow={SHIFT_OFFICER_ROLES}>
+              <ShiftSchedulePage />
+            </RequireRole>
+          }
+        />
       </Routes>
     </Router>
   );

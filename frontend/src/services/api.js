@@ -184,4 +184,27 @@ export const profileService = {
   },
 };
 
+export const shiftService = {
+  getCurrentVoyage: async () => {
+    const response = await api.get('/shifts/current-voyage');
+    return response.data;
+  },
+  getShifts: async (date) => {
+    const response = await api.get('/shifts', { params: date ? { date } : {} });
+    return response.data;
+  },
+  createBulk: async (data) => {
+    const response = await api.post('/shifts/bulk', data);
+    return response.data;
+  },
+  update: async (id, data) => {
+    const response = await api.put(`/shifts/${id}`, data);
+    return response.data;
+  },
+  remove: async (id) => {
+    const response = await api.delete(`/shifts/${id}`);
+    return response.data;
+  },
+};
+
 export default api;

@@ -80,9 +80,13 @@ export default function Sidebar() {
             </div>
           )}
 
-          {/* Ca trực — DeckOfficer, EngineOfficer, Sailor (placeholder) */}
+          {/* Ca trực — DeckOfficer, EngineOfficer, Sailor, EngineCrew */}
           {isCrewRole && (
-            <div className="nav-item" style={{ cursor: 'default', opacity: 0.5 }}>
+            <div
+              className={`nav-item ${isActive('/shifts')}`}
+              onClick={() => navigate('/shifts')}
+              style={{ cursor: 'pointer' }}
+            >
               <Clock size={20} />
               <span>Ca trực</span>
             </div>
