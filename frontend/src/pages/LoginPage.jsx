@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { Form, Button } from "react-bootstrap";
+import { Form, Input, Button, Checkbox, Alert, Modal } from "antd";
+import { MailOutlined, LockOutlined, ArrowRightOutlined, ArrowLeftOutlined } from "@ant-design/icons";
 import { useNavigate } from "react-router-dom";
 import { authService } from "../services/api";
 import { getDashboardPath } from "../config/roles";
@@ -7,25 +8,27 @@ import "./LoginPage.css";
 
 export default function LoginPage() {
   const navigate = useNavigate();
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [showPassword, setShowPassword] = useState(false);
   const [apiError, setApiError] = useState("");
+  const [submitting, setSubmitting] = useState(false);
 
   const [showChangePasswordModal, setShowChangePasswordModal] = useState(false);
-  const [newPassword, setNewPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
   const [changePassError, setChangePassError] = useState("");
+  const [changingPass, setChangingPass] = useState(false);
   const [tempUser, setTempUser] = useState(null);
+  const [loginEmail, setLoginEmail] = useState("");
 
-  const handleLogin = async (e) => {
-    e.preventDefault();
+  const [changePassForm] = Form.useForm();
+
+  const handleLogin = async (values) => {
+    const { email, password } = values;
     setApiError("");
+    setSubmitting(true);
     try {
       const response = await authService.login(email, password);
-      
+
       if (response.requirePasswordChange) {
         setTempUser(response);
+        setLoginEmail(email);
         setShowChangePasswordModal(true);
         return;
       }
@@ -40,13 +43,15 @@ export default function LoginPage() {
       } else {
         setApiError("Đã có lỗi xảy ra khi đăng nhập.");
       }
+    } finally {
+      setSubmitting(false);
     }
   };
 
-  const handleChangePassword = async (e) => {
-    e.preventDefault();
+  const handleChangePassword = async (values) => {
+    const { newPassword, confirmPassword } = values;
     setChangePassError("");
-    
+
     if (newPassword !== confirmPassword) {
       setChangePassError("Mật khẩu xác nhận không khớp!");
       return;
@@ -56,9 +61,10 @@ export default function LoginPage() {
       return;
     }
 
+    setChangingPass(true);
     try {
-      await authService.changeFirstPassword(email, newPassword);
-      
+      await authService.changeFirstPassword(loginEmail, newPassword);
+
       // Thành công -> Lưu token và chuyển hướng
       localStorage.setItem("token", tempUser.token);
       localStorage.setItem("user", JSON.stringify(tempUser.user));
@@ -66,52 +72,49 @@ export default function LoginPage() {
       navigate(getDashboardPath(tempUser.user.role));
     } catch (error) {
       setChangePassError(error.response?.data?.message || "Lỗi đổi mật khẩu.");
+    } finally {
+      setChangingPass(false);
     }
   };
 
   return (
     <div className="login-page">
       {/* FORCE CHANGE PASSWORD MODAL */}
-      {showChangePasswordModal && (
-        <div className="login-modal-overlay" style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(15, 23, 42, 0.7)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999 }}>
-          <div className="login-modal" style={{ background: '#fff', padding: '32px', borderRadius: '16px', width: '400px', boxShadow: '0 20px 25px -5px rgba(0,0,0,0.1)' }}>
-            <h3 style={{ color: '#0f172a', fontWeight: 700, margin: '0 0 8px 0', fontSize: '20px' }}>Bảo mật Tài khoản</h3>
-            <p style={{ color: '#64748b', fontSize: '14px', marginBottom: '20px', lineHeight: '1.5' }}>
-              Đây là lần đăng nhập đầu tiên. Bạn bắt buộc phải đổi mật khẩu để tiếp tục sử dụng hệ thống.
-            </p>
-            {changePassError && (
-              <div style={{ background: '#fef2f2', color: '#b91c1c', padding: '12px', borderRadius: '8px', fontSize: '13px', marginBottom: '16px', border: '1px solid #fee2e2' }}>
-                {changePassError}
-              </div>
-            )}
-            <form onSubmit={handleChangePassword}>
-              <div className="input-group" style={{ marginBottom: '16px' }}>
-                <input
-                  type="password"
-                  placeholder="Mật khẩu mới (ít nhất 6 ký tự)"
-                  value={newPassword}
-                  onChange={(e) => setNewPassword(e.target.value)}
-                  required
-                  style={{ width: '100%', padding: '12px 16px', borderRadius: '8px', border: '1px solid #cbd5e1', outline: 'none' }}
-                />
-              </div>
-              <div className="input-group" style={{ marginBottom: '24px' }}>
-                <input
-                  type="password"
-                  placeholder="Xác nhận mật khẩu mới"
-                  value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
-                  required
-                  style={{ width: '100%', padding: '12px 16px', borderRadius: '8px', border: '1px solid #cbd5e1', outline: 'none' }}
-                />
-              </div>
-              <button type="submit" className="login-submit-btn" style={{ width: '100%' }}>
-                Đổi mật khẩu & Đăng nhập
-              </button>
-            </form>
-          </div>
-        </div>
-      )}
+      <Modal
+        open={showChangePasswordModal}
+        title="Bảo mật Tài khoản"
+        footer={null}
+        closable={false}
+        mask={{ closable: false }}
+        keyboard={false}
+      >
+        <p style={{ color: "#64748b", fontSize: 14, marginBottom: 20, lineHeight: 1.5 }}>
+          Đây là lần đăng nhập đầu tiên. Bạn bắt buộc phải đổi mật khẩu để tiếp tục sử dụng hệ thống.
+        </p>
+        {changePassError && (
+          <Alert type="error" message={changePassError} showIcon style={{ marginBottom: 16 }} />
+        )}
+        <Form form={changePassForm} layout="vertical" onFinish={handleChangePassword}>
+          <Form.Item
+            name="newPassword"
+            rules={[
+              { required: true, message: "Vui lòng nhập mật khẩu mới." },
+              { min: 6, message: "Mật khẩu phải có ít nhất 6 ký tự." },
+            ]}
+          >
+            <Input.Password placeholder="Mật khẩu mới (ít nhất 6 ký tự)" />
+          </Form.Item>
+          <Form.Item
+            name="confirmPassword"
+            rules={[{ required: true, message: "Vui lòng xác nhận mật khẩu." }]}
+          >
+            <Input.Password placeholder="Xác nhận mật khẩu mới" />
+          </Form.Item>
+          <Button type="primary" htmlType="submit" block loading={changingPass}>
+            Đổi mật khẩu & Đăng nhập
+          </Button>
+        </Form>
+      </Modal>
 
       <img src="/images/image.png" alt="Ship Background" className="login-page-bg" />
       <div className="login-overlay"></div>
@@ -137,90 +140,64 @@ export default function LoginPage() {
             </div>
 
             {apiError && (
-              <div className="alert alert-danger" style={{ fontSize: "0.9rem", padding: "10px", marginBottom: "20px", borderRadius: "6px" }}>
-                {apiError}
-              </div>
+              <Alert type="error" message={apiError} showIcon style={{ marginBottom: 20 }} />
             )}
 
             {/* Form */}
-            <Form onSubmit={handleLogin} className="login-form">
-              {/* Email Input */}
-              <Form.Group className="login-form-group">
-                <Form.Label className="login-form-label">Email </Form.Label>
-                <div className="input-with-icon">
-                  <span className="input-icon">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
-                  </span>
-                  <input
-                    type="text"
-                    placeholder="example@cargoops.com"
-                    className="login-form-input"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    required
-                  />
-                </div>
-              </Form.Group>
+            <Form layout="vertical" onFinish={handleLogin} requiredMark={false} initialValues={{ remember: true }}>
+              <Form.Item
+                label="Email"
+                name="email"
+                rules={[{ required: true, message: "Vui lòng nhập email." }]}
+              >
+                <Input
+                  prefix={<MailOutlined />}
+                  placeholder="example@cargoops.com"
+                  size="large"
+                />
+              </Form.Item>
 
-              {/* Password Input */}
-              <Form.Group className="login-form-group">
-                <div className="password-label-row">
-                  <Form.Label className="login-form-label mb-0">Mật khẩu</Form.Label>
+              <Form.Item
+                label="Mật khẩu"
+                name="password"
+                rules={[{ required: true, message: "Vui lòng nhập mật khẩu." }]}
+              >
+                <Input.Password
+                  prefix={<LockOutlined />}
+                  placeholder="••••••••"
+                  size="large"
+                />
+              </Form.Item>
+
+              <Form.Item>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <Form.Item name="remember" valuePropName="checked" noStyle>
+                    <Checkbox>Ghi nhớ đăng nhập</Checkbox>
+                  </Form.Item>
                   <a href="#" className="login-forgot-link">Quên mật khẩu?</a>
                 </div>
-                <div className="input-with-icon password-wrapper">
-                  <span className="input-icon">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
-                  </span>
-                  <input
-                    type={showPassword ? "text" : "password"}
-                    placeholder="••••••••"
-                    className="login-form-input"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    required
-                  />
-                  <button
-                    type="button"
-                    className="login-password-toggle"
-                    onClick={() => setShowPassword(!showPassword)}
-                  >
-                    {showPassword ? (
-                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path><line x1="1" y1="1" x2="23" y2="23"></line></svg>
-                    ) : (
-                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
-                    )}
-                  </button>
-                </div>
-              </Form.Group>
+              </Form.Item>
 
-              {/* Remember */}
-              <div className="login-form-actions">
-                <Form.Check
-                  type="checkbox"
-                  label="Ghi nhớ đăng nhập"
-                  className="login-checkbox"
-                  id="remember"
-                />
-              </div>
-
-              {/* Login Button */}
-              <button type="submit" className="login-submit-btn">
-                Đăng nhập <span>→</span>
-              </button>
+              <Button
+                type="primary"
+                htmlType="submit"
+                block
+                size="large"
+                loading={submitting}
+                icon={<ArrowRightOutlined />}
+              >
+                Đăng nhập
+              </Button>
             </Form>
 
-            {/* Support Link */}
-            <div className="login-support-section">
-              <span className="support-text"> </span>
-              <a href="#" className="support-link">
-
-              </a>
-            </div>
-
-            <button type="button" className="login-back-link" onClick={() => navigate("/")}>
-              ← Quay lại trang chủ
-            </button>
+            <Button
+              type="link"
+              icon={<ArrowLeftOutlined />}
+              onClick={() => navigate("/")}
+              style={{ marginTop: 16, paddingLeft: 0 }}
+            >
+              Quay lại trang chủ
+            </Button>
           </div>
         </div>
       </div>

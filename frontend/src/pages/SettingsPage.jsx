@@ -1,7 +1,10 @@
 import { useNavigate } from 'react-router-dom';
-import { Settings, Tag, ChevronRight } from 'lucide-react';
+import { Card, Row, Col, Typography, Space } from 'antd';
+import { SettingOutlined, TagOutlined, RightOutlined } from '@ant-design/icons';
 import AgencyLayout from '../components/AgencyLayout';
 import MasterLayout from '../components/MasterLayout';
+
+const { Title, Text } = Typography;
 
 export default function SettingsPage() {
   const navigate = useNavigate();
@@ -14,60 +17,53 @@ export default function SettingsPage() {
       key: 'cargo-types',
       title: 'Loại Hàng hóa',
       description: 'Cấu hình danh mục loại hàng hóa dùng khi thêm lô hàng.',
-      icon: Tag,
+      icon: <TagOutlined style={{ fontSize: 24, color: '#6366f1' }} />,
       path: '/cargo-types',
     },
   ];
 
-  const cardStyle = {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '16px',
-    background: 'white',
-    border: '1px solid #e2e8f0',
-    borderRadius: '10px',
-    padding: '20px',
-    cursor: 'pointer',
-    boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
-    transition: 'box-shadow 0.15s, border-color 0.15s',
-  };
-
   return (
     <Layout>
-      <div style={{ padding: '24px 32px', maxWidth: '900px', margin: '0 auto' }}>
+      <div style={{ padding: '24px 32px', maxWidth: 900, margin: '0 auto' }}>
         {/* Header */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '8px' }}>
-          <Settings size={26} color="#6366f1" />
-          <h1 style={{ fontSize: '1.5rem', fontWeight: 700, margin: 0, color: '#1e293b' }}>Cài đặt</h1>
-        </div>
-        <p style={{ color: '#64748b', marginTop: 0, marginBottom: '24px', fontSize: '0.9rem' }}>
+        <Space align="center" size={12} style={{ marginBottom: 4 }}>
+          <SettingOutlined style={{ fontSize: 26, color: '#6366f1' }} />
+          <Title level={3} style={{ margin: 0 }}>Cài đặt</Title>
+        </Space>
+        <p style={{ color: '#64748b', marginTop: 0, marginBottom: 24, fontSize: '0.9rem' }}>
           Quản lý cấu hình hệ thống.
         </p>
 
         {/* Setting cards */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(360px, 1fr))', gap: '16px' }}>
-          {settingItems.map(item => {
-            const Icon = item.icon;
-            return (
-              <div
-                key={item.key}
-                style={cardStyle}
-                onClick={() => navigate(item.path)}
-                onMouseEnter={(e) => { e.currentTarget.style.borderColor = '#6366f1'; e.currentTarget.style.boxShadow = '0 4px 10px rgba(99,102,241,0.12)'; }}
-                onMouseLeave={(e) => { e.currentTarget.style.borderColor = '#e2e8f0'; e.currentTarget.style.boxShadow = '0 1px 3px rgba(0,0,0,0.05)'; }}
-              >
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '48px', height: '48px', borderRadius: '10px', background: '#eef2ff', flexShrink: 0 }}>
-                  <Icon size={24} color="#6366f1" />
-                </div>
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontWeight: 600, color: '#1e293b', marginBottom: '4px' }}>{item.title}</div>
-                  <div style={{ fontSize: '0.825rem', color: '#64748b' }}>{item.description}</div>
-                </div>
-                <ChevronRight size={20} color="#94a3b8" />
-              </div>
-            );
-          })}
-        </div>
+        <Row gutter={[16, 16]}>
+          {settingItems.map((item) => (
+            <Col xs={24} md={12} key={item.key}>
+              <Card hoverable onClick={() => navigate(item.path)} styles={{ body: { padding: 20 } }}>
+                <Space align="center" size={16} style={{ width: '100%' }}>
+                  <div
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      width: 48,
+                      height: 48,
+                      borderRadius: 10,
+                      background: '#eef2ff',
+                      flexShrink: 0,
+                    }}
+                  >
+                    {item.icon}
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontWeight: 600, color: '#1e293b', marginBottom: 4 }}>{item.title}</div>
+                    <Text type="secondary" style={{ fontSize: '0.825rem' }}>{item.description}</Text>
+                  </div>
+                  <RightOutlined style={{ color: '#94a3b8' }} />
+                </Space>
+              </Card>
+            </Col>
+          ))}
+        </Row>
       </div>
     </Layout>
   );

@@ -1,41 +1,36 @@
-import React, { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  LayoutDashboard,
-  Navigation,
-  Package,
-  Ship,
-  BarChart2,
-  Settings,
-  Bell,
-  HelpCircle,
-  Search,
-  Briefcase,
-  Activity,
-  Users,
-  Plus,
-  User as UserIcon,
-  LogOut,
-  MapPin,
-  Map,
-  PackageX,
-  Route,
-  Clock,
-  FileText,
-  CheckCircle,
-  FilePlus,
-  History,
-  Box
-} from 'lucide-react';
+  BellOutlined,
+  QuestionCircleOutlined,
+  SearchOutlined,
+  ProfileOutlined,
+  ThunderboltOutlined,
+  TeamOutlined,
+  PlusOutlined,
+  UserOutlined,
+  LogoutOutlined,
+  EnvironmentOutlined,
+  GlobalOutlined,
+  InboxOutlined,
+  NodeIndexOutlined,
+  ClockCircleOutlined,
+  FileTextOutlined,
+  CheckCircleOutlined,
+  FileAddOutlined,
+  HistoryOutlined,
+  RightOutlined,
+} from '@ant-design/icons';
 import './MasterDashboard.css';
 import MasterLayout from '../components/MasterLayout';
+import { notifyInfo } from '../utils/feedback';
 
 export default function MasterDashboard() {
   const navigate = useNavigate();
-  const user = JSON.parse(localStorage.getItem('user')) || { 
-    fullName: 'Nguyễn Viết Dương', 
+  const user = JSON.parse(localStorage.getItem('user')) || {
+    fullName: 'Nguyễn Viết Dương',
     role: 'MASTER',
-    id: '3'
+    id: '3',
   };
 
   const [showDropdown, setShowDropdown] = useState(false);
@@ -48,8 +43,8 @@ export default function MasterDashboard() {
         setShowDropdown(false);
       }
     }
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [dropdownRef]);
 
   const handleLogout = () => {
@@ -63,21 +58,21 @@ export default function MasterDashboard() {
         {/* Header */}
         <header className="top-header dashboard-header">
           <div className="header-search">
-            <Search size={18} className="search-icon" />
+            <SearchOutlined className="search-icon" />
             <input type="text" placeholder="Tìm kiếm mã chuyến đi, hàng..." className="search-input" />
           </div>
-          
+
           <div className="header-center-logo">
             <span className="center-logo-text">CargoOps</span>
           </div>
 
           <div className="header-actions">
             <div className="action-icon-wrapper">
-              <Bell className="action-icon" size={20} />
+              <BellOutlined className="action-icon" />
               <span className="notification-dot"></span>
             </div>
-            <HelpCircle className="action-icon" size={20} />
-            
+            <QuestionCircleOutlined className="action-icon" />
+
             <div className="user-profile-wrapper" ref={dropdownRef}>
               <div className="user-profile" onClick={() => setShowDropdown(!showDropdown)}>
                 <div className="user-info">
@@ -95,13 +90,13 @@ export default function MasterDashboard() {
                 <div className="user-dropdown">
                   <div className="dropdown-item" onClick={() => {
                     setShowDropdown(false);
-                    alert('Trang profile đang được phát triển!');
+                    notifyInfo('Trang profile đang được phát triển!');
                   }}>
-                    <UserIcon size={16} />
+                    <UserOutlined />
                     Xem profile
                   </div>
                   <div className="dropdown-item text-danger" onClick={handleLogout}>
-                    <LogOut size={16} />
+                    <LogoutOutlined />
                     Đăng xuất
                   </div>
                 </div>
@@ -112,7 +107,7 @@ export default function MasterDashboard() {
 
         {/* Content Area */}
         <div className="content-area">
-          
+
           <div className="dashboard-title-section">
             <div className="title-left">
               <span className="subtitle">TỔNG QUAN HOẠT ĐỘNG</span>
@@ -132,22 +127,22 @@ export default function MasterDashboard() {
           {/* Stats Cards */}
           <div className="stats-grid">
             <div className="stat-card">
-              <Ship className="stat-icon" size={24} />
+              <ProfileOutlined className="stat-icon" />
               <span className="stat-label">CHUYẾN ĐI HIỆN TẠI</span>
               <span className="stat-value empty-text">Không có dữ liệu</span>
             </div>
             <div className="stat-card">
-              <Briefcase className="stat-icon" size={24} />
+              <FileTextOutlined className="stat-icon" />
               <span className="stat-label">TẢI TRỌNG HÀNG HÓA</span>
               <span className="stat-value empty-text">Trống</span>
             </div>
             <div className="stat-card">
-              <Activity className="stat-icon" size={24} />
+              <ThunderboltOutlined className="stat-icon" />
               <span className="stat-label">TÌNH TRẠNG THIẾT BỊ</span>
               <span className="stat-value empty-text">Không có dữ liệu</span>
             </div>
             <div className="stat-card">
-              <Users className="stat-icon" size={24} />
+              <TeamOutlined className="stat-icon" />
               <span className="stat-label">NHÂN SỰ CA TRỰC</span>
               <span className="stat-value empty-text">-- / --</span>
             </div>
@@ -157,20 +152,20 @@ export default function MasterDashboard() {
           <div className="dashboard-grid">
             {/* Left Column */}
             <div className="grid-col-left">
-              
+
               {/* Location & Journey */}
               <div className="dash-panel">
                 <div className="dash-panel-header">
-                  <h3><MapPin size={18} /> Vị trí & Hành trình</h3>
+                  <h3><EnvironmentOutlined /> Vị trí & Hành trình</h3>
                 </div>
                 <div className="dash-panel-body empty-state-large">
                   <div className="empty-icon-circle">
-                    <Map size={32} color="#94a3b8" />
+                    <GlobalOutlined style={{ fontSize: 32, color: '#94a3b8' }} />
                   </div>
                   <h4>Chưa lập kế hoạch hành trình</h4>
                   <p>Vui lòng khởi tạo lộ trình để bắt đầu theo dõi vị trí và ETA của tàu.</p>
                   <button className="btn-text">
-                    <Plus size={16} /> Thiết lập lộ trình mới
+                    <PlusOutlined /> Thiết lập lộ trình mới
                   </button>
                 </div>
               </div>
@@ -178,11 +173,11 @@ export default function MasterDashboard() {
               {/* Cargo List */}
               <div className="dash-panel mt-20">
                 <div className="dash-panel-header">
-                  <h3><Box size={18} /> Danh sách Hàng hóa</h3>
+                  <h3><InboxOutlined /> Danh sách Hàng hóa</h3>
                 </div>
                 <div className="dash-panel-body empty-state-large">
                   <div className="empty-icon-circle">
-                    <PackageX size={32} color="#94a3b8" />
+                    <InboxOutlined style={{ fontSize: 32, color: '#94a3b8' }} />
                   </div>
                   <h4>Chưa có hàng hóa nào được gán</h4>
                   <p>Tàu hiện tại chưa có danh sách vận đơn cho chuyến đi này.</p>
@@ -193,14 +188,14 @@ export default function MasterDashboard() {
 
             {/* Right Column */}
             <div className="grid-col-right">
-              
+
               {/* Journey Details */}
               <div className="dash-panel">
                 <div className="dash-panel-header">
-                  <h3><Route size={18} /> Chi tiết hành trình</h3>
+                  <h3><NodeIndexOutlined /> Chi tiết hành trình</h3>
                 </div>
                 <div className="dash-panel-body empty-state-medium">
-                  <Clock size={32} color="#cbd5e1" className="mb-12" />
+                  <ClockCircleOutlined style={{ fontSize: 32, color: '#cbd5e1' }} className="mb-12" />
                   <p className="italic-text">Không có dữ liệu hành trình hiện tại</p>
                 </div>
               </div>
@@ -208,30 +203,30 @@ export default function MasterDashboard() {
               {/* Reports & Orders */}
               <div className="dash-panel mt-20">
                 <div className="dash-panel-header">
-                  <h3><FileText size={18} /> Báo cáo & Lệnh</h3>
+                  <h3><FileTextOutlined /> Báo cáo & Lệnh</h3>
                 </div>
                 <div className="dash-panel-body">
                   <div className="success-box">
-                    <CheckCircle size={24} color="#10b981" className="mb-8" />
+                    <CheckCircleOutlined style={{ fontSize: 24, color: '#10b981' }} className="mb-8" />
                     <p>Tất cả báo cáo đã được xử lý. Không có thông báo khẩn cấp.</p>
                   </div>
-                  
+
                   <div className="quick-actions-section">
                     <span className="section-label">Hành động nhanh</span>
                     <ul className="action-list">
                       <li>
                         <div className="action-item">
-                          <FilePlus size={18} />
+                          <FileAddOutlined />
                           <span>Tạo báo cáo mới</span>
                         </div>
-                        <span className="chevron">&rsaquo;</span>
+                        <RightOutlined className="chevron" />
                       </li>
                       <li>
                         <div className="action-item">
-                          <History size={18} />
+                          <HistoryOutlined />
                           <span>Lịch sử lệnh</span>
                         </div>
-                        <span className="chevron">&rsaquo;</span>
+                        <RightOutlined className="chevron" />
                       </li>
                     </ul>
                   </div>
