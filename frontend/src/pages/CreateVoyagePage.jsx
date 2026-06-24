@@ -14,6 +14,7 @@ import MasterLayout from '../components/MasterLayout';
 import AgencyLayout from '../components/AgencyLayout';
 import { voyageService, vesselService, crewService, cargoService } from '../services/api';
 import { useEffect } from 'react';
+import Swal from 'sweetalert2';
 import './CreateVoyagePage.css';
 
 export default function CreateVoyagePage() {
@@ -73,7 +74,12 @@ export default function CreateVoyagePage() {
   useEffect(() => {
     if (shipId) {
       const ship = availableShips.find(s => s.id === parseInt(shipId));
-      if (ship && ship.ShipCapacities && ship.ShipCapacities.length > 0) {
+      if (ship && ship.ShipCapacity) {
+        setSelectedShipCapacity({
+          maxWeight: ship.ShipCapacity.maxCargoWeight || 0,
+          maxVolume: ship.ShipCapacity.maxCargoVolume || 0
+        });
+      } else if (ship && ship.ShipCapacities && ship.ShipCapacities.length > 0) {
         setSelectedShipCapacity({
           maxWeight: ship.ShipCapacities[0].maxCargoWeight || 0,
           maxVolume: ship.ShipCapacities[0].maxCargoVolume || 0
@@ -138,24 +144,40 @@ export default function CreateVoyagePage() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!shipId) return alert('Vui lòng chọn tàu vận chuyển!');
+    if (!shipId) {
+      return Swal.fire('Lỗi', 'Vui lòng chọn tàu vận chuyển!', 'error');
+    }
 
     if (currentCargoTotal.weight > selectedShipCapacity.maxWeight) {
-      return alert(`Tổng trọng lượng hàng (${currentCargoTotal.weight} MT) vượt quá tải trọng của tàu (${selectedShipCapacity.maxWeight} MT)! Vui lòng điều chỉnh.`);
+      return Swal.fire('Lỗi', `Tổng trọng lượng hàng (${currentCargoTotal.weight} MT) vượt quá tải trọng của tàu (${selectedShipCapacity.maxWeight} MT)! Vui lòng điều chỉnh.`, 'error');
     }
     if (currentCargoTotal.volume > selectedShipCapacity.maxVolume) {
-      return alert(`Tổng thể tích hàng (${currentCargoTotal.volume} CBM) vượt quá dung tích của tàu (${selectedShipCapacity.maxVolume} CBM)! Vui lòng điều chỉnh.`);
+      return Swal.fire('Lỗi', `Tổng thể tích hàng (${currentCargoTotal.volume} CBM) vượt quá dung tích của tàu (${selectedShipCapacity.maxVolume} CBM)! Vui lòng điều chỉnh.`, 'error');
+    }
+
+    const selectedRoles = crewList.map(c => c.role);
+    const requiredRoles = [
+      { id: "Captain (CAPT)", name: "Thuyền trưởng" },
+      { id: "Đại phó (Chief Officer)", name: "Đại phó" },
+      { id: "Sĩ quan boong (Deck Officer)", name: "Sĩ quan boong" },
+      { id: "Máy trưởng (Chief Engineer)", name: "Máy trưởng" }
+    ];
+
+    const missingRoles = requiredRoles.filter(r => !selectedRoles.includes(r.id));
+    if (missingRoles.length > 0) {
+      const missingText = missingRoles.map(r => r.name).join(", ");
+      return Swal.fire('Thiếu nhân sự chủ chốt', `Không thể tạo hải trình! Chuyến đi bắt buộc phải có đầy đủ Thuyền trưởng và các sĩ quan. Hiện đang thiếu: <b>${missingText}</b>.`, 'warning');
     }
 
     try {
       const data = { shipId, routeInfo, cargoList, crewList };
       console.log("Saving Voyage:", data);
       await voyageService.createVoyage(data);
-      alert("Khởi tạo Hải trình thành công!");
+      await Swal.fire({ icon: 'success', title: 'Thành công', text: 'Khởi tạo Hải trình thành công!', timer: 2000, showConfirmButton: false });
       navigate('/master-dashboard');
     } catch (error) {
       console.error("Lỗi khi tạo hải trình:", error);
-      alert("Lỗi khi khởi tạo hải trình. Vui lòng thử lại.");
+      Swal.fire('Lỗi', 'Lỗi khi khởi tạo hải trình. Vui lòng thử lại.', 'error');
     }
   };
 

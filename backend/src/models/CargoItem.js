@@ -9,6 +9,7 @@ const CargoItem = sequelize.define("CargoItem", {
   weight: { type: DataTypes.FLOAT },
   volume: { type: DataTypes.FLOAT, defaultValue: 0 },
   isLoaded: { type: DataTypes.BOOLEAN, defaultValue: false },
+  holdId: { type: DataTypes.INTEGER, allowNull: true },
 }, { tableName: "CargoItem", timestamps: false });
 
 module.exports = CargoItem;

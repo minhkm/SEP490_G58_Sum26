@@ -50,7 +50,8 @@ export default function VoyageListPage() {
 
   const user = JSON.parse(localStorage.getItem('user')) || {};
   const userRole = (user.role || '').replace(/\s+/g, '').toLowerCase(); // Normalize role to lower case without spaces
-  const canEdit = ['admin', 'agency', 'chiefofficer'].includes(userRole);
+  const canEdit = ['admin', 'agency', 'chiefofficer', 'master'].includes(userRole);
+  const canAttendance = ['chiefofficer', 'master'].includes(userRole);
   
   const Layout = (userRole === 'admin' || userRole === 'agency') ? AgencyLayout : MasterLayout;
 
@@ -181,7 +182,7 @@ export default function VoyageListPage() {
                       <th>Khởi hành</th>
                       <th>Dự kiến đến</th>
                       <th>Trạng thái</th>
-                      {canEdit && <th>Thao tác</th>}
+                      {(canEdit || canAttendance) && <th>Thao tác</th>}
                     </tr>
                   </thead>
                   <tbody>
@@ -211,22 +212,26 @@ export default function VoyageListPage() {
                             {voyage.status || 'Planning'}
                           </span>
                         </td>
-                        {canEdit && (
+                        {(canEdit || canAttendance) && (
                           <td>
-                            <button
-                              style={{ background: 'none', border: 'none', color: '#64748b', cursor: 'pointer', marginRight: '12px' }}
-                              title="Điểm danh thuyền viên"
-                              onClick={() => navigate(`/voyages/${voyage.id}/attendance`)}
-                            >
-                              <Users size={16} />
-                            </button>
-                            <button
-                              style={{ background: 'none', border: 'none', color: '#64748b', cursor: 'pointer' }}
-                              title="Cập nhật thông tin chuyến đi"
-                              onClick={() => setSelectedVoyage(voyage)}
-                            >
-                              <Edit size={16} />
-                            </button>
+                            {canAttendance && (
+                              <button
+                                style={{ background: 'none', border: 'none', color: '#64748b', cursor: 'pointer', marginRight: '12px' }}
+                                title="Điểm danh thuyền viên"
+                                onClick={() => navigate(`/voyages/${voyage.id}/attendance`)}
+                              >
+                                <Users size={16} />
+                              </button>
+                            )}
+                            {canEdit && (
+                              <button
+                                style={{ background: 'none', border: 'none', color: '#64748b', cursor: 'pointer' }}
+                                title="Cập nhật thông tin chuyến đi"
+                                onClick={() => setSelectedVoyage(voyage)}
+                              >
+                                <Edit size={16} />
+                              </button>
+                            )}
                           </td>
                         )}
                       </tr>

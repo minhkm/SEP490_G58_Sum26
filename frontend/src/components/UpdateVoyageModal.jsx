@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { X, Save, AlertCircle } from 'lucide-react';
-import { voyageService } from '../services/api';
+import { voyageService, vesselService } from '../services/api';
 import './UpdateVoyageModal.css';
 
 export default function UpdateVoyageModal({ voyage, onClose, onUpdate }) {
@@ -14,10 +14,13 @@ export default function UpdateVoyageModal({ voyage, onClose, onUpdate }) {
   });
   const [crewList, setCrewList] = useState([]);
   const [cargoList, setCargoList] = useState([]);
+  const [originalCargoList, setOriginalCargoList] = useState([]);
   const [fetchingCrew, setFetchingCrew] = useState(false);
   const [fetchingCargo, setFetchingCargo] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [holds, setHolds] = useState([]);
+  const [fetchingHolds, setFetchingHolds] = useState(false);
 
   useEffect(() => {
     if (voyage) {
@@ -31,8 +34,22 @@ export default function UpdateVoyageModal({ voyage, onClose, onUpdate }) {
       });
       fetchCrew(voyage.id);
       fetchCargo(voyage.id);
+      fetchHolds(voyage.shipId);
     }
   }, [voyage]);
+
+  const fetchHolds = async (shipId) => {
+    if (!shipId) return;
+    try {
+      setFetchingHolds(true);
+      const ship = await vesselService.getById(shipId);
+      setHolds(ship.CargoHolds || []);
+    } catch (err) {
+      console.error('Failed to fetch holds:', err);
+    } finally {
+      setFetchingHolds(false);
+    }
+  };
 
   const fetchCrew = async (id) => {
     try {
@@ -51,6 +68,7 @@ export default function UpdateVoyageModal({ voyage, onClose, onUpdate }) {
       setFetchingCargo(true);
       const data = await voyageService.getVoyageCargo(id);
       setCargoList(data || []);
+      setOriginalCargoList(JSON.parse(JSON.stringify(data || [])));
     } catch (err) {
       console.error('Failed to fetch cargo:', err);
     } finally {
@@ -74,6 +92,14 @@ export default function UpdateVoyageModal({ voyage, onClose, onUpdate }) {
     );
   };
 
+  const handleCargoHoldChange = (itemId, holdId) => {
+    setCargoList(prevList =>
+      prevList.map(cargo =>
+        cargo.itemId === itemId ? { ...cargo, holdId } : cargo
+      )
+    );
+  };
+
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
     setFormData((prev) => ({
@@ -91,7 +117,7 @@ export default function UpdateVoyageModal({ voyage, onClose, onUpdate }) {
       const payload = {
         ...formData,
         attendanceList: crewList.map(c => ({ crewId: c.crewId, isPresent: c.isPresent })),
-        cargoList: cargoList.map(c => ({ itemId: c.itemId, isLoaded: c.isLoaded }))
+        cargoList: cargoList.map(c => ({ itemId: c.itemId, isLoaded: c.isLoaded, holdId: c.holdId, weight: c.weight }))
       };
 
       await voyageService.updateVoyage(voyage.id, payload);
@@ -112,6 +138,25 @@ export default function UpdateVoyageModal({ voyage, onClose, onUpdate }) {
   
   const isShipStaff = userRole === 'chiefofficer' || userRole === 'master';
   const isAttendanceAllowed = (formData.status === 'Loaded' || formData.status === 'Discharged') && isShipStaff;
+  const isCargoLoadAllowed = formData.status === 'Loading' && isShipStaff;
+
+  const STATUS_OPTIONS = [
+    { value: 'Planning', label: 'Đang lên kế hoạch (Planning)', roles: ['admin', 'agency'] },
+    { value: 'Loading', label: 'Đang làm hàng (Loading)', roles: ['master'] },
+    { value: 'Loaded', label: 'Đã làm hàng xong (Loaded)', roles: ['master'] },
+    { value: 'Underway', label: 'Đang di chuyển (Underway)', roles: ['master'] },
+    { value: 'Arrived', label: 'Cập bến (Arrived)', roles: ['master'] },
+    { value: 'Discharge', label: 'Dỡ hàng (Discharge)', roles: ['master'] },
+    { value: 'Discharged', label: 'Đã dỡ hàng xong (Discharged)', roles: ['master'] },
+    { value: 'Homeward Bounding', label: 'Đang quay về cảng xuất phát (Homeward Bounding)', roles: ['master'] },
+    { value: 'At Anchor', label: 'Đang neo đậu (At Anchor)', roles: ['master'] },
+    { value: 'Completed', label: 'Đã hoàn thành (Completed)', roles: ['admin', 'agency'] },
+    { value: 'Cancelled', label: 'Đã hủy (Cancelled)', roles: ['admin', 'agency', 'master'] }
+  ];
+
+  const allowedStatusOptions = STATUS_OPTIONS.filter(opt => 
+    opt.roles.includes(userRole) || opt.value === voyage.status
+  );
 
   return (
     <div className="modal-overlay">
@@ -133,17 +178,9 @@ export default function UpdateVoyageModal({ voyage, onClose, onUpdate }) {
             <div className="form-group">
               <label>Trạng thái</label>
               <select name="status" value={formData.status} onChange={handleChange}>
-                <option value="Planning">Đang lên kế hoạch (Planning)</option>
-                <option value="Loading">Đang làm hàng (Loading)</option>
-                <option value="Loaded">Đã làm hàng xong (Loaded)</option>
-                <option value="Underway">Đang di chuyển (Underway)</option>
-                <option value="Arrived">Cập bến (Arrived)</option>
-                <option value="Discharge">Dỡ hàng (Discharge)</option>
-                <option value="Discharged">Đã dỡ hàng xong (Discharged)</option>
-                <option value="Homeward Bounding">Đang quay về cảng xuất phát (Homeward Bounding)</option>
-                <option value="At Anchor">Đang neo đậu (At Anchor)</option>
-                <option value="Completed">Đã hoàn thành (Completed)</option>
-                <option value="Cancelled">Đã hủy (Cancelled)</option>
+                {allowedStatusOptions.map(opt => (
+                  <option key={opt.value} value={opt.value}>{opt.label}</option>
+                ))}
               </select>
             </div>
           </div>
@@ -226,6 +263,7 @@ export default function UpdateVoyageModal({ voyage, onClose, onUpdate }) {
                       <th>Chi tiết / Quy cách</th>
                       <th>Số lượng</th>
                       <th>Khối lượng</th>
+                      <th>Chọn khoang</th>
                       <th style={{ textAlign: 'center' }}>Đã lên tàu</th>
                     </tr>
                   </thead>
@@ -237,20 +275,102 @@ export default function UpdateVoyageModal({ voyage, onClose, onUpdate }) {
                         <td>{cargo.itemName}</td>
                         <td>{cargo.quantity}</td>
                         <td>{cargo.weight} MT</td>
+                        <td>
+                          <select 
+                            value={cargo.holdId || ''} 
+                            onChange={(e) => handleCargoHoldChange(cargo.itemId, e.target.value)}
+                            disabled={!isCargoLoadAllowed}
+                            style={{ padding: '4px', borderRadius: '4px', border: '1px solid #cbd5e1' }}
+                          >
+                            <option value="">-- Chọn --</option>
+                            {holds.map(h => (
+                              <option key={h.id} value={h.id}>{h.holdName}</option>
+                            ))}
+                          </select>
+                        </td>
                         <td style={{ textAlign: 'center' }}>
                           <input
                             type="checkbox"
                             checked={cargo.isLoaded}
                             onChange={(e) => handleCargoLoadChange(cargo.itemId, e.target.checked)}
-                            style={{ width: '16px', height: '16px', cursor: isShipStaff ? 'pointer' : 'not-allowed' }}
-                            disabled={!cargo.itemId || !isShipStaff}
-                            title={!isShipStaff ? 'Chỉ thuyền trưởng/đại phó mới có quyền đánh dấu hàng lên tàu' : ''}
+                            style={{ width: '16px', height: '16px', cursor: isCargoLoadAllowed ? 'pointer' : 'not-allowed' }}
+                            disabled={!cargo.itemId || !isCargoLoadAllowed}
+                            title={!isCargoLoadAllowed ? 'Chỉ được đánh dấu hàng lên tàu khi Trạng thái chuyến đi đang là Loading (Đang làm hàng)' : ''}
                           />
                         </td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
+              </div>
+            )}
+          </div>
+
+          <div className="form-group" style={{ marginTop: '20px' }}>
+            <label>Bản đồ hầm hàng (Stowage Plan):</label>
+            {fetchingHolds ? (
+              <p className="loading-text" style={{ fontSize: '0.85rem', color: '#64748b' }}>Đang tải sơ đồ hầm hàng...</p>
+            ) : holds.length === 0 ? (
+              <p className="empty-text" style={{ fontSize: '0.85rem', color: '#64748b' }}>Tàu chưa được cấu hình hầm hàng.</p>
+            ) : (
+              <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap', marginTop: '8px' }}>
+                {holds.map(hold => {
+                  const maxCap = hold.maxCapacity || 0;
+                  
+                  // Calculate simulated usage
+                  let simulatedUsage = hold.currentUsage || 0;
+                  cargoList.forEach(c => {
+                    const orig = originalCargoList.find(o => o.itemId === c.itemId);
+                    if ((!orig || !orig.isLoaded) && c.isLoaded && String(c.holdId) === String(hold.id)) {
+                      simulatedUsage += c.weight;
+                    }
+                    if (orig && orig.isLoaded && String(orig.holdId) === String(hold.id) && !c.isLoaded) {
+                      simulatedUsage -= c.weight;
+                    }
+                    if (orig && orig.isLoaded && String(orig.holdId) === String(hold.id) && c.isLoaded && String(c.holdId) !== String(hold.id)) {
+                      simulatedUsage -= c.weight;
+                    }
+                    if (orig && orig.isLoaded && String(orig.holdId) !== String(hold.id) && c.isLoaded && String(c.holdId) === String(hold.id)) {
+                      simulatedUsage += c.weight;
+                    }
+                  });
+                  if (simulatedUsage < 0) simulatedUsage = 0;
+
+                  const percentage = maxCap > 0 ? (simulatedUsage / maxCap) * 100 : 0;
+                  
+                  let progressColor = '#22c55e'; // green
+                  if (percentage > 90) progressColor = '#ef4444'; // red
+                  else if (percentage > 70) progressColor = '#eab308'; // yellow
+
+                  return (
+                    <div key={hold.id} style={{
+                      flex: '1 1 calc(50% - 16px)',
+                      minWidth: '200px',
+                      border: '1px solid #e2e8f0',
+                      borderRadius: '8px',
+                      padding: '12px',
+                      backgroundColor: '#f8fafc'
+                    }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px', fontWeight: '500' }}>
+                        <span>{hold.holdName}</span>
+                        <span style={{ fontSize: '0.85rem', color: '#64748b' }}>
+                          {simulatedUsage.toLocaleString('en-US')} / {maxCap.toLocaleString('en-US')} MT
+                        </span>
+                      </div>
+                      <div style={{ width: '100%', backgroundColor: '#e2e8f0', borderRadius: '4px', height: '12px', overflow: 'hidden' }}>
+                        <div style={{
+                          width: `${Math.min(percentage, 100)}%`,
+                          height: '100%',
+                          backgroundColor: progressColor,
+                          transition: 'width 0.3s ease'
+                        }} />
+                      </div>
+                      <div style={{ textAlign: 'right', fontSize: '0.75rem', marginTop: '4px', color: '#64748b' }}>
+                        {percentage.toFixed(1)}% đầy
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             )}
           </div>
