@@ -149,18 +149,18 @@ async function seed() {
     // Engine parameters từ Engine Log thực tế (Voyage 1/4, Sea Area: Nam Biển Đông)
     // Giá trị thực: RPM=660, FO Press=4.8, Scav=5.2, Air=2.0, Start=1.2, LubOil=65°C, CoolWater=59°C, ExhGas=385~390°C
     const paramDefs = [
-      { name: 'RPM (Main Engine)', minValue: 500, maxValue: 750 },
-      { name: 'Fuel Oil Pressure (kg/cm²)', minValue: 3.5, maxValue: 6.0 },
-      { name: 'Scavenge Pressure (kg/cm²)', minValue: 4.0, maxValue: 6.5 },
-      { name: 'Air Pressure (kg/cm²)', minValue: 1.5, maxValue: 2.5 },
-      { name: 'Start Air Pressure (kg/cm²)', minValue: 0.8, maxValue: 1.5 },
-      { name: 'Lube Oil Temperature (°C)', minValue: 50, maxValue: 80 },
-      { name: 'Cooling Water Temp (°C)', minValue: 45, maxValue: 75 },
-      { name: 'Exhaust Gas Temp XL2 (°C)', minValue: 340, maxValue: 420 },
-      { name: 'Exhaust Gas Temp XL3 (°C)', minValue: 340, maxValue: 420 },
-      { name: 'Exhaust Gas Temp XL4 (°C)', minValue: 340, maxValue: 420 },
-      { name: 'Exhaust Gas Temp XL5 (°C)', minValue: 340, maxValue: 420 },
-      { name: 'Exhaust Gas Temp XL6 (°C)', minValue: 340, maxValue: 420 },
+      { name: 'RPM (Main Engine)', maxValue: 750 },
+      { name: 'Fuel Oil Pressure (kg/cm²)', maxValue: 6.0 },
+      { name: 'Scavenge Pressure (kg/cm²)', maxValue: 6.5 },
+      { name: 'Air Pressure (kg/cm²)', maxValue: 2.5 },
+      { name: 'Start Air Pressure (kg/cm²)', maxValue: 1.5 },
+      { name: 'Lube Oil Temperature (°C)', maxValue: 80 },
+      { name: 'Cooling Water Temp (°C)', maxValue: 75 },
+      { name: 'Exhaust Gas Temp XL2 (°C)', maxValue: 420 },
+      { name: 'Exhaust Gas Temp XL3 (°C)', maxValue: 420 },
+      { name: 'Exhaust Gas Temp XL4 (°C)', maxValue: 420 },
+      { name: 'Exhaust Gas Temp XL5 (°C)', maxValue: 420 },
+      { name: 'Exhaust Gas Temp XL6 (°C)', maxValue: 420 },
     ];
 
     const epVQS = [];
@@ -175,9 +175,9 @@ async function seed() {
 
     // 3 thông số bắt buộc cho máy đèn (Generator) — giống form thêm tàu
     const genParamDefs = [
-      { name: 'Fuel Oil Pressure', minValue: 3.0, maxValue: 6.0 },
-      { name: 'Exhaust Gas Temp XL2 (°C)', minValue: 300, maxValue: 420 },
-      { name: 'Cooling Water Temp (°C)', minValue: 40, maxValue: 75 },
+      { name: 'Fuel Oil Pressure', maxValue: 6.0 },
+      { name: 'Exhaust Gas Temp XL2 (°C)', maxValue: 420 },
+      { name: 'Cooling Water Temp (°C)', maxValue: 75 },
     ];
 
     for (const gen of [eVQSGen1, eVQSGen2, eS66Gen1, eS66Gen2]) {
@@ -413,12 +413,12 @@ async function seed() {
 
     // 6 ca trực/ngày, mỗi ca 4 tiếng — mô phỏng 1 ngày hải trình VQS 02 (16/03/2026)
     const watchDef = [
-      { label: '00-04', sh: 0, eh: 4, deckCrew: cpAn.id, engCrew: cpQuan.id },
-      { label: '04-08', sh: 4, eh: 8, deckCrew: cpHungV.id, engCrew: cpThanh.id },
-      { label: '08-12', sh: 8, eh: 12, deckCrew: cpAn.id, engCrew: cpQuan.id },
-      { label: '12-16', sh: 12, eh: 16, deckCrew: cpHungV.id, engCrew: cpThanh.id },
-      { label: '16-20', sh: 16, eh: 20, deckCrew: cpAn.id, engCrew: cpQuan.id },
-      { label: '20-24', sh: 20, eh: 0, deckCrew: cpHungV.id, engCrew: cpThanh.id },
+      { label: '00-04', sh: 0, eh: 4, deckCrew: cpAn.id, engCrew: cpQuan.id, sailor: cpViet.id },
+      { label: '04-08', sh: 4, eh: 8, deckCrew: cpHungV.id, engCrew: cpThanh.id, sailor: cpPhuc.id },
+      { label: '08-12', sh: 8, eh: 12, deckCrew: cpAn.id, engCrew: cpQuan.id, sailor: cpViet.id },
+      { label: '12-16', sh: 12, eh: 16, deckCrew: cpHungV.id, engCrew: cpThanh.id, sailor: cpPhuc.id },
+      { label: '16-20', sh: 16, eh: 20, deckCrew: cpAn.id, engCrew: cpQuan.id, sailor: cpViet.id },
+      { label: '20-24', sh: 20, eh: 0, deckCrew: cpHungV.id, engCrew: cpThanh.id, sailor: cpPhuc.id },
     ];
 
     for (const w of watchDef) {
@@ -428,7 +428,7 @@ async function seed() {
       if (w.eh === 0) { et.setDate(et.getDate() + 1); et.setHours(0, 0, 0, 0); }
       else et.setHours(w.eh, 0, 0, 0);
 
-      // --- Deck watch ---
+      // --- Deck watch (Officer) ---
       const dShift = await Shift.create({ voyageId: vVQS02.id, crewId: w.deckCrew, startTime: st, endTime: et, status: 'Completed' }, { transaction: t });
       const dSLog = await ShiftLog.create({
         shiftId: dShift.id, logType: 'Deck',
@@ -438,6 +438,18 @@ async function seed() {
       await DeckLog.create({
         shiftLogId: dSLog.id,
         note: `Course: 283°T (Gyro). Speed: 6.5kn (Log). RPM: 660. Wind: NE F4. Baro: 1015. Sea: 3. Vis: 5nm. Air temp: 28°C. Sea temp: 27°C. No special occurrence.`,
+      }, { transaction: t });
+
+      // --- Deck watch (Sailor) ---
+      const sailorShift = await Shift.create({ voyageId: vVQS02.id, crewId: w.sailor, startTime: st, endTime: et, status: 'Completed' }, { transaction: t });
+      const sailorSLog = await ShiftLog.create({
+        shiftId: sailorShift.id, logType: 'Deck',
+        content: `Hỗ trợ sỹ quan trực ca ${w.label}H. Cảnh giới an toàn, theo dõi radar. Không có báo động.`,
+        createdAt: et,
+      }, { transaction: t });
+      await DeckLog.create({
+        shiftLogId: sailorSLog.id,
+        note: `Thực hiện nhiệm vụ cảnh giới an toàn. Báo cáo định kỳ mục tiêu. Lau dọn buồng lái.`,
       }, { transaction: t });
 
       // --- Engine watch ---
@@ -480,12 +492,12 @@ async function seed() {
     // Sỹ quan máy: cpThanh (E/O), cpQuan
     // ================================================================
     const vqs04WatchDef = [
-      { label: '00-04', sh: 0, eh: 4, engCrew: cpKhoa.id, deckCrew: cpAn.id },
-      { label: '04-08', sh: 4, eh: 8, engCrew: cpDat.id, deckCrew: cpHungV.id },
-      { label: '08-12', sh: 8, eh: 12, engCrew: cpThang.id, deckCrew: cpAn.id },
-      { label: '12-16', sh: 12, eh: 16, engCrew: cpKhoa.id, deckCrew: cpHungV.id },
-      { label: '16-20', sh: 16, eh: 20, engCrew: cpDat.id, deckCrew: cpAn.id },
-      { label: '20-24', sh: 20, eh: 0, engCrew: cpThang.id, deckCrew: cpHungV.id },
+      { label: '00-04', sh: 0, eh: 4, engCrew: cpKhoa.id, deckCrew: cpAn.id, sailor: cpViet.id },
+      { label: '04-08', sh: 4, eh: 8, engCrew: cpDat.id, deckCrew: cpHungV.id, sailor: cpPhuc.id },
+      { label: '08-12', sh: 8, eh: 12, engCrew: cpThang.id, deckCrew: cpAn.id, sailor: cpViet.id },
+      { label: '12-16', sh: 12, eh: 16, engCrew: cpKhoa.id, deckCrew: cpHungV.id, sailor: cpPhuc.id },
+      { label: '16-20', sh: 16, eh: 20, engCrew: cpDat.id, deckCrew: cpAn.id, sailor: cpViet.id },
+      { label: '20-24', sh: 20, eh: 0, engCrew: cpThang.id, deckCrew: cpHungV.id, sailor: cpPhuc.id },
     ];
 
     const vqs04Days = ['2026-06-15', '2026-06-16', '2026-06-17'];
@@ -496,21 +508,13 @@ async function seed() {
         const et = new Date(day);
         if (w.eh === 0) { et.setDate(et.getDate() + 1); et.setHours(0, 0, 0, 0); }
         else et.setHours(w.eh, 0, 0, 0);
-
-        const isPast = et < new Date();
-        const shiftStatus = isPast ? 'Completed' : 'InProgress';
-
-        // Ca máy — thợ máy trực
-        await Shift.create({ 
-          voyageId: vVQS04.id, crewId: w.engCrew, 
-          startTime: st, endTime: et, status: shiftStatus 
-        }, { transaction: t });
-
-        // Ca boong
-        await Shift.create({ 
-          voyageId: vVQS04.id, crewId: w.deckCrew, 
-          startTime: st, endTime: et, status: shiftStatus 
-        }, { transaction: t });
+        
+        // Deck watch (Officer)
+        await Shift.create({ voyageId: vVQS04.id, crewId: w.deckCrew, startTime: st, endTime: et, status: et < new Date() ? 'Completed' : 'InProgress' }, { transaction: t });
+        // Deck watch (Sailor)
+        await Shift.create({ voyageId: vVQS04.id, crewId: w.sailor, startTime: st, endTime: et, status: et < new Date() ? 'Completed' : 'InProgress' }, { transaction: t });
+        // Engine watch
+        await Shift.create({ voyageId: vVQS04.id, crewId: w.engCrew, startTime: st, endTime: et, status: et < new Date() ? 'Completed' : 'InProgress' }, { transaction: t });
       }
     }
 
@@ -634,9 +638,10 @@ async function seed() {
     console.log('  [C/O]      tvtuong@star66.vn   → CargoOps@2026');
     console.log('  [C/E]      pcduc@star66.vn     → CargoOps@2026');
     console.log('  [Thợ máy]  ntlong@star66.vn    → CargoOps@2026  (STAR 66)');
-    console.log('  [Master]   nqminh@vqs.vn       → CargoOps@2026  (VINH QUANG SUN)');
-    console.log('  [C/O]      tvhung@vqs.vn       → CargoOps@2026');
-    console.log('  [Thợ máy]  ldkhoa@vqs.vn       → CargoOps@2026  (VQS)');
+    console.log('  [Master]   nqminh@vqs.vn         CargoOps@2026  (VINH QUANG SUN)');
+    console.log('  [C/O]      tvhung@vqs.vn         CargoOps@2026');
+    console.log('  [Thợ máy]  ldkhoa@vqs.vn         CargoOps@2026  (VQS)');
+    console.log('  [Thủy thủ] tqviet@vqs.vn         CargoOps@2026  (VQS Sailor)');
     console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
     console.log('🚢 TÀUAU:  MV VINH QUANG SUN (IMO 9215672)  |  MV STAR 66 (IMO 9588548)');
     console.log('🗺️  HÀNH TRÌNH: 3× VQS (Completed) | 1× VQS (InProgress) | 1× S66 (InProgress) | 1× S66 (Planned)');

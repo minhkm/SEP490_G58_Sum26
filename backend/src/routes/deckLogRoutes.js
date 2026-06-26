@@ -1,29 +1,26 @@
 const express = require('express');
 const router = express.Router();
-const ctrl = require('../controllers/engineLogController');
+const ctrl = require('../controllers/deckLogController');
 const authMiddleware = require('../middlewares/authMiddleware');
 const upload = require('../middleware/upload');
 
 // Áp dụng xác thực cho toàn bộ routes này
 router.use(authMiddleware);
 
-// Lấy danh sách hải trình của user
+// Lấy danh sách hải trình mà user tham gia
 router.get('/my-voyages', ctrl.getMyVoyages);
 
 // Lấy danh sách ca trực (hỗ trợ ?date=YYYY-MM-DD)
 router.get('/shifts/:voyageId', ctrl.getShiftsForCurrentUser);
 
-// Tạo nhật ký kiểm tra máy
-router.post('/', ctrl.createEngineLog);
+// Ghi nhận nhật ký boong
+router.post('/', ctrl.createDeckLog);
 
 // Cập nhật nhật ký (chỉnh sửa — yêu cầu lý do)
-router.put('/:shiftLogId', ctrl.updateEngineLog);
+router.put('/:shiftLogId', ctrl.updateDeckLog);
 
-// Xem lịch sử kiểm tra theo ca trực
-router.get('/history/shift/:shiftId', ctrl.getEngineLogsByShift);
-
-// Xem lịch sử kiểm tra theo hải trình
-router.get('/history/voyage/:voyageId', ctrl.getEngineLogsByVoyage);
+// Xem lịch sử trực boong theo ca trực
+router.get('/history/:shiftId', ctrl.getDeckLogsByShift);
 
 // Upload ảnh cho nhật ký
 router.post('/:shiftLogId/images', upload.array('images', 5), ctrl.uploadLogImages);

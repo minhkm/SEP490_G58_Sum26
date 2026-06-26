@@ -388,6 +388,7 @@ export default function AddVesselPage() {
               <div style={{ marginBottom: 4 }}>{requiredParamLabel(param.name)}</div>
               <InputNumber
                 style={{ width: '100%' }}
+                min={0}
                 placeholder={requiredParamPlaceholder(param.name)}
                 value={param.maxValue === '' ? null : param.maxValue}
                 onChange={(value) => onChange(param._uid, 'maxValue', value ?? '')}
@@ -427,15 +428,8 @@ export default function AddVesselPage() {
             <Col flex="1">
               <InputNumber
                 style={{ width: '100%' }}
-                placeholder="Min"
-                value={param.minValue === '' ? null : param.minValue}
-                onChange={(value) => onChange(param._uid, 'minValue', value ?? '')}
-              />
-            </Col>
-            <Col flex="1">
-              <InputNumber
-                style={{ width: '100%' }}
                 placeholder="Max"
+                min={0}
                 value={param.maxValue === '' ? null : param.maxValue}
                 onChange={(value) => onChange(param._uid, 'maxValue', value ?? '')}
               />

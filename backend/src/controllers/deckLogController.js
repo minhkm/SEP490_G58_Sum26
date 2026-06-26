@@ -1,7 +1,7 @@
 const { Op } = require('sequelize');
 const { 
-  Voyage, VoyageCrew, Ship, Engine, EngineParameter, 
-  Shift, ShiftLog, EngineLog, EngineLogValue, 
+  Voyage, VoyageCrew, Ship,
+  Shift, ShiftLog, DeckLog,
   CrewProfile, LogEditHistory, LogImage
 } = require('../models');
 
@@ -30,7 +30,7 @@ const getMyVoyages = async (req, res) => {
     const myVoyages = await Voyage.findAll({
       where: { id: { [Op.in]: myVoyageIds } },
       include: [
-        { model: Ship, include: [{ model: Engine, include: [EngineParameter] }] }
+        { model: Ship, attributes: ['id', 'shipName', 'imoNumber'] }
       ],
       order: [['departureDate', 'DESC']]
     });
@@ -52,7 +52,7 @@ const getMyVoyages = async (req, res) => {
 const getShiftsForCurrentUser = async (req, res) => {
   try {
     const { voyageId } = req.params;
-    const { date } = req.query; // optional: YYYY-MM-DD
+    const { date } = req.query;
     const crewId = req.user?.profileId;
 
     if (!crewId) {
@@ -61,7 +61,6 @@ const getShiftsForCurrentUser = async (req, res) => {
 
     const where = { voyageId, crewId };
 
-    // Nếu có filter theo ngày → chỉ lấy ca trực trong ngày đó
     if (date) {
       const dayStart = new Date(date);
       dayStart.setHours(0, 0, 0, 0);
@@ -86,139 +85,106 @@ const getShiftsForCurrentUser = async (req, res) => {
 };
 
 // ============================================================
-// 3. Tạo Nhật ký kiểm tra Máy (Engine Log)
+// 3. Tạo Nhật ký trực boong (Deck Log)
 // ============================================================
-const createEngineLog = async (req, res) => {
+const createDeckLog = async (req, res) => {
   try {
-    const { shiftId, engineId, note, values } = req.body;
+    const { shiftId, note } = req.body;
 
-    if (!shiftId || !engineId) {
-      return res.status(400).json({ message: 'Thiếu thông tin ca trực hoặc máy cần kiểm tra' });
+    if (!shiftId) {
+      return res.status(400).json({ message: 'Thiếu thông tin ca trực' });
     }
 
-    // Bước 1: Tạo ShiftLog
+    if (!note || note.trim() === '') {
+      return res.status(400).json({ message: 'Ghi chú không được để trống' });
+    }
+
+    const shift = await Shift.findByPk(shiftId);
+    if (!shift) {
+      return res.status(404).json({ message: 'Không tìm thấy ca trực' });
+    }
+
     const shiftLog = await ShiftLog.create({
       shiftId: shiftId,
-      logType: 'Engine',
-      content: note || 'Kiểm tra máy định kỳ',
+      logType: 'Deck',
+      content: note,
       createdAt: new Date()
     });
 
-    // Bước 2: Tạo EngineLog
-    const engineLog = await EngineLog.create({
+    const deckLog = await DeckLog.create({
       shiftLogId: shiftLog.id,
-      engineId: engineId,
-      note: note || ''
+      note: note
     });
 
-    // Bước 3: Tạo các EngineLogValue
-    if (values && values.length > 0) {
-      const logValues = values.map(v => ({
-        engineLogId: engineLog.id,
-        parameterId: v.parameterId,
-        value: v.value
-      }));
-      await EngineLogValue.bulkCreate(logValues);
-    }
-
     res.status(201).json({ 
-      message: 'Ghi nhận kiểm tra máy thành công', 
-      engineLog,
+      message: 'Ghi nhận nhật ký boong thành công', 
+      deckLog,
       shiftLog
     });
   } catch (error) {
-    console.error('Lỗi tạo nhật ký máy:', error);
+    console.error('Lỗi tạo nhật ký boong:', error);
     res.status(500).json({ message: 'Lỗi server', error: error.message });
   }
 };
 
 // ============================================================
-// 4. Cập nhật nhật ký máy (chỉnh sửa) — yêu cầu lý do
+// 4. Cập nhật nhật ký boong (chỉnh sửa) — yêu cầu lý do
 // ============================================================
-const updateEngineLog = async (req, res) => {
+const updateDeckLog = async (req, res) => {
   try {
     const { shiftLogId } = req.params;
-    const { note, values, editReason } = req.body;
+    const { note, editReason } = req.body;
     const crewId = req.user?.profileId;
 
     if (!editReason || editReason.trim() === '') {
       return res.status(400).json({ message: 'Vui lòng cung cấp lý do chỉnh sửa' });
     }
 
-    // Tìm ShiftLog + EngineLog hiện tại
     const shiftLog = await ShiftLog.findByPk(shiftLogId, {
-      include: [{
-        model: EngineLog,
-        include: [{ model: EngineLogValue, include: [EngineParameter] }]
-      }]
+      include: [{ model: DeckLog }]
     });
 
-    if (!shiftLog || !shiftLog.EngineLog) {
+    if (!shiftLog || !shiftLog.DeckLog) {
       return res.status(404).json({ message: 'Không tìm thấy nhật ký' });
     }
 
     // Lưu snapshot bản cũ vào LogEditHistory
     await LogEditHistory.create({
-      logType: 'Engine',
+      logType: 'Deck',
       shiftLogId: shiftLog.id,
       previousContent: JSON.stringify({
-        note: shiftLog.EngineLog.note,
-        content: shiftLog.content,
-        values: shiftLog.EngineLog.EngineLogValues?.map(v => ({
-          parameterId: v.parameterId,
-          parameterName: v.EngineParameter?.name,
-          value: v.value
-        }))
+        note: shiftLog.DeckLog.note,
+        content: shiftLog.content
       }),
       editReason: editReason,
       editedBy: crewId,
       editedAt: new Date()
     });
 
-    // Cập nhật EngineLog
+    // Cập nhật
     if (note !== undefined) {
-      await shiftLog.EngineLog.update({ note });
+      await shiftLog.DeckLog.update({ note });
       await shiftLog.update({ content: note });
-    }
-
-    // Cập nhật EngineLogValues
-    if (values && values.length > 0) {
-      await EngineLogValue.destroy({ where: { engineLogId: shiftLog.EngineLog.id } });
-      const logValues = values.map(v => ({
-        engineLogId: shiftLog.EngineLog.id,
-        parameterId: v.parameterId,
-        value: v.value
-      }));
-      await EngineLogValue.bulkCreate(logValues);
     }
 
     res.json({ message: 'Cập nhật nhật ký thành công' });
   } catch (error) {
-    console.error('Lỗi cập nhật nhật ký máy:', error);
+    console.error('Lỗi cập nhật nhật ký boong:', error);
     res.status(500).json({ message: 'Lỗi server', error: error.message });
   }
 };
 
 // ============================================================
-// 5. Xem lịch sử kiểm tra máy theo Ca trực (bao gồm ảnh)
+// 5. Lấy lịch sử trực boong theo Ca trực (bao gồm ảnh + edit history)
 // ============================================================
-const getEngineLogsByShift = async (req, res) => {
+const getDeckLogsByShift = async (req, res) => {
   try {
     const { shiftId } = req.params;
 
     const shiftLogs = await ShiftLog.findAll({
-      where: { shiftId, logType: 'Engine' },
+      where: { shiftId, logType: 'Deck' },
       include: [
-        {
-          model: EngineLog,
-          include: [
-            { model: Engine, attributes: ['engineName', 'engineType'] },
-            { 
-              model: EngineLogValue, 
-              include: [{ model: EngineParameter, attributes: ['name', 'minValue', 'maxValue'] }]
-            }
-          ]
-        },
+        { model: DeckLog },
         { model: LogImage, attributes: ['id', 'imageUrl', 'caption', 'createdAt'] },
         { model: LogEditHistory, attributes: ['id', 'editReason', 'editedAt', 'previousContent'],
           include: [{ model: CrewProfile, attributes: ['fullName'] }]
@@ -235,44 +201,7 @@ const getEngineLogsByShift = async (req, res) => {
 };
 
 // ============================================================
-// 6. Xem toàn bộ lịch sử theo Hải trình
-// ============================================================
-const getEngineLogsByVoyage = async (req, res) => {
-  try {
-    const { voyageId } = req.params;
-
-    const shifts = await Shift.findAll({
-      where: { voyageId },
-      include: [
-        { model: CrewProfile, attributes: ['fullName', 'position'] },
-        { 
-          model: ShiftLog,
-          where: { logType: 'Engine' },
-          required: false,
-          include: [{
-            model: EngineLog,
-            include: [
-              { model: Engine, attributes: ['engineName', 'engineType'] },
-              { 
-                model: EngineLogValue, 
-                include: [{ model: EngineParameter, attributes: ['name', 'minValue', 'maxValue'] }]
-              }
-            ]
-          }]
-        }
-      ],
-      order: [['startTime', 'DESC']]
-    });
-
-    res.json(shifts);
-  } catch (error) {
-    console.error('Lỗi lấy lịch sử theo hải trình:', error);
-    res.status(500).json({ message: 'Lỗi server', error: error.message });
-  }
-};
-
-// ============================================================
-// 7. Upload ảnh cho nhật ký
+// 6. Upload ảnh cho nhật ký boong
 // ============================================================
 const uploadLogImages = async (req, res) => {
   try {
@@ -290,7 +219,7 @@ const uploadLogImages = async (req, res) => {
 
     const images = await Promise.all(
       req.files.map(file => LogImage.create({
-        logType: 'Engine',
+        logType: 'Deck',
         shiftLogId: parseInt(shiftLogId),
         imageUrl: `/uploads/logs/${file.filename}`,
         caption: '',
@@ -306,7 +235,7 @@ const uploadLogImages = async (req, res) => {
 };
 
 // ============================================================
-// 8. Xem lịch sử chỉnh sửa
+// 7. Xem lịch sử chỉnh sửa
 // ============================================================
 const getEditHistory = async (req, res) => {
   try {
@@ -328,10 +257,9 @@ const getEditHistory = async (req, res) => {
 module.exports = {
   getMyVoyages,
   getShiftsForCurrentUser,
-  createEngineLog,
-  updateEngineLog,
-  getEngineLogsByShift,
-  getEngineLogsByVoyage,
+  createDeckLog,
+  updateDeckLog,
+  getDeckLogsByShift,
   uploadLogImages,
   getEditHistory
 };

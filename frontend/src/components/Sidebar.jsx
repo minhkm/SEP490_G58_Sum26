@@ -11,6 +11,7 @@ import {
   ClockCircleOutlined,
   ToolOutlined,
   SendOutlined,
+  FileTextOutlined,
 } from '@ant-design/icons';
 import { CARGO_ROLES } from '../config/roles';
 
@@ -25,6 +26,7 @@ export default function Sidebar() {
   const isMasterOrChief = role === 'Master' || role === 'ChiefOfficer';
   const isCrewRole = !isMasterOrChief && role !== 'Admin' && role !== 'Agency';
   const isEngine = role === 'EngineOfficer' || role === 'EngineCrew' || role === 'ChiefEngineer';
+  const isDeck = role === 'Sailor' || role === 'ChiefOfficer' || role === 'Master';
 
   const dashboardPath = isMasterOrChief ? '/master-dashboard' : '/crew-dashboard';
 
@@ -33,6 +35,7 @@ export default function Sidebar() {
     { key: '/voyages', icon: <CompassOutlined />, label: 'Hải Trình' },
     CARGO_ROLES.includes(role) && { key: '/cargos', icon: <InboxOutlined />, label: 'Hàng hóa' },
     isCrewRole && { key: 'ca-truc', icon: <ClockCircleOutlined />, label: 'Ca trực', disabled: true },
+    isDeck && { key: '/deck-logs', icon: <FileTextOutlined />, label: 'Nhật ký Trực boong' },
     isEngine && { key: '/engine-logs', icon: <ToolOutlined />, label: 'Nhật ký Kiểm tra Máy' },
     { key: 'bao-cao', icon: <BarChartOutlined />, label: 'Báo cáo', disabled: !isMasterOrChief },
     { key: '/crew-profile', icon: <UserOutlined />, label: 'Hồ sơ của tôi' },

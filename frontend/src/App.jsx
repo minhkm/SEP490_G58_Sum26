@@ -22,6 +22,8 @@ import AttendancePage from "./pages/AttendancePage";
 import RequireRole from "./components/RequireRole";
 import { CARGO_ROLES } from "./config/roles";
 
+import DeckLogPage from "./pages/DeckLogPage";
+
 function App() {
   return (
     <Router>
@@ -91,6 +93,7 @@ function App() {
         <Route path="/crew-dashboard" element={<CrewDashboard />} />
         <Route path="/crew-profile" element={<CrewProfilePage />} />
         <Route path="/engine-logs" element={<EngineLogPage />} />
+        <Route path="/deck-logs" element={<DeckLogPage />} />
       </Routes>
     </Router>
   );
