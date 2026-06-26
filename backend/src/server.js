@@ -3,12 +3,16 @@ const { sequelize } = require("./models"); // ⬅ đổi chỗ này
 require("dotenv").config();
 
 const cors = require("cors");
+const path = require("path");
 const authRoutes = require("./routes/authRoutes");
 const voyageRoutes = require("./routes/voyageRoutes");
 
 const app = express();
 app.use(cors());
 app.use(express.json());
+
+// Serve uploaded images
+app.use("/uploads", express.static(path.join(__dirname, "../uploads")));
 
 app.use("/api/auth", authRoutes);
 app.use("/api/voyages", voyageRoutes);
