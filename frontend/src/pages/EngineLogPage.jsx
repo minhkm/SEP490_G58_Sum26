@@ -147,8 +147,8 @@ export default function EngineLogPage() {
     const values = Object.entries(paramValues)
       .filter(([, val]) => val !== '' && val !== null)
       .map(([paramId, value]) => ({ parameterId: parseInt(paramId), value: parseFloat(value) }));
-    if (values.length === 0) {
-      notifyWarning('Vui lòng nhập ít nhất 1 thông số');
+    if (values.length < 3) {
+      notifyWarning('Vui lòng nhập ít nhất 3 thông số chính');
       return;
     }
 
@@ -198,6 +198,11 @@ export default function EngineLogPage() {
       const values = Object.entries(editValues)
         .filter(([, val]) => val !== '' && val !== null)
         .map(([paramId, value]) => ({ parameterId: parseInt(paramId), value: parseFloat(value) }));
+
+      if (values.length < 3) {
+        notifyWarning('Vui lòng nhập ít nhất 3 thông số chính');
+        return;
+      }
 
       await engineLogService.update(editingLog.id, {
         note: editNote, values, editReason: editReason.trim()
