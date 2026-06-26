@@ -147,11 +147,15 @@ export default function EngineLogPage() {
     const values = Object.entries(paramValues)
       .filter(([, val]) => val !== '' && val !== null)
       .map(([paramId, value]) => ({ parameterId: parseInt(paramId), value: parseFloat(value) }));
-    const mainParamIds = selectedEngine.EngineParameters.slice(0, 3).map(p => p.id);
+    const mainKeywords = ['Fuel Oil Pressure', 'Exhaust Gas Temp XL2', 'Cooling Water Temp'];
+    const mainParamIds = selectedEngine.EngineParameters
+      .filter(p => mainKeywords.some(kw => p.name.includes(kw)))
+      .map(p => p.id);
+      
     const filledMainParams = values.filter(v => mainParamIds.includes(v.parameterId));
 
-    if (filledMainParams.length < 3) {
-      notifyWarning('Vui lòng nhập đủ 3 thông số chính (có dấu *)');
+    if (mainParamIds.length > 0 && filledMainParams.length < mainParamIds.length) {
+      notifyWarning('Vui lòng nhập đủ các thông số chính (có dấu *)');
       return;
     }
 
@@ -202,11 +206,15 @@ export default function EngineLogPage() {
         .filter(([, val]) => val !== '' && val !== null)
         .map(([paramId, value]) => ({ parameterId: parseInt(paramId), value: parseFloat(value) }));
 
-      const mainParamIds = editingLog.Engine.EngineParameters.slice(0, 3).map(p => p.id);
+      const mainKeywords = ['Fuel Oil Pressure', 'Exhaust Gas Temp XL2', 'Cooling Water Temp'];
+      const mainParamIds = editingLog.Engine.EngineParameters
+        .filter(p => mainKeywords.some(kw => p.name.includes(kw)))
+        .map(p => p.id);
+      
       const filledMainParams = values.filter(v => mainParamIds.includes(v.parameterId));
 
-      if (filledMainParams.length < 3) {
-        notifyWarning('Vui lòng nhập đủ 3 thông số chính (có dấu *)');
+      if (mainParamIds.length > 0 && filledMainParams.length < mainParamIds.length) {
+        notifyWarning('Vui lòng nhập đủ các thông số chính (có dấu *)');
         return;
       }
 
@@ -365,7 +373,7 @@ export default function EngineLogPage() {
             <Row gutter={[16, 16]}>
               {selectedEngine.EngineParameters?.map((param, index) => {
                 const status = getValueStatus(param, paramValues[param.id]);
-                const isMain = index < 3;
+                const isMain = ['Fuel Oil Pressure', 'Exhaust Gas Temp XL2', 'Cooling Water Temp'].includes(param.name);
                 return (
                   <Col xs={24} sm={12} lg={8} key={param.id}>
                     <div style={{ fontWeight: 500, marginBottom: 4 }}>
@@ -421,12 +429,15 @@ export default function EngineLogPage() {
           <label style={{ fontWeight: 500, display: 'block', marginBottom: 4 }}>Ghi chú</label>
           <TextArea rows={2} value={editNote} onChange={e => setEditNote(e.target.value)} />
         </div>
-        {editingLog?.EngineLog?.EngineLogValues?.map(v => (
-          <div key={v.parameterId} style={{ marginBottom: 8 }}>
-            <Text strong>{v.EngineParameter?.name}: </Text>
-            <InputNumber min={0} value={editValues[v.parameterId]} onChange={val => setEditValues({ ...editValues, [v.parameterId]: val })} />
-          </div>
-        ))}
+        {editingLog?.EngineLog?.EngineLogValues?.map(v => {
+          const isMain = ['Fuel Oil Pressure', 'Exhaust Gas Temp XL2', 'Cooling Water Temp'].some(kw => v.EngineParameter?.name?.includes(kw));
+          return (
+            <div key={v.parameterId} style={{ marginBottom: 8 }}>
+              <Text strong>{v.EngineParameter?.name} {isMain && <span style={{ color: 'red' }}>*</span>}: </Text>
+              <InputNumber min={0} value={editValues[v.parameterId]} onChange={val => setEditValues({ ...editValues, [v.parameterId]: val })} />
+            </div>
+          );
+        })}
       </Modal>
 
       {/* Modal lịch sử chỉnh sửa */}
