@@ -31,6 +31,7 @@ export default function EngineLogPage() {
   const [editNote, setEditNote] = useState('');
   const [editReason, setEditReason] = useState('');
   const [editValues, setEditValues] = useState({});
+  const [editEngineParams, setEditEngineParams] = useState([]);
   // Edit history modal
   const [historyModalOpen, setHistoryModalOpen] = useState(false);
   const [editHistoryData, setEditHistoryData] = useState([]);
@@ -155,7 +156,7 @@ export default function EngineLogPage() {
     const filledMainParams = values.filter(v => mainParamIds.includes(v.parameterId));
 
     if (mainParamIds.length > 0 && filledMainParams.length < mainParamIds.length) {
-      notifyWarning('Vui lòng nhập đủ các thông số chính (có dấu *)');
+      notifyWarning('Vui lòng nhập đủ các thông số chính');
       return;
     }
 
@@ -193,6 +194,12 @@ export default function EngineLogPage() {
     const vals = {};
     log.EngineLog?.EngineLogValues?.forEach(v => { vals[v.parameterId] = v.value; });
     setEditValues(vals);
+
+    // Get all parameters for this engine
+    const engineName = log.EngineLog?.Engine?.engineName;
+    const fullEngine = engines.find(e => e.engineName === engineName);
+    setEditEngineParams(fullEngine?.EngineParameters || []);
+
     setEditModalOpen(true);
   };
 
@@ -207,14 +214,14 @@ export default function EngineLogPage() {
         .map(([paramId, value]) => ({ parameterId: parseInt(paramId), value: parseFloat(value) }));
 
       const mainKeywords = ['Fuel Oil Pressure', 'Exhaust Gas Temp XL2', 'Cooling Water Temp'];
-      const mainParamIds = editingLog.Engine.EngineParameters
+      const mainParamIds = editEngineParams
         .filter(p => mainKeywords.some(kw => p.name.includes(kw)))
         .map(p => p.id);
       
       const filledMainParams = values.filter(v => mainParamIds.includes(v.parameterId));
 
       if (mainParamIds.length > 0 && filledMainParams.length < mainParamIds.length) {
-        notifyWarning('Vui lòng nhập đủ các thông số chính (có dấu *)');
+        notifyWarning('Vui lòng nhập đủ các thông số chính');
         return;
       }
 
@@ -373,7 +380,7 @@ export default function EngineLogPage() {
             <Row gutter={[16, 16]}>
               {selectedEngine.EngineParameters?.map((param, index) => {
                 const status = getValueStatus(param, paramValues[param.id]);
-                const isMain = ['Fuel Oil Pressure', 'Exhaust Gas Temp XL2', 'Cooling Water Temp'].includes(param.name);
+                const isMain = ['Fuel Oil Pressure', 'Exhaust Gas Temp XL2', 'Cooling Water Temp'].some(kw => param.name.includes(kw));
                 return (
                   <Col xs={24} sm={12} lg={8} key={param.id}>
                     <div style={{ fontWeight: 500, marginBottom: 4 }}>
@@ -429,12 +436,12 @@ export default function EngineLogPage() {
           <label style={{ fontWeight: 500, display: 'block', marginBottom: 4 }}>Ghi chú</label>
           <TextArea rows={2} value={editNote} onChange={e => setEditNote(e.target.value)} />
         </div>
-        {editingLog?.EngineLog?.EngineLogValues?.map(v => {
-          const isMain = ['Fuel Oil Pressure', 'Exhaust Gas Temp XL2', 'Cooling Water Temp'].some(kw => v.EngineParameter?.name?.includes(kw));
+        {editEngineParams.map(param => {
+          const isMain = ['Fuel Oil Pressure', 'Exhaust Gas Temp XL2', 'Cooling Water Temp'].some(kw => param.name.includes(kw));
           return (
-            <div key={v.parameterId} style={{ marginBottom: 8 }}>
-              <Text strong>{v.EngineParameter?.name} {isMain && <span style={{ color: 'red' }}>*</span>}: </Text>
-              <InputNumber min={0} value={editValues[v.parameterId]} onChange={val => setEditValues({ ...editValues, [v.parameterId]: val })} />
+            <div key={param.id} style={{ marginBottom: 8 }}>
+              <Text strong>{param.name} {isMain && <span style={{ color: 'red' }}>*</span>}: </Text>
+              <InputNumber style={{ width: '100%' }} min={0} value={editValues[param.id]} onChange={val => setEditValues({ ...editValues, [param.id]: val })} />
             </div>
           );
         })}
