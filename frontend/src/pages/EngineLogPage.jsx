@@ -147,8 +147,11 @@ export default function EngineLogPage() {
     const values = Object.entries(paramValues)
       .filter(([, val]) => val !== '' && val !== null)
       .map(([paramId, value]) => ({ parameterId: parseInt(paramId), value: parseFloat(value) }));
-    if (values.length < 3) {
-      notifyWarning('Vui lòng nhập ít nhất 3 thông số chính');
+    const mainParamIds = selectedEngine.EngineParameters.slice(0, 3).map(p => p.id);
+    const filledMainParams = values.filter(v => mainParamIds.includes(v.parameterId));
+
+    if (filledMainParams.length < 3) {
+      notifyWarning('Vui lòng nhập đủ 3 thông số chính (có dấu *)');
       return;
     }
 
@@ -199,8 +202,11 @@ export default function EngineLogPage() {
         .filter(([, val]) => val !== '' && val !== null)
         .map(([paramId, value]) => ({ parameterId: parseInt(paramId), value: parseFloat(value) }));
 
-      if (values.length < 3) {
-        notifyWarning('Vui lòng nhập ít nhất 3 thông số chính');
+      const mainParamIds = editingLog.Engine.EngineParameters.slice(0, 3).map(p => p.id);
+      const filledMainParams = values.filter(v => mainParamIds.includes(v.parameterId));
+
+      if (filledMainParams.length < 3) {
+        notifyWarning('Vui lòng nhập đủ 3 thông số chính (có dấu *)');
         return;
       }
 
@@ -357,11 +363,14 @@ export default function EngineLogPage() {
         {selectedEngine && !isCompleted && isToday && (
           <Card style={{ marginTop: 16 }} title={`Kiểm tra: ${selectedEngine.engineName} (${selectedEngine.engineType})`}>
             <Row gutter={[16, 16]}>
-              {selectedEngine.EngineParameters?.map(param => {
+              {selectedEngine.EngineParameters?.map((param, index) => {
                 const status = getValueStatus(param, paramValues[param.id]);
+                const isMain = index < 3;
                 return (
                   <Col xs={24} sm={12} lg={8} key={param.id}>
-                    <div style={{ fontWeight: 500, marginBottom: 4 }}>{param.name}</div>
+                    <div style={{ fontWeight: 500, marginBottom: 4 }}>
+                      {param.name} {isMain && <span style={{ color: 'red' }}>*</span>}
+                    </div>
                     <InputNumber style={{ width: '100%', borderColor: statusBorderColor(status) }} placeholder="Nhập giá trị" min={0}
                       value={paramValues[param.id] === '' ? null : paramValues[param.id]}
                       onChange={value => handleParamChange(param.id, value === null ? '' : value)} />
