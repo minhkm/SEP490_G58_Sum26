@@ -55,12 +55,57 @@ export const voyageService = {
   updateVoyage: async (id, data) => {
     const response = await api.put(`/voyages/${id}`, data);
     return response.data;
+  },
+  getAttendances: async (id, type, date) => {
+    let query = `?type=${type}`;
+    if (date) query += `&date=${date}`;
+    const response = await api.get(`/voyages/${id}/attendances${query}`);
+    return response.data;
+  },
+  saveAttendances: async (id, payload) => {
+    const response = await api.post(`/voyages/${id}/attendances`, payload);
+    return response.data;
   }
 };
 
 export const cargoService = {
   getAllCargos: async () => {
     const response = await api.get('/cargos');
+    return response.data;
+  },
+  getById: async (id) => {
+    const response = await api.get(`/cargos/${id}`);
+    return response.data;
+  },
+  create: async (data) => {
+    const response = await api.post('/cargos', data);
+    return response.data;
+  },
+  update: async (id, data) => {
+    const response = await api.put(`/cargos/${id}`, data);
+    return response.data;
+  },
+  delete: async (id) => {
+    const response = await api.delete(`/cargos/${id}`);
+    return response.data;
+  }
+};
+
+export const cargoTypeService = {
+  getAll: async () => {
+    const response = await api.get('/cargo-types');
+    return response.data;
+  },
+  create: async (data) => {
+    const response = await api.post('/cargo-types', data);
+    return response.data;
+  },
+  update: async (id, data) => {
+    const response = await api.put(`/cargo-types/${id}`, data);
+    return response.data;
+  },
+  delete: async (id) => {
+    const response = await api.delete(`/cargo-types/${id}`);
     return response.data;
   }
 };

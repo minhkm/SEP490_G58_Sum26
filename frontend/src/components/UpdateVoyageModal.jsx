@@ -1,7 +1,43 @@
-import React, { useState, useEffect } from 'react';
-import { X, Save, AlertCircle } from 'lucide-react';
-import { voyageService } from '../services/api';
-import './UpdateVoyageModal.css';
+import { useState, useEffect } from 'react';
+import dayjs from 'dayjs';
+import {
+  Modal,
+  Form,
+  Select,
+  DatePicker,
+  Input,
+  Table,
+  Checkbox,
+  Alert,
+  Button,
+  Spin,
+  Typography,
+  Card,
+  Progress,
+} from 'antd';
+import { SaveOutlined } from '@ant-design/icons';
+import { voyageService, vesselService } from '../services/api';
+
+const { TextArea } = Input;
+const { Text } = Typography;
+
+const DATE_FORMAT = 'YYYY-MM-DD';
+// Chuyển string 'YYYY-MM-DD' (API) <-> dayjs (DatePicker)
+const toDayjs = (value) => (value ? dayjs(value, DATE_FORMAT) : null);
+
+const STATUS_OPTIONS = [
+  { value: 'Planning', label: 'Đang lên kế hoạch (Planning)', roles: ['admin', 'agency'] },
+  { value: 'Loading', label: 'Đang làm hàng (Loading)', roles: ['master'] },
+  { value: 'Loaded', label: 'Đã làm hàng xong (Loaded)', roles: ['master'] },
+  { value: 'Underway', label: 'Đang di chuyển (Underway)', roles: ['master'] },
+  { value: 'Arrived', label: 'Cập bến (Arrived)', roles: ['master'] },
+  { value: 'Discharge', label: 'Dỡ hàng (Discharge)', roles: ['master'] },
+  { value: 'Discharged', label: 'Đã dỡ hàng xong (Discharged)', roles: ['master'] },
+  { value: 'Homeward Bounding', label: 'Đang quay về cảng xuất phát (Homeward Bounding)', roles: ['master'] },
+  { value: 'At Anchor', label: 'Đang neo đậu (At Anchor)', roles: ['master'] },
+  { value: 'Completed', label: 'Đã hoàn thành (Completed)', roles: ['admin', 'agency'] },
+  { value: 'Cancelled', label: 'Đã hủy (Cancelled)', roles: ['admin', 'agency', 'master'] },
+];
 
 export default function UpdateVoyageModal({ voyage, onClose, onUpdate }) {
   const [formData, setFormData] = useState({
@@ -10,12 +46,15 @@ export default function UpdateVoyageModal({ voyage, onClose, onUpdate }) {
     arrivalDate: '',
     isCrewSufficient: false,
     isCargoLoaded: false,
-    issueReason: ''
+    issueReason: '',
   });
   const [crewList, setCrewList] = useState([]);
   const [cargoList, setCargoList] = useState([]);
+  const [originalCargoList, setOriginalCargoList] = useState([]);
+  const [holds, setHolds] = useState([]);
   const [fetchingCrew, setFetchingCrew] = useState(false);
   const [fetchingCargo, setFetchingCargo] = useState(false);
+  const [fetchingHolds, setFetchingHolds] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -27,12 +66,26 @@ export default function UpdateVoyageModal({ voyage, onClose, onUpdate }) {
         arrivalDate: voyage.arrivalDate || '',
         isCrewSufficient: voyage.isCrewSufficient || false,
         isCargoLoaded: voyage.isCargoLoaded || false,
-        issueReason: voyage.issueReason || ''
+        issueReason: voyage.issueReason || '',
       });
       fetchCrew(voyage.id);
       fetchCargo(voyage.id);
+      fetchHolds(voyage.shipId);
     }
   }, [voyage]);
+
+  const fetchHolds = async (shipId) => {
+    if (!shipId) return;
+    try {
+      setFetchingHolds(true);
+      const ship = await vesselService.getById(shipId);
+      setHolds(ship.CargoHolds || []);
+    } catch (err) {
+      console.error('Failed to fetch holds:', err);
+    } finally {
+      setFetchingHolds(false);
+    }
+  };
 
   const fetchCrew = async (id) => {
     try {
@@ -51,6 +104,7 @@ export default function UpdateVoyageModal({ voyage, onClose, onUpdate }) {
       setFetchingCargo(true);
       const data = await voyageService.getVoyageCargo(id);
       setCargoList(data || []);
+      setOriginalCargoList(JSON.parse(JSON.stringify(data || [])));
     } catch (err) {
       console.error('Failed to fetch cargo:', err);
     } finally {
@@ -59,39 +113,37 @@ export default function UpdateVoyageModal({ voyage, onClose, onUpdate }) {
   };
 
   const handleAttendanceChange = (crewId, isPresent) => {
-    setCrewList(prevList => 
-      prevList.map(crew => 
-        crew.crewId === crewId ? { ...crew, isPresent } : crew
-      )
+    setCrewList((prevList) =>
+      prevList.map((crew) => (crew.crewId === crewId ? { ...crew, isPresent } : crew))
     );
   };
 
   const handleCargoLoadChange = (itemId, isLoaded) => {
-    setCargoList(prevList =>
-      prevList.map(cargo =>
-        cargo.itemId === itemId ? { ...cargo, isLoaded } : cargo
-      )
+    setCargoList((prevList) =>
+      prevList.map((cargo) => (cargo.itemId === itemId ? { ...cargo, isLoaded } : cargo))
     );
   };
 
-  const handleChange = (e) => {
-    const { name, value, type, checked } = e.target;
-    setFormData((prev) => ({
-      ...prev,
-      [name]: type === 'checkbox' ? checked : value
-    }));
+  const handleCargoHoldChange = (itemId, holdId) => {
+    setCargoList((prevList) =>
+      prevList.map((cargo) => (cargo.itemId === itemId ? { ...cargo, holdId } : cargo))
+    );
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+  const handleSubmit = async () => {
     try {
       setLoading(true);
       setError('');
-      
+
       const payload = {
         ...formData,
-        attendanceList: crewList.map(c => ({ crewId: c.crewId, isPresent: c.isPresent })),
-        cargoList: cargoList.map(c => ({ itemId: c.itemId, isLoaded: c.isLoaded }))
+        attendanceList: crewList.map((c) => ({ crewId: c.crewId, isPresent: c.isPresent })),
+        cargoList: cargoList.map((c) => ({
+          itemId: c.itemId,
+          isLoaded: c.isLoaded,
+          holdId: c.holdId,
+          weight: c.weight,
+        })),
       };
 
       await voyageService.updateVoyage(voyage.id, payload);
@@ -109,176 +161,275 @@ export default function UpdateVoyageModal({ voyage, onClose, onUpdate }) {
 
   const user = JSON.parse(localStorage.getItem('user')) || {};
   const userRole = (user.role || '').replace(/\s+/g, '').toLowerCase();
-  
+
   const isShipStaff = userRole === 'chiefofficer' || userRole === 'master';
-  const isAttendanceAllowed = (formData.status === 'Loaded' || formData.status === 'Discharged') && isShipStaff;
+  const isAttendanceAllowed =
+    (formData.status === 'Loaded' || formData.status === 'Discharged') && isShipStaff;
+  const isCargoLoadAllowed = formData.status === 'Loading' && isShipStaff;
+
+  const allowedStatusOptions = STATUS_OPTIONS.filter(
+    (opt) => opt.roles.includes(userRole) || opt.value === voyage.status
+  );
+
+  const crewColumns = [
+    { title: 'STT', key: 'stt', width: 60, render: (_, __, idx) => idx + 1 },
+    { title: 'Họ và tên', dataIndex: 'fullName', key: 'fullName' },
+    { title: 'Chức vụ', dataIndex: 'position', key: 'position' },
+    {
+      title: 'Có mặt',
+      key: 'isPresent',
+      align: 'center',
+      width: 90,
+      render: (_, crew) => (
+        <Checkbox
+          checked={crew.isPresent}
+          onChange={(e) => handleAttendanceChange(crew.crewId, e.target.checked)}
+          disabled={!isAttendanceAllowed}
+          title={
+            !isAttendanceAllowed
+              ? 'Chỉ được điểm danh khi trạng thái là Loaded hoặc Discharged và bạn là thuyền trưởng'
+              : ''
+          }
+        />
+      ),
+    },
+  ];
+
+  const cargoColumns = [
+    { title: 'STT', key: 'stt', width: 60, render: (_, __, idx) => idx + 1 },
+    { title: 'Lô hàng', dataIndex: 'cargoName', key: 'cargoName' },
+    { title: 'Chi tiết / Quy cách', dataIndex: 'itemName', key: 'itemName' },
+    { title: 'Số lượng', dataIndex: 'quantity', key: 'quantity' },
+    {
+      title: 'Khối lượng',
+      key: 'weight',
+      render: (_, cargo) => `${cargo.weight} MT`,
+    },
+    {
+      title: 'Chọn khoang',
+      key: 'holdId',
+      width: 160,
+      render: (_, cargo) => (
+        <Select
+          style={{ width: '100%' }}
+          placeholder="-- Chọn --"
+          allowClear
+          value={cargo.holdId || undefined}
+          disabled={!isCargoLoadAllowed}
+          onChange={(value) => handleCargoHoldChange(cargo.itemId, value)}
+          options={holds.map((h) => ({ value: h.id, label: h.holdName }))}
+        />
+      ),
+    },
+    {
+      title: 'Đã lên tàu',
+      key: 'isLoaded',
+      align: 'center',
+      width: 90,
+      render: (_, cargo) => (
+        <Checkbox
+          checked={cargo.isLoaded}
+          onChange={(e) => handleCargoLoadChange(cargo.itemId, e.target.checked)}
+          disabled={!cargo.itemId || !isCargoLoadAllowed}
+          title={
+            !isCargoLoadAllowed
+              ? 'Chỉ được đánh dấu hàng lên tàu khi Trạng thái chuyến đi đang là Loading (Đang làm hàng)'
+              : ''
+          }
+        />
+      ),
+    },
+  ];
+
+  const showIssueReason = !formData.isCrewSufficient || !formData.isCargoLoaded;
 
   return (
-    <div className="modal-overlay">
-      <div className="modal-content update-voyage-modal">
-        <header className="modal-header">
-          <h2>Cập nhật chuyến đi VY-{String(voyage.id).padStart(4, '0')}</h2>
-          <button className="close-btn" onClick={onClose}><X size={20} /></button>
-        </header>
+    <Modal
+      open
+      title={`Cập nhật chuyến đi VY-${String(voyage.id).padStart(4, '0')}`}
+      onCancel={onClose}
+      width={760}
+      footer={[
+        <Button key="cancel" onClick={onClose}>
+          Hủy
+        </Button>,
+        <Button
+          key="save"
+          type="primary"
+          icon={<SaveOutlined />}
+          loading={loading}
+          onClick={handleSubmit}
+        >
+          Lưu cập nhật
+        </Button>,
+      ]}
+    >
+      {error && (
+        <Alert type="error" showIcon message={error} style={{ marginBottom: 16 }} />
+      )}
 
-        {error && (
-          <div className="error-alert">
-            <AlertCircle size={18} />
-            <span>{error}</span>
-          </div>
-        )}
+      <Form layout="vertical">
+        <Form.Item label="Trạng thái">
+          <Select
+            value={formData.status}
+            options={allowedStatusOptions}
+            onChange={(value) => setFormData((prev) => ({ ...prev, status: value }))}
+          />
+        </Form.Item>
 
-        <form onSubmit={handleSubmit} className="update-voyage-form">
-          <div className="form-row">
-            <div className="form-group">
-              <label>Trạng thái</label>
-              <select name="status" value={formData.status} onChange={handleChange}>
-                <option value="Planning">Đang lên kế hoạch (Planning)</option>
-                <option value="Loading">Đang làm hàng (Loading)</option>
-                <option value="Loaded">Đã làm hàng xong (Loaded)</option>
-                <option value="Underway">Đang di chuyển (Underway)</option>
-                <option value="Arrived">Cập bến (Arrived)</option>
-                <option value="Discharge">Dỡ hàng (Discharge)</option>
-                <option value="Discharged">Đã dỡ hàng xong (Discharged)</option>
-                <option value="Homeward Bounding">Đang quay về cảng xuất phát (Homeward Bounding)</option>
-                <option value="At Anchor">Đang neo đậu (At Anchor)</option>
-                <option value="Completed">Đã hoàn thành (Completed)</option>
-                <option value="Cancelled">Đã hủy (Cancelled)</option>
-              </select>
-            </div>
-          </div>
+        <Form.Item label="Ngày đi dự kiến/thực tế">
+          <DatePicker
+            style={{ width: '100%' }}
+            format={DATE_FORMAT}
+            value={toDayjs(formData.departureDate)}
+            onChange={(d) =>
+              setFormData((prev) => ({ ...prev, departureDate: d ? d.format(DATE_FORMAT) : '' }))
+            }
+          />
+        </Form.Item>
 
-          <div className="form-row two-cols">
-            <div className="form-group">
-              <label>Ngày đi dự kiến/thực tế</label>
-              <input
-                type="date"
-                name="departureDate"
-                value={formData.departureDate}
-                onChange={handleChange}
-              />
-            </div>
-            <div className="form-group">
-              <label>Ngày đến dự kiến/thực tế</label>
-              <input
-                type="date"
-                name="arrivalDate"
-                value={formData.arrivalDate}
-                onChange={handleChange}
-              />
-            </div>
-          </div>
+        <Form.Item label="Ngày đến dự kiến/thực tế">
+          <DatePicker
+            style={{ width: '100%' }}
+            format={DATE_FORMAT}
+            value={toDayjs(formData.arrivalDate)}
+            onChange={(d) =>
+              setFormData((prev) => ({ ...prev, arrivalDate: d ? d.format(DATE_FORMAT) : '' }))
+            }
+          />
+        </Form.Item>
 
-          <div className="form-group">
-            <label>Danh sách điểm danh thuyền viên:</label>
-            {fetchingCrew ? (
-              <p className="loading-text" style={{ fontSize: '0.85rem', color: '#64748b' }}>Đang tải danh sách thuyền viên...</p>
-            ) : crewList.length === 0 ? (
-              <p className="empty-text" style={{ fontSize: '0.85rem', color: '#64748b' }}>Chưa có thuyền viên nào được phân công.</p>
-            ) : (
-              <div className="crew-attendance-table-wrapper">
-                <table className="crew-attendance-table">
-                  <thead>
-                    <tr>
-                      <th>STT</th>
-                      <th>Họ và tên</th>
-                      <th>Chức vụ</th>
-                      <th style={{ textAlign: 'center' }}>Có mặt</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {crewList.map((crew, idx) => (
-                      <tr key={crew.crewId}>
-                        <td>{idx + 1}</td>
-                        <td>{crew.fullName}</td>
-                        <td>{crew.position}</td>
-                        <td style={{ textAlign: 'center' }}>
-                          <input
-                            type="checkbox"
-                            checked={crew.isPresent}
-                            onChange={(e) => handleAttendanceChange(crew.crewId, e.target.checked)}
-                            style={{ width: '16px', height: '16px', cursor: isAttendanceAllowed ? 'pointer' : 'not-allowed' }}
-                            disabled={!isAttendanceAllowed}
-                            title={!isAttendanceAllowed ? 'Chỉ được điểm danh khi trạng thái là Loaded hoặc Discharged và bạn là thuyền trưởng' : ''}
-                          />
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </div>
-            
-          <div className="form-group">
-            <label>Danh sách kiểm tra hàng hóa:</label>
-            {fetchingCargo ? (
-              <p className="loading-text" style={{ fontSize: '0.85rem', color: '#64748b' }}>Đang tải danh sách hàng hóa...</p>
-            ) : cargoList.length === 0 ? (
-              <p className="empty-text" style={{ fontSize: '0.85rem', color: '#64748b' }}>Chưa có hàng hóa nào được đăng ký cho chuyến đi này.</p>
-            ) : (
-              <div className="crew-attendance-table-wrapper">
-                <table className="crew-attendance-table">
-                  <thead>
-                    <tr>
-                      <th>STT</th>
-                      <th>Lô hàng</th>
-                      <th>Chi tiết / Quy cách</th>
-                      <th>Số lượng</th>
-                      <th>Khối lượng</th>
-                      <th style={{ textAlign: 'center' }}>Đã lên tàu</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {cargoList.map((cargo, idx) => (
-                      <tr key={cargo.itemId || idx}>
-                        <td>{idx + 1}</td>
-                        <td>{cargo.cargoName}</td>
-                        <td>{cargo.itemName}</td>
-                        <td>{cargo.quantity}</td>
-                        <td>{cargo.weight} MT</td>
-                        <td style={{ textAlign: 'center' }}>
-                          <input
-                            type="checkbox"
-                            checked={cargo.isLoaded}
-                            onChange={(e) => handleCargoLoadChange(cargo.itemId, e.target.checked)}
-                            style={{ width: '16px', height: '16px', cursor: isShipStaff ? 'pointer' : 'not-allowed' }}
-                            disabled={!cargo.itemId || !isShipStaff}
-                            title={!isShipStaff ? 'Chỉ thuyền trưởng/đại phó mới có quyền đánh dấu hàng lên tàu' : ''}
-                          />
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </div>
+        <Form.Item label="Danh sách điểm danh thuyền viên:">
+          {fetchingCrew ? (
+            <Spin size="small" />
+          ) : crewList.length === 0 ? (
+            <Text type="secondary" style={{ fontSize: '0.85rem' }}>
+              Chưa có thuyền viên nào được phân công.
+            </Text>
+          ) : (
+            <Table
+              rowKey="crewId"
+              size="small"
+              columns={crewColumns}
+              dataSource={crewList}
+              pagination={false}
+            />
+          )}
+        </Form.Item>
 
-          {(!formData.isCrewSufficient || !formData.isCargoLoaded) && (
-            <div className="form-group">
-              <label>Nguyên nhân thiếu sót (Nếu có)</label>
-              <textarea
-                name="issueReason"
-                rows="3"
-                placeholder="Nhập lý do tại sao chưa đủ nhân sự hoặc hàng hóa..."
-                value={formData.issueReason}
-                onChange={handleChange}
-              />
+        <Form.Item label="Danh sách kiểm tra hàng hóa:">
+          {fetchingCargo ? (
+            <Spin size="small" />
+          ) : cargoList.length === 0 ? (
+            <Text type="secondary" style={{ fontSize: '0.85rem' }}>
+              Chưa có hàng hóa nào được đăng ký cho chuyến đi này.
+            </Text>
+          ) : (
+            <Table
+              rowKey={(record) => record.itemId || record.cargoName}
+              size="small"
+              columns={cargoColumns}
+              dataSource={cargoList}
+              pagination={false}
+              scroll={{ x: 'max-content' }}
+            />
+          )}
+        </Form.Item>
+
+        <Form.Item label="Bản đồ hầm hàng (Stowage Plan):">
+          {fetchingHolds ? (
+            <Spin size="small" />
+          ) : holds.length === 0 ? (
+            <Text type="secondary" style={{ fontSize: '0.85rem' }}>
+              Tàu chưa được cấu hình hầm hàng.
+            </Text>
+          ) : (
+            <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
+              {holds.map((hold) => {
+                const maxCap = hold.maxCapacity || 0;
+
+                // Calculate simulated usage
+                let simulatedUsage = hold.currentUsage || 0;
+                cargoList.forEach((c) => {
+                  const orig = originalCargoList.find((o) => o.itemId === c.itemId);
+                  if ((!orig || !orig.isLoaded) && c.isLoaded && String(c.holdId) === String(hold.id)) {
+                    simulatedUsage += c.weight;
+                  }
+                  if (orig && orig.isLoaded && String(orig.holdId) === String(hold.id) && !c.isLoaded) {
+                    simulatedUsage -= c.weight;
+                  }
+                  if (
+                    orig &&
+                    orig.isLoaded &&
+                    String(orig.holdId) === String(hold.id) &&
+                    c.isLoaded &&
+                    String(c.holdId) !== String(hold.id)
+                  ) {
+                    simulatedUsage -= c.weight;
+                  }
+                  if (
+                    orig &&
+                    orig.isLoaded &&
+                    String(orig.holdId) !== String(hold.id) &&
+                    c.isLoaded &&
+                    String(c.holdId) === String(hold.id)
+                  ) {
+                    simulatedUsage += c.weight;
+                  }
+                });
+                if (simulatedUsage < 0) simulatedUsage = 0;
+
+                const percentage = maxCap > 0 ? (simulatedUsage / maxCap) * 100 : 0;
+
+                let strokeColor = '#22c55e'; // green
+                if (percentage > 90) strokeColor = '#ef4444'; // red
+                else if (percentage > 70) strokeColor = '#eab308'; // yellow
+
+                return (
+                  <Card
+                    key={hold.id}
+                    size="small"
+                    style={{ flex: '1 1 calc(50% - 16px)', minWidth: 200 }}
+                  >
+                    <div
+                      style={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        marginBottom: 8,
+                        fontWeight: 500,
+                      }}
+                    >
+                      <span>{hold.holdName}</span>
+                      <Text type="secondary" style={{ fontSize: '0.85rem' }}>
+                        {simulatedUsage.toLocaleString('en-US')} /{' '}
+                        {maxCap.toLocaleString('en-US')} MT
+                      </Text>
+                    </div>
+                    <Progress
+                      percent={Math.min(percentage, 100)}
+                      strokeColor={strokeColor}
+                      format={() => `${percentage.toFixed(1)}% đầy`}
+                    />
+                  </Card>
+                );
+              })}
             </div>
           )}
+        </Form.Item>
 
-          <div className="modal-actions">
-            <button type="button" className="btn-secondary" onClick={onClose}>
-              Hủy
-            </button>
-            <button type="submit" className="btn-primary" disabled={loading}>
-              <Save size={16} />
-              {loading ? 'Đang lưu...' : 'Lưu cập nhật'}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
+        {showIssueReason && (
+          <Form.Item label="Nguyên nhân thiếu sót (Nếu có)">
+            <TextArea
+              rows={3}
+              placeholder="Nhập lý do tại sao chưa đủ nhân sự hoặc hàng hóa..."
+              value={formData.issueReason}
+              onChange={(e) =>
+                setFormData((prev) => ({ ...prev, issueReason: e.target.value }))
+              }
+            />
+          </Form.Item>
+        )}
+      </Form>
+    </Modal>
   );
 }

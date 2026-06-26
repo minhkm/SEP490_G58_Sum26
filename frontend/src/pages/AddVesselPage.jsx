@@ -1,50 +1,56 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import {
-  Search,
-  Bell,
-  HelpCircle,
-  Info,
-  Settings,
-  Plus,
-  Trash2,
-  Upload,
-  MoreVertical,
-  Save,
-  Thermometer,
-  Gauge,
-  Droplets,
-  FileText,
-  Box,
-  AlertTriangle,
-  CheckCircle
-} from 'lucide-react';
-import './AddVesselPage.css'; 
+  Card,
+  Row,
+  Col,
+  Input,
+  InputNumber,
+  Select,
+  Slider,
+  Button,
+  Table,
+  Tag,
+  Space,
+  Typography,
+  Radio,
+  Divider,
+} from 'antd';
+import {
+  PlusOutlined,
+  DeleteOutlined,
+  SaveOutlined,
+  InfoCircleOutlined,
+  SettingOutlined,
+  InboxOutlined,
+  DashboardOutlined,
+  FireOutlined,
+  CloudOutlined,
+} from '@ant-design/icons';
 import AgencyLayout from '../components/AgencyLayout';
 import { vesselService } from '../services/api';
+import { notifyError, notifySuccess, notifyWarning } from '../utils/feedback';
+
+const { Title, Text } = Typography;
 
 export default function AddVesselPage() {
   const navigate = useNavigate();
   const { id } = useParams();
   const isEditMode = Boolean(id);
 
-  // Modal State
-  const [errorMsg, setErrorMsg] = useState('');
-  const [successMsg, setSuccessMsg] = useState('');
-
   // Basic Info State
   const [basicInfo, setBasicInfo] = useState({
     shipName: '',
     imoNumber: '',
     flag: '',
-    status: 'Hoạt động'
+    status: 'Hoạt động',
   });
 
   // Capacity State
   const [capacity, setCapacity] = useState({
     maxWeight: '',
     maxVolume: '',
-    maxCrew: 25
+    maxCrew: 25,
   });
 
   // Holds State
@@ -66,16 +72,21 @@ export default function AddVesselPage() {
     'Exhaust Gas Temp XL6 (°C)',
   ];
 
-  const makeRequiredParams = () => REQUIRED_PARAMS.map((name, i) => ({
-    _uid: i + 1, name, minValue: '', maxValue: '', fixed: true
-  }));
+  const makeRequiredParams = () =>
+    REQUIRED_PARAMS.map((name, i) => ({
+      _uid: i + 1,
+      name,
+      minValue: '',
+      maxValue: '',
+      fixed: true,
+    }));
 
   // Engine & Parameters State
   const [mainEngine, setMainEngine] = useState({
     engineName: '',
     engineType: 'Diesel 2-kỳ',
     status: 'Hoạt động',
-    parameters: makeRequiredParams()
+    parameters: makeRequiredParams(),
   });
 
   const [generatorEngines, setGeneratorEngines] = useState([
@@ -84,8 +95,8 @@ export default function AddVesselPage() {
       engineName: '',
       engineType: 'Diesel 4-kỳ',
       status: 'Hoạt động',
-      parameters: makeRequiredParams()
-    }
+      parameters: makeRequiredParams(),
+    },
   ]);
 
   // Equipment State
@@ -100,75 +111,100 @@ export default function AddVesselPage() {
             shipName: data.shipName || '',
             imoNumber: data.imoNumber || '',
             flag: data.flag || '',
-            status: data.status || 'Hoạt động'
+            status: data.status || 'Hoạt động',
           });
           if (data.ShipCapacity) {
             setCapacity({
               maxWeight: data.ShipCapacity.maxCargoWeight || '',
               maxVolume: data.ShipCapacity.maxCargoVolume || '',
-              maxCrew: data.ShipCapacity.maxCrew || 25
+              maxCrew: data.ShipCapacity.maxCrew || 25,
             });
           }
 
           if (data.Engines && data.Engines.length > 0) {
-            const me = data.Engines.find(e => e.engineType === 'Main Engine' || e.engineType === 'Diesel 2-kỳ') || data.Engines[0];
+            const me =
+              data.Engines.find((e) => e.engineType === 'Main Engine' || e.engineType === 'Diesel 2-kỳ') ||
+              data.Engines[0];
             if (me) {
               // Load params từ DB, đánh dấu required
               const dbParams = (me.EngineParameters || []).map((p, i) => ({
-                _uid: i + 1, id: p.id, name: p.name, minValue: p.minValue ?? '', maxValue: p.maxValue ?? '',
-                fixed: REQUIRED_PARAMS.includes(p.name)
+                _uid: i + 1,
+                id: p.id,
+                name: p.name,
+                minValue: p.minValue ?? '',
+                maxValue: p.maxValue ?? '',
+                fixed: REQUIRED_PARAMS.includes(p.name),
               }));
               // Thêm các required param nếu DB chưa có
               let uid = dbParams.length + 1;
               for (const rp of REQUIRED_PARAMS) {
-                if (!dbParams.some(p => p.name === rp)) {
+                if (!dbParams.some((p) => p.name === rp)) {
                   dbParams.unshift({ _uid: uid++, name: rp, minValue: '', maxValue: '', fixed: true });
                 }
               }
               setMainEngine({
-                id: me.id, engineName: me.engineName, engineType: me.engineType, status: me.status,
-                parameters: dbParams
+                id: me.id,
+                engineName: me.engineName,
+                engineType: me.engineType,
+                status: me.status,
+                parameters: dbParams,
               });
             }
 
-            const gens = data.Engines.filter(e => e.id !== (me ? me.id : null));
+            const gens = data.Engines.filter((e) => e.id !== (me ? me.id : null));
             if (gens.length > 0) {
-              setGeneratorEngines(gens.map(g => {
-                const dbParams = (g.EngineParameters || []).map((p, i) => ({
-                  _uid: i + 1, id: p.id, name: p.name, minValue: p.minValue ?? '', maxValue: p.maxValue ?? '',
-                  fixed: REQUIRED_PARAMS.includes(p.name)
-                }));
-                let uid = dbParams.length + 1;
-                for (const rp of REQUIRED_PARAMS) {
-                  if (!dbParams.some(p => p.name === rp)) {
-                    dbParams.unshift({ _uid: uid++, name: rp, minValue: '', maxValue: '', fixed: true });
+              setGeneratorEngines(
+                gens.map((g) => {
+                  const dbParams = (g.EngineParameters || []).map((p, i) => ({
+                    _uid: i + 1,
+                    id: p.id,
+                    name: p.name,
+                    minValue: p.minValue ?? '',
+                    maxValue: p.maxValue ?? '',
+                    fixed: REQUIRED_PARAMS.includes(p.name),
+                  }));
+                  let uid = dbParams.length + 1;
+                  for (const rp of REQUIRED_PARAMS) {
+                    if (!dbParams.some((p) => p.name === rp)) {
+                      dbParams.unshift({ _uid: uid++, name: rp, minValue: '', maxValue: '', fixed: true });
+                    }
                   }
-                }
-                return { id: g.id, engineName: g.engineName, engineType: g.engineType, status: g.status, parameters: dbParams };
-              }));
+                  return {
+                    id: g.id,
+                    engineName: g.engineName,
+                    engineType: g.engineType,
+                    status: g.status,
+                    parameters: dbParams,
+                  };
+                })
+              );
             }
           }
 
           if (data.CargoHolds && data.CargoHolds.length > 0) {
-            setHolds(data.CargoHolds.map(h => ({
-              id: h.id,
-              name: h.holdName,
-              capacity: h.maxCapacity
-            })));
+            setHolds(
+              data.CargoHolds.map((h) => ({
+                id: h.id,
+                name: h.holdName,
+                capacity: h.maxCapacity,
+              }))
+            );
           }
 
           if (data.Equipment && data.Equipment.length > 0) {
-            setEquipment(data.Equipment.map(eq => ({
-              id: eq.id,
-              name: eq.equipmentName,
-              type: eq.equipmentType,
-              location: eq.location,
-              condition: eq.status
-            })));
+            setEquipment(
+              data.Equipment.map((eq) => ({
+                id: eq.id,
+                name: eq.equipmentName,
+                type: eq.equipmentType,
+                location: eq.location,
+                condition: eq.status,
+              }))
+            );
           }
         } catch (error) {
           console.error('Lỗi tải thông tin tàu:', error);
-          alert('Không thể tải thông tin tàu');
+          notifyError('Không thể tải thông tin tàu');
         }
       };
       fetchVessel();
@@ -176,111 +212,117 @@ export default function AddVesselPage() {
   }, [id, isEditMode]);
 
   // Handlers
-  const handleBasicInfoChange = (e) => {
-    const { name, value } = e.target;
-    setBasicInfo({ ...basicInfo, [name]: value });
-  };
-
-  const handleCapacityChange = (e) => {
-    const { name, value } = e.target;
-    setCapacity({ ...capacity, [name]: value });
-  };
-
-  const handleMainEngineChange = (e) => {
-    const { name, value } = e.target;
+  const handleMainEngineChange = (name, value) => {
     setMainEngine({ ...mainEngine, [name]: value });
   };
 
-  const handleGeneratorEngineChange = (id, e) => {
-    const { name, value } = e.target;
-    setGeneratorEngines(generatorEngines.map(engine => 
-      engine.id === id ? { ...engine, [name]: value } : engine
-    ));
+  const handleGeneratorEngineChange = (engineId, name, value) => {
+    setGeneratorEngines(
+      generatorEngines.map((engine) => (engine.id === engineId ? { ...engine, [name]: value } : engine))
+    );
   };
 
   // --- Dynamic Parameters Handlers ---
   const addMainParam = () => {
-    const newUid = mainEngine.parameters.length > 0 ? Math.max(...mainEngine.parameters.map(p => p._uid)) + 1 : 1;
-    setMainEngine({ ...mainEngine, parameters: [...mainEngine.parameters, { _uid: newUid, name: '', minValue: '', maxValue: '' }] });
+    const newUid = mainEngine.parameters.length > 0 ? Math.max(...mainEngine.parameters.map((p) => p._uid)) + 1 : 1;
+    setMainEngine({
+      ...mainEngine,
+      parameters: [...mainEngine.parameters, { _uid: newUid, name: '', minValue: '', maxValue: '' }],
+    });
   };
   const removeMainParam = (uid) => {
-    setMainEngine({ ...mainEngine, parameters: mainEngine.parameters.filter(p => p._uid !== uid) });
+    setMainEngine({ ...mainEngine, parameters: mainEngine.parameters.filter((p) => p._uid !== uid) });
   };
   const handleMainParamChange = (uid, field, value) => {
-    setMainEngine({ ...mainEngine, parameters: mainEngine.parameters.map(p => p._uid === uid ? { ...p, [field]: value } : p) });
+    setMainEngine({
+      ...mainEngine,
+      parameters: mainEngine.parameters.map((p) => (p._uid === uid ? { ...p, [field]: value } : p)),
+    });
   };
 
   const addGenParam = (genId) => {
-    setGeneratorEngines(generatorEngines.map(g => {
-      if (g.id !== genId) return g;
-      const newUid = g.parameters.length > 0 ? Math.max(...g.parameters.map(p => p._uid)) + 1 : 1;
-      return { ...g, parameters: [...g.parameters, { _uid: newUid, name: '', minValue: '', maxValue: '' }] };
-    }));
+    setGeneratorEngines(
+      generatorEngines.map((g) => {
+        if (g.id !== genId) return g;
+        const newUid = g.parameters.length > 0 ? Math.max(...g.parameters.map((p) => p._uid)) + 1 : 1;
+        return { ...g, parameters: [...g.parameters, { _uid: newUid, name: '', minValue: '', maxValue: '' }] };
+      })
+    );
   };
   const removeGenParam = (genId, uid) => {
-    setGeneratorEngines(generatorEngines.map(g =>
-      g.id === genId ? { ...g, parameters: g.parameters.filter(p => p._uid !== uid) } : g
-    ));
+    setGeneratorEngines(
+      generatorEngines.map((g) => (g.id === genId ? { ...g, parameters: g.parameters.filter((p) => p._uid !== uid) } : g))
+    );
   };
   const handleGenParamChange = (genId, uid, field, value) => {
-    setGeneratorEngines(generatorEngines.map(g =>
-      g.id === genId ? { ...g, parameters: g.parameters.map(p => p._uid === uid ? { ...p, [field]: value } : p) } : g
-    ));
+    setGeneratorEngines(
+      generatorEngines.map((g) =>
+        g.id === genId ? { ...g, parameters: g.parameters.map((p) => (p._uid === uid ? { ...p, [field]: value } : p)) } : g
+      )
+    );
   };
 
   const addGeneratorEngine = () => {
-    const newId = generatorEngines.length > 0 ? Math.max(...generatorEngines.map(e => e.id)) + 1 : 1;
-    setGeneratorEngines([...generatorEngines, {
-      id: newId,
-      engineName: '',
-      engineType: 'Diesel 4-kỳ',
-      status: 'Hoạt động',
-      parameters: makeRequiredParams()
-    }]);
+    const newId = generatorEngines.length > 0 ? Math.max(...generatorEngines.map((e) => e.id)) + 1 : 1;
+    setGeneratorEngines([
+      ...generatorEngines,
+      {
+        id: newId,
+        engineName: '',
+        engineType: 'Diesel 4-kỳ',
+        status: 'Hoạt động',
+        parameters: makeRequiredParams(),
+      },
+    ]);
   };
 
-  const removeGeneratorEngine = (id) => {
-    setGeneratorEngines(generatorEngines.filter(e => e.id !== id));
+  const removeGeneratorEngine = (engineId) => {
+    setGeneratorEngines(generatorEngines.filter((e) => e.id !== engineId));
   };
 
   const addHold = () => {
-    const newId = holds.length > 0 ? Math.max(...holds.map(h => h.id)) + 1 : 1;
+    const newId = holds.length > 0 ? Math.max(...holds.map((h) => h.id)) + 1 : 1;
     setHolds([...holds, { id: newId, name: '', capacity: '' }]);
   };
 
-  const handleHoldChange = (id, e) => {
-    const { name, value } = e.target;
-    setHolds(holds.map(h => h.id === id ? { ...h, [name]: value } : h));
+  const handleHoldChange = (holdId, name, value) => {
+    setHolds(holds.map((h) => (h.id === holdId ? { ...h, [name]: value } : h)));
   };
 
-  const removeHold = (id) => {
-    setHolds(holds.filter(h => h.id !== id));
+  const removeHold = (holdId) => {
+    setHolds(holds.filter((h) => h.id !== holdId));
   };
 
   const addEquipment = () => {
-    const newId = equipment.length > 0 ? Math.max(...equipment.map(e => e.id)) + 1 : 1;
+    const newId = equipment.length > 0 ? Math.max(...equipment.map((e) => e.id)) + 1 : 1;
     setEquipment([...equipment, { id: newId, name: '', type: '', location: '', condition: 'Đúng hạn' }]);
   };
 
-  const handleEquipmentChange = (id, e) => {
-    const { name, value } = e.target;
-    setEquipment(equipment.map(eq => eq.id === id ? { ...eq, [name]: value } : eq));
+  const handleEquipmentChange = (eqId, name, value) => {
+    setEquipment(equipment.map((eq) => (eq.id === eqId ? { ...eq, [name]: value } : eq)));
   };
 
-  const removeEquipment = (id) => {
-    setEquipment(equipment.filter(e => e.id !== id));
+  const removeEquipment = (eqId) => {
+    setEquipment(equipment.filter((e) => e.id !== eqId));
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+  const handleSubmit = async () => {
+    // Validation: Tên tàu & IMO bắt buộc
+    if (!basicInfo.shipName || !basicInfo.imoNumber) {
+      notifyWarning('Vui lòng nhập đầy đủ Tên tàu và Mã số IMO.');
+      return;
+    }
 
     // Validation: Tổng thể tích khoang KHÔNG ĐƯỢC VƯỢT QUÁ Thể tích Max của tàu
     if (holds && holds.length > 0 && capacity && capacity.maxVolume) {
       const totalHoldsVolume = holds.reduce((sum, h) => sum + (parseFloat(h.capacity) || 0), 0);
       const shipMaxVolume = parseFloat(capacity.maxVolume) || 0;
-      
+
       if (totalHoldsVolume > shipMaxVolume) {
-        setErrorMsg(`Tổng thể tích các khoang (${totalHoldsVolume.toLocaleString()} m³) đang vượt quá Thể tích Max của tàu (${shipMaxVolume.toLocaleString()} m³).\n\nVui lòng phân bổ lại sức chứa khoang hàng cho hợp lý!`);
+        notifyWarning(
+          `Tổng thể tích các khoang (${totalHoldsVolume.toLocaleString()} m³) đang vượt quá Thể tích Max của tàu (${shipMaxVolume.toLocaleString()} m³). Vui lòng phân bổ lại sức chứa khoang hàng cho hợp lý!`,
+          5
+        );
         return; // Dừng việc submit
       }
     }
@@ -292,474 +334,498 @@ export default function AddVesselPage() {
         mainEngine,
         generatorEngines,
         holds,
-        equipment
+        equipment,
       };
-      
+
       if (isEditMode) {
         await vesselService.update(id, payload);
-        setSuccessMsg('Cập nhật thông tin tàu thành công!');
+        notifySuccess('Cập nhật thông tin tàu thành công!');
       } else {
         await vesselService.create(payload);
-        setSuccessMsg('Thêm tàu mới thành công!');
+        notifySuccess('Thêm tàu mới thành công!');
       }
-      // Không gọi navigate ngay, đợi user click OK trên modal success
+      navigate('/vessels');
     } catch (error) {
       console.error('Lỗi lưu tàu:', error);
-      setErrorMsg('Có lỗi hệ thống xảy ra khi lưu thông tin tàu. Vui lòng thử lại sau.');
+      notifyError('Có lỗi hệ thống xảy ra khi lưu thông tin tàu. Vui lòng thử lại sau.');
     }
   };
 
-  const handleSuccessClose = () => {
-    setSuccessMsg('');
-    navigate('/vessels');
+  // Render label cho 3 thông số bắt buộc
+  const requiredParamLabel = (name) => {
+    if (name === 'Fuel Oil Pressure (kg/cm²)')
+      return (
+        <Space size={4}>
+          <DashboardOutlined /> Fuel Oil Pressure
+        </Space>
+      );
+    if (name === 'Exhaust Gas Temp XL2 (°C)')
+      return (
+        <Space size={4}>
+          <FireOutlined /> Exhaust Gas Temp XL2
+        </Space>
+      );
+    return (
+      <Space size={4}>
+        <CloudOutlined /> Cooling Water Temp
+      </Space>
+    );
   };
+
+  const requiredParamPlaceholder = (name) =>
+    name === 'Fuel Oil Pressure (kg/cm²)' ? 'vd: 6.0' : name === 'Exhaust Gas Temp XL2 (°C)' ? 'vd: 420' : 'vd: 75';
+
+  // Render khối thông số cho 1 động cơ (dùng chung cho máy chính & máy đèn)
+  const renderParameters = (params, onChange, onAdd, onRemove) => {
+    const fixedParams = params.filter((p) => p.fixed);
+    const extraParams = params.filter((p) => !p.fixed);
+    return (
+      <div style={{ background: '#f8fafc', padding: 12, borderRadius: 6, border: '1px solid #e2e8f0' }}>
+        <Text strong>Hạn mức chỉ số an toàn (Bắt buộc)</Text>
+        <Row gutter={12} style={{ marginTop: 8 }}>
+          {fixedParams.map((param) => (
+            <Col xs={24} sm={8} key={param._uid}>
+              <div style={{ marginBottom: 4 }}>{requiredParamLabel(param.name)}</div>
+              <InputNumber
+                style={{ width: '100%' }}
+                placeholder={requiredParamPlaceholder(param.name)}
+                value={param.maxValue === '' ? null : param.maxValue}
+                onChange={(value) => onChange(param._uid, 'maxValue', value ?? '')}
+              />
+            </Col>
+          ))}
+        </Row>
+
+        <Divider style={{ margin: '16px 0' }} dashed />
+
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+          <Text strong>Thông số bổ sung ({extraParams.length})</Text>
+          <Button type="link" size="small" icon={<PlusOutlined />} onClick={onAdd}>
+            Thêm thông số
+          </Button>
+        </div>
+        {extraParams.length === 0 && (
+          <Text type="secondary" italic>
+            Chưa có thông số bổ sung nào.
+          </Text>
+        )}
+        {extraParams.map((param) => (
+          <Row gutter={8} key={param._uid} style={{ marginBottom: 8 }} align="middle">
+            <Col flex="2">
+              <Select
+                style={{ width: '100%' }}
+                placeholder="-- Chọn thông số --"
+                value={param.name || undefined}
+                onChange={(value) => onChange(param._uid, 'name', value)}
+                options={PARAM_OPTIONS.map((opt) => ({
+                  label: opt,
+                  value: opt,
+                  disabled: params.some((p) => p._uid !== param._uid && p.name === opt),
+                }))}
+              />
+            </Col>
+            <Col flex="1">
+              <InputNumber
+                style={{ width: '100%' }}
+                placeholder="Min"
+                value={param.minValue === '' ? null : param.minValue}
+                onChange={(value) => onChange(param._uid, 'minValue', value ?? '')}
+              />
+            </Col>
+            <Col flex="1">
+              <InputNumber
+                style={{ width: '100%' }}
+                placeholder="Max"
+                value={param.maxValue === '' ? null : param.maxValue}
+                onChange={(value) => onChange(param._uid, 'maxValue', value ?? '')}
+              />
+            </Col>
+            <Col>
+              <Button type="text" danger icon={<DeleteOutlined />} onClick={() => onRemove(param._uid)} />
+            </Col>
+          </Row>
+        ))}
+      </div>
+    );
+  };
+
+  const equipmentColumns = [
+    {
+      title: 'Tên thiết bị',
+      dataIndex: 'name',
+      render: (value, record) => (
+        <Input
+          value={value}
+          placeholder="Tên thiết bị..."
+          onChange={(e) => handleEquipmentChange(record.id, 'name', e.target.value)}
+        />
+      ),
+    },
+    {
+      title: 'Loại',
+      dataIndex: 'type',
+      render: (value, record) => (
+        <Input
+          value={value}
+          placeholder="Loại..."
+          onChange={(e) => handleEquipmentChange(record.id, 'type', e.target.value)}
+        />
+      ),
+    },
+    {
+      title: 'Vị trí',
+      dataIndex: 'location',
+      render: (value, record) => (
+        <Input
+          value={value}
+          placeholder="Vị trí..."
+          onChange={(e) => handleEquipmentChange(record.id, 'location', e.target.value)}
+        />
+      ),
+    },
+    {
+      title: 'Tình trạng',
+      dataIndex: 'condition',
+      render: (value, record) => (
+        <Select
+          style={{ width: '100%' }}
+          value={value}
+          onChange={(v) => handleEquipmentChange(record.id, 'condition', v)}
+          options={[
+            { label: 'Đúng hạn', value: 'Đúng hạn' },
+            { label: 'Quá hạn', value: 'Quá hạn' },
+          ]}
+        />
+      ),
+    },
+    {
+      title: 'Thao tác',
+      key: 'actions',
+      width: 80,
+      align: 'center',
+      render: (_, record) => (
+        <Button type="text" danger icon={<DeleteOutlined />} onClick={() => removeEquipment(record.id)} />
+      ),
+    },
+  ];
+
+  const engineStatusOptions = [
+    { label: 'Hoạt động', value: 'Hoạt động' },
+    { label: 'Tạm ngưng', value: 'Tạm ngưng' },
+  ];
 
   return (
     <AgencyLayout>
-      {errorMsg && (
-        <div className="v-error-modal-overlay">
-          <div className="v-error-modal">
-            <div className="v-error-modal-header">
-              <div className="v-error-modal-icon">
-                <AlertTriangle size={20} />
-              </div>
-              <h3>Cảnh báo Phân bổ Sức chứa</h3>
-            </div>
-            <div className="v-error-modal-body">
-              {errorMsg.split('\n').map((line, idx) => (
-                <p key={idx} style={{ margin: '0 0 8px 0' }}>{line}</p>
-              ))}
-            </div>
-            <div className="v-error-modal-footer">
-              <button type="button" onClick={() => setErrorMsg('')} className="v-btn-error-close">
-                Đã hiểu & Sửa lại
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <div style={{ padding: '24px 32px' }}>
+        <Title level={3} style={{ marginTop: 0, marginBottom: 24 }}>
+          {isEditMode ? 'Cập nhật Thông tin Tàu' : 'Thêm Tàu Mới'}
+        </Title>
 
-      {successMsg && (
-        <div className="v-error-modal-overlay">
-          <div className="v-error-modal">
-            <div className="v-success-modal-header">
-              <div className="v-success-modal-icon">
-                <CheckCircle size={20} />
-              </div>
-              <h3>Thành công</h3>
-            </div>
-            <div className="v-error-modal-body">
-              <p style={{ margin: 0, fontSize: '15px', fontWeight: 500, color: '#0f172a' }}>{successMsg}</p>
-            </div>
-            <div className="v-error-modal-footer">
-              <button type="button" onClick={handleSuccessClose} className="v-btn-success-close">
-                Hoàn tất
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-      <div className="add-vessel-layout-inner">
-        {/* Top Navigation Bar */}
-      <header className="vessel-top-bar">
-        <div className="vessel-top-left">
-          <h1 className="vessel-page-title">{isEditMode ? 'Cập nhật Thông tin Tàu' : 'Thêm Tàu Mới'}</h1>
-          <div className="vessel-tabs">
-            <button className="v-tab active">Thông tin chung</button>
-          </div>
-        </div>
-        
-        <div className="vessel-top-right">
-          <div className="vessel-search-box">
-            <Search size={16} className="v-search-icon" />
-            <input type="text" placeholder="Tìm kiếm hệ thống..." />
-          </div>
-          <Bell className="v-icon-btn" size={20} />
-          <HelpCircle className="v-icon-btn" size={20} />
-        </div>
-      </header>
-
-      {/* Main Content Form */}
-      <div className="vessel-main-content">
-        <form className="vessel-form-grid" onSubmit={handleSubmit}>
-          
+        <Row gutter={24}>
           {/* LEFT COLUMN */}
-          <div className="vessel-col-left">
-            
+          <Col xs={24} lg={14}>
             {/* Card: Basic Info */}
-            <div className="v-card">
-              <div className="v-card-header">
-                <Info size={18} color="#ffffff" />
-                <h3>THÔNG TIN CƠ BẢN (SHIP)</h3>
-              </div>
-              <div className="v-card-body">
-                <div className="v-form-row">
-                  <div className="v-form-group">
-                    <label>Tên Tàu <span className="text-red">*</span></label>
-                    <input 
-                      type="text" 
-                      name="shipName"
-                      placeholder="Ví dụ: Blue Atlantic Voyager" 
-                      value={basicInfo.shipName}
-                      onChange={handleBasicInfoChange}
-                      required
-                    />
+            <Card
+              title={
+                <Space>
+                  <InfoCircleOutlined /> THÔNG TIN CƠ BẢN (SHIP)
+                </Space>
+              }
+              style={{ marginBottom: 20 }}
+            >
+              <Row gutter={16}>
+                <Col xs={24} sm={12} style={{ marginBottom: 16 }}>
+                  <div style={{ marginBottom: 4 }}>
+                    Tên Tàu <Text type="danger">*</Text>
                   </div>
-                  <div className="v-form-group">
-                    <label>Mã số IMO <span className="text-red">*</span></label>
-                    <input 
-                      type="text" 
-                      name="imoNumber"
-                      placeholder="IMO 1234567" 
-                      value={basicInfo.imoNumber}
-                      onChange={handleBasicInfoChange}
-                      required
-                    />
+                  <Input
+                    placeholder="Ví dụ: Blue Atlantic Voyager"
+                    value={basicInfo.shipName}
+                    onChange={(e) => setBasicInfo({ ...basicInfo, shipName: e.target.value })}
+                  />
+                </Col>
+                <Col xs={24} sm={12} style={{ marginBottom: 16 }}>
+                  <div style={{ marginBottom: 4 }}>
+                    Mã số IMO <Text type="danger">*</Text>
                   </div>
-                </div>
-
-                <div className="v-form-row">
-                  <div className="v-form-group">
-                    <label>Quốc tịch (Flag)</label>
-                    <select name="flag" value={basicInfo.flag} onChange={handleBasicInfoChange}>
-                      <option value="">Chọn quốc gia treo cờ</option>
-                      <option value="VN">Việt Nam</option>
-                      <option value="PA">Panama</option>
-                      <option value="LR">Liberia</option>
-                    </select>
-                  </div>
-                  <div className="v-form-group">
-                    <label>Trạng thái hiện tại</label>
-                    <div className="v-toggle-group">
-                      <button 
-                        type="button" 
-                        className={`v-toggle-btn ${basicInfo.status === 'Hoạt động' ? 'active' : ''}`}
-                        onClick={() => setBasicInfo({...basicInfo, status: 'Hoạt động'})}
-                      >Hoạt động</button>
-                      <button 
-                        type="button" 
-                        className={`v-toggle-btn ${basicInfo.status === 'Đang sửa chữa' ? 'active' : ''}`}
-                        onClick={() => setBasicInfo({...basicInfo, status: 'Đang sửa chữa'})}
-                      >Đang sửa chữa</button>
-                      <button 
-                        type="button" 
-                        className={`v-toggle-btn ${basicInfo.status === 'Dự phòng' ? 'active' : ''}`}
-                        onClick={() => setBasicInfo({...basicInfo, status: 'Dự phòng'})}
-                      >Dự phòng</button>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
+                  <Input
+                    placeholder="IMO 1234567"
+                    value={basicInfo.imoNumber}
+                    onChange={(e) => setBasicInfo({ ...basicInfo, imoNumber: e.target.value })}
+                  />
+                </Col>
+              </Row>
+              <Row gutter={16}>
+                <Col xs={24} sm={12} style={{ marginBottom: 16 }}>
+                  <div style={{ marginBottom: 4 }}>Quốc tịch (Flag)</div>
+                  <Select
+                    style={{ width: '100%' }}
+                    placeholder="Chọn quốc gia treo cờ"
+                    allowClear
+                    value={basicInfo.flag || undefined}
+                    onChange={(value) => setBasicInfo({ ...basicInfo, flag: value || '' })}
+                    options={[
+                      { label: 'Việt Nam', value: 'VN' },
+                      { label: 'Panama', value: 'PA' },
+                      { label: 'Liberia', value: 'LR' },
+                    ]}
+                  />
+                </Col>
+                <Col xs={24} sm={12} style={{ marginBottom: 16 }}>
+                  <div style={{ marginBottom: 4 }}>Trạng thái hiện tại</div>
+                  <Radio.Group
+                    optionType="button"
+                    buttonStyle="solid"
+                    value={basicInfo.status}
+                    onChange={(e) => setBasicInfo({ ...basicInfo, status: e.target.value })}
+                    options={[
+                      { label: 'Hoạt động', value: 'Hoạt động' },
+                      { label: 'Đang sửa chữa', value: 'Đang sửa chữa' },
+                      { label: 'Dự phòng', value: 'Dự phòng' },
+                    ]}
+                  />
+                </Col>
+              </Row>
+            </Card>
 
             {/* Card: Tech Specs & Equipment */}
-            <div className="v-card mt-20">
-              <div className="v-card-header">
-                <Settings size={18} color="#ffffff" />
-                <h3>THÔNG SỐ KỸ THUẬT & THIẾT BỊ</h3>
+            <Card
+              title={
+                <Space>
+                  <SettingOutlined /> THÔNG SỐ KỸ THUẬT & THIẾT BỊ
+                </Space>
+              }
+            >
+              {/* Main Engine Section */}
+              <div style={{ marginBottom: 24 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+                  <Title level={5} style={{ margin: 0 }}>
+                    Máy chính
+                  </Title>
+                  <Tag color="blue">YÊU CẦU</Tag>
+                </div>
+
+                <Row gutter={16}>
+                  <Col xs={24} sm={12} style={{ marginBottom: 16 }}>
+                    <div style={{ marginBottom: 4 }}>Tên động cơ</div>
+                    <Input
+                      placeholder="Wärtsilä 14RT"
+                      value={mainEngine.engineName}
+                      onChange={(e) => handleMainEngineChange('engineName', e.target.value)}
+                    />
+                  </Col>
+                  <Col xs={24} sm={12} style={{ marginBottom: 16 }}>
+                    <div style={{ marginBottom: 4 }}>Trạng thái</div>
+                    <Select
+                      style={{ width: '100%' }}
+                      value={mainEngine.status}
+                      onChange={(value) => handleMainEngineChange('status', value)}
+                      options={engineStatusOptions}
+                    />
+                  </Col>
+                </Row>
+
+                {renderParameters(
+                  mainEngine.parameters,
+                  handleMainParamChange,
+                  addMainParam,
+                  removeMainParam
+                )}
               </div>
-              <div className="v-card-body p-0">
-                
-                {/* Main Engine Section */}
-                <div className="v-sub-section">
-                  <div className="v-sub-header">
-                    <h4>Máy chính</h4>
-                    <span className="v-badge-blue">YÊU CẦU</span>
-                  </div>
-                  
-                  <div className="v-form-row">
-                    <div className="v-form-group">
-                      <label>Tên động cơ</label>
-                      <input type="text" name="engineName" placeholder="Wärtsilä 14RT" value={mainEngine.engineName} onChange={handleMainEngineChange}/>
-                    </div>
-                    <div className="v-form-group">
-                      <label>Trạng thái</label>
-                      <select name="status" value={mainEngine.status} onChange={handleMainEngineChange}>
-                        <option value="Hoạt động">Hoạt động</option>
-                        <option value="Tạm ngưng">Tạm ngưng</option>
-                      </select>
-                    </div>
-                  </div>
 
-                  {/* Engine Parameters */}
-                  <div className="v-threshold-box">
-                    {/* 3 thông số bắt buộc */}
-                    <h5 style={{ margin: '0 0 12px' }}>Hạn mức chỉ số an toàn (Bắt buộc)</h5>
-                    <div className="v-form-row">
-                      {mainEngine.parameters.filter(p => p.fixed).map(param => (
-                        <div className="v-form-group" key={param._uid}>
-                          <label>{param.name === 'Fuel Oil Pressure (kg/cm²)' ? <><Gauge size={14}/> Fuel Oil Pressure</> : param.name === 'Exhaust Gas Temp XL2 (°C)' ? <><Thermometer size={14}/> Exhaust Gas Temp XL2</> : <><Droplets size={14}/> Cooling Water Temp</>}</label>
-                          <input type="number" min="0" placeholder={param.name === 'Fuel Oil Pressure (kg/cm²)' ? 'vd: 6.0' : param.name === 'Exhaust Gas Temp XL2 (°C)' ? 'vd: 420' : 'vd: 75'} value={param.maxValue} onChange={(e) => handleMainParamChange(param._uid, 'maxValue', e.target.value)}/>
-                        </div>
-                      ))}
-                    </div>
+              <Divider />
 
-                    {/* Thông số bổ sung */}
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', margin: '16px 0 12px', borderTop: '1px dashed #e2e8f0', paddingTop: 14 }}>
-                      <h5 style={{ margin: 0 }}>Thông số bổ sung ({mainEngine.parameters.filter(p => !p.fixed).length})</h5>
-                      <button type="button" className="v-btn-text" onClick={addMainParam} style={{ fontSize: 12 }}>
-                        <Plus size={12}/> Thêm thông số
-                      </button>
+              {/* Generator Engine Section */}
+              <div style={{ marginBottom: 24 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                  <Title level={5} style={{ margin: 0 }}>
+                    Máy đèn (Generator)
+                  </Title>
+                  <Button type="link" icon={<PlusOutlined />} onClick={addGeneratorEngine}>
+                    Thêm máy đèn
+                  </Button>
+                </div>
+
+                {generatorEngines.map((gen, index) => (
+                  <div
+                    key={gen.id}
+                    style={{
+                      marginBottom: 24,
+                      paddingBottom: 16,
+                      borderBottom: index < generatorEngines.length - 1 ? '1px dashed #cbd5e1' : 'none',
+                    }}
+                  >
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                      <Text strong>Máy đèn #{index + 1}</Text>
+                      {generatorEngines.length > 1 && (
+                        <Button
+                          type="text"
+                          danger
+                          icon={<DeleteOutlined />}
+                          onClick={() => removeGeneratorEngine(gen.id)}
+                        />
+                      )}
                     </div>
-                    {mainEngine.parameters.filter(p => !p.fixed).length === 0 && (
-                      <p style={{ color: '#94a3b8', fontSize: 13, fontStyle: 'italic', margin: 0 }}>Chưa có thông số bổ sung nào.</p>
+                    <Row gutter={16}>
+                      <Col xs={24} sm={12} style={{ marginBottom: 16 }}>
+                        <div style={{ marginBottom: 4 }}>Tên máy</div>
+                        <Input
+                          placeholder="Caterpillar C32"
+                          value={gen.engineName}
+                          onChange={(e) => handleGeneratorEngineChange(gen.id, 'engineName', e.target.value)}
+                        />
+                      </Col>
+                      <Col xs={24} sm={12} style={{ marginBottom: 16 }}>
+                        <div style={{ marginBottom: 4 }}>Trạng thái</div>
+                        <Select
+                          style={{ width: '100%' }}
+                          value={gen.status}
+                          onChange={(value) => handleGeneratorEngineChange(gen.id, 'status', value)}
+                          options={engineStatusOptions}
+                        />
+                      </Col>
+                    </Row>
+
+                    {renderParameters(
+                      gen.parameters,
+                      (uid, field, value) => handleGenParamChange(gen.id, uid, field, value),
+                      () => addGenParam(gen.id),
+                      (uid) => removeGenParam(gen.id, uid)
                     )}
-                    {mainEngine.parameters.filter(p => !p.fixed).map((param, idx) => (
-                      <div key={param._uid} className="v-form-row" style={{ marginBottom: 8, alignItems: 'flex-end' }}>
-                        <div className="v-form-group" style={{ flex: 2 }}>
-                          {idx === 0 && <label>Tên thông số</label>}
-                          <select value={param.name} onChange={(e) => handleMainParamChange(param._uid, 'name', e.target.value)}>
-                            <option value="">-- Chọn thông số --</option>
-                            {PARAM_OPTIONS.map(opt => (
-                              <option key={opt} value={opt} disabled={mainEngine.parameters.some(p => p._uid !== param._uid && p.name === opt)}>{opt}</option>
-                            ))}
-                          </select>
-                        </div>
-                        <div className="v-form-group" style={{ flex: 1 }}>
-                          {idx === 0 && <label>Max (Không âm)</label>}
-                          <input type="number" min="0" placeholder="Max" value={param.maxValue} onChange={(e) => handleMainParamChange(param._uid, 'maxValue', e.target.value)}/>
-                        </div>
-                        <button type="button" className="v-btn-icon text-red" onClick={() => removeMainParam(param._uid)} style={{ marginBottom: 4 }}>
-                          <Trash2 size={14}/>
-                        </button>
-                      </div>
-                    ))}
                   </div>
-                </div>
-
-                {/* Generator Engine Section */}
-                <div className="v-sub-section border-top">
-                  <div className="v-sub-header">
-                    <h4>Máy đèn (Generator)</h4>
-                    <button type="button" className="v-btn-text" onClick={addGeneratorEngine}>
-                      <Plus size={14}/> Thêm máy đèn
-                    </button>
-                  </div>
-                  
-                  {generatorEngines.map((gen, index) => (
-                    <div key={gen.id} style={{ marginBottom: '24px', paddingBottom: '16px', borderBottom: index < generatorEngines.length - 1 ? '1px dashed #cbd5e1' : 'none' }}>
-                      <div className="v-sub-header" style={{ marginBottom: '8px' }}>
-                        <h5 style={{ margin: 0, fontSize: '13px', color: '#ffffff' }}>Máy đèn #{index + 1}</h5>
-                        {generatorEngines.length > 1 && (
-                          <button type="button" className="v-btn-icon text-red" onClick={() => removeGeneratorEngine(gen.id)}>
-                            <Trash2 size={16} />
-                          </button>
-                        )}
-                      </div>
-                      <div className="v-form-row">
-                        <div className="v-form-group">
-                          <label>Tên máy</label>
-                          <input type="text" name="engineName" placeholder="Caterpillar C32" value={gen.engineName} onChange={(e) => handleGeneratorEngineChange(gen.id, e)}/>
-                        </div>
-                        <div className="v-form-group">
-                          <label>Trạng thái</label>
-                          <select name="status" value={gen.status} onChange={(e) => handleGeneratorEngineChange(gen.id, e)}>
-                            <option value="Hoạt động">Hoạt động</option>
-                            <option value="Tạm ngưng">Tạm ngưng</option>
-                          </select>
-                        </div>
-                      </div>
-
-                      {/* Engine Parameters */}
-                      <div className="v-threshold-box" style={{ marginTop: '8px' }}>
-                        {/* 3 thông số bắt buộc */}
-                        <h5 style={{ margin: '0 0 12px' }}>Hạn mức chỉ số an toàn (Bắt buộc)</h5>
-                        <div className="v-form-row" style={{ marginBottom: 0 }}>
-                          {gen.parameters.filter(p => p.fixed).map(param => (
-                            <div className="v-form-group" key={param._uid}>
-                              <label>{param.name === 'Fuel Oil Pressure (kg/cm²)' ? <><Gauge size={14}/> Fuel Oil Pressure</> : param.name === 'Exhaust Gas Temp XL2 (°C)' ? <><Thermometer size={14}/> Exhaust Gas Temp XL2</> : <><Droplets size={14}/> Cooling Water Temp</>}</label>
-                              <input type="number" min="0" placeholder={param.name === 'Fuel Oil Pressure (kg/cm²)' ? 'vd: 6.0' : param.name === 'Exhaust Gas Temp XL2 (°C)' ? 'vd: 420' : 'vd: 75'} value={param.maxValue} onChange={(e) => handleGenParamChange(gen.id, param._uid, 'maxValue', e.target.value)}/>
-                            </div>
-                          ))}
-                        </div>
-
-                        {/* Thông số bổ sung */}
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', margin: '16px 0 12px', borderTop: '1px dashed #e2e8f0', paddingTop: 14 }}>
-                          <h5 style={{ margin: 0 }}>Thông số bổ sung ({gen.parameters.filter(p => !p.fixed).length})</h5>
-                          <button type="button" className="v-btn-text" onClick={() => addGenParam(gen.id)} style={{ fontSize: 12 }}>
-                            <Plus size={12}/> Thêm thông số
-                          </button>
-                        </div>
-                        {gen.parameters.filter(p => !p.fixed).length === 0 && (
-                          <p style={{ color: '#94a3b8', fontSize: 13, fontStyle: 'italic', margin: 0 }}>Chưa có thông số bổ sung nào.</p>
-                        )}
-                        {gen.parameters.filter(p => !p.fixed).map((param, idx) => (
-                          <div key={param._uid} className="v-form-row" style={{ marginBottom: 8, alignItems: 'flex-end' }}>
-                            <div className="v-form-group" style={{ flex: 2 }}>
-                              {idx === 0 && <label>Tên thông số</label>}
-                              <select value={param.name} onChange={(e) => handleGenParamChange(gen.id, param._uid, 'name', e.target.value)}>
-                                <option value="">-- Chọn thông số --</option>
-                                {PARAM_OPTIONS.map(opt => (
-                                  <option key={opt} value={opt} disabled={gen.parameters.some(p => p._uid !== param._uid && p.name === opt)}>{opt}</option>
-                                ))}
-                              </select>
-                            </div>
-                            <div className="v-form-group" style={{ flex: 1 }}>
-                              {idx === 0 && <label>Max (Không âm)</label>}
-                              <input type="number" min="0" placeholder="Max" value={param.maxValue} onChange={(e) => handleGenParamChange(gen.id, param._uid, 'maxValue', e.target.value)}/>
-                            </div>
-                            <button type="button" className="v-btn-icon text-red" onClick={() => removeGenParam(gen.id, param._uid)} style={{ marginBottom: 4 }}>
-                              <Trash2 size={14}/>
-                            </button>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-
-                {/* Equipment Section */}
-                <div className="v-sub-section border-top">
-                  <div className="v-sub-header">
-                    <h4>Danh mục thiết bị (Equipment)</h4>
-                    <button type="button" className="v-btn-text" onClick={addEquipment}>
-                      <Plus size={14}/> Thêm thiết bị
-                    </button>
-                  </div>
-                  
-                  <div className="v-table-responsive">
-                    <table className="v-table">
-                      <thead>
-                        <tr>
-                          <th>Tên thiết bị</th>
-                          <th>Loại</th>
-                          <th>Vị trí</th>
-                          <th>Tình trạng</th>
-                          <th>Thao tác</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {equipment.map(item => (
-                          <tr key={item.id}>
-                            <td><input type="text" name="name" className="v-input-sm" value={item.name} onChange={(e) => handleEquipmentChange(item.id, e)} placeholder="Tên thiết bị..." /></td>
-                            <td><input type="text" name="type" className="v-input-sm" value={item.type} onChange={(e) => handleEquipmentChange(item.id, e)} placeholder="Loại..." /></td>
-                            <td><input type="text" name="location" className="v-input-sm" value={item.location} onChange={(e) => handleEquipmentChange(item.id, e)} placeholder="Vị trí..." /></td>
-                            <td>
-                              <select name="condition" className="v-input-sm" value={item.condition} onChange={(e) => handleEquipmentChange(item.id, e)}>
-                                <option value="Đúng hạn">Đúng hạn</option>
-                                <option value="Quá hạn">Quá hạn</option>
-                              </select>
-                            </td>
-                            <td>
-                              <button type="button" className="v-btn-icon text-red" onClick={() => removeEquipment(item.id)}>
-                                <Trash2 size={16} />
-                              </button>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-
+                ))}
               </div>
-            </div>
-          </div>
+
+              <Divider />
+
+              {/* Equipment Section */}
+              <div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                  <Title level={5} style={{ margin: 0 }}>
+                    Danh mục thiết bị (Equipment)
+                  </Title>
+                  <Button type="link" icon={<PlusOutlined />} onClick={addEquipment}>
+                    Thêm thiết bị
+                  </Button>
+                </div>
+                <Table
+                  rowKey="id"
+                  size="small"
+                  columns={equipmentColumns}
+                  dataSource={equipment}
+                  pagination={false}
+                  locale={{ emptyText: 'Chưa có thiết bị nào' }}
+                />
+              </div>
+            </Card>
+          </Col>
 
           {/* RIGHT COLUMN */}
-          <div className="vessel-col-right">
-            
+          <Col xs={24} lg={10}>
             {/* Card: Capacity */}
-            <div className="v-card">
-              <div className="v-card-header">
-                <Box size={18} color="#ffffff" />
-                <h3>SỨC CHỨA & TẢI TRỌNG</h3>
-              </div>
-              <div className="v-card-body">
-                <div className="v-form-row">
-                  <div className="v-form-group">
-                    <label>Tải trọng Max (Tấn)</label>
-                    <input type="number" name="maxWeight" placeholder="50.000" value={capacity.maxWeight} onChange={handleCapacityChange}/>
-                  </div>
-                  <div className="v-form-group">
-                    <label>Thể tích Max (m³)</label>
-                    <input type="number" name="maxVolume" placeholder="75.000" value={capacity.maxVolume} onChange={handleCapacityChange}/>
-                  </div>
-                </div>
+            <Card
+              title={
+                <Space>
+                  <InboxOutlined /> SỨC CHỨA & TẢI TRỌNG
+                </Space>
+              }
+              style={{ marginBottom: 20 }}
+            >
+              <Row gutter={16}>
+                <Col xs={24} sm={12} style={{ marginBottom: 16 }}>
+                  <div style={{ marginBottom: 4 }}>Tải trọng Max (Tấn)</div>
+                  <InputNumber
+                    style={{ width: '100%' }}
+                    placeholder="50000"
+                    value={capacity.maxWeight === '' ? null : capacity.maxWeight}
+                    onChange={(value) => setCapacity({ ...capacity, maxWeight: value ?? '' })}
+                  />
+                </Col>
+                <Col xs={24} sm={12} style={{ marginBottom: 16 }}>
+                  <div style={{ marginBottom: 4 }}>Thể tích Max (m³)</div>
+                  <InputNumber
+                    style={{ width: '100%' }}
+                    placeholder="75000"
+                    value={capacity.maxVolume === '' ? null : capacity.maxVolume}
+                    onChange={(value) => setCapacity({ ...capacity, maxVolume: value ?? '' })}
+                  />
+                </Col>
+              </Row>
 
-                <div className="v-form-group mt-16">
-                  <label>Số thủy thủ tối đa</label>
-                  <div className="v-slider-wrapper">
-                    <input 
-                      type="range" 
-                      min="1" 
-                      max="100" 
-                      name="maxCrew"
-                      value={capacity.maxCrew} 
-                      onChange={handleCapacityChange}
-                      className="v-slider"
+              <div style={{ marginBottom: 24 }}>
+                <div style={{ marginBottom: 4 }}>Số thủy thủ tối đa</div>
+                <Row align="middle" gutter={12}>
+                  <Col flex="auto">
+                    <Slider
+                      min={1}
+                      max={100}
+                      value={Number(capacity.maxCrew)}
+                      onChange={(value) => setCapacity({ ...capacity, maxCrew: value })}
                     />
-                    <span className="v-slider-val">{capacity.maxCrew}</span>
-                  </div>
-                </div>
+                  </Col>
+                  <Col>
+                    <Text strong>{capacity.maxCrew}</Text>
+                  </Col>
+                </Row>
+              </div>
 
-                <div className="v-holds-section mt-24">
-                  <div className="v-holds-header">
-                    <label>Khoang chứa (Cargo Holds)</label>
-                    <button type="button" className="v-btn-text" onClick={addHold}>
-                      <Plus size={14}/> Thêm khoang
-                    </button>
-                  </div>
-                  <div className="v-holds-list">
-                    {holds.map(hold => (
-                      <div className="v-hold-item" key={hold.id}>
-                        <div className="v-hold-info">
-                          <input type="text" name="name" className="v-input-sm fw-bold" value={hold.name} onChange={(e) => handleHoldChange(hold.id, e)} placeholder="Tên khoang..." />
-                          <div className="v-hold-cap">
-                            Sức chứa: <input type="number" name="capacity" className="v-input-sm w-auto" value={hold.capacity} onChange={(e) => handleHoldChange(hold.id, e)} placeholder="10000" /> m³
-                          </div>
-                        </div>
-                        <div className="v-hold-actions">
-                          <span className="v-badge-green">TRỐNG</span>
-                          <button type="button" className="v-btn-icon" onClick={() => removeHold(hold.id)}>
-                            <Trash2 size={14} color="#ef4444" />
-                          </button>
-                        </div>
+              <div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                  <Text strong>Khoang chứa (Cargo Holds)</Text>
+                  <Button type="link" icon={<PlusOutlined />} onClick={addHold}>
+                    Thêm khoang
+                  </Button>
+                </div>
+                <Space direction="vertical" size={12} style={{ width: '100%' }}>
+                  {holds.map((hold) => (
+                    <div
+                      key={hold.id}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 8,
+                        padding: 12,
+                        border: '1px solid #e2e8f0',
+                        borderRadius: 6,
+                      }}
+                    >
+                      <div style={{ flex: 1 }}>
+                        <Input
+                          style={{ fontWeight: 600, marginBottom: 8 }}
+                          placeholder="Tên khoang..."
+                          value={hold.name}
+                          onChange={(e) => handleHoldChange(hold.id, 'name', e.target.value)}
+                        />
+                        <Space size={4}>
+                          <Text type="secondary">Sức chứa:</Text>
+                          <InputNumber
+                            style={{ width: 120 }}
+                            placeholder="10000"
+                            value={hold.capacity === '' ? null : hold.capacity}
+                            onChange={(value) => handleHoldChange(hold.id, 'capacity', value ?? '')}
+                          />
+                          <Text type="secondary">m³</Text>
+                        </Space>
                       </div>
-                    ))}
-                  </div>
-                </div>
-
+                      <Space direction="vertical" align="center">
+                        <Tag color="green">TRỐNG</Tag>
+                        <Button type="text" danger icon={<DeleteOutlined />} onClick={() => removeHold(hold.id)} />
+                      </Space>
+                    </div>
+                  ))}
+                </Space>
               </div>
-            </div>
+            </Card>
+          </Col>
+        </Row>
 
-            {/* Card: Documents */}
-            <div className="v-card mt-20">
-              <div className="v-card-header">
-                <FileText size={18} color="#ffffff" />
-                <h3>TÀI LIỆU PHÁP LÝ (DOCUMENTS)</h3>
-              </div>
-              <div className="v-card-body">
-                <div className="v-upload-zone">
-                  <Upload size={24} color="#0f3b75" />
-                  <p><strong>Kéo thả file để tải lên</strong></p>
-                  <span>Hỗ trợ: PDF, PNG, JPG (Tối đa 10MB)</span>
-                </div>
-
-                {/* Data mẫu đã bị xóa */}
-              </div>
-            </div>
-
-          </div>
-        </form>
-      </div>
-
-      {/* Bottom Footer Bar */}
-      <footer className="vessel-bottom-bar">
-        <div className="vessel-bottom-left">
-          <span className="v-status-sync">
-            <span className="v-dot-blue"></span> ĐỒNG BỘ HÓA THỜI GIAN THỰC
-          </span>
-          <span className="v-id-draft">ID Dự kiến: VES-2024-001</span>
+        {/* Footer actions */}
+        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 12, marginTop: 24 }}>
+          <Button onClick={() => navigate(-1)}>Hủy bỏ</Button>
+          <Button type="primary" icon={<SaveOutlined />} onClick={handleSubmit}>
+            Lưu hồ sơ tàu
+          </Button>
         </div>
-        <div className="vessel-bottom-right">
-          <button type="button" className="v-btn-cancel" onClick={() => navigate(-1)}>Hủy bỏ</button>
-          <button type="button" className="v-btn-save" onClick={handleSubmit}>
-            <Save size={16} /> Lưu hồ sơ tàu
-          </button>
-        </div>
-      </footer>
-
       </div>
     </AgencyLayout>
   );

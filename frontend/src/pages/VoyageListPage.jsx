@@ -1,42 +1,22 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import {
-  AlertCircle,
-  ArrowRight,
-  CalendarDays,
-  Navigation,
-  Plus,
-  RefreshCw,
-  Search,
-  Ship,
-  Edit
-} from 'lucide-react';
+import { Table, Button, Input, Card, Row, Col, Statistic, Space, Typography, Tooltip } from 'antd';
+import { PlusOutlined, ReloadOutlined, TeamOutlined, ArrowRightOutlined, CompassOutlined } from '@ant-design/icons';
 import MasterLayout from '../components/MasterLayout';
 import AgencyLayout from '../components/AgencyLayout';
 import UpdateVoyageModal from '../components/UpdateVoyageModal';
+import { PageHeader, StatusTag, RowActions, notifyError } from '../components/common';
 import { voyageService } from '../services/api';
-import './MasterDashboard.css';
-import './VoyageListPage.css';
+
+const { Text } = Typography;
 
 const formatDate = (date) => {
   if (!date) return '--';
-
   return new Intl.DateTimeFormat('vi-VN', {
     day: '2-digit',
     month: '2-digit',
-    year: 'numeric'
+    year: 'numeric',
   }).format(new Date(`${date}T00:00:00`));
-};
-
-const getStatusClass = (status) => {
-  const normalizedStatus = (status || '').toLowerCase();
-
-  if (normalizedStatus === 'completed' || normalizedStatus === 'discharged') return 'completed';
-  if (normalizedStatus === 'underway' || normalizedStatus === 'homeward bounding') return 'active';
-  if (normalizedStatus === 'cancelled') return 'cancelled';
-  if (normalizedStatus === 'arrived' || normalizedStatus === 'at anchor') return 'arrived';
-  if (normalizedStatus === 'loading' || normalizedStatus === 'loaded' || normalizedStatus === 'discharge') return 'loading';
-  return 'planned';
 };
 
 export default function VoyageListPage() {
@@ -44,24 +24,23 @@ export default function VoyageListPage() {
   const [voyages, setVoyages] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
   const [selectedVoyage, setSelectedVoyage] = useState(null);
 
   const user = JSON.parse(localStorage.getItem('user')) || {};
-  const userRole = (user.role || '').replace(/\s+/g, '').toLowerCase(); // Normalize role to lower case without spaces
-  const canEdit = ['admin', 'agency', 'chiefofficer'].includes(userRole);
-  
-  const Layout = (userRole === 'admin' || userRole === 'agency') ? AgencyLayout : MasterLayout;
+  const userRole = (user.role || '').replace(/\s+/g, '').toLowerCase();
+  const canEdit = ['admin', 'agency', 'chiefofficer', 'master'].includes(userRole);
+  const canAttendance = ['chiefofficer', 'master'].includes(userRole);
+
+  const Layout = userRole === 'admin' || userRole === 'agency' ? AgencyLayout : MasterLayout;
 
   const loadVoyages = async () => {
     try {
       setLoading(true);
-      setError('');
       const data = await voyageService.getAll();
       setVoyages(Array.isArray(data) ? data : []);
     } catch (requestError) {
       console.error('Unable to load voyages:', requestError);
-      setError('Không thể tải danh sách hải trình. Vui lòng kiểm tra kết nối máy chủ.');
+      notifyError('Không thể tải danh sách hải trình. Vui lòng kiểm tra kết nối máy chủ.');
     } finally {
       setLoading(false);
     }
@@ -74,162 +53,149 @@ export default function VoyageListPage() {
   const filteredVoyages = useMemo(() => {
     const keyword = searchTerm.trim().toLowerCase();
     if (!keyword) return voyages;
-
-    return voyages.filter((voyage) => [
-      voyage.id,
-      voyage.departurePort,
-      voyage.destinationPort,
-      voyage.status,
-      voyage.Ship?.shipName,
-      voyage.Ship?.imoNumber
-    ].some((value) => String(value || '').toLowerCase().includes(keyword)));
+    return voyages.filter((voyage) =>
+      [
+        voyage.id,
+        voyage.departurePort,
+        voyage.destinationPort,
+        voyage.status,
+        voyage.Ship?.shipName,
+        voyage.Ship?.imoNumber,
+      ].some((value) => String(value || '').toLowerCase().includes(keyword))
+    );
   }, [searchTerm, voyages]);
+
+  const activeCount = voyages.filter((v) =>
+    ['underway', 'homeward bounding', 'active', 'in progress'].includes((v.status || '').toLowerCase())
+  ).length;
+  const plannedCount = voyages.filter((v) =>
+    ['planned', 'planning'].includes((v.status || '').toLowerCase())
+  ).length;
+
+  const columns = [
+    {
+      title: 'Mã chuyến',
+      dataIndex: 'id',
+      render: (id) => <strong>VY-{String(id).padStart(4, '0')}</strong>,
+    },
+    {
+      title: 'Tàu vận chuyển',
+      key: 'ship',
+      render: (_, voyage) => (
+        <div>
+          <div>
+            <strong>{voyage.Ship?.shipName || `Tàu #${voyage.shipId}`}</strong>
+          </div>
+          <Text type="secondary" style={{ fontSize: 12 }}>
+            {voyage.Ship?.imoNumber || 'Chưa có IMO'}
+          </Text>
+        </div>
+      ),
+    },
+    {
+      title: 'Tuyến đường',
+      key: 'route',
+      render: (_, voyage) => (
+        <Space size={6}>
+          <span>{voyage.departurePort || '--'}</span>
+          <ArrowRightOutlined style={{ color: '#94a3b8' }} />
+          <span>{voyage.destinationPort || '--'}</span>
+        </Space>
+      ),
+    },
+    { title: 'Khởi hành', dataIndex: 'departureDate', render: (d) => formatDate(d) },
+    { title: 'Dự kiến đến', dataIndex: 'arrivalDate', render: (d) => formatDate(d) },
+    {
+      title: 'Trạng thái',
+      dataIndex: 'status',
+      render: (status) => <StatusTag status={status} text={status || 'Planning'} />,
+    },
+    ...(canEdit || canAttendance
+      ? [
+          {
+            title: 'Thao tác',
+            key: 'actions',
+            render: (_, voyage) => (
+              <RowActions
+                onEdit={canEdit ? () => setSelectedVoyage(voyage) : undefined}
+                editTitle="Cập nhật thông tin chuyến đi"
+              >
+                {canAttendance && (
+                  <Tooltip title="Điểm danh thuyền viên">
+                    <Button
+                      type="text"
+                      icon={<TeamOutlined />}
+                      onClick={() => navigate(`/voyages/${voyage.id}/attendance`)}
+                    />
+                  </Tooltip>
+                )}
+              </RowActions>
+            ),
+          },
+        ]
+      : []),
+  ];
 
   return (
     <Layout>
-      <div className="voyage-list-page">
-        <header className="voyage-list-header">
-          <div>
-            <div className="v-breadcrumb">
-              <Navigation size={12} />
-              Voyages
-            </div>
-            <h1>Danh sách hải trình</h1>
-          </div>
+      <div style={{ padding: '24px 32px' }}>
+        <PageHeader
+          icon={<CompassOutlined />}
+          breadcrumb="Voyages"
+          title="Danh sách hải trình"
+          extra={
+            <Button type="primary" icon={<PlusOutlined />} onClick={() => navigate('/voyages/new')}>
+              Tạo hải trình
+            </Button>
+          }
+        />
 
-          <button className="btn-primary" onClick={() => navigate('/voyages/new')}>
-            <Plus size={16} />
-            Tạo hải trình
-          </button>
-        </header>
+        <Row gutter={16} style={{ marginBottom: 24 }}>
+          <Col span={8}>
+            <Card>
+              <Statistic title="TỔNG SỐ HẢI TRÌNH" value={voyages.length} />
+            </Card>
+          </Col>
+          <Col span={8}>
+            <Card>
+              <Statistic title="ĐANG HOẠT ĐỘNG" value={activeCount} />
+            </Card>
+          </Col>
+          <Col span={8}>
+            <Card>
+              <Statistic title="ĐÃ LÊN KẾ HOẠCH" value={plannedCount} />
+            </Card>
+          </Col>
+        </Row>
 
-        <div className="voyage-list-content">
-          <div className="voyage-summary">
-            <div>
-              <span>TỔNG SỐ HẢI TRÌNH</span>
-              <strong>{voyages.length}</strong>
-            </div>
-            <div>
-              <span>ĐANG HOẠT ĐỘNG</span>
-              <strong>
-                {voyages.filter((voyage) => ['underway', 'homeward bounding', 'active', 'in progress'].includes((voyage.status || '').toLowerCase())).length}
-              </strong>
-            </div>
-            <div>
-              <span>ĐÃ LÊN KẾ HOẠCH</span>
-              <strong>
-                {voyages.filter((voyage) => ['planned', 'planning'].includes((voyage.status || '').toLowerCase())).length}
-              </strong>
-            </div>
-          </div>
-
-          <section className="voyage-list-card">
-            <div className="voyage-list-toolbar">
-              <div>
-                <h2>Tất cả hải trình</h2>
-                <p>Dữ liệu hành trình được lấy trực tiếp từ hệ thống.</p>
-              </div>
-
-              <div className="voyage-toolbar-actions">
-                <div className="voyage-search">
-                  <Search size={17} />
-                  <input
-                    type="text"
-                    placeholder="Tìm tàu, cảng, mã chuyến..."
-                    value={searchTerm}
-                    onChange={(event) => setSearchTerm(event.target.value)}
-                  />
-                </div>
-                <button className="voyage-refresh-button" onClick={loadVoyages} disabled={loading} title="Tải lại">
-                  <RefreshCw size={17} className={loading ? 'spin' : ''} />
-                </button>
-              </div>
-            </div>
-
-            {loading ? (
-              <div className="voyage-state">
-                <RefreshCw size={28} className="spin" />
-                <p>Đang tải danh sách hải trình...</p>
-              </div>
-            ) : error ? (
-              <div className="voyage-state voyage-error">
-                <AlertCircle size={30} />
-                <p>{error}</p>
-                <button onClick={loadVoyages}>Thử lại</button>
-              </div>
-            ) : filteredVoyages.length === 0 ? (
-              <div className="voyage-state">
-                <Navigation size={34} />
-                <h3>{searchTerm ? 'Không tìm thấy hải trình phù hợp' : 'Chưa có hải trình nào'}</h3>
-                <p>{searchTerm ? 'Hãy thử một từ khóa khác.' : 'Tạo hải trình đầu tiên để bắt đầu quản lý hành trình.'}</p>
-                {!searchTerm && (
-                  <button className="btn-primary" onClick={() => navigate('/voyages/new')}>
-                    <Plus size={16} />
-                    Tạo hải trình
-                  </button>
-                )}
-              </div>
-            ) : (
-              <div className="voyage-table-wrapper">
-                <table className="voyage-table">
-                  <thead>
-                    <tr>
-                      <th>Mã chuyến</th>
-                      <th>Tàu vận chuyển</th>
-                      <th>Tuyến đường</th>
-                      <th>Khởi hành</th>
-                      <th>Dự kiến đến</th>
-                      <th>Trạng thái</th>
-                      {canEdit && <th>Thao tác</th>}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {filteredVoyages.map((voyage) => (
-                      <tr key={voyage.id}>
-                        <td><strong>VY-{String(voyage.id).padStart(4, '0')}</strong></td>
-                        <td>
-                          <div className="voyage-ship-cell">
-                            <span><Ship size={16} /></span>
-                            <div>
-                              <strong>{voyage.Ship?.shipName || `Tàu #${voyage.shipId}`}</strong>
-                              <small>{voyage.Ship?.imoNumber || 'Chưa có IMO'}</small>
-                            </div>
-                          </div>
-                        </td>
-                        <td>
-                          <div className="voyage-route-cell">
-                            <span>{voyage.departurePort || '--'}</span>
-                            <ArrowRight size={14} />
-                            <span>{voyage.destinationPort || '--'}</span>
-                          </div>
-                        </td>
-                        <td><span className="voyage-date"><CalendarDays size={14} />{formatDate(voyage.departureDate)}</span></td>
-                        <td><span className="voyage-date"><CalendarDays size={14} />{formatDate(voyage.arrivalDate)}</span></td>
-                        <td>
-                          <span className={`voyage-status ${getStatusClass(voyage.status)}`}>
-                            {voyage.status || 'Planning'}
-                          </span>
-                        </td>
-                        {canEdit && (
-                          <td>
-                            <button
-                              style={{ background: 'none', border: 'none', color: '#64748b', cursor: 'pointer' }}
-                              title="Cập nhật thông tin chuyến đi"
-                              onClick={() => setSelectedVoyage(voyage)}
-                            >
-                              <Edit size={16} />
-                            </button>
-                          </td>
-                        )}
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </section>
-        </div>
+        <Card
+          title="Tất cả hải trình"
+          extra={
+            <Space>
+              <Input.Search
+                placeholder="Tìm tàu, cảng, mã chuyến..."
+                allowClear
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                style={{ width: 280 }}
+              />
+              <Tooltip title="Tải lại">
+                <Button icon={<ReloadOutlined />} loading={loading} onClick={loadVoyages} />
+              </Tooltip>
+            </Space>
+          }
+        >
+          <Table
+            rowKey="id"
+            columns={columns}
+            dataSource={filteredVoyages}
+            loading={loading}
+            pagination={{ pageSize: 10, hideOnSinglePage: true }}
+            locale={{ emptyText: searchTerm ? 'Không tìm thấy hải trình phù hợp' : 'Chưa có hải trình nào' }}
+          />
+        </Card>
       </div>
+
       {selectedVoyage && (
         <UpdateVoyageModal
           voyage={selectedVoyage}

@@ -1,7 +1,8 @@
-import React from 'react';
-import AgencySidebar from './AgencySidebar';
-import './AgencyLayout.css';
+import { Layout } from 'antd';
 import { useLocation } from 'react-router-dom';
+import AgencySidebar from './AgencySidebar';
+
+const { Content } = Layout;
 
 export default function AgencyLayout({ children }) {
   const location = useLocation();
@@ -9,11 +10,11 @@ export default function AgencyLayout({ children }) {
   const isSharedPage = location.pathname.includes('/voyages') || location.pathname.includes('/cargos');
 
   return (
-    <div className="agency-layout">
+    <Layout style={{ height: '100vh' }}>
       <AgencySidebar />
-      <main className="agency-main-content" style={{ overflowY: isSharedPage ? 'hidden' : 'auto', overflowX: 'hidden' }}>
+      <Content style={{ overflowY: isSharedPage ? 'hidden' : 'auto', overflowX: 'hidden' }}>
         {children}
-      </main>
-    </div>
+      </Content>
+    </Layout>
   );
 }

@@ -1,13 +1,15 @@
-import React from 'react';
+import { Layout } from 'antd';
 import Sidebar from './Sidebar';
+
+const { Content } = Layout;
 
 export default function MasterLayout({ children }) {
   return (
-    <div className="master-layout" style={{ display: 'flex', height: '100vh', width: '100vw', overflow: 'hidden' }}>
+    <Layout style={{ height: '100vh' }}>
       <Sidebar />
-      <main className="main-content" style={{ flex: 1, display: 'flex', flexDirection: 'column', backgroundColor: '#f4f7fb', overflowY: 'auto' }}>
+      <Content style={{ backgroundColor: '#f4f7fb', overflowY: 'auto' }}>
         {children}
-      </main>
-    </div>
+      </Content>
+    </Layout>
   );
 }

@@ -1,9 +1,33 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Search, Users, Plus, ShieldCheck, Edit, Trash2 } from 'lucide-react';
+import { Table, Button, Tag, Input, Card, Avatar, Space, Typography, Tooltip } from 'antd';
+import {
+  TeamOutlined,
+  PlusOutlined,
+  SafetyCertificateOutlined,
+} from '@ant-design/icons';
 import AgencyLayout from '../components/AgencyLayout';
 import { crewService } from '../services/api';
-import './CrewListPage.css';
+import { PageHeader, StatusTag, RowActions, notifyError, confirmDelete } from '../components/common';
+
+const { Text } = Typography;
+
+const roleLabels = {
+  Master: 'Thuyền trưởng (Master)',
+  ChiefOfficer: 'Đại phó (Chief Officer)',
+  DeckOfficer: 'Sĩ quan boong (Deck Officer)',
+  EngineOfficer: 'Sĩ quan máy (Engine Officer)',
+  Sailor: 'Thủy thủ (Sailor)',
+};
+
+const getInitials = (name) => {
+  if (!name) return 'CR';
+  const parts = name.split(' ');
+  if (parts.length >= 2) {
+    return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+  }
+  return name.substring(0, 2).toUpperCase();
+};
 
 export default function CrewListPage() {
   const navigate = useNavigate();
@@ -17,8 +41,9 @@ export default function CrewListPage() {
 
   const fetchCrews = async () => {
     try {
+      setLoading(true);
       const data = await crewService.getAll();
-      setCrews(data);
+      setCrews(Array.isArray(data) ? data : []);
     } catch (error) {
       console.error('Lỗi khi lấy danh sách thủy thủ:', error);
     } finally {
@@ -26,141 +51,150 @@ export default function CrewListPage() {
     }
   };
 
-  const roleLabels = {
-    Master: 'Thuyền trưởng (Master)',
-    ChiefOfficer: 'Đại phó (Chief Officer)',
-    DeckOfficer: 'Sĩ quan boong (Deck Officer)',
-    EngineOfficer: 'Sĩ quan máy (Engine Officer)',
-    Sailor: 'Thủy thủ (Sailor)'
-  };
-
   const handleDelete = async (id, name) => {
-    if (window.confirm(`Bạn có chắc chắn muốn xóa thủy thủ "${name}" không? Toàn bộ dữ liệu tài khoản sẽ bị mất.`)) {
+    if (
+      await confirmDelete({
+        content: `Bạn có chắc chắn muốn xóa thủy thủ "${name}" không? Toàn bộ dữ liệu tài khoản sẽ bị mất.`,
+      })
+    ) {
       try {
         await crewService.delete(id);
-        setCrews(crews.filter(c => c.id !== id));
+        setCrews(crews.filter((c) => c.id !== id));
       } catch (error) {
         console.error('Lỗi khi xóa thủy thủ:', error);
-        alert('Có lỗi xảy ra khi xóa thủy thủ!');
+        notifyError('Có lỗi xảy ra khi xóa thủy thủ!');
       }
     }
   };
 
-  const getInitials = (name) => {
-    if (!name) return 'CR';
-    const parts = name.split(' ');
-    if (parts.length >= 2) {
-      return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
-    }
-    return name.substring(0, 2).toUpperCase();
-  };
+  const filteredCrews = useMemo(() => {
+    const keyword = searchTerm.toLowerCase();
+    return crews.filter(
+      (c) =>
+        (c.fullName && c.fullName.toLowerCase().includes(keyword)) ||
+        (c.cccd && c.cccd.includes(searchTerm)) ||
+        (c.position && c.position.toLowerCase().includes(keyword))
+    );
+  }, [crews, searchTerm]);
 
-  const filteredCrews = crews.filter(c =>
-    (c.fullName && c.fullName.toLowerCase().includes(searchTerm.toLowerCase())) ||
-    (c.cccd && c.cccd.includes(searchTerm)) ||
-    (c.position && c.position.toLowerCase().includes(searchTerm.toLowerCase()))
-  );
+  const columns = [
+    {
+      title: 'Thủy thủ',
+      key: 'crew',
+      render: (_, crew) => (
+        <Space>
+          <Avatar style={{ backgroundColor: '#1677ff' }}>{getInitials(crew.fullName)}</Avatar>
+          <div>
+            <div style={{ fontWeight: 600 }}>
+              {crew.fullName || 'Chưa cập nhật'}
+              {crew.User?.role === 'Master' && (
+                <Tooltip title="Thuyền trưởng (Master)">
+                  <SafetyCertificateOutlined
+                    style={{ marginLeft: 6, color: '#0284c7', verticalAlign: 'middle' }}
+                  />
+                </Tooltip>
+              )}
+            </div>
+            <Text type="secondary" style={{ fontSize: 12 }}>
+              {crew.email || crew.User?.username}
+            </Text>
+          </div>
+        </Space>
+      ),
+    },
+    {
+      title: 'CCCD',
+      dataIndex: 'cccd',
+      render: (cccd) => <span style={{ fontWeight: 500 }}>{cccd || '---'}</span>,
+    },
+    {
+      title: 'Bộ phận',
+      dataIndex: 'department',
+      render: (department) => (
+        <Tag color={department === 'Deck' ? 'blue' : department === 'Engine' ? 'orange' : 'default'}>
+          {department === 'Deck'
+            ? 'Boong (Deck)'
+            : department === 'Engine'
+            ? 'Máy (Engine)'
+            : department || 'Chưa rõ'}
+        </Tag>
+      ),
+    },
+    {
+      title: 'Chức vụ',
+      dataIndex: 'position',
+      render: (position) => position || '---',
+    },
+    {
+      title: 'Quyền hệ thống',
+      key: 'role',
+      render: (_, crew) => (
+        <span style={{ fontWeight: 600, color: '#334155', fontSize: 13 }}>
+          {roleLabels[crew.User?.role] || crew.User?.role || '---'}
+        </span>
+      ),
+    },
+    {
+      title: 'Trạng thái',
+      key: 'status',
+      render: (_, crew) => (
+        <StatusTag
+          status={crew.User?.status === 'Active' ? 'Đang công tác' : 'Tạm nghỉ'}
+          color={crew.User?.status === 'Active' ? 'green' : 'default'}
+        />
+      ),
+    },
+    {
+      title: 'Thao tác',
+      key: 'actions',
+      align: 'center',
+      render: (_, crew) => (
+        <RowActions
+          onEdit={() => navigate(`/crews/edit/${crew.id}`)}
+          onDelete={() => handleDelete(crew.id, crew.fullName)}
+          deleteTitle="Xóa"
+        />
+      ),
+    },
+  ];
 
   return (
     <AgencyLayout>
-      <div className="crew-page-inner">
-        <div className="crew-header">
-          <div className="crew-title">
-            <div className="crew-title-icon">
-              <Users size={28} />
-            </div>
-            <h1>Quản lý Thủy thủ</h1>
-          </div>
-
-          <div className="crew-actions">
-            <div className="crew-search">
-              <Search size={18} color="#94a3b8" />
-              <input
-                type="text"
-                placeholder="Tìm tên, CCCD, chức vụ..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-              />
-            </div>
-            <button className="crew-btn-primary" onClick={() => navigate('/crews/new')}>
-              <Plus size={18} />
+      <div style={{ padding: '24px 32px' }}>
+        <PageHeader
+          title={
+            <>
+              <TeamOutlined style={{ marginRight: 8 }} />
+              Quản lý Thủy thủ
+            </>
+          }
+          extra={
+            <Button type="primary" icon={<PlusOutlined />} onClick={() => navigate('/crews/new')}>
               Thêm Thủy thủ
-            </button>
-          </div>
-        </div>
+            </Button>
+          }
+        />
 
-        <div className="crew-table-container">
-          {loading ? (
-            <div style={{ padding: '40px', textAlign: 'center', color: '#64748b' }}>Đang tải danh sách thủy thủ...</div>
-          ) : (
-            <table className="crew-table">
-              <thead>
-                <tr>
-                  <th>Thủy thủ</th>
-                  <th>CCCD</th>
-                  <th>Bộ phận</th>
-                  <th>Chức vụ</th>
-                  <th>Quyền hệ thống</th>
-                  <th>Trạng thái</th>
-                  <th style={{ textAlign: 'center' }}>Thao tác</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredCrews.length > 0 ? (
-                  filteredCrews.map(crew => (
-                    <tr key={crew.id}>
-                      <td>
-                        <div className="crew-user-info">
-                          <div className="crew-avatar">
-                            {getInitials(crew.fullName)}
-                          </div>
-                          <div>
-                            <p className="crew-name">
-                              {crew.fullName || 'Chưa cập nhật'}
-                              {crew.User?.role === 'Master' && (
-                                <ShieldCheck size={14} color="#0284c7" style={{ marginLeft: '6px', verticalAlign: 'middle' }} title="Thuyền trưởng (Master)" />
-                              )}
-                            </p>
-                            <p className="crew-email">{crew.email || crew.User?.username}</p>
-                          </div>
-                        </div>
-                      </td>
-                      <td style={{ fontWeight: 500 }}>{crew.cccd || '---'}</td>
-                      <td>
-                        <span className={`crew-dept-badge ${crew.department === 'Deck' ? 'bg-deck' : 'bg-engine'}`}>
-                          {crew.department === 'Deck' ? 'Boong (Deck)' : (crew.department === 'Engine' ? 'Máy (Engine)' : crew.department || 'Chưa rõ')}
-                        </span>
-                      </td>
-                      <td className="crew-role">{crew.position || '---'}</td>
-                      <td style={{ fontWeight: 600, color: '#334155', fontSize: '13px' }}>
-                        {roleLabels[crew.User?.role] || crew.User?.role || '---'}
-                      </td>
-                      <td>
-                        <span className={`crew-status-dot ${crew.User?.status === 'Active' ? 'status-active' : 'status-inactive'}`}>
-                          {crew.User?.status === 'Active' ? 'Đang công tác' : 'Tạm nghỉ'}
-                        </span>
-                      </td>
-                      <td style={{ textAlign: 'center', display: 'flex', justifyContent: 'center', gap: '8px' }}>
-                        <button className="crew-action-btn" title="Chỉnh sửa" onClick={() => navigate(`/crews/edit/${crew.id}`)}>
-                          <Edit size={18} />
-                        </button>
-                        <button className="crew-action-btn" title="Xóa" style={{ color: '#ef4444' }} onClick={() => handleDelete(crew.id, crew.fullName)}>
-                          <Trash2 size={18} />
-                        </button>
-                      </td>
-                    </tr>
-                  ))
-                ) : (
-                  <tr>
-                    <td colSpan="7" style={{ textAlign: 'center', padding: '40px', color: '#94a3b8' }}>
-                      Không tìm thấy thủy thủ nào phù hợp.
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          )}
-        </div>
+        <Card
+          extra={
+            <Input.Search
+              placeholder="Tìm tên, CCCD, chức vụ..."
+              allowClear
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              style={{ width: 280 }}
+            />
+          }
+        >
+          <Table
+            rowKey="id"
+            columns={columns}
+            dataSource={filteredCrews}
+            loading={loading}
+            pagination={{ pageSize: 10, hideOnSinglePage: true }}
+            locale={{ emptyText: 'Không tìm thấy thủy thủ nào phù hợp.' }}
+          />
+        </Card>
       </div>
     </AgencyLayout>
   );

@@ -16,6 +16,7 @@ const Voyage = require("./Voyage");
 const VoyageCrew = require("./VoyageCrew");
 const Cargo = require("./Cargo");
 const CargoItem = require("./CargoItem");
+const CargoType = require("./CargoType");
 const Attendance = require("./Attendance");
 const Shift = require("./Shift");
 const ShiftLog = require("./ShiftLog");
@@ -93,8 +94,10 @@ EngineLogValue.belongsTo(EngineParameter, { foreignKey: "parameterId" });
 Voyage.hasMany(VoyageCrew, { foreignKey: "voyageId" });
 VoyageCrew.belongsTo(Voyage, { foreignKey: "voyageId" });
 
-Voyage.hasMany(Cargo, { foreignKey: "voyageId" });
-Cargo.belongsTo(Voyage, { foreignKey: "voyageId" });
+// voyageId nullable: lô hàng có thể "Đã ở cảng" chưa gán hải trình.
+// Xoá hải trình -> cargo trở về trạng thái chưa gán (SET NULL) thay vì bị xoá.
+Voyage.hasMany(Cargo, { foreignKey: "voyageId", onDelete: "SET NULL", onUpdate: "CASCADE" });
+Cargo.belongsTo(Voyage, { foreignKey: "voyageId", onDelete: "SET NULL", onUpdate: "CASCADE" });
 
 Voyage.hasMany(Attendance, { foreignKey: "voyageId" });
 Attendance.belongsTo(Voyage, { foreignKey: "voyageId" });
@@ -145,7 +148,7 @@ module.exports = {
   Engine, Equipment, RepairLog,
   CargoHold, CargoAllocation,
   Voyage, VoyageCrew,
-  Cargo, CargoItem,
+  Cargo, CargoItem, CargoType,
   Attendance,
   Shift, ShiftLog,
   Report, ReportReply,

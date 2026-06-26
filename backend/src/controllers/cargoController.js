@@ -90,3 +90,110 @@ exports.getAllCargos = async (req, res) => {
     res.status(500).json({ success: false, message: "Lỗi lấy dữ liệu hàng hóa" });
   }
 };
+
+exports.getCargoById = async (req, res) => {
+  try {
+    const cargo = await Cargo.findByPk(req.params.id, {
+      include: [
+        {
+          model: Voyage,
+          include: [{ model: Ship }]
+        },
+        {
+          model: CargoAllocation,
+          include: [{ model: CargoHold }]
+        },
+        {
+          model: CargoItem
+        }
+      ]
+    });
+
+    if (!cargo) {
+      return res.status(404).json({ success: false, message: "Không tìm thấy lô hàng" });
+    }
+
+    res.json({ success: true, data: cargo });
+  } catch (error) {
+    console.error("Error fetching cargo detail:", error);
+    res.status(500).json({ success: false, message: "Lỗi lấy chi tiết lô hàng" });
+  }
+};
+
+exports.createCargo = async (req, res) => {
+  try {
+    const { voyageId, cargoName, cargoType, totalWeight, totalVolume, status } = req.body;
+
+    const newCargo = await Cargo.create({
+      voyageId: voyageId || null,
+      cargoName,
+      cargoType,
+      totalWeight,
+      totalVolume,
+      status: status || "Registered"
+    });
+
+    // Tự động tạo 1 CargoItem mặc định bằng toàn bộ khối lượng lô hàng
+    await CargoItem.create({
+      cargoId: newCargo.id,
+      itemName: cargoName,
+      quantity: 1,
+      weight: totalWeight,
+      volume: totalVolume,
+      isLoaded: false
+    });
+
+    res.json({ success: true, message: "Thêm lô hàng thành công", data: newCargo });
+  } catch (error) {
+    console.error("Error creating cargo:", error);
+    res.status(500).json({ success: false, message: "Lỗi thêm lô hàng" });
+  }
+};
+
+exports.updateCargo = async (req, res) => {
+  try {
+    const cargoId = req.params.id;
+    const { voyageId, cargoName, cargoType, totalWeight, totalVolume, status } = req.body;
+
+    const cargo = await Cargo.findByPk(cargoId);
+    if (!cargo) {
+      return res.status(404).json({ success: false, message: "Không tìm thấy lô hàng" });
+    }
+
+    await cargo.update({
+      voyageId: voyageId || cargo.voyageId,
+      cargoName: cargoName || cargo.cargoName,
+      cargoType: cargoType || cargo.cargoType,
+      totalWeight: totalWeight !== undefined ? totalWeight : cargo.totalWeight,
+      totalVolume: totalVolume !== undefined ? totalVolume : cargo.totalVolume,
+      status: status || cargo.status
+    });
+
+    res.json({ success: true, message: "Cập nhật lô hàng thành công", data: cargo });
+  } catch (error) {
+    console.error("Error updating cargo:", error);
+    res.status(500).json({ success: false, message: "Lỗi cập nhật lô hàng" });
+  }
+};
+
+exports.deleteCargo = async (req, res) => {
+  try {
+    const cargoId = req.params.id;
+
+    const cargo = await Cargo.findByPk(cargoId);
+    if (!cargo) {
+      return res.status(404).json({ success: false, message: "Không tìm thấy lô hàng" });
+    }
+
+    // Delete related allocations and items first to avoid foreign key constraints
+    await CargoAllocation.destroy({ where: { cargoId: cargoId } });
+    await CargoItem.destroy({ where: { cargoId: cargoId } });
+
+    await cargo.destroy();
+
+    res.json({ success: true, message: "Xoá lô hàng thành công" });
+  } catch (error) {
+    console.error("Error deleting cargo:", error);
+    res.status(500).json({ success: false, message: "Lỗi xoá lô hàng" });
+  }
+};
