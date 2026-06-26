@@ -168,12 +168,17 @@ export const engineLogService = {
     const response = await api.get('/engine-logs/my-voyages');
     return response.data;
   },
-  getShifts: async (voyageId) => {
-    const response = await api.get(`/engine-logs/shifts/${voyageId}`);
+  getShifts: async (voyageId, date) => {
+    const params = date ? `?date=${date}` : '';
+    const response = await api.get(`/engine-logs/shifts/${voyageId}${params}`);
     return response.data;
   },
   create: async (data) => {
     const response = await api.post('/engine-logs', data);
+    return response.data;
+  },
+  update: async (shiftLogId, data) => {
+    const response = await api.put(`/engine-logs/${shiftLogId}`, data);
     return response.data;
   },
   getHistoryByShift: async (shiftId) => {
@@ -183,6 +188,18 @@ export const engineLogService = {
   getHistoryByVoyage: async (voyageId) => {
     const response = await api.get(`/engine-logs/history/voyage/${voyageId}`);
     return response.data;
+  },
+  uploadImages: async (shiftLogId, files) => {
+    const formData = new FormData();
+    files.forEach(f => formData.append('images', f));
+    const response = await api.post(`/engine-logs/${shiftLogId}/images`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    });
+    return response.data;
+  },
+  getEditHistory: async (shiftLogId) => {
+    const response = await api.get(`/engine-logs/${shiftLogId}/edit-history`);
+    return response.data;
   }
 };
 
@@ -191,16 +208,33 @@ export const deckLogService = {
     const response = await api.get('/deck-logs/my-voyages');
     return response.data;
   },
-  getShifts: async (voyageId) => {
-    const response = await api.get(`/deck-logs/shifts/${voyageId}`);
+  getShifts: async (voyageId, date) => {
+    const params = date ? `?date=${date}` : '';
+    const response = await api.get(`/deck-logs/shifts/${voyageId}${params}`);
     return response.data;
   },
   create: async (data) => {
     const response = await api.post('/deck-logs', data);
     return response.data;
   },
+  update: async (shiftLogId, data) => {
+    const response = await api.put(`/deck-logs/${shiftLogId}`, data);
+    return response.data;
+  },
   getHistoryByShift: async (shiftId) => {
     const response = await api.get(`/deck-logs/history/${shiftId}`);
+    return response.data;
+  },
+  uploadImages: async (shiftLogId, files) => {
+    const formData = new FormData();
+    files.forEach(f => formData.append('images', f));
+    const response = await api.post(`/deck-logs/${shiftLogId}/images`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    });
+    return response.data;
+  },
+  getEditHistory: async (shiftLogId) => {
+    const response = await api.get(`/deck-logs/${shiftLogId}/edit-history`);
     return response.data;
   }
 };

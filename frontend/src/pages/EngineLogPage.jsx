@@ -1,18 +1,21 @@
 import { useState, useEffect } from 'react';
-import { Select, Input, InputNumber, Button, Table, Card, Tag, Spin, Empty, Typography, Space, Row, Col, Alert } from 'antd';
-import { DashboardOutlined, SaveOutlined, ClockCircleOutlined, CompassOutlined } from '@ant-design/icons';
+import { Select, Input, InputNumber, Button, Table, Card, Tag, Spin, Empty, Typography, Space, Row, Col, Alert, DatePicker, Upload, Modal, Image, Timeline } from 'antd';
+import { DashboardOutlined, SaveOutlined, ClockCircleOutlined, CompassOutlined, CalendarOutlined, UploadOutlined, EditOutlined, HistoryOutlined, PictureOutlined } from '@ant-design/icons';
 import MasterLayout from '../components/MasterLayout';
 import { engineLogService } from '../services/api';
 import { PageHeader, notifyWarning, notifySuccess, notifyError } from '../components/common';
+import dayjs from 'dayjs';
 import './EngineLogPage.css';
 
 const { Title, Text } = Typography;
 const { TextArea } = Input;
 
+const API_URL = import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000';
+
 export default function EngineLogPage() {
-  // ===== STATE =====
   const [voyages, setVoyages] = useState([]);
   const [selectedVoyage, setSelectedVoyage] = useState(null);
+  const [selectedDate, setSelectedDate] = useState(dayjs());
   const [shifts, setShifts] = useState([]);
   const [selectedShift, setSelectedShift] = useState(null);
   const [engines, setEngines] = useState([]);
@@ -21,6 +24,24 @@ export default function EngineLogPage() {
   const [note, setNote] = useState('');
   const [history, setHistory] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [fileList, setFileList] = useState([]);
+  // Edit modal
+  const [editModalOpen, setEditModalOpen] = useState(false);
+  const [editingLog, setEditingLog] = useState(null);
+  const [editNote, setEditNote] = useState('');
+  const [editReason, setEditReason] = useState('');
+  const [editValues, setEditValues] = useState({});
+  // Edit history modal
+  const [historyModalOpen, setHistoryModalOpen] = useState(false);
+  const [editHistoryData, setEditHistoryData] = useState([]);
+
+  // ===== Tính toán ngày =====
+  const today = dayjs().startOf('day');
+  const isToday = selectedDate && selectedDate.startOf('day').isSame(today);
+  const isPastDate = selectedDate && selectedDate.startOf('day').isBefore(today);
+  const daysDiff = isPastDate ? today.diff(selectedDate.startOf('day'), 'day') : 0;
+  const canEdit = daysDiff <= 3; // Cho phép chỉnh sửa trong 3 ngày
+  const isCompleted = selectedVoyage?.status === 'Completed';
 
   // ===== BƯỚC 1: Lấy danh sách hải trình =====
   useEffect(() => {
@@ -31,10 +52,8 @@ export default function EngineLogPage() {
         if (data.length > 0) {
           const active = data.find(v => v.status !== 'Completed') || data[0];
           setSelectedVoyage(active);
-          if (active.Ship && active.Ship.Engines) {
-            setEngines(active.Ship.Engines);
-          }
-          const shiftsData = await engineLogService.getShifts(active.id);
+          if (active.Ship?.Engines) setEngines(active.Ship.Engines);
+          const shiftsData = await engineLogService.getShifts(active.id, dayjs().format('YYYY-MM-DD'));
           setShifts(shiftsData);
         }
       } catch (error) {
@@ -46,7 +65,6 @@ export default function EngineLogPage() {
     fetchVoyages();
   }, []);
 
-  // Khi đổi hải trình
   const handleVoyageChange = async (voyageId) => {
     if (!voyageId) return;
     const v = voyages.find(v => v.id === voyageId);
@@ -56,53 +74,61 @@ export default function EngineLogPage() {
     setSelectedEngine(null);
     setParamValues({});
     setNote('');
+    setFileList([]);
     if (v) {
-      if (v.Ship && v.Ship.Engines) setEngines(v.Ship.Engines);
-      const shiftsData = await engineLogService.getShifts(v.id);
+      if (v.Ship?.Engines) setEngines(v.Ship.Engines);
+      const shiftsData = await engineLogService.getShifts(v.id, selectedDate.format('YYYY-MM-DD'));
       setShifts(shiftsData);
     }
   };
 
-  // ===== BƯỚC 2: Khi chọn Ca trực -> Load lịch sử =====
+  // Khi đổi ngày
+  const handleDateChange = async (date) => {
+    setSelectedDate(date);
+    setSelectedShift(null);
+    setHistory([]);
+    setSelectedEngine(null);
+    if (selectedVoyage && date) {
+      const shiftsData = await engineLogService.getShifts(selectedVoyage.id, date.format('YYYY-MM-DD'));
+      setShifts(shiftsData);
+    }
+  };
+
   const handleShiftChange = async (shiftId) => {
     if (!shiftId) {
       setSelectedShift(null);
       setHistory([]);
       return;
     }
-    const shift = shifts.find((s) => s.id === parseInt(shiftId));
+    const shift = shifts.find(s => s.id === parseInt(shiftId));
     setSelectedShift(shift);
     setSelectedEngine(null);
     setParamValues({});
     setNote('');
-
+    setFileList([]);
     try {
       const logs = await engineLogService.getHistoryByShift(shiftId);
       setHistory(logs);
     } catch (error) {
-      console.error('Lỗi lấy lịch sử ca trực:', error);
+      console.error('Lỗi lấy lịch sử:', error);
     }
   };
 
-  // ===== BƯỚC 3: Chọn máy cần kiểm tra =====
   const handleSelectEngine = (engine) => {
     setSelectedEngine(engine);
     const defaultValues = {};
     if (engine.EngineParameters) {
-      engine.EngineParameters.forEach((p) => {
-        defaultValues[p.id] = '';
-      });
+      engine.EngineParameters.forEach(p => { defaultValues[p.id] = ''; });
     }
     setParamValues(defaultValues);
     setNote('');
+    setFileList([]);
   };
 
-  // ===== BƯỚC 4: Nhập thông số =====
   const handleParamChange = (paramId, value) => {
     setParamValues({ ...paramValues, [paramId]: value });
   };
 
-  // Kiểm tra giá trị có vượt ngưỡng không
   const getValueStatus = (param, value) => {
     if (value === '' || value === null || value === undefined) return '';
     const numVal = parseFloat(value);
@@ -112,58 +138,93 @@ export default function EngineLogPage() {
     return 'ok';
   };
 
-  // ===== BƯỚC 5: Lưu nhật ký =====
+  // ===== Lưu nhật ký =====
   const handleSubmit = async () => {
     if (!selectedShift || !selectedEngine) {
       notifyWarning('Vui lòng chọn ca trực và máy cần kiểm tra');
       return;
     }
-
     const values = Object.entries(paramValues)
       .filter(([, val]) => val !== '' && val !== null)
-      .map(([paramId, value]) => ({
-        parameterId: parseInt(paramId),
-        value: parseFloat(value),
-      }));
-
+      .map(([paramId, value]) => ({ parameterId: parseInt(paramId), value: parseFloat(value) }));
     if (values.length === 0) {
       notifyWarning('Vui lòng nhập ít nhất 1 thông số');
       return;
     }
 
     try {
-      await engineLogService.create({
+      const result = await engineLogService.create({
         shiftId: selectedShift.id,
         engineId: selectedEngine.id,
-        note: note,
-        values: values,
+        note, values,
       });
 
-      notifySuccess(`Ghi nhận kiểm tra "${selectedEngine.engineName}" thành công!`);
+      // Upload ảnh nếu có
+      if (fileList.length > 0 && result.shiftLog?.id) {
+        const files = fileList.map(f => f.originFileObj);
+        await engineLogService.uploadImages(result.shiftLog.id, files);
+      }
 
-      // Refresh lịch sử
+      notifySuccess(`Ghi nhận kiểm tra "${selectedEngine.engineName}" thành công!`);
       const logs = await engineLogService.getHistoryByShift(selectedShift.id);
       setHistory(logs);
-
-      // Reset form
       setSelectedEngine(null);
       setParamValues({});
       setNote('');
+      setFileList([]);
     } catch (error) {
-      console.error('Lỗi lưu nhật ký:', error);
+      console.error('Lỗi:', error);
       notifyError('Có lỗi xảy ra khi lưu nhật ký');
     }
   };
 
-  // ===== Format =====
-  const formatDate = (d) => (d ? new Date(d).toLocaleDateString('vi-VN') : '');
+  // ===== Mở modal chỉnh sửa =====
+  const openEditModal = (log) => {
+    setEditingLog(log);
+    setEditNote(log.EngineLog?.note || log.content || '');
+    setEditReason('');
+    const vals = {};
+    log.EngineLog?.EngineLogValues?.forEach(v => { vals[v.parameterId] = v.value; });
+    setEditValues(vals);
+    setEditModalOpen(true);
+  };
+
+  const handleUpdate = async () => {
+    if (!editReason.trim()) {
+      notifyWarning('Vui lòng nhập lý do chỉnh sửa');
+      return;
+    }
+    try {
+      const values = Object.entries(editValues)
+        .filter(([, val]) => val !== '' && val !== null)
+        .map(([paramId, value]) => ({ parameterId: parseInt(paramId), value: parseFloat(value) }));
+
+      await engineLogService.update(editingLog.id, {
+        note: editNote, values, editReason: editReason.trim()
+      });
+      notifySuccess('Cập nhật nhật ký thành công');
+      setEditModalOpen(false);
+      const logs = await engineLogService.getHistoryByShift(selectedShift.id);
+      setHistory(logs);
+    } catch (error) {
+      console.error('Lỗi cập nhật:', error);
+      notifyError('Có lỗi xảy ra khi cập nhật');
+    }
+  };
+
+  // ===== Xem lịch sử chỉnh sửa =====
+  const openEditHistory = (log) => {
+    setEditHistoryData(log.LogEditHistories || []);
+    setHistoryModalOpen(true);
+  };
+
   const formatTime = (d) =>
     d ? new Date(d).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }) : '';
+  const formatDateTime = (d) =>
+    d ? new Date(d).toLocaleString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '';
 
   const statusBorderColor = (status) =>
     status === 'danger' ? '#dc2626' : status === 'warning' ? '#f59e0b' : undefined;
-
-  const isCompleted = selectedVoyage?.status === 'Completed';
 
   // ===== RENDER =====
   if (loading) {
@@ -180,20 +241,9 @@ export default function EngineLogPage() {
     return (
       <MasterLayout>
         <div style={{ padding: '24px 32px' }}>
-          <PageHeader
-            icon={<DashboardOutlined style={{ color: '#2563eb' }} />}
-            breadcrumb="Engine Log"
-            title="Nhật ký Kiểm tra Máy"
-          />
+          <PageHeader icon={<DashboardOutlined style={{ color: '#2563eb' }} />} breadcrumb="Engine Log" title="Nhật ký Kiểm tra Máy" />
           <Card>
-            <Empty
-              description={
-                <div>
-                  <p>Không có hải trình nào.</p>
-                  <p>Hệ thống tự động lấy danh sách hải trình mà bạn đã hoặc đang tham gia.</p>
-                </div>
-              }
-            />
+            <Empty description={<div><p>Không có hải trình nào.</p></div>} />
           </Card>
         </div>
       </MasterLayout>
@@ -201,136 +251,96 @@ export default function EngineLogPage() {
   }
 
   const historyColumns = [
+    { title: 'Thời gian', dataIndex: 'createdAt', width: 100, render: (d) => formatTime(d) },
+    { title: 'Máy', key: 'engine', width: 120, render: (_, log) => <strong>{log.EngineLog?.Engine?.engineName || 'N/A'}</strong> },
     {
-      title: 'Thời gian',
-      dataIndex: 'createdAt',
-      render: (d) => formatTime(d),
+      title: 'Thông số đo', key: 'values',
+      render: (_, log) => log.EngineLog?.EngineLogValues?.map(v => {
+        const param = v.EngineParameter;
+        const color = param?.maxValue && v.value > param.maxValue ? 'red' : param?.maxValue && v.value > param.maxValue * 0.9 ? 'orange' : 'green';
+        return <Tag key={v.id} color={color} style={{ marginBottom: 4 }}>{param?.name}: {v.value}</Tag>;
+      }),
+    },
+    { title: 'Ghi chú', key: 'note', render: (_, log) => log.EngineLog?.note || log.content },
+    {
+      title: 'Ảnh', key: 'images', width: 100,
+      render: (_, log) => log.LogImages?.length > 0 ? (
+        <Image.PreviewGroup>
+          {log.LogImages.map(img => (
+            <Image key={img.id} width={40} height={40} style={{ objectFit: 'cover', borderRadius: 4, marginRight: 4 }}
+              src={`${API_URL}${img.imageUrl}`} />
+          ))}
+        </Image.PreviewGroup>
+      ) : <Text type="secondary">—</Text>
     },
     {
-      title: 'Máy',
-      key: 'engine',
+      title: '', key: 'actions', width: 100,
       render: (_, log) => (
-        <strong>{log.EngineLog?.Engine?.engineName || 'N/A'}</strong>
-      ),
-    },
-    {
-      title: 'Thông số đo',
-      key: 'values',
-      render: (_, log) =>
-        log.EngineLog?.EngineLogValues?.map((v) => {
-          const param = v.EngineParameter;
-          const color =
-            param?.maxValue && v.value > param.maxValue
-              ? 'red'
-              : param?.maxValue && v.value > param.maxValue * 0.9
-              ? 'orange'
-              : 'green';
-          return (
-            <Tag key={v.id} color={color} style={{ marginBottom: 4 }}>
-              {param?.name}: {v.value}
-            </Tag>
-          );
-        }),
-    },
-    {
-      title: 'Ghi chú',
-      key: 'note',
-      render: (_, log) => log.EngineLog?.note || log.content,
-    },
+        <Space size={4}>
+          {canEdit && !isCompleted && (
+            <Button type="link" size="small" icon={<EditOutlined />} onClick={() => openEditModal(log)}>Sửa</Button>
+          )}
+          {log.LogEditHistories?.length > 0 && (
+            <Button type="link" size="small" icon={<HistoryOutlined />} onClick={() => openEditHistory(log)}>
+              ({log.LogEditHistories.length})
+            </Button>
+          )}
+        </Space>
+      )
+    }
   ];
 
   return (
     <MasterLayout>
       <div style={{ padding: '24px 32px' }}>
-        {/* Header */}
-        <PageHeader
-          icon={<DashboardOutlined style={{ color: '#2563eb' }} />}
-          breadcrumb="Engine Log"
-          title="Nhật ký Kiểm tra Máy"
-        />
+        <PageHeader icon={<DashboardOutlined style={{ color: '#2563eb' }} />} breadcrumb="Engine Log" title="Nhật ký Kiểm tra Máy" />
 
-        {/* Chọn Hải trình và Ca trực */}
+        {/* Chọn Hải trình, Ngày, Ca trực */}
         <Card style={{ marginBottom: 16 }}>
-          <Space size={48} wrap align="start">
-            <div style={{ minWidth: 320 }}>
-              <div style={{ marginBottom: 6 }}>
-                <Text type="secondary">
-                  <CompassOutlined /> Chọn Hải trình
-                </Text>
-              </div>
-              <Select
-                style={{ width: '100%' }}
-                value={selectedVoyage?.id || undefined}
-                onChange={handleVoyageChange}
-                options={voyages.map((v) => ({
-                  value: v.id,
-                  label: `${v.Ship?.shipName} | ${v.departurePort} → ${v.destinationPort} (${v.status})`,
-                }))}
-              />
+          <Space size={32} wrap align="start">
+            <div style={{ minWidth: 280 }}>
+              <div style={{ marginBottom: 6 }}><Text type="secondary"><CompassOutlined /> Chọn Hải trình</Text></div>
+              <Select style={{ width: '100%' }} value={selectedVoyage?.id || undefined} onChange={handleVoyageChange}
+                options={voyages.map(v => ({ value: v.id, label: `${v.Ship?.shipName} | ${v.departurePort} → ${v.destinationPort} (${v.status})` }))} />
+            </div>
+            <div>
+              <div style={{ marginBottom: 6 }}><Text type="secondary"><CalendarOutlined /> Chọn Ngày</Text></div>
+              <DatePicker value={selectedDate} onChange={handleDateChange} format="DD/MM/YYYY" allowClear={false}
+                style={{ width: 160 }} />
             </div>
             <div style={{ minWidth: 320 }}>
-              <div style={{ marginBottom: 6 }}>
-                <Text type="secondary">
-                  <ClockCircleOutlined /> Chọn Ca trực
-                </Text>
-              </div>
-              <Select
-                style={{ width: '100%' }}
-                placeholder="-- Chọn ca trực --"
-                allowClear
-                value={selectedShift?.id || undefined}
-                onChange={handleShiftChange}
-                options={shifts.map((s) => ({
-                  value: s.id,
-                  label: `${s.CrewProfile?.fullName} | ${formatTime(s.startTime)} - ${formatTime(
-                    s.endTime
-                  )} (${s.status})`,
-                }))}
-              />
+              <div style={{ marginBottom: 6 }}><Text type="secondary"><ClockCircleOutlined /> Chọn Ca trực</Text></div>
+              <Select style={{ width: '100%' }} placeholder="-- Chọn ca trực --" allowClear value={selectedShift?.id || undefined} onChange={handleShiftChange}
+                options={shifts.map(s => ({ value: s.id, label: `${s.CrewProfile?.fullName} | ${formatTime(s.startTime)} - ${formatTime(s.endTime)} (${s.status})` }))} />
             </div>
           </Space>
         </Card>
 
-        {/* Cảnh báo hải trình đã kết thúc */}
+        {/* Cảnh báo */}
         {isCompleted && selectedShift && (
+          <Alert message="Hải trình này đã kết thúc" description="Bạn chỉ có thể xem lại lịch sử kiểm tra chứ không thể thêm mới." type="warning" showIcon style={{ marginBottom: 16 }} />
+        )}
+        {isPastDate && !isCompleted && selectedShift && (
           <Alert
-            message="Hải trình này đã kết thúc"
-            description="Bạn chỉ có thể xem lại lịch sử kiểm tra chứ không thể thêm mới."
-            type="warning"
-            showIcon
-            style={{ marginBottom: 16 }}
-          />
+            message={canEdit ? `Ngày đã qua (${daysDiff} ngày trước) — Bạn vẫn có thể chỉnh sửa nhật ký nhưng phải ghi lý do` : `Ngày đã qua quá 3 ngày — Chỉ xem, không chỉnh sửa được`}
+            type={canEdit ? 'info' : 'warning'} showIcon style={{ marginBottom: 16 }} />
         )}
 
-        {/* Danh sách Máy (Chỉ hiện khi đã chọn ca trực và hải trình chưa hoàn thành) */}
-        {selectedShift && !isCompleted && (
+        {/* Chọn máy + Form */}
+        {selectedShift && !isCompleted && isToday && (
           <>
-            <Title level={5} style={{ marginBottom: 12 }}>
-              Chọn máy cần kiểm tra ({engines.length} máy)
-            </Title>
+            <Title level={5} style={{ marginBottom: 12 }}>Chọn máy cần kiểm tra ({engines.length} máy)</Title>
             <Row gutter={[16, 16]}>
-              {engines.map((engine) => (
+              {engines.map(engine => (
                 <Col xs={24} sm={12} lg={8} key={engine.id}>
-                  <Card
-                    hoverable
-                    onClick={() => handleSelectEngine(engine)}
-                    style={{
-                      borderColor: selectedEngine?.id === engine.id ? '#1677ff' : undefined,
-                      borderWidth: selectedEngine?.id === engine.id ? 2 : 1,
-                    }}
-                  >
+                  <Card hoverable onClick={() => handleSelectEngine(engine)}
+                    style={{ borderColor: selectedEngine?.id === engine.id ? '#1677ff' : undefined, borderWidth: selectedEngine?.id === engine.id ? 2 : 1 }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                       <h4 style={{ margin: 0 }}>{engine.engineName}</h4>
-                      <Tag color={engine.engineType?.includes('2') ? 'blue' : 'gold'}>
-                        {engine.engineType?.includes('2') ? 'Máy chính' : 'Máy đèn'}
-                      </Tag>
+                      <Tag color={engine.engineType?.includes('2') ? 'blue' : 'gold'}>{engine.engineType?.includes('2') ? 'Máy chính' : 'Máy đèn'}</Tag>
                     </div>
-                    <div style={{ marginTop: 8 }}>
-                      <Tag>{engine.status}</Tag>
-                    </div>
-                    <Text type="secondary" style={{ fontSize: 12 }}>
-                      {engine.EngineParameters?.length || 0} thông số cần kiểm tra
-                    </Text>
+                    <div style={{ marginTop: 8 }}><Tag>{engine.status}</Tag></div>
+                    <Text type="secondary" style={{ fontSize: 12 }}>{engine.EngineParameters?.length || 0} thông số cần kiểm tra</Text>
                   </Card>
                 </Col>
               ))}
@@ -338,67 +348,100 @@ export default function EngineLogPage() {
           </>
         )}
 
-        {/* Form nhập thông số (Chỉ hiện khi đã chọn máy) */}
-        {selectedEngine && !isCompleted && (
-          <Card
-            style={{ marginTop: 16 }}
-            title={`Kiểm tra: ${selectedEngine.engineName} (${selectedEngine.engineType})`}
-          >
+        {/* Form nhập thông số */}
+        {selectedEngine && !isCompleted && isToday && (
+          <Card style={{ marginTop: 16 }} title={`Kiểm tra: ${selectedEngine.engineName} (${selectedEngine.engineType})`}>
             <Row gutter={[16, 16]}>
-              {selectedEngine.EngineParameters?.map((param) => {
+              {selectedEngine.EngineParameters?.map(param => {
                 const status = getValueStatus(param, paramValues[param.id]);
                 return (
                   <Col xs={24} sm={12} lg={8} key={param.id}>
                     <div style={{ fontWeight: 500, marginBottom: 4 }}>{param.name}</div>
-                    <InputNumber
-                      style={{ width: '100%', borderColor: statusBorderColor(status) }}
-                      placeholder="Nhập giá trị"
-                      min={0}
+                    <InputNumber style={{ width: '100%', borderColor: statusBorderColor(status) }} placeholder="Nhập giá trị" min={0}
                       value={paramValues[param.id] === '' ? null : paramValues[param.id]}
-                      onChange={(value) => handleParamChange(param.id, value === null ? '' : value)}
-                    />
-                    <Text type="secondary" style={{ fontSize: 12 }}>
-                      {param.maxValue != null && `Max: ${param.maxValue}`}
-                    </Text>
+                      onChange={value => handleParamChange(param.id, value === null ? '' : value)} />
+                    <Text type="secondary" style={{ fontSize: 12 }}>{param.maxValue != null && `Max: ${param.maxValue}`}</Text>
                   </Col>
                 );
               })}
             </Row>
-
+            <div style={{ marginTop: 16 }}>
+              <label style={{ fontSize: 14, fontWeight: 500, color: '#475569', marginBottom: 8, display: 'block' }}>Ghi chú</label>
+              <TextArea rows={3} placeholder="VD: Máy chạy ổn định..." value={note} onChange={e => setNote(e.target.value)} />
+            </div>
             <div style={{ marginTop: 16 }}>
               <label style={{ fontSize: 14, fontWeight: 500, color: '#475569', marginBottom: 8, display: 'block' }}>
-                Ghi chú (Tình trạng máy, vấn đề phát hiện...)
+                <PictureOutlined /> Đính kèm ảnh (tối đa 5 ảnh, mỗi ảnh ≤ 5MB)
               </label>
-              <TextArea
-                rows={3}
-                placeholder="VD: Máy chạy ổn định, không có tiếng kêu bất thường..."
-                value={note}
-                onChange={(e) => setNote(e.target.value)}
-              />
+              <Upload listType="picture-card" fileList={fileList} onChange={({ fileList: fl }) => setFileList(fl.slice(0, 5))}
+                beforeUpload={() => false} accept="image/jpeg,image/png,image/webp">
+                {fileList.length < 5 && <div><UploadOutlined /><div style={{ marginTop: 8 }}>Chọn ảnh</div></div>}
+              </Upload>
             </div>
-
             <div style={{ marginTop: 16, display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
               <Button onClick={() => setSelectedEngine(null)}>Hủy</Button>
-              <Button type="primary" icon={<SaveOutlined />} onClick={handleSubmit}>
-                Lưu Nhật ký
-              </Button>
+              <Button type="primary" icon={<SaveOutlined />} onClick={handleSubmit}>Lưu Nhật ký</Button>
             </div>
           </Card>
         )}
 
-        {/* Lịch sử kiểm tra trong ca trực này */}
+        {/* Lịch sử */}
         {selectedShift && (
-          <Card title="Lịch sử kiểm tra trong ca này" style={{ marginTop: 16 }}>
-            <Table
-              rowKey="id"
-              columns={historyColumns}
-              dataSource={history}
+          <Card title={`Lịch sử kiểm tra — ${selectedDate.format('DD/MM/YYYY')}`} style={{ marginTop: 16 }}>
+            <Table rowKey="id" columns={historyColumns} dataSource={history}
               pagination={{ pageSize: 10, hideOnSinglePage: true }}
-              locale={{ emptyText: 'Chưa có kiểm tra nào trong ca trực này.' }}
-            />
+              locale={{ emptyText: 'Chưa có kiểm tra nào trong ca trực này.' }} />
           </Card>
         )}
       </div>
+
+      {/* Modal chỉnh sửa */}
+      <Modal title="Chỉnh sửa Nhật ký" open={editModalOpen} onCancel={() => setEditModalOpen(false)} onOk={handleUpdate}
+        okText="Lưu chỉnh sửa" cancelText="Hủy" width={600}>
+        <Alert message="Bạn đang chỉnh sửa nhật ký đã ghi. Vui lòng cung cấp lý do chỉnh sửa." type="info" showIcon style={{ marginBottom: 16 }} />
+        <div style={{ marginBottom: 16 }}>
+          <label style={{ fontWeight: 500, display: 'block', marginBottom: 4 }}>Lý do chỉnh sửa <span style={{ color: 'red' }}>*</span></label>
+          <TextArea rows={2} placeholder="VD: Nhập sai số liệu, bổ sung thông tin..." value={editReason} onChange={e => setEditReason(e.target.value)} />
+        </div>
+        <div style={{ marginBottom: 16 }}>
+          <label style={{ fontWeight: 500, display: 'block', marginBottom: 4 }}>Ghi chú</label>
+          <TextArea rows={2} value={editNote} onChange={e => setEditNote(e.target.value)} />
+        </div>
+        {editingLog?.EngineLog?.EngineLogValues?.map(v => (
+          <div key={v.parameterId} style={{ marginBottom: 8 }}>
+            <Text strong>{v.EngineParameter?.name}: </Text>
+            <InputNumber min={0} value={editValues[v.parameterId]} onChange={val => setEditValues({ ...editValues, [v.parameterId]: val })} />
+          </div>
+        ))}
+      </Modal>
+
+      {/* Modal lịch sử chỉnh sửa */}
+      <Modal title="Lịch sử chỉnh sửa" open={historyModalOpen} onCancel={() => setHistoryModalOpen(false)} footer={null} width={600}>
+        {editHistoryData.length === 0 ? (
+          <Empty description="Chưa có lịch sử chỉnh sửa" />
+        ) : (
+          <Timeline items={editHistoryData.map(h => {
+            let prev = {};
+            try { prev = JSON.parse(h.previousContent); } catch {}
+            return {
+              color: 'blue',
+              children: (
+                <div>
+                  <div><Text strong>{h.CrewProfile?.fullName}</Text> — <Text type="secondary">{formatDateTime(h.editedAt)}</Text></div>
+                  <div style={{ marginTop: 4 }}><Tag color="orange">Lý do:</Tag> {h.editReason}</div>
+                  <div style={{ marginTop: 4, background: '#f8fafc', padding: 8, borderRadius: 4, fontSize: 13 }}>
+                    <div><strong>Nội dung trước khi sửa:</strong></div>
+                    <div>Ghi chú: {prev.note || '(trống)'}</div>
+                    {prev.values?.map((v, i) => (
+                      <Tag key={i} style={{ marginTop: 2 }}>{v.parameterName}: {v.value}</Tag>
+                    ))}
+                  </div>
+                </div>
+              )
+            };
+          })} />
+        )}
+      </Modal>
     </MasterLayout>
   );
 }
