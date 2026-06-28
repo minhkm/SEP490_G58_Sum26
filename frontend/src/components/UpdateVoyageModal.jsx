@@ -14,6 +14,7 @@ import {
   Typography,
   Card,
   Progress,
+  Space,
 } from 'antd';
 import { SaveOutlined } from '@ant-design/icons';
 import { voyageService, vesselService } from '../services/api';
@@ -39,6 +40,108 @@ const STATUS_OPTIONS = [
   { value: 'Cancelled', label: 'Đã hủy (Cancelled)', roles: ['admin', 'agency', 'master'] },
 ];
 
+const AllocationModal = ({ open, cargo, holds, onClose, onSave }) => {
+  const [allocations, setAllocations] = useState([]);
+
+  useEffect(() => {
+    if (open && cargo) {
+      setAllocations(JSON.parse(JSON.stringify(cargo.allocations || [])));
+    }
+  }, [open, cargo]);
+
+  const handleAdd = () => {
+    setAllocations([...allocations, { holdId: null, weight: '' }]);
+  };
+
+  const handleRemove = (idx) => {
+    const newAllo = [...allocations];
+    newAllo.splice(idx, 1);
+    setAllocations(newAllo);
+  };
+
+  const handleChange = (idx, field, value) => {
+    const newAllo = [...allocations];
+    newAllo[idx][field] = value;
+    setAllocations(newAllo);
+  };
+
+  const totalAllocated = allocations.reduce((sum, a) => sum + Number(a.weight || 0), 0);
+  const isOver = totalAllocated > (cargo?.weight || 0);
+
+  return (
+    <Modal
+      open={open}
+      title={`Phân bổ: ${cargo?.itemName || ''} (${cargo?.weight} MT)`}
+      onCancel={onClose}
+      onOk={() => {
+        if (isOver) {
+           // Not allowed to over-allocate
+           return;
+        }
+        // Filter out empty rows
+        const valid = allocations.filter((a) => a.holdId && Number(a.weight) > 0);
+        onSave(cargo.itemId, valid);
+      }}
+      okButtonProps={{ disabled: isOver }}
+      width={500}
+    >
+      <div style={{ marginBottom: 16 }}>
+        <Text strong>Tổng khối lượng: {cargo?.weight} MT</Text>
+        <br />
+        <Text type={isOver ? 'danger' : 'success'}>
+          Đã phân bổ: {totalAllocated} MT
+        </Text>
+      </div>
+
+      <Table
+        dataSource={allocations}
+        pagination={false}
+        rowKey={(_, idx) => idx}
+        size="small"
+        columns={[
+          {
+            title: 'Khoang',
+            dataIndex: 'holdId',
+            render: (_, record, idx) => (
+              <Select
+                style={{ width: '100%' }}
+                placeholder="Chọn khoang"
+                value={record.holdId}
+                onChange={(v) => handleChange(idx, 'holdId', v)}
+                options={holds.map((h) => ({ value: h.id, label: h.holdName }))}
+              />
+            ),
+          },
+          {
+            title: 'Khối lượng (MT)',
+            dataIndex: 'weight',
+            width: 150,
+            render: (_, record, idx) => (
+              <Input
+                type="number"
+                min={1}
+                placeholder="MT"
+                value={record.weight}
+                onChange={(e) => handleChange(idx, 'weight', e.target.value)}
+              />
+            ),
+          },
+          {
+            title: '',
+            width: 50,
+            render: (_, record, idx) => (
+              <Button danger type="text" onClick={() => handleRemove(idx)}>X</Button>
+            ),
+          },
+        ]}
+      />
+      <Button type="dashed" style={{ width: '100%', marginTop: 16 }} onClick={handleAdd}>
+        + Thêm khoang
+      </Button>
+    </Modal>
+  );
+};
+
 export default function UpdateVoyageModal({ voyage, onClose, onUpdate }) {
   const [formData, setFormData] = useState({
     status: '',
@@ -57,6 +160,7 @@ export default function UpdateVoyageModal({ voyage, onClose, onUpdate }) {
   const [fetchingHolds, setFetchingHolds] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [allocatingCargoItem, setAllocatingCargoItem] = useState(null);
 
   useEffect(() => {
     if (voyage) {
@@ -103,8 +207,12 @@ export default function UpdateVoyageModal({ voyage, onClose, onUpdate }) {
     try {
       setFetchingCargo(true);
       const data = await voyageService.getVoyageCargo(id);
-      setCargoList(data || []);
-      setOriginalCargoList(JSON.parse(JSON.stringify(data || [])));
+      const formattedData = (data || []).map((c) => ({
+        ...c,
+        allocations: c.allocations || (c.holdId ? [{ holdId: c.holdId, weight: c.weight }] : []),
+      }));
+      setCargoList(formattedData);
+      setOriginalCargoList(JSON.parse(JSON.stringify(formattedData)));
     } catch (err) {
       console.error('Failed to fetch cargo:', err);
     } finally {
@@ -124,10 +232,11 @@ export default function UpdateVoyageModal({ voyage, onClose, onUpdate }) {
     );
   };
 
-  const handleCargoHoldChange = (itemId, holdId) => {
+  const handleSaveAllocations = (itemId, allocations) => {
     setCargoList((prevList) =>
-      prevList.map((cargo) => (cargo.itemId === itemId ? { ...cargo, holdId } : cargo))
+      prevList.map((cargo) => (cargo.itemId === itemId ? { ...cargo, allocations } : cargo))
     );
+    setAllocatingCargoItem(null);
   };
 
   const handleSubmit = async () => {
@@ -141,7 +250,7 @@ export default function UpdateVoyageModal({ voyage, onClose, onUpdate }) {
         cargoList: cargoList.map((c) => ({
           itemId: c.itemId,
           isLoaded: c.isLoaded,
-          holdId: c.holdId,
+          allocations: c.allocations,
           weight: c.weight,
         })),
       };
@@ -163,13 +272,33 @@ export default function UpdateVoyageModal({ voyage, onClose, onUpdate }) {
   const userRole = (user.role || '').replace(/\s+/g, '').toLowerCase();
 
   const isShipStaff = userRole === 'chiefofficer' || userRole === 'master';
+  const isChiefOfficer = userRole === 'chiefofficer';
   const isAttendanceAllowed =
     (formData.status === 'Loaded' || formData.status === 'Discharged') && isShipStaff;
-  const isCargoLoadAllowed = formData.status === 'Loading' && isShipStaff;
+  const isCargoLoadAllowed = formData.status === 'Loading' && isChiefOfficer;
 
-  const allowedStatusOptions = STATUS_OPTIONS.filter(
+  let allowedStatusOptions = STATUS_OPTIONS.filter(
     (opt) => opt.roles.includes(userRole) || opt.value === voyage.status
   );
+
+  if (userRole === 'admin') {
+    allowedStatusOptions = allowedStatusOptions.filter((opt) =>
+      ['Planning', 'Cancelled'].includes(opt.value) || opt.value === voyage.status
+    );
+  }
+
+  const lockedForAdminStatuses = [
+    'Loading',
+    'Loaded',
+    'Underway',
+    'Arrived',
+    'Discharge',
+    'Discharged',
+    'Homeward Bounding',
+    'At Anchor',
+    'Completed',
+  ];
+  const isStatusDisabled = userRole === 'admin' && lockedForAdminStatuses.includes(voyage.status);
 
   const crewColumns = [
     { title: 'STT', key: 'stt', width: 60, render: (_, __, idx) => idx + 1 },
@@ -206,20 +335,32 @@ export default function UpdateVoyageModal({ voyage, onClose, onUpdate }) {
       render: (_, cargo) => `${cargo.weight} MT`,
     },
     {
-      title: 'Chọn khoang',
-      key: 'holdId',
-      width: 160,
-      render: (_, cargo) => (
-        <Select
-          style={{ width: '100%' }}
-          placeholder="-- Chọn --"
-          allowClear
-          value={cargo.holdId || undefined}
-          disabled={!isCargoLoadAllowed}
-          onChange={(value) => handleCargoHoldChange(cargo.itemId, value)}
-          options={holds.map((h) => ({ value: h.id, label: h.holdName }))}
-        />
-      ),
+      title: 'Phân bổ khoang',
+      key: 'allocations',
+      width: 180,
+      render: (_, cargo) => {
+        const totalAllocated = (cargo.allocations || []).reduce(
+          (sum, a) => sum + Number(a.weight),
+          0
+        );
+        return (
+          <Space direction="vertical" size="small">
+            <Button
+              size="small"
+              type="primary"
+              disabled={!cargo.itemId || !isCargoLoadAllowed}
+              onClick={() => setAllocatingCargoItem(cargo)}
+            >
+              Phân bổ ({(cargo.allocations || []).length} khoang)
+            </Button>
+            {totalAllocated > 0 && (
+              <Text type="secondary" style={{ fontSize: 12 }}>
+                Đã PB: {totalAllocated} MT
+              </Text>
+            )}
+          </Space>
+        );
+      },
     },
     {
       title: 'Đã lên tàu',
@@ -233,7 +374,7 @@ export default function UpdateVoyageModal({ voyage, onClose, onUpdate }) {
           disabled={!cargo.itemId || !isCargoLoadAllowed}
           title={
             !isCargoLoadAllowed
-              ? 'Chỉ được đánh dấu hàng lên tàu khi Trạng thái chuyến đi đang là Loading (Đang làm hàng)'
+              ? 'Chỉ được đánh dấu hàng lên tàu bởi Đại phó (Chief Officer) và khi Trạng thái chuyến đi là Loading (Đang làm hàng)'
               : ''
           }
         />
@@ -274,6 +415,7 @@ export default function UpdateVoyageModal({ voyage, onClose, onUpdate }) {
             value={formData.status}
             options={allowedStatusOptions}
             onChange={(value) => setFormData((prev) => ({ ...prev, status: value }))}
+            disabled={isStatusDisabled}
           />
         </Form.Item>
 
@@ -352,30 +494,20 @@ export default function UpdateVoyageModal({ voyage, onClose, onUpdate }) {
                 let simulatedUsage = hold.currentUsage || 0;
                 cargoList.forEach((c) => {
                   const orig = originalCargoList.find((o) => o.itemId === c.itemId);
-                  if ((!orig || !orig.isLoaded) && c.isLoaded && String(c.holdId) === String(hold.id)) {
-                    simulatedUsage += c.weight;
-                  }
-                  if (orig && orig.isLoaded && String(orig.holdId) === String(hold.id) && !c.isLoaded) {
-                    simulatedUsage -= c.weight;
-                  }
-                  if (
-                    orig &&
-                    orig.isLoaded &&
-                    String(orig.holdId) === String(hold.id) &&
-                    c.isLoaded &&
-                    String(c.holdId) !== String(hold.id)
-                  ) {
-                    simulatedUsage -= c.weight;
-                  }
-                  if (
-                    orig &&
-                    orig.isLoaded &&
-                    String(orig.holdId) !== String(hold.id) &&
-                    c.isLoaded &&
-                    String(c.holdId) === String(hold.id)
-                  ) {
-                    simulatedUsage += c.weight;
-                  }
+                  
+                  const origWeight = orig?.isLoaded
+                    ? (orig.allocations || [])
+                        .filter((a) => String(a.holdId) === String(hold.id))
+                        .reduce((s, a) => s + Number(a.weight), 0)
+                    : 0;
+                    
+                  const newWeight = c.isLoaded
+                    ? (c.allocations || [])
+                        .filter((a) => String(a.holdId) === String(hold.id))
+                        .reduce((s, a) => s + Number(a.weight), 0)
+                    : 0;
+                    
+                  simulatedUsage += (newWeight - origWeight);
                 });
                 if (simulatedUsage < 0) simulatedUsage = 0;
 
@@ -430,6 +562,14 @@ export default function UpdateVoyageModal({ voyage, onClose, onUpdate }) {
           </Form.Item>
         )}
       </Form>
+      
+      <AllocationModal
+        open={!!allocatingCargoItem}
+        cargo={allocatingCargoItem}
+        holds={holds}
+        onClose={() => setAllocatingCargoItem(null)}
+        onSave={handleSaveAllocations}
+      />
     </Modal>
   );
 }
