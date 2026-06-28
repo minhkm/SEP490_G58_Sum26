@@ -10,6 +10,8 @@ import CreateVoyagePage from "./pages/CreateVoyagePage";
 import CargoPage from "./pages/CargoPage";
 import AddCargoPage from "./pages/AddCargoPage";
 import CargoDetailPage from "./pages/CargoDetailPage";
+import CargoTypePage from "./pages/CargoTypePage";
+import SettingsPage from "./pages/SettingsPage";
 import VoyageListPage from "./pages/VoyageListPage";
 import CrewListPage from "./pages/CrewListPage";
 import AddCrewPage from "./pages/AddCrewPage";
@@ -18,9 +20,12 @@ import CrewProfilePage from "./pages/CrewProfilePage";
 import EngineLogPage from "./pages/EngineLogPage";
 import ShiftSchedulePage from "./pages/ShiftSchedulePage";
 import ShiftViewPage from "./pages/ShiftViewPage";
+import AttendancePage from "./pages/AttendancePage";
 import RequireRole from "./components/RequireRole";
 import { CARGO_ROLES } from "./config/roles";
 import { SHIFT_OFFICER_ROLES } from "./config/shifts";
+
+import DeckLogPage from "./pages/DeckLogPage";
 
 function App() {
   return (
@@ -36,6 +41,7 @@ function App() {
         <Route path="/vessels/view/:id" element={<VesselDetailPage />} />
         <Route path="/voyages" element={<VoyageListPage />} />
         <Route path="/voyages/new" element={<CreateVoyagePage />} />
+        <Route path="/voyages/:id/attendance" element={<AttendancePage />} />
         <Route
           path="/cargos"
           element={
@@ -68,6 +74,22 @@ function App() {
             </RequireRole>
           }
         />
+        <Route
+          path="/settings"
+          element={
+            <RequireRole allow={['Admin']}>
+              <SettingsPage />
+            </RequireRole>
+          }
+        />
+        <Route
+          path="/cargo-types"
+          element={
+            <RequireRole allow={['Admin']}>
+              <CargoTypePage />
+            </RequireRole>
+          }
+        />
         <Route path="/crews" element={<CrewListPage />} />
         <Route path="/crews/new" element={<AddCrewPage />} />
         <Route path="/crews/edit/:id" element={<AddCrewPage />} />
@@ -83,6 +105,8 @@ function App() {
             </RequireRole>
           }
         />
+
+        <Route path="/deck-logs" element={<DeckLogPage />} />
       </Routes>
     </Router>
   );

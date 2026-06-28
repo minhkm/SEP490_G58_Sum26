@@ -23,16 +23,27 @@
 .lp-accent { color: var(--accent); }
 .lp-h2 { font-size: clamp(26px, 3.4vw, 34px); }
 
+/* Container căn giữa (thay cho bootstrap .container) */
+.lp-container { max-width: 1140px; margin: 0 auto; padding: 0 16px; }
+
 /* ---------- Navbar ---------- */
 .lp-nav {
+  position: fixed; top: 0; left: 0; right: 0; z-index: 1000;
+  padding: 14px 0;
   background: rgba(8, 22, 38, 0.55);
   backdrop-filter: blur(8px);
   transition: background 0.3s ease;
 }
+.lp-nav__inner {
+  max-width: 1140px; margin: 0 auto; padding: 0 16px;
+  display: flex; align-items: center; justify-content: space-between;
+}
 .lp-brand {
+  display: inline-flex; align-items: center; gap: 8px;
   font-weight: 800;
   font-size: 21px;
   color: #fff !important;
+  text-decoration: none;
 }
 
 /* ---------- Hero ---------- */
@@ -58,7 +69,8 @@
 .lp-hero__inner {
   position: relative; z-index: 2;
   max-width: 760px;
-  padding-top: 90px;
+  margin: 0 auto;
+  padding: 90px 16px 0;
   animation: lp-rise 0.7s ease both;
 }
 .lp-badge {
@@ -91,6 +103,7 @@
 /* ---------- Sections ---------- */
 .lp-section { padding: 84px 0; background: var(--surface); }
 .lp-roles-section { padding: 90px 0; }
+.lp-section__head { max-width: 640px; margin: 0 auto 48px; text-align: center; }
 
 /* ---------- Feature cards ---------- */
 .lp-feature {
@@ -113,6 +126,8 @@
 .lp-card-title { font-size: 18px; }
 
 /* ---------- Roles ---------- */
+.lp-roles { list-style: none; padding: 0; margin: 0; }
+.lp-roles__item { display: flex; gap: 12px; margin-bottom: 16px; }
 .lp-roles__dot {
   flex-shrink: 0;
   display: inline-flex; align-items: center; justify-content: center;

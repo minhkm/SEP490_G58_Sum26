@@ -3,7 +3,7 @@ const sequelize = require("../configs/database");
 
 const Cargo = sequelize.define("Cargo", {
   id: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
-  voyageId: { type: DataTypes.INTEGER, allowNull: false },
+  voyageId: { type: DataTypes.INTEGER, allowNull: true },
   cargoName: { type: DataTypes.STRING },
   cargoType: { type: DataTypes.STRING },
   totalWeight: { type: DataTypes.FLOAT },

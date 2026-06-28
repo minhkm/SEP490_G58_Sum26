@@ -1,18 +1,21 @@
 import { useNavigate, useLocation } from 'react-router-dom';
+import { Layout, Menu, Button } from 'antd';
 import {
-  LayoutDashboard,
-  Navigation,
-  Package,
-  Ship,
-  BarChart2,
-  Settings,
-  Anchor,
-  UserCircle,
-  LogOut,
-  Clock,
-  Gauge,
-} from 'lucide-react';
+  DashboardOutlined,
+  CompassOutlined,
+  InboxOutlined,
+  BarChartOutlined,
+  SettingOutlined,
+  UserOutlined,
+  LogoutOutlined,
+  ClockCircleOutlined,
+  ToolOutlined,
+  SendOutlined,
+  FileTextOutlined,
+} from '@ant-design/icons';
 import { CARGO_ROLES } from '../config/roles';
+
+const { Sider } = Layout;
 
 export default function Sidebar() {
   const navigate = useNavigate();
@@ -20,13 +23,31 @@ export default function Sidebar() {
   const user = JSON.parse(localStorage.getItem('user') || '{}');
   const role = user.role || '';
 
-  const isActive = (...paths) =>
-    paths.some(p => location.pathname === p || location.pathname.startsWith(p + '/')) ? 'active' : '';
-
   const isMasterOrChief = role === 'Master' || role === 'ChiefOfficer';
   const isCrewRole = !isMasterOrChief && role !== 'Admin' && role !== 'Agency';
+  const isEngine = role === 'EngineOfficer' || role === 'EngineCrew' || role === 'ChiefEngineer';
+  const isDeck = role === 'Sailor' || role === 'ChiefOfficer' || role === 'Master';
 
   const dashboardPath = isMasterOrChief ? '/master-dashboard' : '/crew-dashboard';
+
+  const items = [
+    { key: dashboardPath, icon: <DashboardOutlined />, label: 'Tổng quan' },
+    { key: '/voyages', icon: <CompassOutlined />, label: 'Hải Trình' },
+    CARGO_ROLES.includes(role) && { key: '/cargos', icon: <InboxOutlined />, label: 'Hàng hóa' },
+    isCrewRole && { key: 'ca-truc', icon: <ClockCircleOutlined />, label: 'Ca trực', disabled: true },
+    isDeck && { key: '/deck-logs', icon: <FileTextOutlined />, label: 'Nhật ký Trực boong' },
+    isEngine && { key: '/engine-logs', icon: <ToolOutlined />, label: 'Nhật ký Kiểm tra Máy' },
+    { key: 'bao-cao', icon: <BarChartOutlined />, label: 'Báo cáo', disabled: !isMasterOrChief },
+    { key: '/crew-profile', icon: <UserOutlined />, label: 'Hồ sơ của tôi' },
+    isMasterOrChief && { key: 'cai-dat', icon: <SettingOutlined />, label: 'Cài đặt', disabled: true },
+  ].filter(Boolean);
+
+  // Chọn key đang active dựa trên đường dẫn hiện tại
+  const selectedKey =
+    items
+      .map((it) => it.key)
+      .filter((k) => k.startsWith('/'))
+      .find((k) => location.pathname === k || location.pathname.startsWith(k + '/')) || dashboardPath;
 
   const handleLogout = () => {
     localStorage.removeItem('token');
@@ -34,17 +55,20 @@ export default function Sidebar() {
     navigate('/login');
   };
 
+  const onMenuClick = ({ key }) => {
+    if (key.startsWith('/')) navigate(key);
+  };
+
   return (
-    <aside className="sidebar">
-      <div className="sidebar-top">
-        <div className="logo-container" onClick={() => navigate(dashboardPath)} style={{ cursor: 'pointer' }}>
-          <div className="logo-icon-wrapper">
-            <Ship className="logo-icon" size={24} color="#ffffff" />
-          </div>
-          <div className="logo-text">
-            <h2 className="logo-title">CargoOps</h2>
-            <span className="logo-subtitle">Maritime Logistics</span>
-          </div>
+    <Sider theme="dark" width={260} style={{ display: 'flex', flexDirection: 'column', height: '100vh' }}>
+      <div
+        onClick={() => navigate(dashboardPath)}
+        style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '20px 16px', cursor: 'pointer', color: '#fff' }}
+      >
+        <span style={{ fontSize: 24, lineHeight: 1 }}>🚢</span>
+        <div style={{ display: 'flex', flexDirection: 'column' }}>
+          <strong style={{ fontSize: 18 }}>CargoOps</strong>
+          <span style={{ fontSize: 12, color: '#94a3b8' }}>Maritime Logistics</span>
         </div>
 
         <nav className="nav-menu">
@@ -129,22 +153,25 @@ export default function Sidebar() {
         </nav>
       </div>
 
-      <div className="sidebar-bottom">
+      <Menu
+        theme="dark"
+        mode="inline"
+        selectedKeys={[selectedKey]}
+        items={items}
+        onClick={onMenuClick}
+        style={{ flex: 1, borderInlineEnd: 0 }}
+      />
+
+      <div style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 8 }}>
         {isMasterOrChief && (
-          <button className="btn-sail-plan" style={{ marginBottom: '8px' }}>
-            <Anchor size={18} />
+          <Button type="primary" icon={<SendOutlined />} block>
             Thiết lập lộ trình
-          </button>
+          </Button>
         )}
-        <button
-          className="btn-sail-plan"
-          style={{ background: 'rgba(239,68,68,0.15)', color: '#ef4444', border: '1px solid rgba(239,68,68,0.3)' }}
-          onClick={handleLogout}
-        >
-          <LogOut size={18} />
+        <Button danger icon={<LogoutOutlined />} block onClick={handleLogout}>
           Đăng xuất
-        </button>
+        </Button>
       </div>
-    </aside>
+    </Sider>
   );
 }

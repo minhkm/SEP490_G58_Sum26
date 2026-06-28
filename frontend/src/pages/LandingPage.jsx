@@ -1,7 +1,7 @@
-import { Navbar, Container, Nav, Button, Row, Col, Card } from "react-bootstrap";
+import { Button, Row, Col, Card } from "antd";
 import "./LandingPage.css";
 
-// Trang chào CargoOps — React Bootstrap (+ ít CSS riêng cho hero & dashboard mock).
+// Trang chào CargoOps — Ant Design (+ CSS riêng cho hero & dashboard mock).
 // onEnterSystem: hàm chạy khi bấm đăng nhập. Khi có react-router: () => navigate("/login")
 export default function LandingPage({ onEnterSystem }) {
   const goLogin = onEnterSystem || (() => (window.location.href = "/login"));
@@ -9,102 +9,96 @@ export default function LandingPage({ onEnterSystem }) {
   return (
     <div className="lp">
       {/* ---------- Header ---------- */}
-      <Navbar expand="lg" variant="dark" className="lp-nav py-3" fixed="top">
-        <Container>
-          <Navbar.Brand href="/" className="lp-brand d-flex align-items-center gap-2">
+      <header className="lp-nav">
+        <div className="lp-nav__inner">
+          <a href="/" className="lp-brand">
             <ShipIcon />
             <span>CargoOps</span>
-          </Navbar.Brand>
-          <Nav className="ms-auto">
-            <Button variant="light" size="sm" className="fw-semibold" onClick={goLogin}>
-              Đăng nhập
-            </Button>
-          </Nav>
-        </Container>
-      </Navbar>
+          </a>
+          <Button onClick={goLogin}>Đăng nhập</Button>
+        </div>
+      </header>
 
       {/* ---------- Hero ---------- */}
       <section className="lp-hero text-center text-white">
         <div className="lp-hero__overlay" />
-        <Container className="lp-hero__inner">
+        <div className="lp-hero__inner">
           <span className="lp-badge">Hệ thống Quản lý Nội bộ</span>
           <h1 className="lp-hero__title">
             Số hóa vận hành tàu biển với <span className="lp-accent">CargoOps</span>
           </h1>
-          <p className="lp-hero__subtitle mx-auto">
+          <p className="lp-hero__subtitle">
             Nền tảng toàn diện quản lý hàng hóa thương mại, số hóa ca trực và theo dõi nhân sự —
             thiết kế chuyên biệt cho Thuyền trưởng và thủy thủ đoàn để đảm bảo vận hành chính xác 24/7.
           </p>
-          <Button variant="light" size="lg" className="lp-cta-btn fw-semibold" onClick={goLogin}>
+          <Button size="large" className="lp-cta-btn" onClick={goLogin}>
             Đăng nhập Hệ thống <span className="lp-arrow">→</span>
           </Button>
-        </Container>
+        </div>
       </section>
 
       {/* ---------- Giải pháp ---------- */}
       <section className="lp-section">
-        <Container>
-          <div className="text-center mx-auto mb-5" style={{ maxWidth: 640 }}>
-            <h2 className="lp-h2 fw-bold mb-3">Giải pháp Vận hành Toàn diện</h2>
+        <div className="lp-container">
+          <div className="lp-section__head">
+            <h2 className="lp-h2">Giải pháp Vận hành Toàn diện</h2>
             <p className="lp-muted">Hệ thống lõi số hóa quy trình từ boong tàu đến buồng máy.</p>
           </div>
-          <Row className="g-4">
+          <Row gutter={[24, 24]}>
             {FEATURES.map((f) => (
-              <Col md={4} key={f.title}>
-                <Card className="lp-feature h-100 border-0">
-                  <Card.Body className="p-4">
-                    <div className="lp-icon mb-3">{f.icon}</div>
-                    <Card.Title className="lp-card-title fw-bold">{f.title}</Card.Title>
-                    <Card.Text className="lp-muted">{f.desc}</Card.Text>
-                  </Card.Body>
+              <Col xs={24} md={8} key={f.title}>
+                <Card className="lp-feature" variant="borderless" style={{ height: "100%" }}>
+                  <div className="lp-icon">{f.icon}</div>
+                  <h3 className="lp-card-title">{f.title}</h3>
+                  <p className="lp-muted">{f.desc}</p>
                 </Card>
               </Col>
             ))}
           </Row>
-        </Container>
+        </div>
       </section>
 
       {/* ---------- Dashboard theo vai trò ---------- */}
       <section className="lp-roles-section">
-        <Container>
-          <Row className="align-items-center g-5">
-            <Col lg={6}>
-              <h2 className="lp-h2 fw-bold mb-3">Dashboard Chuyên biệt theo Vai trò</h2>
-              <p className="lp-muted mb-4">
+        <div className="lp-container">
+          <Row gutter={[40, 40]} align="middle">
+            <Col xs={24} lg={12}>
+              <h2 className="lp-h2">Dashboard Chuyên biệt theo Vai trò</h2>
+              <p className="lp-muted" style={{ marginBottom: 24 }}>
                 Mỗi thành viên phi hành đoàn được trang bị một không gian làm việc tối ưu hóa cho
                 nhiệm vụ cụ thể, đảm bảo luồng thông tin thông suốt và ra quyết định nhanh chóng.
               </p>
-              <ul className="lp-roles list-unstyled">
+              <ul className="lp-roles">
                 {ROLES.map((r) => (
-                  <li key={r.title} className="d-flex gap-3 mb-3">
+                  <li key={r.title} className="lp-roles__item">
                     <span className="lp-roles__dot">{r.icon}</span>
                     <div>
-                      <strong className="d-block">{r.title}</strong>
+                      <strong style={{ display: "block" }}>{r.title}</strong>
                       <span className="lp-muted">{r.desc}</span>
                     </div>
                   </li>
                 ))}
               </ul>
             </Col>
-            <Col lg={6}>
+            <Col xs={24} lg={12}>
               <DashboardMock />
             </Col>
           </Row>
-        </Container>
+        </div>
       </section>
 
       {/* ---------- CTA ---------- */}
       <section className="lp-cta text-center text-white">
-        <Container>
-          <h2 className="lp-h2 fw-bold mb-3">Bắt đầu ca trực của bạn</h2>
-          <p className="mx-auto mb-4" style={{ maxWidth: 540 }}>
+        <div className="lp-container">
+          <h2 className="lp-h2">Bắt đầu ca trực của bạn</h2>
+          <p style={{ maxWidth: 540, margin: "0 auto 24px" }}>
             Hệ thống chỉ dành cho nhân sự được cấp phép. Vui lòng đăng nhập để truy cập dữ liệu vận
             hành và bắt đầu ca làm việc.
           </p>
-          <Button variant="light" size="lg" className="lp-cta-btn fw-semibold" onClick={goLogin}>
+          <Button size="large" className="lp-cta-btn" onClick={goLogin}>
             Vào Hệ Thống
           </Button>
-        </Container>
+        </div>
       </section>
 
       {/* ---------- Footer ---------- */}

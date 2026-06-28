@@ -55,6 +55,16 @@ export const voyageService = {
   updateVoyage: async (id, data) => {
     const response = await api.put(`/voyages/${id}`, data);
     return response.data;
+  },
+  getAttendances: async (id, type, date) => {
+    let query = `?type=${type}`;
+    if (date) query += `&date=${date}`;
+    const response = await api.get(`/voyages/${id}/attendances${query}`);
+    return response.data;
+  },
+  saveAttendances: async (id, payload) => {
+    const response = await api.post(`/voyages/${id}/attendances`, payload);
+    return response.data;
   }
 };
 
@@ -77,6 +87,25 @@ export const cargoService = {
   },
   delete: async (id) => {
     const response = await api.delete(`/cargos/${id}`);
+    return response.data;
+  }
+};
+
+export const cargoTypeService = {
+  getAll: async () => {
+    const response = await api.get('/cargo-types');
+    return response.data;
+  },
+  create: async (data) => {
+    const response = await api.post('/cargo-types', data);
+    return response.data;
+  },
+  update: async (id, data) => {
+    const response = await api.put(`/cargo-types/${id}`, data);
+    return response.data;
+  },
+  delete: async (id) => {
+    const response = await api.delete(`/cargo-types/${id}`);
     return response.data;
   }
 };
@@ -135,16 +164,21 @@ export const vesselService = {
 };
 
 export const engineLogService = {
-  getActiveVoyage: async () => {
-    const response = await api.get('/engine-logs/active-voyage');
+  getMyVoyages: async () => {
+    const response = await api.get('/engine-logs/my-voyages');
     return response.data;
   },
-  getShifts: async (voyageId) => {
-    const response = await api.get(`/engine-logs/shifts/${voyageId}`);
+  getShifts: async (voyageId, date) => {
+    const params = date ? `?date=${date}` : '';
+    const response = await api.get(`/engine-logs/shifts/${voyageId}${params}`);
     return response.data;
   },
   create: async (data) => {
     const response = await api.post('/engine-logs', data);
+    return response.data;
+  },
+  update: async (shiftLogId, data) => {
+    const response = await api.put(`/engine-logs/${shiftLogId}`, data);
     return response.data;
   },
   getHistoryByShift: async (shiftId) => {
@@ -153,6 +187,54 @@ export const engineLogService = {
   },
   getHistoryByVoyage: async (voyageId) => {
     const response = await api.get(`/engine-logs/history/voyage/${voyageId}`);
+    return response.data;
+  },
+  uploadImages: async (shiftLogId, files) => {
+    const formData = new FormData();
+    files.forEach(f => formData.append('images', f));
+    const response = await api.post(`/engine-logs/${shiftLogId}/images`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    });
+    return response.data;
+  },
+  getEditHistory: async (shiftLogId) => {
+    const response = await api.get(`/engine-logs/${shiftLogId}/edit-history`);
+    return response.data;
+  }
+};
+
+export const deckLogService = {
+  getMyVoyages: async () => {
+    const response = await api.get('/deck-logs/my-voyages');
+    return response.data;
+  },
+  getShifts: async (voyageId, date) => {
+    const params = date ? `?date=${date}` : '';
+    const response = await api.get(`/deck-logs/shifts/${voyageId}${params}`);
+    return response.data;
+  },
+  create: async (data) => {
+    const response = await api.post('/deck-logs', data);
+    return response.data;
+  },
+  update: async (shiftLogId, data) => {
+    const response = await api.put(`/deck-logs/${shiftLogId}`, data);
+    return response.data;
+  },
+  getHistoryByShift: async (shiftId) => {
+    const response = await api.get(`/deck-logs/history/${shiftId}`);
+    return response.data;
+  },
+  uploadImages: async (shiftLogId, files) => {
+    const formData = new FormData();
+    files.forEach(f => formData.append('images', f));
+    const response = await api.post(`/deck-logs/${shiftLogId}/images`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    });
+    return response.data;
+  },
+  getEditHistory: async (shiftLogId) => {
+    const response = await api.get(`/deck-logs/${shiftLogId}/edit-history`);
     return response.data;
   }
 };

@@ -16,6 +16,7 @@ const Voyage = require("./Voyage");
 const VoyageCrew = require("./VoyageCrew");
 const Cargo = require("./Cargo");
 const CargoItem = require("./CargoItem");
+const CargoType = require("./CargoType");
 const Attendance = require("./Attendance");
 const Shift = require("./Shift");
 const ShiftLog = require("./ShiftLog");
@@ -25,6 +26,8 @@ const EngineParameter = require("./EngineParameter");
 const DeckLog = require("./DeckLog");
 const EngineLog = require("./EngineLog");
 const EngineLogValue = require("./EngineLogValue");
+const LogEditHistory = require("./LogEditHistory");
+const LogImage = require("./LogImage");
 
 // ============ QUAN HỆ ============
 
@@ -93,8 +96,10 @@ EngineLogValue.belongsTo(EngineParameter, { foreignKey: "parameterId" });
 Voyage.hasMany(VoyageCrew, { foreignKey: "voyageId" });
 VoyageCrew.belongsTo(Voyage, { foreignKey: "voyageId" });
 
-Voyage.hasMany(Cargo, { foreignKey: "voyageId" });
-Cargo.belongsTo(Voyage, { foreignKey: "voyageId" });
+// voyageId nullable: lô hàng có thể "Đã ở cảng" chưa gán hải trình.
+// Xoá hải trình -> cargo trở về trạng thái chưa gán (SET NULL) thay vì bị xoá.
+Voyage.hasMany(Cargo, { foreignKey: "voyageId", onDelete: "SET NULL", onUpdate: "CASCADE" });
+Cargo.belongsTo(Voyage, { foreignKey: "voyageId", onDelete: "SET NULL", onUpdate: "CASCADE" });
 
 Voyage.hasMany(Attendance, { foreignKey: "voyageId" });
 Attendance.belongsTo(Voyage, { foreignKey: "voyageId" });
@@ -127,6 +132,18 @@ CargoAllocation.belongsTo(CargoHold, { foreignKey: "cargoHoldId" });
 Shift.hasMany(ShiftLog, { foreignKey: "shiftId" });
 ShiftLog.belongsTo(Shift, { foreignKey: "shiftId" });
 
+// ShiftLog 1-N LogImage
+ShiftLog.hasMany(LogImage, { foreignKey: "shiftLogId" });
+LogImage.belongsTo(ShiftLog, { foreignKey: "shiftLogId" });
+
+// ShiftLog 1-N LogEditHistory
+ShiftLog.hasMany(LogEditHistory, { foreignKey: "shiftLogId" });
+LogEditHistory.belongsTo(ShiftLog, { foreignKey: "shiftLogId" });
+
+// CrewProfile -> LogEditHistory
+CrewProfile.hasMany(LogEditHistory, { foreignKey: "editedBy" });
+LogEditHistory.belongsTo(CrewProfile, { foreignKey: "editedBy" });
+
 // Report
 CrewProfile.hasMany(Report, { foreignKey: "createdBy" });
 Report.belongsTo(CrewProfile, { foreignKey: "createdBy" });
@@ -145,7 +162,7 @@ module.exports = {
   Engine, Equipment, RepairLog,
   CargoHold, CargoAllocation,
   Voyage, VoyageCrew,
-  Cargo, CargoItem,
+  Cargo, CargoItem, CargoType,
   Attendance,
   Shift, ShiftLog,
   Report, ReportReply,
@@ -153,4 +170,6 @@ module.exports = {
   DeckLog,
   EngineLog,
   EngineLogValue,
+  LogEditHistory,
+  LogImage,
 };

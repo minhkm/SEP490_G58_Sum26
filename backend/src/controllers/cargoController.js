@@ -124,17 +124,23 @@ exports.createCargo = async (req, res) => {
   try {
     const { voyageId, cargoName, cargoType, totalWeight, totalVolume, status } = req.body;
 
-    if (!voyageId) {
-      return res.status(400).json({ success: false, message: "Vui lòng chọn hải trình" });
-    }
-
     const newCargo = await Cargo.create({
-      voyageId,
+      voyageId: voyageId || null,
       cargoName,
       cargoType,
       totalWeight,
       totalVolume,
       status: status || "Registered"
+    });
+
+    // Tự động tạo 1 CargoItem mặc định bằng toàn bộ khối lượng lô hàng
+    await CargoItem.create({
+      cargoId: newCargo.id,
+      itemName: cargoName,
+      quantity: 1,
+      weight: totalWeight,
+      volume: totalVolume,
+      isLoaded: false
     });
 
     res.json({ success: true, message: "Thêm lô hàng thành công", data: newCargo });
