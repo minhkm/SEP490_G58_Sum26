@@ -119,8 +119,8 @@ async function seed() {
     const shipS66 = await Ship.create({ shipName: 'MV STAR 66', imoNumber: '9588548', flag: 'Vietnam', status: 'Active' }, { transaction: t });
 
     await ShipCapacity.bulkCreate([
-      { shipId: shipVQS.id, maxCargoWeight: 3500, maxCargoVolume: 4200, maxCrew: 15 },
-      { shipId: shipS66.id, maxCargoWeight: 3200, maxCargoVolume: 3800, maxCrew: 15 },
+      { shipId: shipVQS.id, maxCargoWeight: 3500, maxCargoVolume: 4200, minCrew: 10, maxCrew: 15 },
+      { shipId: shipS66.id, maxCargoWeight: 3200, maxCargoVolume: 3800, minCrew: 10, maxCrew: 15 },
     ], { transaction: t });
 
     await ShipDocument.bulkCreate([
