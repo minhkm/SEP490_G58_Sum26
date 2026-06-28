@@ -79,7 +79,7 @@ export default function CreateVoyagePage() {
         const shipsRes = await vesselService.getAll();
         setAvailableShips(shipsRes || []);
 
-        const crewsRes = await crewService.getAll();
+        const crewsRes = await crewService.getAvailable();
         setAvailableCrews(crewsRes || []);
 
         const cargosRes = await cargoService.getAllCargos();
@@ -210,7 +210,7 @@ export default function CreateVoyagePage() {
 
   return (
     <Layout>
-      <div style={{ padding: '24px 32px' }}>
+      <div style={{ padding: '24px 32px', height: '100%', overflowY: 'auto' }}>
         <PageHeader
           icon={<NodeIndexOutlined />}
           breadcrumb="Voyages / New"

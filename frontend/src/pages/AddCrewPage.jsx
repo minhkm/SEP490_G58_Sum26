@@ -149,12 +149,12 @@ export default function AddCrewPage() {
                   name="fullName"
                   rules={[{ required: true, message: 'Vui lòng điền đầy đủ Họ tên và Email.' }]}
                 >
-                  <Input placeholder="Ví dụ: Nguyễn Văn A" />
+                  <Input placeholder="Ví dụ: Nguyễn Văn A" disabled={isEditMode} />
                 </Form.Item>
                 <Row gutter={16}>
                   <Col span={12}>
                     <Form.Item label="CCCD" name="cccd">
-                      <Input placeholder="Mã định danh" />
+                      <Input placeholder="Mã định danh" disabled={isEditMode} />
                     </Form.Item>
                   </Col>
                   <Col span={12}>

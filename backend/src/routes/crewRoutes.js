@@ -123,7 +123,8 @@ router.delete('/me/certificates/:certId', authMiddleware, async (req, res) => {
 // GET /api/crews - Lấy danh sách toàn bộ thủy thủ
 router.get('/', async (req, res) => {
   try {
-    const crews = await CrewProfile.findAll({
+    const { available } = req.query;
+    let crews = await CrewProfile.findAll({
       include: [
         {
           model: User,
@@ -135,6 +136,23 @@ router.get('/', async (req, res) => {
       ],
       order: [['id', 'DESC']]
     });
+
+    if (available === 'true') {
+      const { Op } = require('sequelize');
+      const { VoyageCrew, Voyage } = require('../models');
+      
+      const busyCrews = await VoyageCrew.findAll({
+        include: [{
+          model: Voyage,
+          where: { status: { [Op.notIn]: ['Completed', 'Cancelled'] } },
+          required: true
+        }]
+      });
+      const busyCrewIds = busyCrews.map(bc => bc.crewId);
+      
+      crews = crews.filter(c => !busyCrewIds.includes(c.id) && c.User && c.User.status === 'Active');
+    }
+
     res.json(crews);
   } catch (error) {
     console.error('Lỗi khi lấy danh sách thủy thủ:', error);
