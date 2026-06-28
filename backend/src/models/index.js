@@ -28,6 +28,7 @@ const EngineLog = require("./EngineLog");
 const EngineLogValue = require("./EngineLogValue");
 const LogEditHistory = require("./LogEditHistory");
 const LogImage = require("./LogImage");
+const DeckLogEntry = require("./DeckLogEntry");
 
 // ============ QUAN HỆ ============
 
@@ -75,6 +76,10 @@ EngineParameter.belongsTo(Engine, { foreignKey: "engineId" });
 // ShiftLog 1-1 DeckLog
 ShiftLog.hasOne(DeckLog, { foreignKey: "shiftLogId" });
 DeckLog.belongsTo(ShiftLog, { foreignKey: "shiftLogId" });
+
+// DeckLog 1-N DeckLogEntry
+DeckLog.hasMany(DeckLogEntry, { foreignKey: "deckLogId" });
+DeckLogEntry.belongsTo(DeckLog, { foreignKey: "deckLogId" });
 
 // ShiftLog 1-1 EngineLog
 ShiftLog.hasOne(EngineLog, { foreignKey: "shiftLogId" });
@@ -172,4 +177,5 @@ module.exports = {
   EngineLogValue,
   LogEditHistory,
   LogImage,
+  DeckLogEntry,
 };
