@@ -1,7 +1,7 @@
 const { Op } = require('sequelize');
 const { 
   Voyage, VoyageCrew, Ship,
-  Shift, ShiftLog, DeckLog,
+  Shift, ShiftLog, DeckLog, DeckLogEntry,
   CrewProfile, LogEditHistory, LogImage
 } = require('../models');
 
@@ -85,18 +85,18 @@ const getShiftsForCurrentUser = async (req, res) => {
 };
 
 // ============================================================
-// 3. Tạo Nhật ký trực boong (Deck Log)
+// 3. Tạo Nhật ký trực boong (Deck Log) — entries theo giờ
 // ============================================================
 const createDeckLog = async (req, res) => {
   try {
-    const { shiftId, note } = req.body;
+    const { shiftId, note, entries } = req.body;
 
     if (!shiftId) {
       return res.status(400).json({ message: 'Thiếu thông tin ca trực' });
     }
 
-    if (!note || note.trim() === '') {
-      return res.status(400).json({ message: 'Ghi chú không được để trống' });
+    if ((!entries || entries.length === 0) && (!note || note.trim() === '')) {
+      return res.status(400).json({ message: 'Vui lòng nhập ít nhất 1 dòng dữ liệu hoặc ghi chú' });
     }
 
     const shift = await Shift.findByPk(shiftId);
@@ -107,14 +107,38 @@ const createDeckLog = async (req, res) => {
     const shiftLog = await ShiftLog.create({
       shiftId: shiftId,
       logType: 'Deck',
-      content: note,
+      content: note || '',
       createdAt: new Date()
     });
 
     const deckLog = await DeckLog.create({
       shiftLogId: shiftLog.id,
-      note: note
+      note: note || ''
     });
+
+    // Tạo các dòng dữ liệu theo giờ
+    if (entries && entries.length > 0) {
+      const entryRecords = entries.map(e => ({
+        deckLogId: deckLog.id,
+        hour: e.hour,
+        courseTrue: e.courseTrue ?? null,
+        courseGyro: e.courseGyro ?? null,
+        courseSteer: e.courseSteer ?? null,
+        gyroError: e.gyroError ?? null,
+        courseMagnetic: e.courseMagnetic ?? null,
+        speed: e.speed ?? null,
+        rpm: e.rpm ?? null,
+        windDirection: e.windDirection ?? null,
+        windForce: e.windForce ?? null,
+        weather: e.weather ?? null,
+        barometer: e.barometer ?? null,
+        seaState: e.seaState ?? null,
+        visibility: e.visibility ?? null,
+        airTemp: e.airTemp ?? null,
+        seaTemp: e.seaTemp ?? null,
+      }));
+      await DeckLogEntry.bulkCreate(entryRecords);
+    }
 
     res.status(201).json({ 
       message: 'Ghi nhận nhật ký boong thành công', 
@@ -133,7 +157,7 @@ const createDeckLog = async (req, res) => {
 const updateDeckLog = async (req, res) => {
   try {
     const { shiftLogId } = req.params;
-    const { note, editReason } = req.body;
+    const { note, entries, editReason } = req.body;
     const crewId = req.user?.profileId;
 
     if (!editReason || editReason.trim() === '') {
@@ -141,7 +165,7 @@ const updateDeckLog = async (req, res) => {
     }
 
     const shiftLog = await ShiftLog.findByPk(shiftLogId, {
-      include: [{ model: DeckLog }]
+      include: [{ model: DeckLog, include: [{ model: DeckLogEntry }] }]
     });
 
     if (!shiftLog || !shiftLog.DeckLog) {
@@ -154,17 +178,53 @@ const updateDeckLog = async (req, res) => {
       shiftLogId: shiftLog.id,
       previousContent: JSON.stringify({
         note: shiftLog.DeckLog.note,
-        content: shiftLog.content
+        content: shiftLog.content,
+        entries: shiftLog.DeckLog.DeckLogEntries?.map(e => ({
+          hour: e.hour,
+          courseTrue: e.courseTrue, courseGyro: e.courseGyro,
+          courseSteer: e.courseSteer, gyroError: e.gyroError,
+          courseMagnetic: e.courseMagnetic,
+          speed: e.speed, rpm: e.rpm,
+          windDirection: e.windDirection, windForce: e.windForce,
+          weather: e.weather, barometer: e.barometer,
+          seaState: e.seaState, visibility: e.visibility,
+          airTemp: e.airTemp, seaTemp: e.seaTemp
+        }))
       }),
       editReason: editReason,
       editedBy: crewId,
       editedAt: new Date()
     });
 
-    // Cập nhật
+    // Cập nhật note
     if (note !== undefined) {
       await shiftLog.DeckLog.update({ note });
       await shiftLog.update({ content: note });
+    }
+
+    // Cập nhật entries
+    if (entries && entries.length > 0) {
+      await DeckLogEntry.destroy({ where: { deckLogId: shiftLog.DeckLog.id } });
+      const entryRecords = entries.map(e => ({
+        deckLogId: shiftLog.DeckLog.id,
+        hour: e.hour,
+        courseTrue: e.courseTrue ?? null,
+        courseGyro: e.courseGyro ?? null,
+        courseSteer: e.courseSteer ?? null,
+        gyroError: e.gyroError ?? null,
+        courseMagnetic: e.courseMagnetic ?? null,
+        speed: e.speed ?? null,
+        rpm: e.rpm ?? null,
+        windDirection: e.windDirection ?? null,
+        windForce: e.windForce ?? null,
+        weather: e.weather ?? null,
+        barometer: e.barometer ?? null,
+        seaState: e.seaState ?? null,
+        visibility: e.visibility ?? null,
+        airTemp: e.airTemp ?? null,
+        seaTemp: e.seaTemp ?? null,
+      }));
+      await DeckLogEntry.bulkCreate(entryRecords);
     }
 
     res.json({ message: 'Cập nhật nhật ký thành công' });
@@ -175,7 +235,7 @@ const updateDeckLog = async (req, res) => {
 };
 
 // ============================================================
-// 5. Lấy lịch sử trực boong theo Ca trực (bao gồm ảnh + edit history)
+// 5. Lấy lịch sử trực boong theo Ca trực (bao gồm entries + ảnh + edit history)
 // ============================================================
 const getDeckLogsByShift = async (req, res) => {
   try {
@@ -184,7 +244,7 @@ const getDeckLogsByShift = async (req, res) => {
     const shiftLogs = await ShiftLog.findAll({
       where: { shiftId, logType: 'Deck' },
       include: [
-        { model: DeckLog },
+        { model: DeckLog, include: [{ model: DeckLogEntry }] },
         { model: LogImage, attributes: ['id', 'imageUrl', 'caption', 'createdAt'] },
         { model: LogEditHistory, attributes: ['id', 'editReason', 'editedAt', 'previousContent'],
           include: [{ model: CrewProfile, attributes: ['fullName'] }]
