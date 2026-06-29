@@ -1,24 +1,23 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { Button, Switch, DatePicker, Spin, Result, Modal, Descriptions, Tag, Typography, Space, Tooltip } from 'antd';
+import { ClockCircleOutlined, LeftOutlined, RightOutlined, EditOutlined, SwapOutlined, StopOutlined } from '@ant-design/icons';
+import dayjs from 'dayjs';
 import MasterLayout from '../components/MasterLayout';
+import { PageHeader, StatusTag } from '../components/common';
 import { shiftService } from '../services/api';
 import { SHIFT_SLOTS, SHIFT_STATUS, DEPARTMENT_STYLE, slotFromStart } from '../config/shifts';
-import { Clock, Ship, CalendarDays, ChevronLeft, ChevronRight, AlertCircle, X, UserCheck, Ban, Pencil } from 'lucide-react';
 
-const toYMD = (d) => {
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, '0');
-  const day = String(d.getDate()).padStart(2, '0');
-  return `${y}-${m}-${day}`;
-};
-const fmtTime = (t) => new Date(t).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
+const { Text } = Typography;
+const fmtTime = (t) => dayjs(t).format('HH:mm');
+const depTagColor = (dep) => (dep === 'Deck' ? 'green' : dep === 'Engine' ? 'gold' : 'default');
 
 export default function ShiftViewPage() {
   const navigate = useNavigate();
   const [ctx, setCtx] = useState(null);
   const [loading, setLoading] = useState(true);
   const [ctxError, setCtxError] = useState('');
-  const [selectedDate, setSelectedDate] = useState(toYMD(new Date()));
+  const [selectedDate, setSelectedDate] = useState(dayjs().format('YYYY-MM-DD'));
   const [shifts, setShifts] = useState([]);
   const [onlyMine, setOnlyMine] = useState(false);
   const [detail, setDetail] = useState(null);
@@ -27,11 +26,7 @@ export default function ShiftViewPage() {
   const isMine = (s) => s.crewId === myCrewId;
 
   const loadShifts = useCallback(async (date) => {
-    try {
-      setShifts(await shiftService.getShifts(date));
-    } catch {
-      setShifts([]);
-    }
+    try { setShifts(await shiftService.getShifts(date)); } catch { setShifts([]); }
   }, []);
 
   useEffect(() => {
@@ -53,11 +48,7 @@ export default function ShiftViewPage() {
     if (ctx) loadShifts(selectedDate);
   }, [selectedDate, ctx, loadShifts]);
 
-  const shiftDate = (delta) => {
-    const d = new Date(selectedDate);
-    d.setDate(d.getDate() + delta);
-    setSelectedDate(toYMD(d));
-  };
+  const shiftDay = (delta) => setSelectedDate(dayjs(selectedDate).add(delta, 'day').format('YYYY-MM-DD'));
 
   // Ca trong 1 khung giờ, sắp xếp theo bộ phận rồi vị trí
   const slotShifts = (slot) =>
@@ -69,103 +60,81 @@ export default function ShiftViewPage() {
         (a.position || '').localeCompare(b.position || ''));
 
   if (loading) return (
-    <MasterLayout><div style={{ padding: 60, textAlign: 'center', color: '#64748b' }}>Đang tải...</div></MasterLayout>
+    <MasterLayout><div style={{ padding: 80, textAlign: 'center' }}><Spin size="large" /></div></MasterLayout>
   );
   if (ctxError) return (
-    <MasterLayout>
-      <div style={{ padding: '60px 32px', textAlign: 'center', color: '#64748b' }}>
-        <AlertCircle size={42} style={{ opacity: 0.4, marginBottom: 12 }} />
-        <p style={{ margin: 0, fontSize: 15 }}>{ctxError}</p>
-      </div>
-    </MasterLayout>
+    <MasterLayout><Result status="info" title="Không có lịch trực" subTitle={ctxError} /></MasterLayout>
   );
 
   return (
     <MasterLayout>
-      <div style={{ padding: '28px 32px', maxWidth: 1180, margin: '0 auto' }}>
-
-        {/* Header */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 20, flexWrap: 'wrap', gap: 12 }}>
-          <div>
-            <h2 style={{ fontWeight: 700, color: '#0f172a', margin: 0, fontSize: 20, display: 'flex', alignItems: 'center', gap: 8 }}>
-              <Clock size={22} /> Lịch trực toàn tàu
-            </h2>
-            <p style={{ margin: '6px 0 0', color: '#64748b', fontSize: 13, display: 'flex', alignItems: 'center', gap: 6 }}>
-              <Ship size={14} /> {ctx.ship?.shipName} · {ctx.voyage?.departurePort} → {ctx.voyage?.destinationPort}
-            </p>
-          </div>
-          {ctx.canCreate && (
-            <button onClick={() => navigate(`/shifts/manage?date=${selectedDate}`)}
-              style={{ background: '#2563eb', color: '#fff', border: 'none', borderRadius: 10, padding: '10px 18px', cursor: 'pointer', fontWeight: 600, fontSize: 14, display: 'flex', alignItems: 'center', gap: 8 }}>
-              <Pencil size={16} /> Cập nhật ca trực
-            </button>
+      <div style={{ padding: '24px 32px' }}>
+        <PageHeader
+          icon={<ClockCircleOutlined />}
+          breadcrumb={`${ctx.ship?.shipName || ''} · ${ctx.voyage?.departurePort} → ${ctx.voyage?.destinationPort}`}
+          title="Lịch trực toàn tàu"
+          extra={ctx.canCreate && (
+            <Button type="primary" icon={<EditOutlined />} onClick={() => navigate(`/shifts/manage?date=${selectedDate}`)}>
+              Cập nhật ca trực
+            </Button>
           )}
-        </div>
+        />
 
-        {/* Controls */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 20, flexWrap: 'wrap' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, background: '#fff', border: '1px solid #e2e8f0', borderRadius: 12, padding: '10px 14px' }}>
-            <button onClick={() => shiftDate(-1)} style={navBtn}><ChevronLeft size={18} /></button>
-            <CalendarDays size={16} color="#64748b" />
-            <input type="date" value={selectedDate} onChange={e => setSelectedDate(e.target.value)}
-              style={{ border: '1px solid #d1d5db', borderRadius: 8, padding: '6px 10px', fontSize: 14 }} />
-            <button onClick={() => shiftDate(1)} style={navBtn}><ChevronRight size={18} /></button>
-            <button onClick={() => setSelectedDate(toYMD(new Date()))}
-              style={{ ...navBtn, width: 'auto', padding: '0 12px', fontSize: 13, color: '#2563eb' }}>Hôm nay</button>
-          </div>
-
-          <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', background: '#fff', border: '1px solid #e2e8f0', borderRadius: 12, padding: '12px 16px', fontSize: 14, color: '#334155' }}>
-            <input type="checkbox" checked={onlyMine} onChange={e => setOnlyMine(e.target.checked)} style={{ width: 16, height: 16 }} />
-            Chỉ ca của tôi
-          </label>
-
-          {/* Chú thích bộ phận */}
-          <div style={{ display: 'flex', gap: 14, marginLeft: 'auto', fontSize: 12, color: '#64748b' }}>
+        {/* Điều khiển: ngày, lọc, chú thích */}
+        <Space wrap size={16} style={{ marginBottom: 20 }}>
+          <Space>
+            <Button icon={<LeftOutlined />} onClick={() => shiftDay(-1)} />
+            <DatePicker value={dayjs(selectedDate)} allowClear={false} format="DD/MM/YYYY"
+              onChange={(d) => d && setSelectedDate(d.format('YYYY-MM-DD'))} />
+            <Button icon={<RightOutlined />} onClick={() => shiftDay(1)} />
+            <Button onClick={() => setSelectedDate(dayjs().format('YYYY-MM-DD'))}>Hôm nay</Button>
+          </Space>
+          <Space>
+            <Switch checked={onlyMine} onChange={setOnlyMine} />
+            <Text>Chỉ ca của tôi</Text>
+          </Space>
+          <Space size={6}>
             {Object.entries(DEPARTMENT_STYLE).map(([k, v]) => (
-              <span key={k} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                <span style={{ width: 12, height: 12, borderRadius: 3, background: v.bg, border: `1px solid ${v.border}`, display: 'inline-block' }} />
-                {v.label}
-              </span>
+              <Tag key={k} color={depTagColor(k)} style={{ marginInlineEnd: 0 }}>{v.label}</Tag>
             ))}
-          </div>
-        </div>
+          </Space>
+        </Space>
 
         {/* Timetable ngang: 6 cột khung giờ, thẻ ca xếp dọc trong mỗi cột */}
-        <div style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: 16, overflowX: 'auto' }}>
+        <div style={{ background: '#fff', border: '1px solid #f0f0f0', borderRadius: 12, overflowX: 'auto' }}>
           <div style={{ display: 'flex', minWidth: 920, alignItems: 'stretch' }}>
             {SHIFT_SLOTS.map((slot, i) => {
               const list = slotShifts(slot.slot);
               return (
-                <div key={slot.slot} style={{ flex: 1, minWidth: 150, borderRight: i < SHIFT_SLOTS.length - 1 ? '1px solid #f1f5f9' : 'none', display: 'flex', flexDirection: 'column' }}>
-                  {/* Đầu cột: khung giờ */}
-                  <div style={{ padding: '12px 10px', background: '#f8fafc', borderBottom: '1px solid #e2e8f0', textAlign: 'center', fontWeight: 700, color: '#334155', fontSize: 12.5, letterSpacing: '0.01em' }}>
+                <div key={slot.slot} style={{ flex: 1, minWidth: 150, borderRight: i < SHIFT_SLOTS.length - 1 ? '1px solid #f0f0f0' : 'none', display: 'flex', flexDirection: 'column' }}>
+                  <div style={{ padding: '12px 10px', background: '#fafafa', borderBottom: '1px solid #f0f0f0', textAlign: 'center', fontWeight: 600, fontSize: 13, color: '#595959' }}>
                     {slot.label}
                   </div>
-                  {/* Thân cột: các thẻ xếp dọc */}
                   <div style={{ flex: 1, padding: 10, display: 'flex', flexDirection: 'column', gap: 8, minHeight: 220 }}>
                     {list.length === 0 ? (
-                      <span style={{ color: '#cbd5e1', fontSize: 12, textAlign: 'center', marginTop: 12 }}>—</span>
+                      <Text type="secondary" style={{ textAlign: 'center', marginTop: 12, fontSize: 12 }}>—</Text>
                     ) : (
                       list.map(s => {
                         const mine = isMine(s);
-                        const dep = DEPARTMENT_STYLE[s.CrewProfile?.department] || { color: '#475569', bg: '#f8fafc', border: '#e2e8f0', label: '—' };
-                        const st = SHIFT_STATUS[s.status] || SHIFT_STATUS.Scheduled;
+                        const dep = DEPARTMENT_STYLE[s.CrewProfile?.department] || { bg: '#fafafa', border: '#f0f0f0', label: '—' };
                         return (
-                          <button key={s.id} onClick={() => setDetail(s)}
+                          <div key={s.id} onClick={() => setDetail(s)}
                             style={{
-                              textAlign: 'left', cursor: 'pointer', width: '100%',
-                              border: `1px solid ${mine ? '#2563eb' : dep.border}`,
-                              outline: mine ? '2px solid #2563eb' : 'none',
-                              background: dep.bg, borderRadius: 10, padding: '9px 11px',
+                              cursor: 'pointer', background: dep.bg,
+                              border: `1px solid ${mine ? '#1677ff' : dep.border}`,
+                              outline: mine ? '2px solid #1677ff' : 'none',
+                              borderRadius: 8, padding: '8px 10px',
                             }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
-                              <span style={{ fontSize: 10, fontWeight: 700, color: dep.color, textTransform: 'uppercase', letterSpacing: '0.04em' }}>{dep.label}</span>
-                              {mine && <span style={{ marginLeft: 'auto', background: '#2563eb', color: '#fff', fontSize: 9.5, fontWeight: 700, padding: '1px 6px', borderRadius: 6 }}>Tôi</span>}
+                              <Tag color={depTagColor(s.CrewProfile?.department)} style={{ marginInlineEnd: 0 }}>{dep.label}</Tag>
+                              {mine && <Tag color="blue" style={{ marginInlineEnd: 0, marginLeft: 'auto' }}>Tôi</Tag>}
                             </div>
-                            <div style={{ fontWeight: 700, color: '#0f172a', fontSize: 13.5, lineHeight: 1.25 }}>{s.CrewProfile?.fullName || '—'}</div>
-                            <div style={{ fontSize: 11.5, fontWeight: 600, color: '#475569', marginTop: 2 }}>{s.position || 'Trực ca'}</div>
-                            <div style={{ fontSize: 10.5, color: st.color, marginTop: 3 }}>{st.label}</div>
-                          </button>
+                            <div style={{ fontWeight: 600, fontSize: 14, color: '#262626', lineHeight: 1.3 }}>{s.CrewProfile?.fullName || '—'}</div>
+                            <Text type="secondary" style={{ fontSize: 12 }}>{s.position || 'Trực ca'}</Text>
+                            <div style={{ marginTop: 4 }}>
+                              <StatusTag status={s.status} text={SHIFT_STATUS[s.status]?.label} />
+                            </div>
+                          </div>
                         );
                       })
                     )}
@@ -177,45 +146,30 @@ export default function ShiftViewPage() {
         </div>
       </div>
 
-      {/* Detail modal */}
-      {detail && (
-        <div onClick={() => setDetail(null)}
-          style={{ position: 'fixed', inset: 0, background: 'rgba(15,23,42,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: 16 }}>
-          <div onClick={e => e.stopPropagation()}
-            style={{ background: '#fff', borderRadius: 16, width: '100%', maxWidth: 440, overflow: 'hidden' }}>
-            <div style={{ background: 'linear-gradient(135deg, #0f172a, #1e3a5f)', padding: '18px 24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <h3 style={{ margin: 0, color: '#fff', fontSize: 16, fontWeight: 700 }}>Chi tiết ca trực</h3>
-              <button onClick={() => setDetail(null)} style={{ background: 'none', border: 'none', color: '#fff', cursor: 'pointer' }}><X size={20} /></button>
-            </div>
-            <div style={{ padding: '20px 24px' }}>
-              {[
-                ['Thời gian', `${fmtTime(detail.startTime)} – ${fmtTime(detail.endTime)}`],
-                ['Người đảm nhiệm', detail.CrewProfile?.fullName || '—'],
-                ['Bộ phận', (DEPARTMENT_STYLE[detail.CrewProfile?.department] || {}).label || '—'],
-                ['Vị trí', detail.position || 'Trực ca'],
-                ['Trạng thái', (SHIFT_STATUS[detail.status] || SHIFT_STATUS.Scheduled).label],
-              ].map(([k, v]) => (
-                <div key={k} style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid #f1f5f9' }}>
-                  <span style={{ color: '#64748b', fontSize: 13 }}>{k}</span>
-                  <span style={{ color: '#0f172a', fontSize: 14, fontWeight: 600 }}>{v}</span>
-                </div>
-              ))}
-
-              {isMine(detail) && (
-                <div style={{ display: 'flex', gap: 10, marginTop: 18 }}>
-                  <button disabled title="Sẽ làm sau (bàn giao ca khi gần giờ trực)"
-                    style={disabledBtn}><UserCheck size={15} /> Bàn giao ca</button>
-                  <button disabled title="Sẽ làm sau (từ chối → báo cáo)"
-                    style={disabledBtn}><Ban size={15} /> Từ chối ca</button>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Modal chi tiết */}
+      <Modal open={!!detail} onCancel={() => setDetail(null)} title="Chi tiết ca trực" footer={null}>
+        {detail && (
+          <>
+            <Descriptions column={1} bordered size="small" style={{ marginTop: 8 }}>
+              <Descriptions.Item label="Thời gian">{fmtTime(detail.startTime)} – {fmtTime(detail.endTime)}</Descriptions.Item>
+              <Descriptions.Item label="Người đảm nhiệm">{detail.CrewProfile?.fullName || '—'}</Descriptions.Item>
+              <Descriptions.Item label="Bộ phận">{(DEPARTMENT_STYLE[detail.CrewProfile?.department] || {}).label || '—'}</Descriptions.Item>
+              <Descriptions.Item label="Vị trí">{detail.position || 'Trực ca'}</Descriptions.Item>
+              <Descriptions.Item label="Trạng thái"><StatusTag status={detail.status} text={SHIFT_STATUS[detail.status]?.label} /></Descriptions.Item>
+            </Descriptions>
+            {isMine(detail) && (
+              <Space style={{ marginTop: 16 }}>
+                <Tooltip title="Sẽ làm sau (bàn giao ca khi gần giờ trực)">
+                  <Button icon={<SwapOutlined />} disabled>Bàn giao ca</Button>
+                </Tooltip>
+                <Tooltip title="Sẽ làm sau (từ chối → báo cáo)">
+                  <Button icon={<StopOutlined />} disabled danger>Từ chối ca</Button>
+                </Tooltip>
+              </Space>
+            )}
+          </>
+        )}
+      </Modal>
     </MasterLayout>
   );
 }
-
-const navBtn = { width: 32, height: 32, border: '1px solid #e2e8f0', background: '#fff', borderRadius: 8, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#334155' };
-const disabledBtn = { flex: 1, background: '#f1f5f9', color: '#94a3b8', border: 'none', borderRadius: 8, padding: '10px', cursor: 'not-allowed', fontSize: 13, fontWeight: 600, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 };

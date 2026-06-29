@@ -34,7 +34,7 @@ export default function Sidebar() {
     { key: dashboardPath, icon: <DashboardOutlined />, label: 'Tổng quan' },
     { key: '/voyages', icon: <CompassOutlined />, label: 'Hải Trình' },
     CARGO_ROLES.includes(role) && { key: '/cargos', icon: <InboxOutlined />, label: 'Hàng hóa' },
-    isCrewRole && { key: 'ca-truc', icon: <ClockCircleOutlined />, label: 'Ca trực', disabled: true },
+    isCrewRole && { key: '/shifts', icon: <ClockCircleOutlined />, label: 'Ca trực' },
     isDeck && { key: '/deck-logs', icon: <FileTextOutlined />, label: 'Nhật ký Trực boong' },
     isEngine && { key: '/engine-logs', icon: <ToolOutlined />, label: 'Nhật ký Kiểm tra Máy' },
     { key: 'bao-cao', icon: <BarChartOutlined />, label: 'Báo cáo', disabled: !isMasterOrChief },
@@ -70,87 +70,6 @@ export default function Sidebar() {
           <strong style={{ fontSize: 18 }}>CargoOps</strong>
           <span style={{ fontSize: 12, color: '#94a3b8' }}>Maritime Logistics</span>
         </div>
-
-        <nav className="nav-menu">
-          {/* Tổng quan — tất cả roles */}
-          <div
-            className={`nav-item ${isActive('/master-dashboard', '/crew-dashboard')}`}
-            onClick={() => navigate(dashboardPath)}
-            style={{ cursor: 'pointer' }}
-          >
-            <LayoutDashboard size={20} />
-            <span>Tổng quan</span>
-          </div>
-
-          {/* Hải Trình — tất cả roles */}
-          <div
-            className={`nav-item ${isActive('/voyages')}`}
-            onClick={() => navigate('/voyages')}
-            style={{ cursor: 'pointer' }}
-          >
-            <Navigation size={20} />
-            <span>Hải Trình</span>
-          </div>
-
-          {/* Hàng hóa — chỉ role được phép */}
-          {CARGO_ROLES.includes(role) && (
-            <div
-              className={`nav-item ${isActive('/cargos')}`}
-              onClick={() => navigate('/cargos')}
-              style={{ cursor: 'pointer' }}
-            >
-              <Package size={20} />
-              <span>Hàng hóa</span>
-            </div>
-          )}
-
-          {/* Ca trực — DeckOfficer, EngineOfficer, Sailor, EngineCrew */}
-          {isCrewRole && (
-            <div
-              className={`nav-item ${isActive('/shifts')}`}
-              onClick={() => navigate('/shifts')}
-              style={{ cursor: 'pointer' }}
-            >
-              <Clock size={20} />
-              <span>Ca trực</span>
-            </div>
-          )}
-
-          {/* Nhật ký Kiểm tra Máy — EngineOfficer, EngineCrew, ChiefEngineer */}
-          {(role === 'EngineOfficer' || role === 'EngineCrew' || role === 'ChiefEngineer') && (
-            <div
-              className={`nav-item ${isActive('/engine-logs')}`}
-              onClick={() => navigate('/engine-logs')}
-              style={{ cursor: 'pointer' }}
-            >
-              <Gauge size={20} />
-              <span>Nhật ký Kiểm tra Máy</span>
-            </div>
-          )}
-
-          {/* Báo cáo — tất cả */}
-          <div className="nav-item" style={{ cursor: 'default', opacity: isMasterOrChief ? 1 : 0.5 }}>
-            <BarChart2 size={20} />
-            <span>Báo cáo</span>
-          </div>
-
-          {/* Hồ sơ — tất cả trừ Master/ChiefOfficer đã có Settings */}
-          <div
-            className={`nav-item ${isActive('/crew-profile')}`}
-            onClick={() => navigate('/crew-profile')}
-            style={{ cursor: 'pointer' }}
-          >
-            <UserCircle size={20} />
-            <span>Hồ sơ của tôi</span>
-          </div>
-
-          {isMasterOrChief && (
-            <div className="nav-item" style={{ cursor: 'default' }}>
-              <Settings size={20} />
-              <span>Cài đặt</span>
-            </div>
-          )}
-        </nav>
       </div>
 
       <Menu
