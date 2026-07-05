@@ -526,10 +526,11 @@ async function seed() {
         // Engine watch
         const eShift = await Shift.create({ voyageId: vVQS04.id, crewId: w.engCrew, startTime: st, endTime: et, status }, { transaction: t });
 
-        // Add some dummy logs if it's a past shift
-        if (isPast) {
+        // Add some dummy logs if the shift has already started (past or currently in progress today)
+        const shiftHasStarted = st < new Date();
+        if (shiftHasStarted) {
           // Deck log
-          const dSLog = await ShiftLog.create({ shiftId: dSailShift.id, logType: 'Deck', content: `Ca trực boong an toàn ngày ${day}.`, createdAt: et }, { transaction: t });
+          const dSLog = await ShiftLog.create({ shiftId: dSailShift.id, logType: 'Deck', content: `Ca trực boong an toàn ngày ${day}.`, createdAt: isPast ? et : new Date() }, { transaction: t });
           const dkLog = await DeckLog.create({ shiftLogId: dSLog.id, note: `Mọi thông số và cảnh giới bình thường. Hải trình ổn định.` }, { transaction: t });
 
           // Tạo DeckLogEntry — dữ liệu theo giờ cho ca này
@@ -558,7 +559,7 @@ async function seed() {
           }
 
           // Engine log
-          const eSLog = await ShiftLog.create({ shiftId: eShift.id, logType: 'Engine', content: `Ca máy hoạt động tốt ngày ${day}.`, createdAt: et }, { transaction: t });
+          const eSLog = await ShiftLog.create({ shiftId: eShift.id, logType: 'Engine', content: `Ca máy hoạt động tốt ngày ${day}.`, createdAt: isPast ? et : new Date() }, { transaction: t });
           const eLog = await EngineLog.create({ shiftLogId: eSLog.id, engineId: eVQSMain.id, note: `Máy chính chạy ổn định ở vòng tua 650 RPM.` }, { transaction: t });
           for (let i = 0; i < actualEngineValues.length; i++) {
             if (epVQS[i]) {

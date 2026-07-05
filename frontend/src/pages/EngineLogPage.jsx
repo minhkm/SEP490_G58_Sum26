@@ -41,7 +41,7 @@ export default function EngineLogPage() {
   const isToday = selectedDate && selectedDate.startOf('day').isSame(today);
   const isPastDate = selectedDate && selectedDate.startOf('day').isBefore(today);
   const daysDiff = isPastDate ? today.diff(selectedDate.startOf('day'), 'day') : 0;
-  const canEdit = daysDiff <= 3; // Cho phép chỉnh sửa trong 3 ngày
+  const canEdit = daysDiff <= 1; // Cho phép chỉnh sửa trong 24h
   const isCompleted = selectedVoyage?.status === 'Completed';
 
   // ===== BƯỚC 1: Lấy danh sách hải trình =====
@@ -332,7 +332,7 @@ export default function EngineLogPage() {
             <div>
               <div style={{ marginBottom: 6 }}><Text type="secondary"><CalendarOutlined /> Chọn Ngày</Text></div>
               <DatePicker value={selectedDate} onChange={handleDateChange} format="DD/MM/YYYY" allowClear={false}
-                style={{ width: 160 }} />
+                style={{ width: 160 }} disabledDate={(current) => current && current.isAfter(dayjs().endOf('day'))} />
             </div>
             <div style={{ minWidth: 320 }}>
               <div style={{ marginBottom: 6 }}><Text type="secondary"><ClockCircleOutlined /> Chọn Ca trực</Text></div>
@@ -348,7 +348,7 @@ export default function EngineLogPage() {
         )}
         {isPastDate && !isCompleted && selectedShift && (
           <Alert
-            message={canEdit ? `Ngày đã qua (${daysDiff} ngày trước) — Bạn vẫn có thể chỉnh sửa nhật ký nhưng phải ghi lý do` : `Ngày đã qua quá 3 ngày — Chỉ xem, không chỉnh sửa được`}
+            message={canEdit ? `Ngày đã qua (${daysDiff} ngày trước) — Bạn vẫn có thể chỉnh sửa nhật ký nhưng phải ghi lý do` : `Đã quá 24 giờ — Chỉ xem, không chỉnh sửa được`}
             type={canEdit ? 'info' : 'warning'} showIcon style={{ marginBottom: 16 }} />
         )}
 
