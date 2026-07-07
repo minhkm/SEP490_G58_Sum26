@@ -77,7 +77,7 @@ export default function DeckLogPage() {
   const isToday = selectedDate && selectedDate.startOf('day').isSame(today);
   const isPastDate = selectedDate && selectedDate.startOf('day').isBefore(today);
   const daysDiff = isPastDate ? today.diff(selectedDate.startOf('day'), 'day') : 0;
-  const canEdit = daysDiff <= 3;
+  const canEdit = daysDiff <= 1;
   const isCompleted = selectedVoyage?.status === 'Completed';
 
   useEffect(() => {
@@ -365,7 +365,7 @@ export default function DeckLogPage() {
             </div>
             <div>
               <div style={{ marginBottom: 6 }}><Text type="secondary"><CalendarOutlined /> Chọn Ngày</Text></div>
-              <DatePicker value={selectedDate} onChange={handleDateChange} format="DD/MM/YYYY" allowClear={false} style={{ width: 160 }} />
+              <DatePicker value={selectedDate} onChange={handleDateChange} format="DD/MM/YYYY" allowClear={false} style={{ width: 160 }} disabledDate={(current) => current && current.isAfter(dayjs().endOf('day'))} />
             </div>
             <div style={{ minWidth: 320 }}>
               <div style={{ marginBottom: 6 }}><Text type="secondary"><ClockCircleOutlined /> Chọn Ca trực</Text></div>
@@ -381,7 +381,7 @@ export default function DeckLogPage() {
         )}
         {isPastDate && !isCompleted && selectedShift && (
           <Alert
-            message={canEdit ? `Ngày đã qua (${daysDiff} ngày trước) — Chỉnh sửa cần ghi lý do` : `Ngày đã qua quá 3 ngày — Chỉ xem, không chỉnh sửa được`}
+            message={canEdit ? `Ngày đã qua (${daysDiff} ngày trước) — Chỉnh sửa cần ghi lý do` : `Đã quá 24 giờ — Chỉ xem, không chỉnh sửa được`}
             type={canEdit ? 'info' : 'warning'} showIcon style={{ marginBottom: 16 }} />
         )}
 
@@ -501,10 +501,6 @@ export default function DeckLogPage() {
           </div>
         )}
 
-        <div>
-          <label style={{ fontWeight: 500, display: 'block', marginBottom: 4 }}>Ghi chú</label>
-          <TextArea rows={2} value={editNote} onChange={e => setEditNote(e.target.value)} />
-        </div>
       </Modal>
 
       {/* ===== MODAL LỊCH SỬ CHỈNH SỬA ===== */}
