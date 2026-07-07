@@ -20,9 +20,11 @@ import CrewProfilePage from "./pages/CrewProfilePage";
 import EngineLogPage from "./pages/EngineLogPage";
 import AttendancePage from "./pages/AttendancePage";
 import RequireRole from "./components/RequireRole";
-import { CARGO_ROLES } from "./config/roles";
+import { CARGO_ROLES, REPORT_ROLES } from "./config/roles";
 
 import DeckLogPage from "./pages/DeckLogPage";
+import ReportListPage from "./pages/ReportListPage";
+import ReportDetailPage from "./pages/ReportDetailPage";
 
 function App() {
   return (
@@ -94,6 +96,22 @@ function App() {
         <Route path="/crew-profile" element={<CrewProfilePage />} />
         <Route path="/engine-logs" element={<EngineLogPage />} />
         <Route path="/deck-logs" element={<DeckLogPage />} />
+        <Route
+          path="/reports"
+          element={
+            <RequireRole allow={REPORT_ROLES}>
+              <ReportListPage />
+            </RequireRole>
+          }
+        />
+        <Route
+          path="/reports/:id"
+          element={
+            <RequireRole allow={REPORT_ROLES}>
+              <ReportDetailPage />
+            </RequireRole>
+          }
+        />
       </Routes>
     </Router>
   );
