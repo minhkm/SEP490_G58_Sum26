@@ -28,7 +28,7 @@ async function notifyCrewAssignedToVoyage({ voyage, crewList, actorUserId }, opt
   ]);
 
   const roleByCrewId = new Map(crewList.map((crew) => [Number(crew.crewId), crew.role]));
-  const shipName = ship ? ship.shipName : `tau #${voyage.shipId}`;
+  const shipName = ship ? ship.shipName : `tàu #${voyage.shipId}`;
   const routeText = `${voyage.departurePort || "N/A"} -> ${voyage.destinationPort || "N/A"}`;
 
   const payloads = profiles
@@ -38,8 +38,8 @@ async function notifyCrewAssignedToVoyage({ voyage, crewList, actorUserId }, opt
       actorUserId,
       voyageId: voyage.id,
       type: "VOYAGE_ASSIGNED",
-      title: "Ban duoc phan cong vao hai trinh",
-      message: `Ban duoc phan cong len ${shipName}, hai trinh ${routeText}.`,
+      title: "Bạn được phân công vào hải trình",
+      message: `Bạn được phân công lên ${shipName}, hải trình ${routeText}.`,
       metadata: {
         crewId: profile.id,
         role: roleByCrewId.get(Number(profile.id)) || profile.position || null,
@@ -71,15 +71,15 @@ async function notifyAttendanceUpdated({ voyage, attendanceChanges, attendanceTy
     .filter((profile) => profile.userId)
     .map((profile) => {
       const change = changeByCrewId.get(Number(profile.id));
-      const statusText = change.isPresent ? "co mat" : "vang mat";
+      const statusText = change.isPresent ? "có mặt" : "vắng mặt";
 
       return {
         recipientUserId: profile.userId,
         actorUserId,
         voyageId: voyage.id,
         type: "ATTENDANCE_UPDATED",
-        title: "Diem danh tren tau da duoc cap nhat",
-        message: `Trang thai diem danh cua ban trong hai trinh #${voyage.id}: ${statusText}.`,
+        title: "Điểm danh trên tàu đã được cập nhật",
+        message: `Trạng thái điểm danh của bạn trong hải trình #${voyage.id}: ${statusText}.`,
         metadata: {
           crewId: profile.id,
           attendanceType: attendanceType || null,
@@ -115,16 +115,16 @@ async function notifyVoyageUpdated({ voyage, changes, actorUserId }, options = {
   if (profiles.length === 0) return [];
 
   const ship = await Ship.findByPk(voyage.shipId, { transaction: options.transaction });
-  const shipName = ship ? ship.shipName : `tau #${voyage.shipId}`;
+  const shipName = ship ? ship.shipName : `tàu #${voyage.shipId}`;
   const routeText = `${voyage.departurePort || "N/A"} -> ${voyage.destinationPort || "N/A"}`;
 
   const changeLabels = {
-    status: "trang thai",
-    departureDate: "ngay khoi hanh",
-    arrivalDate: "ngay den",
-    isCrewSufficient: "tinh trang thuyen vien",
-    isCargoLoaded: "tinh trang hang hoa",
-    issueReason: "ly do/phat sinh",
+    status: "trạng thái",
+    departureDate: "ngày khởi hành",
+    arrivalDate: "ngày đến",
+    isCrewSufficient: "tình trạng thuyền viên",
+    isCargoLoaded: "tình trạng hàng hóa",
+    issueReason: "lý do/phát sinh",
   };
 
   const changedText = Object.entries(changes)
@@ -139,8 +139,8 @@ async function notifyVoyageUpdated({ voyage, changes, actorUserId }, options = {
     actorUserId,
     voyageId: voyage.id,
     type: "VOYAGE_UPDATED",
-    title: "Hai trinh da duoc cap nhat",
-    message: `${shipName} (${routeText}) da cap nhat: ${changedText}.`,
+    title: "Hải trình đã được cập nhật",
+    message: `${shipName} (${routeText}) đã cập nhật: ${changedText}.`,
     metadata: {
       crewId: profile.id,
       shipId: voyage.shipId,

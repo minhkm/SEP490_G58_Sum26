@@ -86,9 +86,32 @@ export default function NotificationBell() {
     });
   };
 
+  const translateNotificationText = (text) => {
+    if (!text) return '';
+
+    return text
+      .replaceAll('Thong bao', 'Thông báo')
+      .replaceAll('Ban duoc phan cong vao hai trinh', 'Bạn được phân công vào hải trình')
+      .replaceAll('Ban duoc phan cong len', 'Bạn được phân công lên')
+      .replaceAll('hai trinh', 'hải trình')
+      .replaceAll('Hai trinh da duoc cap nhat', 'Hải trình đã được cập nhật')
+      .replaceAll('da cap nhat', 'đã cập nhật')
+      .replaceAll('trang thai', 'trạng thái')
+      .replaceAll('tinh trang thuyen vien', 'tình trạng thuyền viên')
+      .replaceAll('tinh trang hang hoa', 'tình trạng hàng hóa')
+      .replaceAll('ngay khoi hanh', 'ngày khởi hành')
+      .replaceAll('ngay den', 'ngày đến')
+      .replaceAll('ly do/phat sinh', 'lý do/phát sinh')
+      .replaceAll('Diem danh tren tau da duoc cap nhat', 'Điểm danh trên tàu đã được cập nhật')
+      .replaceAll('Trang thai diem danh cua ban', 'Trạng thái điểm danh của bạn')
+      .replaceAll('co mat', 'có mặt')
+      .replaceAll('vang mat', 'vắng mặt')
+      .replaceAll('chua doc', 'chưa đọc');
+  };
+
   return (
     <div className="notification-bell" ref={wrapperRef}>
-      <button className="notification-bell-button" type="button" onClick={handleToggle} aria-label="Thong bao">
+      <button className="notification-bell-button" type="button" onClick={handleToggle} aria-label="Thông báo">
         <BellOutlined />
         {unreadCount > 0 && (
           <span className="notification-bell-count">{unreadCount > 9 ? '9+' : unreadCount}</span>
@@ -99,18 +122,18 @@ export default function NotificationBell() {
         <div className="notification-bell-dropdown">
           <div className="notification-bell-header">
             <div>
-              <h3>Thong bao</h3>
-              <span>{unreadCount} chua doc</span>
+              <h3>Thông báo</h3>
+              <span>{unreadCount} chưa đọc</span>
             </div>
             {unreadCount > 0 && (
-              <button type="button" onClick={handleReadAll}>Doc tat ca</button>
+              <button type="button" onClick={handleReadAll}>Đọc tất cả</button>
             )}
           </div>
 
           <div className="notification-bell-list">
-            {loading && <div className="notification-bell-empty">Dang tai thong bao...</div>}
+            {loading && <div className="notification-bell-empty">Đang tải thông báo...</div>}
             {!loading && notifications.length === 0 && (
-              <div className="notification-bell-empty">Chua co thong bao nao</div>
+              <div className="notification-bell-empty">Chưa có thông báo nào</div>
             )}
             {!loading && notifications.map((item) => (
               <button
@@ -120,10 +143,10 @@ export default function NotificationBell() {
                 onClick={() => handleRead(item)}
               >
                 <div className="notification-bell-item-top">
-                  <span className="notification-bell-title">{item.title}</span>
+                  <span className="notification-bell-title">{translateNotificationText(item.title)}</span>
                   <span className="notification-bell-time">{formatTime(item.createdAt)}</span>
                 </div>
-                <p>{item.message}</p>
+                <p>{translateNotificationText(item.message)}</p>
               </button>
             ))}
           </div>
