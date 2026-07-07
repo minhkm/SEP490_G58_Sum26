@@ -3,7 +3,7 @@ const bcrypt = require('bcrypt');
 const crypto = require('crypto');
 const { sequelize, Voyage, User, CrewProfile, VoyageCrew, Ship, Attendance, Cargo, CargoItem, ShipCapacity, CargoHold, CargoAllocation } = require('../models');
 const { sendCrewCredentialsEmail } = require('../services/emailService');
-const { notifyCrewAssignedToVoyage, notifyAttendanceUpdated } = require('../services/notificationService');
+const { notifyCrewAssignedToVoyage, notifyAttendanceUpdated, notifyVoyageUpdated } = require('../services/notificationService');
 const authMiddleware = require('../middlewares/authMiddleware');
 
 const router = express.Router();
@@ -275,6 +275,15 @@ router.put('/:id', authMiddleware, async (req, res) => {
       return res.status(404).json({ message: 'Không tìm thấy chuyến đi' });
     }
 
+    const previousVoyage = {
+      status: voyage.status,
+      departureDate: voyage.departureDate,
+      arrivalDate: voyage.arrivalDate,
+      isCrewSufficient: voyage.isCrewSufficient,
+      isCargoLoaded: voyage.isCargoLoaded,
+      issueReason: voyage.issueReason
+    };
+
     // Check authorization
     if (userRole !== 'admin' && userRole !== 'agency') {
       if (userRole !== 'chiefofficer' && userRole !== 'master') {
@@ -481,6 +490,21 @@ router.put('/:id', authMiddleware, async (req, res) => {
     }
 
     await voyage.save();
+
+    const voyageChanges = {};
+    for (const field of Object.keys(previousVoyage)) {
+      const beforeValue = previousVoyage[field];
+      const afterValue = voyage[field];
+      if (String(beforeValue ?? '') !== String(afterValue ?? '')) {
+        voyageChanges[field] = { from: beforeValue, to: afterValue };
+      }
+    }
+
+    await notifyVoyageUpdated({
+      voyage,
+      changes: voyageChanges,
+      actorUserId: req.user.id
+    });
 
     res.json({ message: 'Cập nhật chuyến đi thành công', voyage });
   } catch (error) {
