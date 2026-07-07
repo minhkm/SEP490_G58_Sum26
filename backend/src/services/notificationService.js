@@ -1,4 +1,4 @@
-const { Notification, CrewProfile, Ship } = require("../models");
+const { Notification, CrewProfile, Ship, VoyageCrew } = require("../models");
 
 async function createNotification(data, options = {}) {
   if (!data || !data.recipientUserId || !data.type || !data.title || !data.message) {
@@ -93,8 +93,67 @@ async function notifyAttendanceUpdated({ voyage, attendanceChanges, attendanceTy
   return Notification.bulkCreate(payloads, options);
 }
 
+function formatValue(value) {
+  if (value === null || value === undefined || value === "") return "N/A";
+  if (value instanceof Date) return value.toISOString().split("T")[0];
+  return String(value);
+}
+
+async function notifyVoyageUpdated({ voyage, changes, actorUserId }, options = {}) {
+  if (!voyage || !changes || Object.keys(changes).length === 0) return [];
+
+  const voyageCrews = await VoyageCrew.findAll({
+    where: { voyageId: voyage.id },
+    include: [{ model: CrewProfile, attributes: ["id", "userId", "fullName"] }],
+    transaction: options.transaction,
+  });
+
+  const profiles = voyageCrews
+    .map((voyageCrew) => voyageCrew.CrewProfile)
+    .filter((profile) => profile && profile.userId);
+
+  if (profiles.length === 0) return [];
+
+  const ship = await Ship.findByPk(voyage.shipId, { transaction: options.transaction });
+  const shipName = ship ? ship.shipName : `tau #${voyage.shipId}`;
+  const routeText = `${voyage.departurePort || "N/A"} -> ${voyage.destinationPort || "N/A"}`;
+
+  const changeLabels = {
+    status: "trang thai",
+    departureDate: "ngay khoi hanh",
+    arrivalDate: "ngay den",
+    isCrewSufficient: "tinh trang thuyen vien",
+    isCargoLoaded: "tinh trang hang hoa",
+    issueReason: "ly do/phat sinh",
+  };
+
+  const changedText = Object.entries(changes)
+    .map(([field, values]) => {
+      const label = changeLabels[field] || field;
+      return `${label}: ${formatValue(values.from)} -> ${formatValue(values.to)}`;
+    })
+    .join("; ");
+
+  const payloads = profiles.map((profile) => ({
+    recipientUserId: profile.userId,
+    actorUserId,
+    voyageId: voyage.id,
+    type: "VOYAGE_UPDATED",
+    title: "Hai trinh da duoc cap nhat",
+    message: `${shipName} (${routeText}) da cap nhat: ${changedText}.`,
+    metadata: {
+      crewId: profile.id,
+      shipId: voyage.shipId,
+      changes,
+    },
+  }));
+
+  return Notification.bulkCreate(payloads, options);
+}
+
 module.exports = {
   createNotification,
   notifyCrewAssignedToVoyage,
   notifyAttendanceUpdated,
+  notifyVoyageUpdated,
 };
