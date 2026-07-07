@@ -7,11 +7,11 @@ import { Tag } from 'antd';
  * Nếu một page cần màu khác với mặc định, truyền prop `color` để ghi đè.
  */
 const GROUPS = [
-  { color: 'red', keys: ['cancel', 'hủy', 'huỷ', 'delay', 'chậm', 'expired', 'hết hạn', 'inactive', 'ngừng'] },
+  { color: 'red', keys: ['cancel', 'hủy', 'huỷ', 'delay', 'chậm', 'expired', 'hết hạn', 'inactive', 'ngừng', 'reject', 'từ chối', 'urgent', 'khẩn'] },
   { color: 'gold', keys: ['maintenance', 'sửa chữa', 'bảo trì', 'loading', 'đang xếp', 'expiring', 'sắp hết'] },
-  { color: 'blue', keys: ['completed', 'hoàn thành', 'transit'] },
+  { color: 'blue', keys: ['completed', 'hoàn thành', 'transit', 'resolved', 'đã xử lý'] },
   { color: 'geekblue', keys: ['loaded', 'đã xếp'] },
-  { color: 'cyan', keys: ['arrived', 'at anchor', 'registered', 'đăng ký', 'cập cảng'] },
+  { color: 'cyan', keys: ['arrived', 'at anchor', 'registered', 'đăng ký', 'cập cảng', 'open', 'chờ xử lý'] },
   {
     color: 'green',
     keys: ['hoạt động', 'active', 'underway', 'homeward', 'in progress', 'progress', 'đang di chuyển',
