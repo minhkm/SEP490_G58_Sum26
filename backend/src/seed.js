@@ -613,37 +613,94 @@ async function seed() {
     // ================================================================
     const r1 = await Report.create({
       createdBy: cpQuan.id,
-      reportType: 'Engine',
+      reportCategory: 'Incident',
+      reportType: 'Breakdown',
+      department: 'Engine',
+      priority: 'Urgent',
+      shipId: shipVQS.id,
       title: 'Báo cáo sự cố: Tiếng ồn bất thường tại Generator No.2',
       content: 'Ca máy 08-12H ngày 03/04/2026. Phát hiện Generator No.2 phát ra tiếng ồn bất thường. Kiểm tra sơ bộ: gioăng làm kín trục có dấu hiệu rò rỉ nhẹ. Đề nghị kiểm tra kỹ và thay thế tại cảng tiếp theo.',
       status: 'Resolved',
+      currentHandlerRole: 'Master',
+      currentHandlerId: cpMinh.id,
+      resolvedAt: new Date('2026-04-03T15:30:00'),
     }, { transaction: t });
     await ReportReply.create({ reportId: r1.id, repliedBy: cpMinh.id, content: 'Đã xem xét. Chấp thuận đề xuất thay gioăng. Yêu cầu ghi nhận vào Repair Log và đặt phụ tùng tại cảng Gen. Santos City.', repliedAt: new Date('2026-04-03T15:30:00') }, { transaction: t });
 
     await Report.create({
       createdBy: cpHungV.id,
-      reportType: 'Deck',
+      reportCategory: 'Routine',
+      reportType: 'ShiftException',
+      department: 'Deck',
+      priority: 'Normal',
+      shipId: shipVQS.id,
       title: 'Báo cáo tình trạng hầm hàng sau bốc dỡ - VQS Voyage 03/2026',
       content: 'H1 và H2 đã bốc dỡ hoàn tất lúc 22:20H ngày 15/04/2026. Tổng 112,000 bao = 2,800 MTS. Ghi nhận: 18 bao rách (busted bags), 50 bao rỗng (sweepings = 0.451 MTS). Đã ký xác nhận với Cargo Checker và đại diện người nhận hàng Kingfields Trade Inc. Đề nghị Master phê duyệt Cargo Discharge Certificate.',
       status: 'Open',
+      currentHandlerRole: 'Master',
+      currentHandlerId: null,
     }, { transaction: t });
 
     const r3 = await Report.create({
       createdBy: cpDuc.id,
-      reportType: 'Engine',
+      reportCategory: 'Routine',
+      reportType: 'Other',
+      department: 'Engine',
+      priority: 'Normal',
+      shipId: shipS66.id,
       title: 'Nhật ký máy - STAR 66 Voyage 01/26: HCM → Kuching',
       content: 'Hành trình tính đến 20/05/2026. Máy chính MAN B&W 6S35ME hoạt động ổn định, RPM 660. Nhiệt độ khí xả các xilanh: XL2=385, XL3=390, XL4=390, XL5=385, XL6=385°C. Áp suất FO=4.8 kg/cm², Scavenge=5.2 kg/cm². Tiêu thụ HFO 12.5 MT/ngày. Không có sự cố.',
       status: 'InProgress',
+      currentHandlerRole: 'Master',
+      currentHandlerId: cpDuong.id,
     }, { transaction: t });
     await ReportReply.create({ reportId: r3.id, repliedBy: cpDuong.id, content: 'Đã xem xét nhật ký máy. Tiếp tục duy trì. Yêu cầu cập nhật mỗi 24 giờ cho đến khi cập cảng Kuching.', repliedAt: new Date('2026-05-20T09:00:00') }, { transaction: t });
 
     await Report.create({
       createdBy: cpAn.id,
-      reportType: 'Deck',
+      reportCategory: 'Routine',
+      reportType: 'ShiftException',
+      department: 'Deck',
+      priority: 'Normal',
+      shipId: shipVQS.id,
       title: 'Báo cáo ca trực boong - Ngày 16/03/2026 (VQS Voyage 02)',
       content: 'Ngày 16/03/2026. Hành trình về cảng HCM. Thời tiết: Gió NE cấp 4-5, biển cấp 3-4. Hướng thật 283°, tốc độ 6.5 hải lý/giờ. Khí áp 1015 mbar. Không có sự cố trong ngày. Tất cả các ca trực an toàn. ETA HCM: 20/03/2026.',
       status: 'Resolved',
+      currentHandlerRole: 'ChiefOfficer',
+      currentHandlerId: cpHungV.id,
+      resolvedAt: new Date('2026-03-16T18:00:00'),
     }, { transaction: t });
+
+    // Mẫu escalation: báo cáo thường nhật mới, đang chờ Sĩ quan boong xử lý (Kịch bản A - bước 1)
+    await Report.create({
+      createdBy: cpViet.id,
+      reportCategory: 'Routine',
+      reportType: 'ShiftSwap',
+      department: 'Deck',
+      priority: 'Normal',
+      shipId: shipVQS.id,
+      title: 'Xin đổi ca trực boong ngày 18/03/2026',
+      content: 'Kính đề nghị được đổi ca trực 00-04H sang ca 08-12H ngày 18/03/2026 do lý do sức khỏe cá nhân (chóng mặt khi trực đêm). Rất mong Sĩ quan boong xem xét, chấp thuận.',
+      status: 'Open',
+      currentHandlerRole: 'DeckOfficer',
+      currentHandlerId: null,
+    }, { transaction: t });
+
+    // Mẫu escalation: báo cáo sự cố khẩn cấp đã được đẩy lên Thuyền trưởng (Kịch bản B)
+    const r6 = await Report.create({
+      createdBy: cpKhoa.id,
+      reportCategory: 'Incident',
+      reportType: 'Breakdown',
+      department: 'Engine',
+      priority: 'Urgent',
+      shipId: shipVQS.id,
+      title: 'Sự cố khẩn: Máy chính mất áp suất dầu bôi trơn đột ngột',
+      content: 'Lúc 02:15H phát hiện áp suất dầu bôi trơn máy chính tụt từ 4.8 xuống 2.1 kg/cm². Đã giảm tải khẩn cấp. Nghi ngờ bơm dầu nhờn số 1 hỏng. Cần chỉ đạo gấp từ cấp trên.',
+      status: 'InProgress',
+      currentHandlerRole: 'Master',
+      currentHandlerId: cpMinh.id,
+    }, { transaction: t });
+    await ReportReply.create({ reportId: r6.id, repliedBy: cpQuan.id, kind: 'escalate', metadata: { fromRole: 'EngineOfficer', toRole: 'Master' }, content: 'Sĩ quan máy đã tiếp nhận. Vượt thẩm quyền xử lý tại chỗ, đẩy lên Thuyền trưởng quyết định phương án và cảng ghé sửa chữa.', repliedAt: new Date('2026-03-12T02:30:00') }, { transaction: t });
 
     console.log('✅ Reports xong');
 
