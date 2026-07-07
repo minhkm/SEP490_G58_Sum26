@@ -169,6 +169,16 @@ ReportReply.belongsTo(Report, { foreignKey: "reportId" });
 CrewProfile.hasMany(ReportReply, { foreignKey: "repliedBy" });
 ReportReply.belongsTo(CrewProfile, { foreignKey: "repliedBy" });
 
+// Report — ngữ cảnh tàu/hải trình + người đang giữ lượt xử lý (currentHandlerId)
+Ship.hasMany(Report, { foreignKey: "shipId" });
+Report.belongsTo(Ship, { foreignKey: "shipId" });
+
+Voyage.hasMany(Report, { foreignKey: "voyageId" });
+Report.belongsTo(Voyage, { foreignKey: "voyageId" });
+
+CrewProfile.hasMany(Report, { foreignKey: "currentHandlerId", as: "HandlingReports" });
+Report.belongsTo(CrewProfile, { foreignKey: "currentHandlerId", as: "Handler" });
+
 // ============ EXPORT ============
 module.exports = {
   sequelize,
