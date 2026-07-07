@@ -1,15 +1,55 @@
 import { useState, useEffect } from 'react';
-import { Select, Input, Button, Table, Card, Spin, Empty, Typography, Space, Alert, DatePicker, Upload, Modal, Image, Timeline, Tag } from 'antd';
+import { Select, Input, InputNumber, Button, Table, Card, Spin, Empty, Typography, Space, Alert, DatePicker, Upload, Modal, Image, Timeline, Tag, Row, Col } from 'antd';
 import { FileTextOutlined, SaveOutlined, ClockCircleOutlined, CompassOutlined, CalendarOutlined, UploadOutlined, EditOutlined, HistoryOutlined, PictureOutlined } from '@ant-design/icons';
 import MasterLayout from '../components/MasterLayout';
 import { deckLogService } from '../services/api';
 import { PageHeader, notifyWarning, notifySuccess, notifyError } from '../components/common';
 import dayjs from 'dayjs';
 
-const { Text } = Typography;
+const { Title, Text } = Typography;
 const { TextArea } = Input;
 
 const API_URL = import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000';
+
+// ===== Cấu hình 16 cột thông số =====
+const ENTRY_FIELDS = [
+  { key: 'courseTrue', label: 'Hướng đi Thật', short: 'HĐ Thật', type: 'number', max: 360 },
+  { key: 'courseGyro', label: 'LBCQ', short: 'LBCQ', type: 'number', max: 360 },
+  { key: 'courseSteer', label: 'LB Lái', short: 'LB Lái', type: 'number', max: 360 },
+  { key: 'gyroError', label: 'Sai số LBCQ', short: 'SS LBCQ', type: 'number' },
+  { key: 'courseMagnetic', label: 'LB Từ', short: 'LB Từ', type: 'number', max: 360 },
+  { key: 'speed', label: 'Tốc độ (Knots)', short: 'Tốc độ', type: 'number' },
+  { key: 'rpm', label: 'RPM', short: 'RPM', type: 'number' },
+  { key: 'windDirection', label: 'Hướng gió', short: 'H.Gió', type: 'select', options: ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW', 'C'] },
+  { key: 'windForce', label: 'Sức gió (Bf)', short: 'S.Gió', type: 'number', max: 12 },
+  { key: 'weather', label: 'Thời tiết', short: 'T.Tiết', type: 'select', options: ['bc', 'br', 'c', 'f', 'g', 'h', 'o', 'p', 'q', 'r', 's'] },
+  { key: 'barometer', label: 'Khí áp (mb)', short: 'Khí áp', type: 'number' },
+  { key: 'seaState', label: 'Biển', short: 'Biển', type: 'number', max: 9 },
+  { key: 'visibility', label: 'Tầm nhìn (NM)', short: 'Tầm nhìn', type: 'number' },
+  { key: 'airTemp', label: 'Nhiệt độ KK (°C)', short: 'T° KK', type: 'number' },
+  { key: 'seaTemp', label: 'Nhiệt độ Biển (°C)', short: 'T° Biển', type: 'number' },
+];
+
+// Tính các giờ thuộc ca trực (VD: ca 00:00-04:00 → giờ 1,2,3,4)
+const getShiftHours = (shift) => {
+  if (!shift) return [];
+  const st = new Date(shift.startTime);
+  const et = new Date(shift.endTime);
+  const startH = st.getHours();
+  const endH = et.getHours() === 0 ? 24 : et.getHours();
+  const hours = [];
+  for (let h = startH + 1; h <= endH; h++) {
+    hours.push(h);
+  }
+  return hours;
+};
+
+// Tạo dòng trống cho mỗi giờ
+const createEmptyRow = (hour) => {
+  const row = { hour };
+  ENTRY_FIELDS.forEach(f => { row[f.key] = null; });
+  return row;
+};
 
 export default function DeckLogPage() {
   const [voyages, setVoyages] = useState([]);
@@ -18,6 +58,7 @@ export default function DeckLogPage() {
   const [shifts, setShifts] = useState([]);
   const [selectedShift, setSelectedShift] = useState(null);
   const [note, setNote] = useState('');
+  const [entries, setEntries] = useState([]);
   const [history, setHistory] = useState([]);
   const [loading, setLoading] = useState(true);
   const [fileList, setFileList] = useState([]);
@@ -26,6 +67,7 @@ export default function DeckLogPage() {
   const [editingLog, setEditingLog] = useState(null);
   const [editNote, setEditNote] = useState('');
   const [editReason, setEditReason] = useState('');
+  const [editEntries, setEditEntries] = useState([]);
   // Edit history modal
   const [historyModalOpen, setHistoryModalOpen] = useState(false);
   const [editHistoryData, setEditHistoryData] = useState([]);
@@ -35,7 +77,7 @@ export default function DeckLogPage() {
   const isToday = selectedDate && selectedDate.startOf('day').isSame(today);
   const isPastDate = selectedDate && selectedDate.startOf('day').isBefore(today);
   const daysDiff = isPastDate ? today.diff(selectedDate.startOf('day'), 'day') : 0;
-  const canEdit = daysDiff <= 3;
+  const canEdit = daysDiff <= 1;
   const isCompleted = selectedVoyage?.status === 'Completed';
 
   useEffect(() => {
@@ -66,6 +108,7 @@ export default function DeckLogPage() {
     setHistory([]);
     setNote('');
     setFileList([]);
+    setEntries([]);
     if (v) {
       const shiftsData = await deckLogService.getShifts(v.id, selectedDate.format('YYYY-MM-DD'));
       setShifts(shiftsData);
@@ -76,6 +119,7 @@ export default function DeckLogPage() {
     setSelectedDate(date);
     setSelectedShift(null);
     setHistory([]);
+    setEntries([]);
     if (selectedVoyage && date) {
       const shiftsData = await deckLogService.getShifts(selectedVoyage.id, date.format('YYYY-MM-DD'));
       setShifts(shiftsData);
@@ -86,12 +130,18 @@ export default function DeckLogPage() {
     if (!shiftId) {
       setSelectedShift(null);
       setHistory([]);
+      setEntries([]);
       return;
     }
     const shift = shifts.find(s => s.id === parseInt(shiftId));
     setSelectedShift(shift);
     setNote('');
     setFileList([]);
+
+    // Tạo các dòng trống theo giờ của ca
+    const hours = getShiftHours(shift);
+    setEntries(hours.map(h => createEmptyRow(h)));
+
     try {
       const logs = await deckLogService.getHistoryByShift(shiftId);
       setHistory(logs);
@@ -100,12 +150,26 @@ export default function DeckLogPage() {
     }
   };
 
+  // ===== Cập nhật giá trị ô trong bảng =====
+  const handleEntryChange = (hour, field, value) => {
+    setEntries(prev => prev.map(e => e.hour === hour ? { ...e, [field]: value } : e));
+  };
+
+  // ===== Submit =====
   const handleSubmit = async () => {
     if (!selectedShift) { notifyWarning('Vui lòng chọn ca trực'); return; }
-    if (!note.trim()) { notifyWarning('Vui lòng nhập nội dung nhật ký'); return; }
+
+    // Check có ít nhất 1 dòng có dữ liệu
+    const filledEntries = entries.filter(e => 
+      ENTRY_FIELDS.some(f => e[f.key] !== null && e[f.key] !== '' && e[f.key] !== undefined)
+    );
+    if (filledEntries.length === 0 && (!note || !note.trim())) {
+      notifyWarning('Vui lòng nhập ít nhất 1 dòng dữ liệu hoặc ghi chú');
+      return;
+    }
 
     try {
-      const result = await deckLogService.create({ shiftId: selectedShift.id, note });
+      const result = await deckLogService.create({ shiftId: selectedShift.id, note, entries: filledEntries });
 
       if (fileList.length > 0 && result.shiftLog?.id) {
         const files = fileList.map(f => f.originFileObj);
@@ -117,6 +181,8 @@ export default function DeckLogPage() {
       setHistory(logs);
       setNote('');
       setFileList([]);
+      const hours = getShiftHours(selectedShift);
+      setEntries(hours.map(h => createEmptyRow(h)));
     } catch (error) {
       console.error('Lỗi:', error);
       notifyError('Có lỗi xảy ra khi lưu nhật ký');
@@ -128,13 +194,36 @@ export default function DeckLogPage() {
     setEditingLog(log);
     setEditNote(log.DeckLog?.note || log.content || '');
     setEditReason('');
+
+    // Load entries hiện tại hoặc tạo dòng trống
+    const existingEntries = log.DeckLog?.DeckLogEntries || [];
+    if (existingEntries.length > 0) {
+      setEditEntries(existingEntries.map(e => ({
+        hour: e.hour,
+        ...ENTRY_FIELDS.reduce((acc, f) => ({ ...acc, [f.key]: e[f.key] }), {})
+      })));
+    } else {
+      const hours = getShiftHours(selectedShift);
+      setEditEntries(hours.map(h => createEmptyRow(h)));
+    }
     setEditModalOpen(true);
+  };
+
+  const handleEditEntryChange = (hour, field, value) => {
+    setEditEntries(prev => prev.map(e => e.hour === hour ? { ...e, [field]: value } : e));
   };
 
   const handleUpdate = async () => {
     if (!editReason.trim()) { notifyWarning('Vui lòng nhập lý do chỉnh sửa'); return; }
     try {
-      await deckLogService.update(editingLog.id, { note: editNote, editReason: editReason.trim() });
+      const filledEntries = editEntries.filter(e =>
+        ENTRY_FIELDS.some(f => e[f.key] !== null && e[f.key] !== '' && e[f.key] !== undefined)
+      );
+      await deckLogService.update(editingLog.id, {
+        note: editNote,
+        entries: filledEntries,
+        editReason: editReason.trim()
+      });
       notifySuccess('Cập nhật nhật ký thành công');
       setEditModalOpen(false);
       const logs = await deckLogService.getHistoryByShift(selectedShift.id);
@@ -152,6 +241,25 @@ export default function DeckLogPage() {
 
   const formatTime = (d) => d ? new Date(d).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }) : '';
   const formatDateTime = (d) => d ? new Date(d).toLocaleString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '';
+
+  // ===== Render ô nhập liệu cho 1 field =====
+  const renderInputCell = (entry, field, onChange) => {
+    if (field.type === 'select') {
+      return (
+        <Select size="small" style={{ width: '100%' }} allowClear placeholder="—"
+          value={entry[field.key] || undefined}
+          onChange={val => onChange(entry.hour, field.key, val || null)}
+          options={field.options.map(o => ({ value: o, label: o }))} />
+      );
+    }
+    return (
+      <InputNumber size="small" style={{ width: '100%' }} placeholder="—"
+        min={field.key === 'gyroError' ? undefined : 0}
+        max={field.max}
+        value={entry[field.key]}
+        onChange={val => onChange(entry.hour, field.key, val)} />
+    );
+  };
 
   // ===== RENDER =====
   if (loading) {
@@ -175,15 +283,51 @@ export default function DeckLogPage() {
     );
   }
 
+  // ===== Cột lịch sử =====
   const historyColumns = [
-    { title: 'Thời gian', dataIndex: 'createdAt', width: 100, render: (d) => formatTime(d) },
-    { title: 'Nội dung ghi chép', key: 'note', render: (_, log) => log.DeckLog?.note || log.content },
+    { title: 'Thời gian', dataIndex: 'createdAt', width: 80, render: (d) => formatTime(d) },
     {
-      title: 'Ảnh', key: 'images', width: 120,
+      title: 'Dữ liệu hàng hải', key: 'entries', render: (_, log) => {
+        const entryList = log.DeckLog?.DeckLogEntries || [];
+        if (entryList.length === 0) return <Text type="secondary">Không có dữ liệu giờ</Text>;
+        return (
+          <div style={{ overflowX: 'auto' }}>
+            <table style={{ fontSize: 12, borderCollapse: 'collapse', width: '100%' }}>
+              <thead>
+                <tr style={{ background: '#f0f5ff' }}>
+                  <th style={{ padding: '2px 6px', border: '1px solid #d9d9d9', whiteSpace: 'nowrap' }}>Giờ</th>
+                  {ENTRY_FIELDS.map(f => (
+                    <th key={f.key} style={{ padding: '2px 6px', border: '1px solid #d9d9d9', whiteSpace: 'nowrap' }}>{f.short}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {entryList.sort((a, b) => a.hour - b.hour).map(e => (
+                  <tr key={e.hour}>
+                    <td style={{ padding: '2px 6px', border: '1px solid #d9d9d9', fontWeight: 600, textAlign: 'center' }}>{e.hour}</td>
+                    {ENTRY_FIELDS.map(f => (
+                      <td key={f.key} style={{ padding: '2px 6px', border: '1px solid #d9d9d9', textAlign: 'center' }}>
+                        {e[f.key] !== null && e[f.key] !== undefined ? e[f.key] : '—'}
+                      </td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        );
+      }
+    },
+    {
+      title: 'Ghi chú', key: 'note', width: 150,
+      render: (_, log) => log.DeckLog?.note || <Text type="secondary">—</Text>
+    },
+    {
+      title: 'Ảnh', key: 'images', width: 100,
       render: (_, log) => log.LogImages?.length > 0 ? (
         <Image.PreviewGroup>
           {log.LogImages.map(img => (
-            <Image key={img.id} width={40} height={40} style={{ objectFit: 'cover', borderRadius: 4, marginRight: 4 }}
+            <Image key={img.id} width={36} height={36} style={{ objectFit: 'cover', borderRadius: 4, marginRight: 4 }}
               src={`${API_URL}${img.imageUrl}`} />
           ))}
         </Image.PreviewGroup>
@@ -221,7 +365,7 @@ export default function DeckLogPage() {
             </div>
             <div>
               <div style={{ marginBottom: 6 }}><Text type="secondary"><CalendarOutlined /> Chọn Ngày</Text></div>
-              <DatePicker value={selectedDate} onChange={handleDateChange} format="DD/MM/YYYY" allowClear={false} style={{ width: 160 }} />
+              <DatePicker value={selectedDate} onChange={handleDateChange} format="DD/MM/YYYY" allowClear={false} style={{ width: 160 }} disabledDate={(current) => current && current.isAfter(dayjs().endOf('day'))} />
             </div>
             <div style={{ minWidth: 320 }}>
               <div style={{ marginBottom: 6 }}><Text type="secondary"><ClockCircleOutlined /> Chọn Ca trực</Text></div>
@@ -237,62 +381,130 @@ export default function DeckLogPage() {
         )}
         {isPastDate && !isCompleted && selectedShift && (
           <Alert
-            message={canEdit ? `Ngày đã qua (${daysDiff} ngày trước) — Chỉnh sửa cần ghi lý do` : `Ngày đã qua quá 3 ngày — Chỉ xem, không chỉnh sửa được`}
+            message={canEdit ? `Ngày đã qua (${daysDiff} ngày trước) — Chỉnh sửa cần ghi lý do` : `Đã quá 24 giờ — Chỉ xem, không chỉnh sửa được`}
             type={canEdit ? 'info' : 'warning'} showIcon style={{ marginBottom: 16 }} />
         )}
 
-        {/* Form nhập ghi chú — chỉ cho ngày hôm nay + hải trình chưa kết thúc */}
-        {selectedShift && !isCompleted && isToday && (
+        {/* ===== BẢNG NHẬP LIỆU THEO GIỜ ===== */}
+        {selectedShift && !isCompleted && isToday && entries.length > 0 && (
           <Card style={{ marginBottom: 16 }}
-            title={`📋 Ghi chép Nhật ký (Ca: ${formatTime(selectedShift.startTime)} - ${formatTime(selectedShift.endTime)})`}>
-            <div>
-              <label style={{ fontSize: 14, fontWeight: 500, color: '#475569', marginBottom: 8, display: 'block' }}>
-                Nội dung nhật ký (Thông số hành trình, thời tiết, sự kiện...)
-              </label>
-              <TextArea rows={4} placeholder="VD: Tàu đi đúng hướng 045°, tốc độ 12 knots..." value={note} onChange={e => setNote(e.target.value)} />
+            title={`📋 Nhật ký Boong — Ca: ${formatTime(selectedShift.startTime)} - ${formatTime(selectedShift.endTime)}`}>
+
+            <div style={{ overflowX: 'auto', marginBottom: 16 }}>
+              <table style={{ borderCollapse: 'collapse', width: '100%', minWidth: 1200 }}>
+                <thead>
+                  <tr style={{ background: '#e6f4ff' }}>
+                    <th style={{ padding: '8px 6px', border: '1px solid #d9d9d9', textAlign: 'center', fontWeight: 600, minWidth: 50 }}>Giờ</th>
+                    {ENTRY_FIELDS.map(f => (
+                      <th key={f.key} style={{ padding: '8px 4px', border: '1px solid #d9d9d9', textAlign: 'center', fontSize: 12, fontWeight: 600, minWidth: 70, whiteSpace: 'nowrap' }}>
+                        {f.short}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {entries.map(entry => (
+                    <tr key={entry.hour}>
+                      <td style={{ padding: '4px 6px', border: '1px solid #d9d9d9', textAlign: 'center', fontWeight: 700, background: '#fafafa', fontSize: 14 }}>
+                        {entry.hour}
+                      </td>
+                      {ENTRY_FIELDS.map(f => (
+                        <td key={f.key} style={{ padding: '2px 2px', border: '1px solid #d9d9d9' }}>
+                          {renderInputCell(entry, f, handleEntryChange)}
+                        </td>
+                      ))}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
-            <div style={{ marginTop: 16 }}>
+
+            {/* Ghi chú */}
+            <div style={{ marginBottom: 16 }}>
               <label style={{ fontSize: 14, fontWeight: 500, color: '#475569', marginBottom: 8, display: 'block' }}>
-                <PictureOutlined /> Đính kèm ảnh (tối đa 5 ảnh, mỗi ảnh ≤ 5MB)
+                Ghi chú
+              </label>
+              <TextArea rows={3} placeholder="VD: Gặp sóng lớn vùng biển X, đã chuyển hướng tránh..." value={note} onChange={e => setNote(e.target.value)} />
+            </div>
+
+            {/* Ảnh */}
+            <div style={{ marginBottom: 16 }}>
+              <label style={{ fontSize: 14, fontWeight: 500, color: '#475569', marginBottom: 8, display: 'block' }}>
+                <PictureOutlined /> Đính kèm ảnh
               </label>
               <Upload listType="picture-card" fileList={fileList} onChange={({ fileList: fl }) => setFileList(fl.slice(0, 5))}
                 beforeUpload={() => false} accept="image/jpeg,image/png,image/webp">
                 {fileList.length < 5 && <div><UploadOutlined /><div style={{ marginTop: 8 }}>Chọn ảnh</div></div>}
               </Upload>
             </div>
-            <div style={{ marginTop: 16, display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
-              <Button onClick={() => { setNote(''); setFileList([]); }}>Xóa trắng</Button>
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+              <Button onClick={() => {
+                const hours = getShiftHours(selectedShift);
+                setEntries(hours.map(h => createEmptyRow(h)));
+                setNote('');
+                setFileList([]);
+              }}>Xóa trắng</Button>
               <Button type="primary" icon={<SaveOutlined />} onClick={handleSubmit}>Lưu Nhật ký</Button>
             </div>
           </Card>
         )}
 
-        {/* Lịch sử */}
+        {/* ===== LỊCH SỬ ===== */}
         {selectedShift && (
           <Card title={`📜 Lịch sử ghi chép — ${selectedDate.format('DD/MM/YYYY')}`}>
             <Table rowKey="id" columns={historyColumns} dataSource={history}
               pagination={{ pageSize: 10, hideOnSinglePage: true }}
+              scroll={{ x: 800 }}
               locale={{ emptyText: 'Chưa có ghi chép nào trong ca trực này.' }} />
           </Card>
         )}
       </div>
 
-      {/* Modal chỉnh sửa */}
-      <Modal title="Chỉnh sửa Nhật ký" open={editModalOpen} onCancel={() => setEditModalOpen(false)} onOk={handleUpdate}
-        okText="Lưu chỉnh sửa" cancelText="Hủy" width={600}>
+      {/* ===== MODAL CHỈNH SỬA ===== */}
+      <Modal title="Chỉnh sửa Nhật ký Boong" open={editModalOpen} onCancel={() => setEditModalOpen(false)} onOk={handleUpdate}
+        okText="Lưu chỉnh sửa" cancelText="Hủy" width={1000}>
         <Alert message="Bạn đang chỉnh sửa nhật ký đã ghi. Vui lòng cung cấp lý do." type="info" showIcon style={{ marginBottom: 16 }} />
+
         <div style={{ marginBottom: 16 }}>
           <label style={{ fontWeight: 500, display: 'block', marginBottom: 4 }}>Lý do chỉnh sửa <span style={{ color: 'red' }}>*</span></label>
           <TextArea rows={2} placeholder="VD: Bổ sung thông tin, sửa lỗi chính tả..." value={editReason} onChange={e => setEditReason(e.target.value)} />
         </div>
-        <div>
-          <label style={{ fontWeight: 500, display: 'block', marginBottom: 4 }}>Nội dung nhật ký</label>
-          <TextArea rows={4} value={editNote} onChange={e => setEditNote(e.target.value)} />
-        </div>
+
+        {/* Bảng chỉnh sửa entries */}
+        {editEntries.length > 0 && (
+          <div style={{ overflowX: 'auto', marginBottom: 16 }}>
+            <table style={{ borderCollapse: 'collapse', width: '100%', minWidth: 1000 }}>
+              <thead>
+                <tr style={{ background: '#e6f4ff' }}>
+                  <th style={{ padding: '6px', border: '1px solid #d9d9d9', textAlign: 'center', minWidth: 40 }}>Giờ</th>
+                  {ENTRY_FIELDS.map(f => (
+                    <th key={f.key} style={{ padding: '4px', border: '1px solid #d9d9d9', textAlign: 'center', fontSize: 11, minWidth: 60, whiteSpace: 'nowrap' }}>
+                      {f.short}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {editEntries.map(entry => (
+                  <tr key={entry.hour}>
+                    <td style={{ padding: '4px', border: '1px solid #d9d9d9', textAlign: 'center', fontWeight: 700, background: '#fafafa' }}>{entry.hour}</td>
+                    {ENTRY_FIELDS.map(f => (
+                      <td key={f.key} style={{ padding: '2px', border: '1px solid #d9d9d9' }}>
+                        {renderInputCell(entry, f, handleEditEntryChange)}
+                      </td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+
       </Modal>
 
-      {/* Modal lịch sử chỉnh sửa */}
-      <Modal title="Lịch sử chỉnh sửa" open={historyModalOpen} onCancel={() => setHistoryModalOpen(false)} footer={null} width={600}>
+      {/* ===== MODAL LỊCH SỬ CHỈNH SỬA ===== */}
+      <Modal title="Lịch sử chỉnh sửa" open={historyModalOpen} onCancel={() => setHistoryModalOpen(false)} footer={null} width={700}>
         {editHistoryData.length === 0 ? (
           <Empty description="Chưa có lịch sử chỉnh sửa" />
         ) : (
@@ -307,7 +519,34 @@ export default function DeckLogPage() {
                   <div style={{ marginTop: 4 }}><Tag color="orange">Lý do:</Tag> {h.editReason}</div>
                   <div style={{ marginTop: 4, background: '#f8fafc', padding: 8, borderRadius: 4, fontSize: 13 }}>
                     <div><strong>Nội dung trước khi sửa:</strong></div>
-                    <div>{prev.note || '(trống)'}</div>
+                    {prev.note && <div>Ghi chú: {prev.note}</div>}
+                    {prev.entries?.length > 0 && (
+                      <div style={{ overflowX: 'auto', marginTop: 4 }}>
+                        <table style={{ fontSize: 11, borderCollapse: 'collapse' }}>
+                          <thead>
+                            <tr style={{ background: '#f0f0f0' }}>
+                              <th style={{ padding: '2px 4px', border: '1px solid #d9d9d9' }}>Giờ</th>
+                              {ENTRY_FIELDS.map(f => (
+                                <th key={f.key} style={{ padding: '2px 4px', border: '1px solid #d9d9d9', whiteSpace: 'nowrap' }}>{f.short}</th>
+                              ))}
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {prev.entries.map((e, i) => (
+                              <tr key={i}>
+                                <td style={{ padding: '2px 4px', border: '1px solid #d9d9d9', fontWeight: 600, textAlign: 'center' }}>{e.hour}</td>
+                                {ENTRY_FIELDS.map(f => (
+                                  <td key={f.key} style={{ padding: '2px 4px', border: '1px solid #d9d9d9', textAlign: 'center' }}>
+                                    {e[f.key] ?? '—'}
+                                  </td>
+                                ))}
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+                    {!prev.note && (!prev.entries || prev.entries.length === 0) && <div>(trống)</div>}
                   </div>
                 </div>
               )

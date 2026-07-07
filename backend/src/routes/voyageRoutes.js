@@ -50,6 +50,46 @@ router.post('/', async (req, res) => {
 
     // 2. Phân bổ nhân sự (sử dụng ID thủy thủ đã chọn từ Frontend)
     if (crewList && crewList.length > 0) {
+      const crewIds = crewList.map(c => c.crewId).filter(Boolean);
+      
+      if (crewIds.length > 0) {
+        const { Op } = require('sequelize');
+        
+        // Kiểm tra xem có thủy thủ nào đang bận trong một chuyến đi khác không (trạng thái khác Completed/Cancelled)
+        const busyCrews = await VoyageCrew.findAll({
+          where: { crewId: crewIds },
+          include: [{
+            model: Voyage,
+            where: { status: { [Op.notIn]: ['Completed', 'Cancelled'] } },
+            required: true
+          }, {
+            model: CrewProfile,
+            attributes: ['fullName']
+          }]
+        });
+
+        if (busyCrews.length > 0) {
+          await t.rollback();
+          const busyCrewNames = [...new Set(busyCrews.map(bc => bc.CrewProfile.fullName))];
+          return res.status(400).json({ 
+            message: `Không thể phân công! Các thủy thủ sau đang tham gia hải trình khác: ${busyCrewNames.join(', ')}` 
+          });
+        }
+
+        const inactiveCrews = await CrewProfile.findAll({
+          where: { id: crewIds },
+          include: [{ model: User, where: { status: { [Op.ne]: 'Active' } }, required: true }]
+        });
+        
+        if (inactiveCrews.length > 0) {
+           await t.rollback();
+           const inactiveNames = inactiveCrews.map(c => c.fullName);
+           return res.status(400).json({
+             message: `Không thể phân công! Các thủy thủ sau đang trong trạng thái tạm nghỉ/không hoạt động: ${inactiveNames.join(', ')}`
+           });
+        }
+      }
+
       for (const crew of crewList) {
         if (!crew.crewId) continue;
         
@@ -189,7 +229,8 @@ router.get('/:id/cargo', authMiddleware, async (req, res) => {
              quantity: item.quantity,
              weight: item.weight,
              isLoaded: item.isLoaded,
-             holdId: item.holdId || ''
+             holdId: null,
+             allocations: item.allocations || []
            });
          });
       } else {
@@ -202,7 +243,8 @@ router.get('/:id/cargo', authMiddleware, async (req, res) => {
            quantity: 0,
            weight: cargo.totalWeight,
            isLoaded: false,
-           holdId: ''
+           holdId: null,
+           allocations: []
          });
       }
     }
@@ -242,6 +284,21 @@ router.put('/:id', authMiddleware, async (req, res) => {
     }
 
     const { status, departureDate, arrivalDate, isCargoLoaded, issueReason, attendanceList, cargoList } = req.body;
+
+    if (userRole === 'admin') {
+      const lockedForAdminStatuses = [
+        'Loading', 'Loaded', 'Underway', 'Arrived', 'Discharge', 
+        'Discharged', 'Homeward Bounding', 'At Anchor', 'Completed'
+      ];
+      
+      if (lockedForAdminStatuses.includes(voyage.status) && status && status !== voyage.status) {
+         return res.status(403).json({ message: 'Admin không được phép thay đổi trạng thái khi tàu đã bắt đầu làm hàng (Loading) hoặc đang hoạt động!' });
+      }
+
+      if (status && status !== voyage.status && !['Planning', 'Cancelled'].includes(status)) {
+         return res.status(403).json({ message: 'Admin chỉ được phép chuyển trạng thái thành Planning hoặc Cancelled!' });
+      }
+    }
 
     const nextStatus = status || voyage.status;
     let nextIsCrewSufficient = voyage.isCrewSufficient;
@@ -304,44 +361,39 @@ router.put('/:id', authMiddleware, async (req, res) => {
         for (const item of cargoList) {
           if (!item.isLoaded) allCargoLoaded = false;
           
-          if (item.itemId) {
+           if (item.itemId) {
              const cargoItem = await CargoItem.findByPk(item.itemId);
              if (cargoItem) {
-               // Update hold usage if loading status or holdId changes
-               if (!cargoItem.isLoaded && item.isLoaded && item.holdId) {
-                  const hold = await CargoHold.findByPk(item.holdId);
-                  if (hold) {
-                    hold.currentUsage += cargoItem.weight;
-                    await hold.save();
-                  }
-               } else if (cargoItem.isLoaded && !item.isLoaded && cargoItem.holdId) {
-                  const hold = await CargoHold.findByPk(cargoItem.holdId);
-                  if (hold) {
-                    hold.currentUsage -= cargoItem.weight;
-                    if (hold.currentUsage < 0) hold.currentUsage = 0;
-                    await hold.save();
-                  }
-               } else if (cargoItem.isLoaded && item.isLoaded && String(cargoItem.holdId) !== String(item.holdId)) {
-                  // Changed hold while loaded
-                  if (cargoItem.holdId) {
-                    const oldHold = await CargoHold.findByPk(cargoItem.holdId);
-                    if (oldHold) {
-                      oldHold.currentUsage -= cargoItem.weight;
-                      if (oldHold.currentUsage < 0) oldHold.currentUsage = 0;
-                      await oldHold.save();
-                    }
-                  }
-                  if (item.holdId) {
-                    const newHold = await CargoHold.findByPk(item.holdId);
-                    if (newHold) {
-                      newHold.currentUsage += cargoItem.weight;
-                      await newHold.save();
-                    }
-                  }
+               // 1. Revert old allocations from hold currentUsage
+               if (cargoItem.isLoaded) {
+                 for (const a of (cargoItem.allocations || [])) {
+                   if (a.holdId) {
+                     const h = await CargoHold.findByPk(a.holdId);
+                     if (h) {
+                       h.currentUsage -= Number(a.weight || 0);
+                       if (h.currentUsage < 0) h.currentUsage = 0;
+                       await h.save();
+                     }
+                   }
+                 }
+               }
+
+               // 2. Apply new allocations
+               if (item.isLoaded) {
+                 for (const a of (item.allocations || [])) {
+                   if (a.holdId) {
+                     const h = await CargoHold.findByPk(a.holdId);
+                     if (h) {
+                       h.currentUsage += Number(a.weight || 0);
+                       await h.save();
+                     }
+                   }
+                 }
                }
 
                cargoItem.isLoaded = item.isLoaded;
-               cargoItem.holdId = item.holdId || null;
+               cargoItem.holdId = null;
+               cargoItem.allocations = item.allocations || [];
                await cargoItem.save();
              }
           }
@@ -364,9 +416,13 @@ router.put('/:id', authMiddleware, async (req, res) => {
                  if (!item.isLoaded) allLoaded = false;
                  if (item.isLoaded) anyLoaded = true;
                  
-                 if (item.isLoaded && item.holdId) {
-                    if (!holdAllocations[item.holdId]) holdAllocations[item.holdId] = 0;
-                    holdAllocations[item.holdId] += item.weight;
+                 if (item.isLoaded && item.allocations && item.allocations.length > 0) {
+                    item.allocations.forEach(a => {
+                       if (a.holdId) {
+                          if (!holdAllocations[a.holdId]) holdAllocations[a.holdId] = 0;
+                          holdAllocations[a.holdId] += Number(a.weight || 0);
+                       }
+                    });
                  }
               });
            } else {

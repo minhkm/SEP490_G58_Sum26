@@ -50,6 +50,7 @@ export default function AddVesselPage() {
   const [capacity, setCapacity] = useState({
     maxWeight: '',
     maxVolume: '',
+    minCrew: 10,
     maxCrew: 25,
   });
 
@@ -117,6 +118,7 @@ export default function AddVesselPage() {
             setCapacity({
               maxWeight: data.ShipCapacity.maxCargoWeight || '',
               maxVolume: data.ShipCapacity.maxCargoVolume || '',
+              minCrew: data.ShipCapacity.minCrew || 10,
               maxCrew: data.ShipCapacity.maxCrew || 25,
             });
           }
@@ -747,18 +749,19 @@ export default function AddVesselPage() {
               </Row>
 
               <div style={{ marginBottom: 24 }}>
-                <div style={{ marginBottom: 4 }}>Số thủy thủ tối đa</div>
+                <div style={{ marginBottom: 4 }}>Số thủy thủ (Tối thiểu - Tối đa)</div>
                 <Row align="middle" gutter={12}>
                   <Col flex="auto">
                     <Slider
+                      range
                       min={1}
                       max={100}
-                      value={Number(capacity.maxCrew)}
-                      onChange={(value) => setCapacity({ ...capacity, maxCrew: value })}
+                      value={[Number(capacity.minCrew), Number(capacity.maxCrew)]}
+                      onChange={(value) => setCapacity({ ...capacity, minCrew: value[0], maxCrew: value[1] })}
                     />
                   </Col>
                   <Col>
-                    <Text strong>{capacity.maxCrew}</Text>
+                    <Text strong>{capacity.minCrew} - {capacity.maxCrew}</Text>
                   </Col>
                 </Row>
               </div>

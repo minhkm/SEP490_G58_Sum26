@@ -122,6 +122,10 @@ export const crewService = {
     const response = await api.get('/crews');
     return response.data;
   },
+  getAvailable: async () => {
+    const response = await api.get('/crews?available=true');
+    return response.data;
+  },
   getById: async (id) => {
     const response = await api.get(`/crews/${id}`);
     return response.data;

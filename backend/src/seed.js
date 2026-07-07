@@ -11,7 +11,7 @@ const {
   Equipment, RepairLog,
   CargoHold, Cargo, CargoItem, CargoAllocation, CargoType,
   Voyage, VoyageCrew,
-  Attendance, Shift, ShiftLog, DeckLog, EngineLog, EngineLogValue,
+  Attendance, Shift, ShiftLog, DeckLog, DeckLogEntry, EngineLog, EngineLogValue,
   Report, ReportReply,
 } = require('./models');
 
@@ -119,8 +119,8 @@ async function seed() {
     const shipS66 = await Ship.create({ shipName: 'MV STAR 66', imoNumber: '9588548', flag: 'Vietnam', status: 'Active' }, { transaction: t });
 
     await ShipCapacity.bulkCreate([
-      { shipId: shipVQS.id, maxCargoWeight: 3500, maxCargoVolume: 4200, maxCrew: 15 },
-      { shipId: shipS66.id, maxCargoWeight: 3200, maxCargoVolume: 3800, maxCrew: 15 },
+      { shipId: shipVQS.id, maxCargoWeight: 3500, maxCargoVolume: 4200, minCrew: 10, maxCrew: 15 },
+      { shipId: shipS66.id, maxCargoWeight: 3200, maxCargoVolume: 3800, minCrew: 10, maxCrew: 15 },
     ], { transaction: t });
 
     await ShipDocument.bulkCreate([
@@ -500,7 +500,14 @@ async function seed() {
       { label: '20-24', sh: 20, eh: 0, engCrew: cpThang.id, deckCrew: cpHungV.id, sailor: cpPhuc.id },
     ];
 
-    const vqs04Days = ['2026-06-15', '2026-06-16', '2026-06-17'];
+    const todayDate = new Date();
+    const vqs04Days = [];
+    for (let i = 4; i >= 0; i--) {
+      const d = new Date(todayDate);
+      d.setDate(d.getDate() - i);
+      vqs04Days.push(d.toISOString().split('T')[0]);
+    }
+
     for (const day of vqs04Days) {
       for (const w of vqs04WatchDef) {
         const st = new Date(day);
@@ -509,12 +516,57 @@ async function seed() {
         if (w.eh === 0) { et.setDate(et.getDate() + 1); et.setHours(0, 0, 0, 0); }
         else et.setHours(w.eh, 0, 0, 0);
         
+        const isPast = et < new Date();
+        const status = isPast ? 'Completed' : 'InProgress';
+
         // Deck watch (Officer)
-        await Shift.create({ voyageId: vVQS04.id, crewId: w.deckCrew, startTime: st, endTime: et, status: et < new Date() ? 'Completed' : 'InProgress' }, { transaction: t });
+        const dOffShift = await Shift.create({ voyageId: vVQS04.id, crewId: w.deckCrew, startTime: st, endTime: et, status }, { transaction: t });
         // Deck watch (Sailor)
-        await Shift.create({ voyageId: vVQS04.id, crewId: w.sailor, startTime: st, endTime: et, status: et < new Date() ? 'Completed' : 'InProgress' }, { transaction: t });
+        const dSailShift = await Shift.create({ voyageId: vVQS04.id, crewId: w.sailor, startTime: st, endTime: et, status }, { transaction: t });
         // Engine watch
-        await Shift.create({ voyageId: vVQS04.id, crewId: w.engCrew, startTime: st, endTime: et, status: et < new Date() ? 'Completed' : 'InProgress' }, { transaction: t });
+        const eShift = await Shift.create({ voyageId: vVQS04.id, crewId: w.engCrew, startTime: st, endTime: et, status }, { transaction: t });
+
+        // Add some dummy logs if the shift has already started (past or currently in progress today)
+        const shiftHasStarted = st < new Date();
+        if (shiftHasStarted) {
+          // Deck log
+          const dSLog = await ShiftLog.create({ shiftId: dSailShift.id, logType: 'Deck', content: `Ca trực boong an toàn ngày ${day}.`, createdAt: isPast ? et : new Date() }, { transaction: t });
+          const dkLog = await DeckLog.create({ shiftLogId: dSLog.id, note: `Mọi thông số và cảnh giới bình thường. Hải trình ổn định.` }, { transaction: t });
+
+          // Tạo DeckLogEntry — dữ liệu theo giờ cho ca này
+          const shiftStartH = new Date(st).getHours();
+          const shiftEndH = new Date(et).getHours() === 0 ? 24 : new Date(et).getHours();
+          for (let h = shiftStartH + 1; h <= shiftEndH; h++) {
+            await DeckLogEntry.create({
+              deckLogId: dkLog.id,
+              hour: h,
+              courseTrue: 283 + Math.floor(Math.random() * 5),
+              courseGyro: 283 + Math.floor(Math.random() * 5),
+              courseSteer: 284 + Math.floor(Math.random() * 3),
+              gyroError: 0,
+              courseMagnetic: 1 + Math.floor(Math.random() * 2),
+              speed: 5.5 + Math.round(Math.random() * 20) / 10,
+              rpm: 650 + Math.floor(Math.random() * 20),
+              windDirection: ['NE', 'N', 'NW', 'E'][Math.floor(Math.random() * 4)],
+              windForce: 3 + Math.floor(Math.random() * 3),
+              weather: ['bc', 'br', 'c'][Math.floor(Math.random() * 3)],
+              barometer: 1013 + Math.floor(Math.random() * 5),
+              seaState: 3 + Math.floor(Math.random() * 2),
+              visibility: 4 + Math.floor(Math.random() * 4),
+              airTemp: 26 + Math.floor(Math.random() * 3),
+              seaTemp: 26 + Math.floor(Math.random() * 3),
+            }, { transaction: t });
+          }
+
+          // Engine log
+          const eSLog = await ShiftLog.create({ shiftId: eShift.id, logType: 'Engine', content: `Ca máy hoạt động tốt ngày ${day}.`, createdAt: isPast ? et : new Date() }, { transaction: t });
+          const eLog = await EngineLog.create({ shiftLogId: eSLog.id, engineId: eVQSMain.id, note: `Máy chính chạy ổn định ở vòng tua 650 RPM.` }, { transaction: t });
+          for (let i = 0; i < actualEngineValues.length; i++) {
+            if (epVQS[i]) {
+              await EngineLogValue.create({ engineLogId: eLog.id, parameterId: epVQS[i].id, value: actualEngineValues[i] }, { transaction: t });
+            }
+          }
+        }
       }
     }
 

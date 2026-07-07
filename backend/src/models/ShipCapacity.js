@@ -6,6 +6,7 @@ const ShipCapacity = sequelize.define("ShipCapacity", {
   shipId: { type: DataTypes.INTEGER, allowNull: false },
   maxCargoWeight: { type: DataTypes.FLOAT },
   maxCargoVolume: { type: DataTypes.FLOAT },
+  minCrew: { type: DataTypes.INTEGER, defaultValue: 10 },
   maxCrew: { type: DataTypes.INTEGER },
 }, { tableName: "ShipCapacity", timestamps: false });
 

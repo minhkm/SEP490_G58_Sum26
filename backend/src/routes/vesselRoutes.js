@@ -55,6 +55,7 @@ router.post('/', async (req, res) => {
         shipId: newShip.id,
         maxCargoWeight: capacity.maxWeight || 0,
         maxCargoVolume: capacity.maxVolume || 0,
+        minCrew: capacity.minCrew || 10,
         maxCrew: capacity.maxCrew || 25
       });
     }
@@ -150,6 +151,7 @@ router.put('/:id', async (req, res) => {
         await shipCap.update({
           maxCargoWeight: capacity.maxWeight || 0,
           maxCargoVolume: capacity.maxVolume || 0,
+          minCrew: capacity.minCrew || 10,
           maxCrew: capacity.maxCrew || 25
         });
       } else {
@@ -157,6 +159,7 @@ router.put('/:id', async (req, res) => {
           shipId: vesselId,
           maxCargoWeight: capacity.maxWeight || 0,
           maxCargoVolume: capacity.maxVolume || 0,
+          minCrew: capacity.minCrew || 10,
           maxCrew: capacity.maxCrew || 25
         });
       }
