@@ -27,6 +27,15 @@ const ASSIGNABLE_ROLES = ['Sailor', 'EngineCrew'];
 // Map role -> bộ phận (dự phòng nếu CrewProfile.department trống)
 const ROLE_DEPARTMENT = { DeckOfficer: 'Deck', EngineOfficer: 'Engine' };
 
+// Số ca trực tối đa một thủy thủ được nhận trong 1 ngày
+const MAX_SHIFTS_PER_DAY = 2;
+
+// Mốc đầu/cuối ngày (theo giờ server) cho chuỗi 'YYYY-MM-DD'
+function dayBounds(dateStr) {
+  const [y, m, d] = dateStr.split('-').map(Number);
+  return { dayStart: new Date(y, m - 1, d, 0, 0, 0), dayEnd: new Date(y, m - 1, d + 1, 0, 0, 0) };
+}
+
 // Tính startTime/endTime từ ngày (YYYY-MM-DD) + slot index. Hour 24 tự cuộn sang 00:00 hôm sau.
 function slotTimes(dateStr, slotIndex) {
   const s = SHIFT_SLOTS.find(x => x.slot === Number(slotIndex));
@@ -171,6 +180,14 @@ router.post('/bulk', authMiddleware, async (req, res) => {
       }
     });
 
+    // Đếm sẵn số ca đã có trong ngày của từng crew (để giới hạn tối đa 2 ca/ngày)
+    const { dayStart, dayEnd } = dayBounds(date);
+    const dayShifts = await Shift.findAll({
+      where: { voyageId: voyage.id, status: { [Op.ne]: 'Cancelled' }, startTime: { [Op.gte]: dayStart, [Op.lt]: dayEnd } },
+    });
+    const dayCount = new Map(); // crewId -> số ca trong ngày
+    dayShifts.forEach(s => dayCount.set(s.crewId, (dayCount.get(s.crewId) || 0) + 1));
+
     // Validate & dựng dữ liệu
     const toCreate = [];
     const batchKeys = new Set(); // chống trùng crew+slot trong cùng batch
@@ -208,6 +225,13 @@ router.post('/bulk', authMiddleware, async (req, res) => {
       if (overlap) {
         return res.status(400).json({ message: `${crew.fullName} đã có ca trùng giờ (${SHIFT_SLOTS[e.slot].label}).` });
       }
+
+      // Giới hạn tối đa 2 ca/ngày cho mỗi thủy thủ (tính cả ca đã có + ca trong batch)
+      const cid = Number(e.crewId);
+      if ((dayCount.get(cid) || 0) >= MAX_SHIFTS_PER_DAY) {
+        return res.status(400).json({ message: `${crew.fullName} đã đủ ${MAX_SHIFTS_PER_DAY} ca trong ngày.` });
+      }
+      dayCount.set(cid, (dayCount.get(cid) || 0) + 1);
 
       toCreate.push({
         voyageId: voyage.id,
@@ -286,6 +310,22 @@ router.put('/:id', authMiddleware, async (req, res) => {
     });
     if (overlap) {
       return res.status(400).json({ message: `${member.CrewProfile.fullName} đã có ca trùng giờ.` });
+    }
+
+    // Giới hạn tối đa 2 ca/ngày (đếm ca khác cùng ngày của người được gán, loại trừ ca này)
+    const dStart = new Date(shift.startTime); dStart.setHours(0, 0, 0, 0);
+    const dEnd = new Date(dStart); dEnd.setDate(dEnd.getDate() + 1);
+    const dayCount = await Shift.count({
+      where: {
+        id: { [Op.ne]: shift.id },
+        voyageId: voyage.id,
+        crewId: targetCrewId,
+        status: { [Op.ne]: 'Cancelled' },
+        startTime: { [Op.gte]: dStart, [Op.lt]: dEnd },
+      },
+    });
+    if (dayCount >= MAX_SHIFTS_PER_DAY) {
+      return res.status(400).json({ message: `${member.CrewProfile.fullName} đã đủ ${MAX_SHIFTS_PER_DAY} ca trong ngày.` });
     }
 
     await shift.update({ crewId: targetCrewId, position: position ?? shift.position });

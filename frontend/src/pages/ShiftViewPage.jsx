@@ -20,10 +20,13 @@ export default function ShiftViewPage() {
   const [selectedDate, setSelectedDate] = useState(dayjs().format('YYYY-MM-DD'));
   const [shifts, setShifts] = useState([]);
   const [onlyMine, setOnlyMine] = useState(false);
+  const [deptFilter, setDeptFilter] = useState(null); // null | 'Deck' | 'Engine'
   const [detail, setDetail] = useState(null);
 
   const myCrewId = ctx?.me?.crewId;
   const isMine = (s) => s.crewId === myCrewId;
+  // Chỉ thủy thủ/thợ máy mới thực sự có ca của mình → sĩ quan không thấy toggle "Chỉ ca của tôi"
+  const canHaveShift = ['Sailor', 'EngineCrew'].includes(ctx?.me?.role);
 
   const loadShifts = useCallback(async (date) => {
     try { setShifts(await shiftService.getShifts(date)); } catch { setShifts([]); }
@@ -55,6 +58,7 @@ export default function ShiftViewPage() {
     shifts
       .filter(s => slotFromStart(s.startTime) === slot)
       .filter(s => !onlyMine || isMine(s))
+      .filter(s => !deptFilter || s.CrewProfile?.department === deptFilter)
       .sort((a, b) =>
         (a.CrewProfile?.department || '').localeCompare(b.CrewProfile?.department || '') ||
         (a.position || '').localeCompare(b.position || ''));
@@ -89,14 +93,28 @@ export default function ShiftViewPage() {
             <Button icon={<RightOutlined />} onClick={() => shiftDay(1)} />
             <Button onClick={() => setSelectedDate(dayjs().format('YYYY-MM-DD'))}>Hôm nay</Button>
           </Space>
-          <Space>
-            <Switch checked={onlyMine} onChange={setOnlyMine} />
-            <Text>Chỉ ca của tôi</Text>
-          </Space>
+          {canHaveShift && (
+            <Space>
+              <Switch checked={onlyMine} onChange={setOnlyMine} />
+              <Text>Chỉ ca của tôi</Text>
+            </Space>
+          )}
           <Space size={6}>
-            {Object.entries(DEPARTMENT_STYLE).map(([k, v]) => (
-              <Tag key={k} color={depTagColor(k)} style={{ marginInlineEnd: 0 }}>{v.label}</Tag>
-            ))}
+            <Text type="secondary" style={{ fontSize: 13 }}>Lọc bộ phận:</Text>
+            {Object.entries(DEPARTMENT_STYLE).map(([k, v]) => {
+              const on = deptFilter === k;
+              return (
+                <Tag.CheckableTag key={k} checked={on} onChange={(checked) => setDeptFilter(checked ? k : null)}
+                  style={{
+                    borderRadius: 6, padding: '1px 10px',
+                    border: `1px solid ${on ? v.border : '#d9d9d9'}`,
+                    background: on ? v.bg : 'transparent',
+                    color: on ? v.color : '#595959',
+                  }}>
+                  {v.label}
+                </Tag.CheckableTag>
+              );
+            })}
           </Space>
         </Space>
 
