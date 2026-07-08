@@ -24,6 +24,7 @@ app.use("/api/crews", require("./routes/crewRoutes"));
 app.use("/api/engine-logs", require("./routes/engineLogRoutes"));
 app.use("/api/shifts", require("./routes/shiftRoutes"));
 app.use("/api/deck-logs", require("./routes/deckLogRoutes"));
+app.use("/api/notifications", require("./routes/notificationRoutes"));
 
 const PORT = process.env.PORT || 5000;
 

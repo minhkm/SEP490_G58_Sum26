@@ -1,7 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  BellOutlined,
   QuestionCircleOutlined,
   SearchOutlined,
   ProfileOutlined,
@@ -23,6 +22,7 @@ import {
 } from '@ant-design/icons';
 import './MasterDashboard.css';
 import MasterLayout from '../components/MasterLayout';
+import NotificationBell from '../components/NotificationBell';
 import { notifyInfo } from '../utils/feedback';
 
 export default function MasterDashboard() {
@@ -54,7 +54,7 @@ export default function MasterDashboard() {
   };
 
   return (
-    <MasterLayout>
+    <MasterLayout hideTopbar>
         {/* Header */}
         <header className="top-header dashboard-header">
           <div className="header-search">
@@ -67,10 +67,7 @@ export default function MasterDashboard() {
           </div>
 
           <div className="header-actions">
-            <div className="action-icon-wrapper">
-              <BellOutlined className="action-icon" />
-              <span className="notification-dot"></span>
-            </div>
+            <NotificationBell />
             <QuestionCircleOutlined className="action-icon" />
 
             <div className="user-profile-wrapper" ref={dropdownRef}>

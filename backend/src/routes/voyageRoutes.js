@@ -3,6 +3,7 @@ const bcrypt = require('bcrypt');
 const crypto = require('crypto');
 const { sequelize, Voyage, User, CrewProfile, VoyageCrew, Ship, Attendance, Cargo, CargoItem, ShipCapacity, CargoHold, CargoAllocation } = require('../models');
 const { sendCrewCredentialsEmail } = require('../services/emailService');
+const { notifyCrewAssignedToVoyage, notifyAttendanceUpdated, notifyVoyageUpdated } = require('../services/notificationService');
 const authMiddleware = require('../middlewares/authMiddleware');
 
 const router = express.Router();
@@ -100,6 +101,12 @@ router.post('/', async (req, res) => {
           role: crew.role
         }, { transaction: t });
       }
+
+      await notifyCrewAssignedToVoyage({
+        voyage,
+        crewList,
+        actorUserId: req.user ? req.user.id : null
+      }, { transaction: t });
     }
 
     // (Tuỳ chọn: Logic gán lô hàng vào chuyến đi nếu có cargoId)
@@ -268,6 +275,15 @@ router.put('/:id', authMiddleware, async (req, res) => {
       return res.status(404).json({ message: 'Không tìm thấy chuyến đi' });
     }
 
+    const previousVoyage = {
+      status: voyage.status,
+      departureDate: voyage.departureDate,
+      arrivalDate: voyage.arrivalDate,
+      isCrewSufficient: voyage.isCrewSufficient,
+      isCargoLoaded: voyage.isCargoLoaded,
+      issueReason: voyage.issueReason
+    };
+
     // Check authorization
     if (userRole !== 'admin' && userRole !== 'agency') {
       if (userRole !== 'chiefofficer' && userRole !== 'master') {
@@ -314,8 +330,10 @@ router.put('/:id', authMiddleware, async (req, res) => {
     // Process attendanceList if provided and allowed
     if (isShipStaff && attendanceList && Array.isArray(attendanceList)) {
       let allPresent = attendanceList.length > 0;
+      const attendanceChanges = [];
       for (const item of attendanceList) {
         if (!item.isPresent) allPresent = false;
+        const nextAttendanceStatus = item.isPresent ? 'Present' : 'Absent';
         
         const existingAtt = await Attendance.findOne({
           where: { voyageId: id, crewId: item.crewId }
@@ -323,22 +341,39 @@ router.put('/:id', authMiddleware, async (req, res) => {
 
         if (existingAtt) {
           // Update only if changing
-          if (existingAtt.status !== (item.isPresent ? 'Present' : 'Absent')) {
-            existingAtt.status = item.isPresent ? 'Present' : 'Absent';
+          if (existingAtt.status !== nextAttendanceStatus) {
+            existingAtt.status = nextAttendanceStatus;
             existingAtt.recordedAt = new Date();
             await existingAtt.save();
+            attendanceChanges.push({
+              crewId: item.crewId,
+              isPresent: item.isPresent,
+              recordedAt: existingAtt.recordedAt
+            });
           }
         } else {
-          await Attendance.create({
+          const newAttendance = await Attendance.create({
             voyageId: id,
             crewId: item.crewId,
-            status: item.isPresent ? 'Present' : 'Absent',
+            status: nextAttendanceStatus,
             recordedAt: new Date()
+          });
+          attendanceChanges.push({
+            crewId: item.crewId,
+            isPresent: item.isPresent,
+            recordedAt: newAttendance.recordedAt
           });
         }
       }
       nextIsCrewSufficient = allPresent;
       voyage.isCrewSufficient = allPresent;
+
+      await notifyAttendanceUpdated({
+        voyage,
+        attendanceChanges,
+        attendanceType: null,
+        actorUserId: req.user.id
+      });
     } else {
       if (req.body.isCrewSufficient !== undefined) {
          nextIsCrewSufficient = req.body.isCrewSufficient;
@@ -456,6 +491,21 @@ router.put('/:id', authMiddleware, async (req, res) => {
 
     await voyage.save();
 
+    const voyageChanges = {};
+    for (const field of Object.keys(previousVoyage)) {
+      const beforeValue = previousVoyage[field];
+      const afterValue = voyage[field];
+      if (String(beforeValue ?? '') !== String(afterValue ?? '')) {
+        voyageChanges[field] = { from: beforeValue, to: afterValue };
+      }
+    }
+
+    await notifyVoyageUpdated({
+      voyage,
+      changes: voyageChanges,
+      actorUserId: req.user.id
+    });
+
     res.json({ message: 'Cập nhật chuyến đi thành công', voyage });
   } catch (error) {
     console.error('Lỗi khi cập nhật chuyến đi:', error);
@@ -544,6 +594,8 @@ router.post('/:id/attendances', authMiddleware, async (req, res) => {
     // Với Daily, dùng date được gửi lên (thường là ngày hiện tại). 
     // Với PreDeparture/PostDischarge, không cần quan tâm date.
     
+    const attendanceChanges = [];
+
     for (const item of attendanceList) {
       let whereClause = { voyageId: id, crewId: item.crewId, attendanceType: type };
       
@@ -562,9 +614,17 @@ router.post('/:id/attendances', authMiddleware, async (req, res) => {
       }
 
       if (targetAtt) {
-        targetAtt.status = item.isPresent ? 'Present' : 'Absent';
-        targetAtt.recordedAt = new Date(); // Cập nhật lại thời gian record
-        await targetAtt.save();
+        const nextAttendanceStatus = item.isPresent ? 'Present' : 'Absent';
+        if (targetAtt.status !== nextAttendanceStatus) {
+          targetAtt.status = nextAttendanceStatus;
+          targetAtt.recordedAt = new Date();
+          await targetAtt.save();
+          attendanceChanges.push({
+            crewId: item.crewId,
+            isPresent: item.isPresent,
+            recordedAt: targetAtt.recordedAt
+          });
+        }
       } else {
         // Tạo mới
         // Nếu Daily, cố gắng set recordedAt đúng ngày (nhưng giờ hiện tại)
@@ -574,12 +634,17 @@ router.post('/:id/attendances', authMiddleware, async (req, res) => {
            recordDate = new Date(year, month - 1, day, recordDate.getHours(), recordDate.getMinutes(), recordDate.getSeconds());
         }
         
-        await Attendance.create({
+        const newAttendance = await Attendance.create({
           voyageId: id,
           crewId: item.crewId,
           attendanceType: type,
           status: item.isPresent ? 'Present' : 'Absent',
           recordedAt: recordDate
+        });
+        attendanceChanges.push({
+          crewId: item.crewId,
+          isPresent: item.isPresent,
+          recordedAt: newAttendance.recordedAt
         });
       }
     }
@@ -591,6 +656,12 @@ router.post('/:id/attendances', authMiddleware, async (req, res) => {
        await voyage.save();
     }
 
+    await notifyAttendanceUpdated({
+      voyage,
+      attendanceChanges,
+      attendanceType: type,
+      actorUserId: req.user.id
+    });
     res.json({ message: 'Lưu điểm danh thành công' });
   } catch (error) {
     console.error('Lỗi khi lưu điểm danh:', error);

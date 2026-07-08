@@ -29,12 +29,19 @@ const EngineLogValue = require("./EngineLogValue");
 const LogEditHistory = require("./LogEditHistory");
 const LogImage = require("./LogImage");
 const DeckLogEntry = require("./DeckLogEntry");
+const Notification = require("./Notification");
 
 // ============ QUAN HỆ ============
 
 // User 1-1 CrewProfile
 User.hasOne(CrewProfile, { foreignKey: { name: "userId", allowNull: false, unique: true }, onDelete: 'CASCADE' });
 CrewProfile.belongsTo(User, { foreignKey: "userId" });
+
+User.hasMany(Notification, { foreignKey: "recipientUserId", as: "Notifications", onDelete: "CASCADE" });
+Notification.belongsTo(User, { foreignKey: "recipientUserId", as: "Recipient" });
+
+User.hasMany(Notification, { foreignKey: "actorUserId", as: "CreatedNotifications" });
+Notification.belongsTo(User, { foreignKey: "actorUserId", as: "Actor" });
 
 // CrewProfile 1-N CrewCertificate
 CrewProfile.hasMany(CrewCertificate, { foreignKey: "crewId", onDelete: 'CASCADE' });
@@ -100,6 +107,9 @@ EngineLogValue.belongsTo(EngineParameter, { foreignKey: "parameterId" });
 // Voyage 1-N các bảng con
 Voyage.hasMany(VoyageCrew, { foreignKey: "voyageId" });
 VoyageCrew.belongsTo(Voyage, { foreignKey: "voyageId" });
+
+Voyage.hasMany(Notification, { foreignKey: "voyageId" });
+Notification.belongsTo(Voyage, { foreignKey: "voyageId" });
 
 // voyageId nullable: lô hàng có thể "Đã ở cảng" chưa gán hải trình.
 // Xoá hải trình -> cargo trở về trạng thái chưa gán (SET NULL) thay vì bị xoá.
@@ -178,4 +188,5 @@ module.exports = {
   LogEditHistory,
   LogImage,
   DeckLogEntry,
+  Notification,
 };
