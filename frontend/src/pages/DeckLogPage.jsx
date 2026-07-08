@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { Select, Input, InputNumber, Button, Table, Card, Spin, Empty, Typography, Space, Alert, DatePicker, Upload, Modal, Image, Timeline, Tag, Row, Col } from 'antd';
 import { FileTextOutlined, SaveOutlined, ClockCircleOutlined, CompassOutlined, CalendarOutlined, UploadOutlined, EditOutlined, HistoryOutlined, PictureOutlined } from '@ant-design/icons';
 import MasterLayout from '../components/MasterLayout';
@@ -80,16 +81,32 @@ export default function DeckLogPage() {
   const canEdit = daysDiff <= 1;
   const isCompleted = selectedVoyage?.status === 'Completed';
 
+  const [searchParams] = useSearchParams();
+
   useEffect(() => {
-    const fetchVoyages = async () => {
+    // Nhận tham số từ màn ca trực để tự chọn sẵn hải trình/ngày/ca
+    const initVoyageId = searchParams.get('voyageId');
+    const initDate = searchParams.get('date');
+    const initShiftId = searchParams.get('shiftId');
+    const init = async () => {
       try {
         const data = await deckLogService.getMyVoyages();
         setVoyages(data);
-        if (data.length > 0) {
-          const active = data.find(v => v.status !== 'Completed') || data[0];
-          setSelectedVoyage(active);
-          const shiftsData = await deckLogService.getShifts(active.id, dayjs().format('YYYY-MM-DD'));
-          setShifts(shiftsData);
+        if (data.length === 0) return;
+        const voyage = (initVoyageId && data.find(v => v.id === Number(initVoyageId)))
+          || data.find(v => v.status !== 'Completed') || data[0];
+        setSelectedVoyage(voyage);
+        const date = initDate ? dayjs(initDate) : dayjs();
+        setSelectedDate(date);
+        const shiftsData = await deckLogService.getShifts(voyage.id, date.format('YYYY-MM-DD'));
+        setShifts(shiftsData);
+        if (initShiftId) {
+          const shift = shiftsData.find(s => s.id === Number(initShiftId));
+          if (shift) {
+            setSelectedShift(shift);
+            setEntries(getShiftHours(shift).map(h => createEmptyRow(h)));
+            try { setHistory(await deckLogService.getHistoryByShift(shift.id)); } catch (e) { console.error(e); }
+          }
         }
       } catch (error) {
         console.error('Lỗi:', error);
@@ -97,7 +114,8 @@ export default function DeckLogPage() {
         setLoading(false);
       }
     };
-    fetchVoyages();
+    init();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleVoyageChange = async (voyageId) => {
