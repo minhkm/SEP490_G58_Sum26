@@ -14,6 +14,38 @@ export function getDashboardPath(role) {
 // Thuyền viên trên tàu được truy cập module Báo cáo (Admin/Agency trên bờ không can thiệp).
 export const REPORT_ROLES = ['Master', 'ChiefOfficer', 'DeckOfficer', 'EngineOfficer', 'EngineCrew', 'Sailor'];
 
+// FT-10 v2: phân tách quyền tạo / xử lý
+export const REPORT_CREATE_ROLES = ['ChiefOfficer', 'DeckOfficer', 'EngineOfficer', 'EngineCrew', 'Sailor'];
+export const REPORT_HANDLE_ROLES = ['Master', 'ChiefOfficer', 'DeckOfficer', 'EngineOfficer'];
+
+export function canCreateReport(role) {
+  return REPORT_CREATE_ROLES.includes(role);
+}
+
+export function canHandleReport(role) {
+  return REPORT_HANDLE_ROLES.includes(role);
+}
+
+/**
+ * Trả danh sách reportType đã lọc theo bộ phận.
+ * - Routine: Xin nghỉ, Xin đổi ca, Ngoại lệ ca trực, Khác (cả 2 bộ phận)
+ * - Incident Boong: Sự cố tàu + Khác
+ * - Incident Máy: Hỏng hóc máy + Khác
+ */
+export function reportTypeOptions(department) {
+  const routine = ['Leave', 'ShiftSwap', 'ShiftException', 'Other'];
+  let incident;
+  if (department === 'Engine') {
+    incident = ['Breakdown', 'Other'];
+  } else if (department === 'Deck') {
+    incident = ['ShipIssue', 'Other'];
+  } else {
+    // Không rõ bộ phận → hiện tất cả
+    incident = ['Breakdown', 'ShipIssue', 'Other'];
+  }
+  return { Routine: routine, Incident: incident };
+}
+
 // Thang bậc escalation — MIRROR của backend/src/configs/reportHierarchy.js
 // Mỗi "rung" là một cấp; role đại diện của rung là phần tử đầu tiên.
 export const REPORT_LADDERS = {
@@ -51,3 +83,4 @@ export const ROLE_LABELS = {
 export function roleLabel(role) {
   return ROLE_LABELS[role] || role || '';
 }
+
