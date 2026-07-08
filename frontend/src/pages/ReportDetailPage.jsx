@@ -1,11 +1,12 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
-  Card, Descriptions, Tag, Timeline, Input, Button, Space, Modal, Typography, Spin, Empty, Row, Col, Alert,
+  Card, Descriptions, Tag, Timeline, Input, Button, Space, Modal, Typography, Spin, Empty, Row, Col, Alert, Table,
 } from 'antd';
 import {
-  ArrowUpOutlined, CheckOutlined, CloseCircleOutlined, RollbackOutlined, SendOutlined, LockOutlined,
+  ArrowUpOutlined, CheckOutlined, CloseCircleOutlined, RollbackOutlined, SendOutlined, LockOutlined, DashboardOutlined,
 } from '@ant-design/icons';
+import dayjs from 'dayjs';
 import MasterLayout from '../components/MasterLayout';
 import { reportService } from '../services/api';
 import { PageHeader, StatusTag, notifySuccess, notifyError, confirmAction } from '../components/common';
@@ -25,6 +26,95 @@ const TYPE_LABEL = {
 const TIMELINE_COLOR = { reply: 'blue', escalate: 'gold', status: 'green', reject: 'red' };
 
 const fmt = (d) => (d ? new Date(d).toLocaleString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—');
+
+// FT-10 v2 (vấn đề #4): Hiển thị số liệu ca trực đóng băng
+const THRESHOLD_COLOR = { ok: '#52c41a', warning: '#faad14', danger: '#ff4d4f' };
+const THRESHOLD_LABEL = { ok: 'Bình thường', warning: 'Cảnh báo', danger: 'Nguy hiểm' };
+
+function ShiftSnapshotCard({ snapshot }) {
+  if (!snapshot) return null;
+  const { shift, engine, deck, logType } = snapshot;
+
+  const fmtTime = (t) => (t ? dayjs(t).format('HH:mm DD/MM/YYYY') : '—');
+
+  // Bảng thông số máy
+  const engineColumns = [
+    { title: 'Thông số', dataIndex: 'name', key: 'name' },
+    { title: 'Giá trị', dataIndex: 'value', key: 'value', align: 'right',
+      render: (v, r) => <span style={{ color: THRESHOLD_COLOR[r.status] || '#000', fontWeight: r.status !== 'ok' ? 700 : 400 }}>{v}</span>,
+    },
+    { title: 'Min', dataIndex: 'minValue', key: 'min', align: 'right', render: (v) => v ?? '—' },
+    { title: 'Max', dataIndex: 'maxValue', key: 'max', align: 'right', render: (v) => v ?? '—' },
+    { title: 'Trạng thái', dataIndex: 'status', key: 'status', width: 110,
+      render: (s) => <Tag color={s === 'danger' ? 'red' : s === 'warning' ? 'gold' : 'green'}>{THRESHOLD_LABEL[s] || s}</Tag>,
+    },
+  ];
+
+  // Bảng nhật ký boong
+  const deckColumns = [
+    { title: 'Giờ', dataIndex: 'hour', key: 'hour', width: 60 },
+    { title: 'Hướng thật', dataIndex: 'courseTrue', key: 'courseTrue' },
+    { title: 'LBCQ', dataIndex: 'courseGyro', key: 'courseGyro' },
+    { title: 'Tốc độ', dataIndex: 'speed', key: 'speed' },
+    { title: 'RPM', dataIndex: 'rpm', key: 'rpm' },
+    { title: 'Gió', key: 'wind', render: (_, r) => `${r.windDirection || ''}${r.windForce != null ? ` F${r.windForce}` : ''}` },
+    { title: 'Thời tiết', dataIndex: 'weather', key: 'weather' },
+    { title: 'Khí áp', dataIndex: 'barometer', key: 'barometer' },
+    { title: 'Tầm nhìn', dataIndex: 'visibility', key: 'visibility' },
+  ];
+
+  return (
+    <Card
+      title={<><DashboardOutlined style={{ color: '#6366f1', marginRight: 8 }} />Số liệu ca trực đính kèm</>}
+      style={{ marginBottom: 16 }}
+    >
+      {shift && (
+        <Descriptions column={2} size="small" style={{ marginBottom: 16 }}>
+          <Descriptions.Item label="Ca trực">{`#${shift.id}`}</Descriptions.Item>
+          <Descriptions.Item label="Thời gian">{fmtTime(shift.startTime)} – {fmtTime(shift.endTime)}</Descriptions.Item>
+          <Descriptions.Item label="Người trực">{shift.crew?.fullName || '—'}</Descriptions.Item>
+          <Descriptions.Item label="Bộ phận">{shift.crew?.department || '—'}</Descriptions.Item>
+        </Descriptions>
+      )}
+
+      {logType === 'None' && (
+        <Alert type="info" showIcon message="Ca trực chưa có nhật ký tại thời điểm tạo báo cáo." />
+      )}
+
+      {logType === 'Engine' && engine?.map((eng, i) => (
+        <div key={i} style={{ marginBottom: 16 }}>
+          <Text strong style={{ display: 'block', marginBottom: 8 }}>
+            {eng.engineName || `Máy #${eng.engineId}`} {eng.engineType ? `(${eng.engineType})` : ''}
+          </Text>
+          {eng.note && <Paragraph type="secondary" style={{ marginBottom: 8 }}>{eng.note}</Paragraph>}
+          <Table
+            rowKey="parameterId"
+            columns={engineColumns}
+            dataSource={eng.parameters || []}
+            pagination={false}
+            size="small"
+            bordered
+          />
+        </div>
+      ))}
+
+      {logType === 'Deck' && deck && (
+        <>
+          {deck.note && <Paragraph type="secondary" style={{ marginBottom: 8 }}>{deck.note}</Paragraph>}
+          <Table
+            rowKey="hour"
+            columns={deckColumns}
+            dataSource={deck.entries || []}
+            pagination={false}
+            size="small"
+            bordered
+            scroll={{ x: 700 }}
+          />
+        </>
+      )}
+    </Card>
+  );
+}
 
 function eventText(reply) {
   const m = reply.metadata || {};
@@ -146,6 +236,9 @@ export default function ReportDetailPage() {
               </Descriptions>
               <Paragraph style={{ marginTop: 12, whiteSpace: 'pre-wrap' }}>{report.content}</Paragraph>
             </Card>
+
+            {/* FT-10 v2: số liệu ca trực đóng băng */}
+            {report.shiftSnapshot && <ShiftSnapshotCard snapshot={report.shiftSnapshot} />}
 
             <Card title="Diễn tiến & Phản hồi">
               {report.replies?.length ? (
