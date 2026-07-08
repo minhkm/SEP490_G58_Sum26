@@ -301,6 +301,11 @@ export const reportService = {
     const response = await api.post(`/reports/${id}/reject`, { note });
     return response.data;
   },
+  // FT-10 v2: preview ngữ cảnh ca trực trước khi tạo báo cáo
+  getShiftContext: async (shiftId) => {
+    const response = await api.get(`/reports/shift/${shiftId}/context`);
+    return response.data;
+  },
 };
 
 export const profileService = {
