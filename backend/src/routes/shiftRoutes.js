@@ -30,6 +30,12 @@ const ROLE_DEPARTMENT = { DeckOfficer: 'Deck', EngineOfficer: 'Engine' };
 // Số ca trực tối đa một thủy thủ được nhận trong 1 ngày
 const MAX_SHIFTS_PER_DAY = 2;
 
+// Cửa sổ bàn giao/nhận ca: sớm nhất 5 phút trước giờ ca; muộn hơn 30 phút đầu ca -> đánh dấu muộn
+const HANDOVER_EARLY_MIN = 5;
+const HANDOVER_LATE_MIN = 30;
+// Đặt SHIFT_HANDOVER_ENFORCE=false trong .env để tắt kiểm tra cửa sổ giờ khi dev/test.
+const HANDOVER_ENFORCE_WINDOW = process.env.SHIFT_HANDOVER_ENFORCE !== 'false';
+
 // Mốc đầu/cuối ngày (theo giờ server) cho chuỗi 'YYYY-MM-DD'
 function dayBounds(dateStr) {
   const [y, m, d] = dateStr.split('-').map(Number);
@@ -369,6 +375,86 @@ router.delete('/:id', authMiddleware, async (req, res) => {
     res.json({ message: 'Đã hủy ca trực.' });
   } catch (err) {
     console.error('Lỗi hủy ca trực:', err);
+    res.status(500).json({ message: 'Lỗi server.' });
+  }
+});
+
+// ================================================================
+// POST /api/shifts/:id/handover — người đang trực (ca A) bàn giao cho ca kế tiếp
+// body: { note }
+// ================================================================
+router.post('/:id/handover', authMiddleware, async (req, res) => {
+  try {
+    const ctx = await resolveContext(req);
+    if (ctx.error) return res.status(404).json({ message: ctx.error });
+    const { profile, voyage } = ctx;
+
+    const shiftA = await Shift.findOne({ where: { id: req.params.id, voyageId: voyage.id } });
+    if (!shiftA) return res.status(404).json({ message: 'Không tìm thấy ca trực.' });
+    if (shiftA.crewId !== profile.id) {
+      return res.status(403).json({ message: 'Chỉ người trực ca này mới được bàn giao.' });
+    }
+
+    // Ca kế tiếp: cùng vị trí, bắt đầu đúng lúc ca A kết thúc
+    const shiftB = await Shift.findOne({
+      where: { voyageId: voyage.id, position: shiftA.position, startTime: shiftA.endTime, status: { [Op.ne]: 'Cancelled' } },
+    });
+    if (!shiftB) return res.status(400).json({ message: 'Chưa có ca kế tiếp cùng vị trí để bàn giao.' });
+    if (shiftB.handedOverAt) return res.status(400).json({ message: 'Ca này đã được bàn giao.' });
+
+    const now = new Date();
+    const start = new Date(shiftB.startTime).getTime();
+    // Bỏ qua ràng buộc giờ khi: env tắt enforce, HOẶC request test (dev, không phải production) → test được ca tương lai
+    const bypassWindow = !HANDOVER_ENFORCE_WINDOW || (req.body.test === true && process.env.NODE_ENV !== 'production');
+    if (!bypassWindow && now.getTime() < start - HANDOVER_EARLY_MIN * 60000) {
+      return res.status(400).json({ message: `Chưa tới giờ bàn giao (được bấm từ ${HANDOVER_EARLY_MIN} phút trước ca).` });
+    }
+    let late = now.getTime() > start + HANDOVER_LATE_MIN * 60000;
+    if (bypassWindow && req.body.late) late = true; // ép muộn khi test
+
+    await shiftB.update({
+      handedOverAt: now,
+      handoverNote: (req.body.note || '').trim() || null,
+      handoverLate: shiftB.handoverLate || late,
+    });
+    res.json({ message: late ? 'Đã bàn giao (muộn).' : 'Đã bàn giao ca.', late });
+  } catch (err) {
+    console.error('Lỗi bàn giao ca:', err);
+    res.status(500).json({ message: 'Lỗi server.' });
+  }
+});
+
+// ================================================================
+// POST /api/shifts/:id/receive — người vào ca (ca B) xác nhận nhận ca
+// ================================================================
+router.post('/:id/receive', authMiddleware, async (req, res) => {
+  try {
+    const ctx = await resolveContext(req);
+    if (ctx.error) return res.status(404).json({ message: ctx.error });
+    const { profile, voyage } = ctx;
+
+    const shiftB = await Shift.findOne({ where: { id: req.params.id, voyageId: voyage.id } });
+    if (!shiftB) return res.status(404).json({ message: 'Không tìm thấy ca trực.' });
+    if (shiftB.crewId !== profile.id) {
+      return res.status(403).json({ message: 'Chỉ người vào ca này mới được nhận ca.' });
+    }
+    if (!shiftB.handedOverAt) return res.status(400).json({ message: 'Ca trước chưa bàn giao, chưa thể nhận.' });
+    if (shiftB.receivedAt) return res.status(400).json({ message: 'Bạn đã nhận ca này rồi.' });
+
+    const now = new Date();
+    const start = new Date(shiftB.startTime).getTime();
+    // Bỏ qua ràng buộc giờ khi: env tắt enforce, HOẶC request test (dev, không phải production) → test được ca tương lai
+    const bypassWindow = !HANDOVER_ENFORCE_WINDOW || (req.body.test === true && process.env.NODE_ENV !== 'production');
+    if (!bypassWindow && now.getTime() < start - HANDOVER_EARLY_MIN * 60000) {
+      return res.status(400).json({ message: `Chưa tới giờ nhận ca (được bấm từ ${HANDOVER_EARLY_MIN} phút trước ca).` });
+    }
+    let late = now.getTime() > start + HANDOVER_LATE_MIN * 60000;
+    if (bypassWindow && req.body.late) late = true; // ép muộn khi test
+
+    await shiftB.update({ receivedAt: now, handoverLate: shiftB.handoverLate || late });
+    res.json({ message: late ? 'Đã nhận ca (muộn).' : 'Đã nhận ca.', late });
+  } catch (err) {
+    console.error('Lỗi nhận ca:', err);
     res.status(500).json({ message: 'Lỗi server.' });
   }
 });

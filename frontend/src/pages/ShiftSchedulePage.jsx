@@ -6,7 +6,7 @@ import dayjs from 'dayjs';
 import MasterLayout from '../components/MasterLayout';
 import { PageHeader, StatusTag, notifySuccess, notifyError, notifyInfo, confirmDelete } from '../components/common';
 import { shiftService } from '../services/api';
-import { SHIFT_SLOTS, SHIFT_STATUS, LOCATIONS, DEPARTMENT_STYLE, slotFromStart } from '../config/shifts';
+import { SHIFT_SLOTS, SHIFT_STATUS, POSITIONS_BY_DEPT, DEPARTMENT_STYLE, slotFromStart } from '../config/shifts';
 
 const { Text } = Typography;
 const fmtTime = (t) => dayjs(t).format('HH:mm');
@@ -33,7 +33,7 @@ export default function ShiftSchedulePage() {
   const myDept = ctx?.me?.department;
   const assignable = ctx?.assignableCrew || [];
   const crewOptions = assignable.map(c => ({ value: c.id, label: c.fullName }));
-  const locationOptions = LOCATIONS.map(p => ({ value: p, label: p }));
+  const locationOptions = (POSITIONS_BY_DEPT[myDept] || []).map(p => ({ value: p, label: p }));
 
   const loadShifts = useCallback(async (date) => {
     try { setShifts(await shiftService.getShifts(date)); } catch { setShifts([]); }

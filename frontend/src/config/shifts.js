@@ -10,8 +10,11 @@ export const SHIFT_SLOTS = [
   { slot: 5, label: '20:00 – 24:00' },
 ];
 
-// Vị trí trực = địa điểm trên tàu (tạm thời A/B/C/D, chờ dữ liệu thực).
-export const LOCATIONS = ['Vị trí A', 'Vị trí B', 'Vị trí C', 'Vị trí D'];
+// Vị trí trực theo bộ phận (nghiệp vụ chuẩn): boong có Lái tàu/Canh boong, máy có Trực máy.
+export const POSITIONS_BY_DEPT = {
+  Deck:   ['Lái tàu', 'Canh boong'],
+  Engine: ['Trực máy'],
+};
 
 // Màu phân biệt bộ phận trên timetable (Boong = xanh nhẹ, Máy = vàng nhẹ).
 export const DEPARTMENT_STYLE = {

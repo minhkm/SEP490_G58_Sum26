@@ -1,10 +1,10 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Button, Switch, DatePicker, Spin, Result, Modal, Descriptions, Tag, Typography, Space, Tooltip } from 'antd';
-import { ClockCircleOutlined, LeftOutlined, RightOutlined, EditOutlined, SwapOutlined, StopOutlined } from '@ant-design/icons';
+import { Button, Switch, DatePicker, Spin, Result, Modal, Descriptions, Tag, Typography, Space, Tooltip, Input, Checkbox } from 'antd';
+import { ClockCircleOutlined, LeftOutlined, RightOutlined, EditOutlined, SwapOutlined, StopOutlined, FileTextOutlined, CheckOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import MasterLayout from '../components/MasterLayout';
-import { PageHeader, StatusTag } from '../components/common';
+import { PageHeader, StatusTag, notifySuccess, notifyError } from '../components/common';
 import { shiftService } from '../services/api';
 import { SHIFT_SLOTS, SHIFT_STATUS, DEPARTMENT_STYLE, slotFromStart } from '../config/shifts';
 
@@ -22,6 +22,10 @@ export default function ShiftViewPage() {
   const [onlyMine, setOnlyMine] = useState(false);
   const [deptFilter, setDeptFilter] = useState(null); // null | 'Deck' | 'Engine'
   const [detail, setDetail] = useState(null);
+  const [handoverFor, setHandoverFor] = useState(null); // ca A đang mở form bàn giao
+  const [handoverNote, setHandoverNote] = useState('');
+  const [handoverLateTest, setHandoverLateTest] = useState(false); // chỉ dùng khi dev để giả lập muộn
+  const [busy, setBusy] = useState(false);
 
   const myCrewId = ctx?.me?.crewId;
   const isMine = (s) => s.crewId === myCrewId;
@@ -52,6 +56,40 @@ export default function ShiftViewPage() {
   }, [selectedDate, ctx, loadShifts]);
 
   const shiftDay = (delta) => setSelectedDate(dayjs(selectedDate).add(delta, 'day').format('YYYY-MM-DD'));
+
+  // Mở đúng trang ghi nhật ký (boong/máy) với ca đã chọn sẵn
+  const goToLog = (s) => {
+    const base = s.CrewProfile?.department === 'Engine' ? '/engine-logs' : '/deck-logs';
+    const date = dayjs(s.startTime).format('YYYY-MM-DD');
+    navigate(`${base}?voyageId=${ctx.voyage.id}&date=${date}&shiftId=${s.id}`);
+  };
+
+  // Ca liền kề cùng vị trí (để bàn giao ↔ nhận ca)
+  const sameTime = (a, b) => new Date(a).getTime() === new Date(b).getTime();
+  const nextShift = (s) => shifts.find(x => x.id !== s.id && x.position === s.position && x.status !== 'Cancelled' && sameTime(x.startTime, s.endTime));
+
+  const submitHandover = async () => {
+    setBusy(true);
+    try {
+      const res = await shiftService.handover(handoverFor.id, handoverNote, { late: handoverLateTest, test: import.meta.env.DEV });
+      setHandoverFor(null); setHandoverNote(''); setHandoverLateTest(false); setDetail(null);
+      await loadShifts(selectedDate);
+      notifySuccess(res.message);
+    } catch (err) {
+      notifyError(err.response?.data?.message || 'Không thể bàn giao ca.');
+    } finally { setBusy(false); }
+  };
+  const handleReceive = async (s) => {
+    setBusy(true);
+    try {
+      const res = await shiftService.receive(s.id, { test: import.meta.env.DEV });
+      setDetail(null);
+      await loadShifts(selectedDate);
+      notifySuccess(res.message);
+    } catch (err) {
+      notifyError(err.response?.data?.message || 'Không thể nhận ca.');
+    } finally { setBusy(false); }
+  };
 
   // Ca trong 1 khung giờ, sắp xếp theo bộ phận rồi vị trí
   const slotShifts = (slot) =>
@@ -152,6 +190,9 @@ export default function ShiftViewPage() {
                             <div style={{ marginTop: 4 }}>
                               <StatusTag status={s.status} text={SHIFT_STATUS[s.status]?.label} />
                             </div>
+                            {s.handoverLate && (
+                              <div style={{ marginTop: 3, fontSize: 11, color: '#cf1322', fontWeight: 600 }}>Ca trực bị muộn</div>
+                            )}
                           </div>
                         );
                       })
@@ -175,17 +216,65 @@ export default function ShiftViewPage() {
               <Descriptions.Item label="Vị trí">{detail.position || 'Trực ca'}</Descriptions.Item>
               <Descriptions.Item label="Trạng thái"><StatusTag status={detail.status} text={SHIFT_STATUS[detail.status]?.label} /></Descriptions.Item>
             </Descriptions>
-            {isMine(detail) && (
-              <Space style={{ marginTop: 16 }}>
-                <Tooltip title="Sẽ làm sau (bàn giao ca khi gần giờ trực)">
-                  <Button icon={<SwapOutlined />} disabled>Bàn giao ca</Button>
-                </Tooltip>
-                <Tooltip title="Sẽ làm sau (từ chối → báo cáo)">
-                  <Button icon={<StopOutlined />} disabled danger>Từ chối ca</Button>
-                </Tooltip>
-              </Space>
-            )}
+            {(() => {
+              const started = new Date(detail.startTime) <= new Date();
+              const nxt = nextShift(detail);                                       // ca mình bàn giao cho (mình là A)
+              const canHandover = isMine(detail) && nxt && !nxt.handedOverAt;
+              const canReceive = isMine(detail) && detail.handedOverAt && !detail.receivedAt; // mình là B
+              return (
+                <div style={{ marginTop: 16 }}>
+                  {/* Thông tin bàn giao */}
+                  {detail.handoverNote && (
+                    <div style={{ marginBottom: 12, padding: 10, background: '#f6ffed', border: '1px solid #b7eb8f', borderRadius: 8 }}>
+                      <Text type="secondary" style={{ fontSize: 12 }}>Ghi chú bàn giao từ ca trước:</Text>
+                      <div>{detail.handoverNote}</div>
+                    </div>
+                  )}
+                  <Space wrap style={{ marginBottom: (canHandover || canReceive || (isMine(detail) && started)) ? 12 : 0 }}>
+                    {detail.handedOverAt && detail.receivedAt && <Tag color="green">Đã bàn giao xong</Tag>}
+                    {detail.handoverLate && <Tag color="red">Bàn giao muộn</Tag>}
+                    {isMine(detail) && nxt?.handedOverAt && <Tag color="blue">Đã bàn giao cho ca sau</Tag>}
+                  </Space>
+
+                  {isMine(detail) && (
+                    <Space wrap>
+                      {started && (
+                        <Button type="primary" icon={<FileTextOutlined />} onClick={() => goToLog(detail)}>
+                          Ghi nhật ký trực
+                        </Button>
+                      )}
+                      {canHandover && (
+                        <Button icon={<SwapOutlined />} onClick={() => { setHandoverNote(''); setHandoverLateTest(false); setHandoverFor(detail); }}>
+                          Bàn giao ca
+                        </Button>
+                      )}
+                      {canReceive && (
+                        <Button type="primary" icon={<CheckOutlined />} loading={busy} onClick={() => handleReceive(detail)}>
+                          Nhận ca
+                        </Button>
+                      )}
+                      <Tooltip title="Sẽ làm sau (từ chối → báo cáo)">
+                        <Button icon={<StopOutlined />} disabled danger>Từ chối ca</Button>
+                      </Tooltip>
+                    </Space>
+                  )}
+                </div>
+              );
+            })()}
           </>
+        )}
+      </Modal>
+
+      {/* Modal bàn giao ca (ghi chú) */}
+      <Modal open={!!handoverFor} onCancel={() => setHandoverFor(null)} title="Bàn giao ca"
+        okText="Xác nhận bàn giao" cancelText="Hủy" confirmLoading={busy} onOk={submitHandover}>
+        <Text type="secondary">Ghi chú tình trạng bàn giao (thời tiết, thiết bị, lưu ý cho ca sau...)</Text>
+        <Input.TextArea rows={4} value={handoverNote} onChange={(e) => setHandoverNote(e.target.value)}
+          placeholder="VD: Biển động nhẹ, radar hoạt động bình thường..." style={{ marginTop: 8 }} />
+        {import.meta.env.DEV && (
+          <Checkbox checked={handoverLateTest} onChange={(e) => setHandoverLateTest(e.target.checked)} style={{ marginTop: 12 }}>
+            Giả lập muộn (test)
+          </Checkbox>
         )}
       </Modal>
     </MasterLayout>

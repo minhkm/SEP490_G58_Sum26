@@ -291,6 +291,14 @@ export const shiftService = {
     const response = await api.delete(`/shifts/${id}`);
     return response.data;
   },
+  handover: async (id, note, { late = false, test = false } = {}) => {
+    const response = await api.post(`/shifts/${id}/handover`, { note, late, test });
+    return response.data;
+  },
+  receive: async (id, { test = false } = {}) => {
+    const response = await api.post(`/shifts/${id}/receive`, { test });
+    return response.data;
+  },
 };
 
 export default api;
