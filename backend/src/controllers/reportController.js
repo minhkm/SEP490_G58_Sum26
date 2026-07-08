@@ -1,7 +1,8 @@
 const { Op } = require("sequelize");
-const { sequelize, Report, ReportReply, CrewProfile, Ship, Voyage, VoyageCrew } = require("../models");
+const { sequelize, Report, ReportReply, CrewProfile, Ship, Voyage, VoyageCrew, Shift } = require("../models");
 const { getInitialHandlerRole, getNextHandlerRole, canTransition } = require("../configs/reportHierarchy");
 const notificationService = require("../services/notificationService");
+const { buildShiftSnapshot } = require("../services/shiftSnapshotService");
 
 const ROLE_LABELS = {
   Sailor: "Thủy thủ",
@@ -121,7 +122,7 @@ exports.getReports = async (req, res) => {
       where.currentHandlerRole = actor.role;
       where.shipId = shipIds;
       where[Op.or] = [{ currentHandlerId: null }, { currentHandlerId: actor.crewId }];
-      if (!status) where.status = { [Op.notIn]: ["Closed", "Rejected"] };
+      // FT-10 v2 (vấn đề #2b): bỏ tự ẩn Closed/Rejected — "Tất cả trạng thái" hiện đúng tất cả
     } else if (scope === "ship") {
       const shipIds = await resolveCrewShipIds(actor.crewId);
       if (shipIds.length === 0) return res.json({ success: true, data: [] });
@@ -186,6 +187,11 @@ exports.createReport = async (req, res) => {
       return res.status(403).json({ success: false, message: "Chỉ thuyền viên trên tàu mới được tạo báo cáo." });
     }
 
+    // FT-10 v2 (vấn đề #2a): Master chỉ tiếp nhận xử lý, không tạo báo cáo
+    if (actor.role === "Master") {
+      return res.status(403).json({ success: false, message: "Thuyền trưởng không tạo báo cáo, chỉ tiếp nhận xử lý." });
+    }
+
     const { reportCategory, reportType, title, content, priority } = req.body;
     if (!title || !content) {
       return res.status(400).json({ success: false, message: "Vui lòng nhập tiêu đề và nội dung báo cáo." });
@@ -203,6 +209,37 @@ exports.createReport = async (req, res) => {
     // Ngữ cảnh tàu để định tuyến officer
     let shipId = req.body.shipId || null;
     let voyageId = req.body.voyageId || null;
+
+    // FT-10 v2 (vấn đề #4): Báo cáo từ ca trực — validate + derive context + snapshot
+    let shiftId = req.body.shiftId ? Number(req.body.shiftId) : null;
+    let shiftSnapshot = null;
+
+    if (shiftId) {
+      const shift = await Shift.findByPk(shiftId, {
+        include: [
+          { model: CrewProfile, attributes: ["id", "department"] },
+          { model: Voyage, attributes: ["id", "shipId"] },
+        ],
+      });
+      if (!shift) {
+        return res.status(404).json({ success: false, message: "Không tìm thấy ca trực." });
+      }
+      // Chỉ chủ ca mới được tạo báo cáo từ ca trực
+      if (shift.crewId !== actor.crewId) {
+        return res.status(403).json({ success: false, message: "Bạn chỉ có thể tạo báo cáo từ ca trực của mình." });
+      }
+      // Derive ngữ cảnh từ ca
+      if (shift.Voyage) {
+        shipId = shift.Voyage.shipId;
+        voyageId = shift.Voyage.id;
+      }
+      if (shift.CrewProfile?.department) {
+        department = shift.CrewProfile.department;
+      }
+      // Đóng băng số liệu
+      shiftSnapshot = await buildShiftSnapshot(shiftId);
+    }
+
     if (!shipId) {
       const ctx = await resolveCrewShip(actor.crewId);
       shipId = ctx.shipId;
@@ -212,10 +249,13 @@ exports.createReport = async (req, res) => {
     const currentHandlerRole = getInitialHandlerRole(actor.role, department);
     const finalPriority = priority || (category === "Incident" ? "Urgent" : "Normal");
 
+    // FT-10 v2 (vấn đề #6): fallback reportType theo department
+    const finalReportType = reportType || (category === "Incident" ? (department === "Engine" ? "Breakdown" : "ShipIssue") : "Other");
+
     const report = await Report.create({
       createdBy: actor.crewId,
       reportCategory: category,
-      reportType: reportType || (category === "Incident" ? "Breakdown" : "Other"),
+      reportType: finalReportType,
       department,
       priority: finalPriority,
       shipId,
@@ -225,6 +265,8 @@ exports.createReport = async (req, res) => {
       status: "Open",
       currentHandlerRole,
       currentHandlerId: null,
+      shiftId,
+      shiftSnapshot,
     });
 
     safeNotify(() => notificationService.notifyReportSubmitted({ report, actorUserId: actor.userId }));
@@ -413,3 +455,28 @@ exports.reopenReport = (req, res) =>
 // POST /api/reports/:id/reject
 exports.rejectReport = (req, res) =>
   performStatusAction(req, res, { toStatus: "Rejected", kind: "reject", successMsg: "Đã từ chối báo cáo", requireNote: true });
+
+// FT-10 v2 (vấn đề #4): GET /api/reports/shift/:shiftId/context — preview trước khi tạo báo cáo
+exports.getShiftContext = async (req, res) => {
+  try {
+    const actor = actorOf(req);
+    const shiftId = Number(req.params.shiftId);
+    const shift = await Shift.findByPk(shiftId, {
+      include: [
+        { model: CrewProfile, attributes: ["id", "fullName", "department", "position"] },
+        { model: Voyage, attributes: ["id", "shipId", "departurePort", "destinationPort"] },
+      ],
+    });
+    if (!shift) {
+      return res.status(404).json({ success: false, message: "Không tìm thấy ca trực." });
+    }
+    if (shift.crewId !== actor.crewId) {
+      return res.status(403).json({ success: false, message: "Bạn chỉ có thể xem ngữ cảnh ca trực của mình." });
+    }
+    const snapshot = await buildShiftSnapshot(shiftId);
+    res.json({ success: true, data: snapshot });
+  } catch (error) {
+    console.error("Error getting shift context:", error);
+    res.status(500).json({ success: false, message: "Lỗi lấy ngữ cảnh ca trực" });
+  }
+};
