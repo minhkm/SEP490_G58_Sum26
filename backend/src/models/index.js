@@ -179,6 +179,10 @@ Report.belongsTo(Voyage, { foreignKey: "voyageId" });
 CrewProfile.hasMany(Report, { foreignKey: "currentHandlerId", as: "HandlingReports" });
 Report.belongsTo(CrewProfile, { foreignKey: "currentHandlerId", as: "Handler" });
 
+// Report — liên kết ca trực (FT-10 vòng 2): báo cáo tạo từ chi tiết ca trực
+Shift.hasMany(Report, { foreignKey: "shiftId", onDelete: "SET NULL", onUpdate: "CASCADE" });
+Report.belongsTo(Shift, { foreignKey: "shiftId" });
+
 // ============ EXPORT ============
 module.exports = {
   sequelize,
