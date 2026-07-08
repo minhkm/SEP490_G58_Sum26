@@ -34,7 +34,7 @@ export default function Sidebar() {
     { key: dashboardPath, icon: <DashboardOutlined />, label: 'Tổng quan' },
     { key: '/voyages', icon: <CompassOutlined />, label: 'Hải Trình' },
     CARGO_ROLES.includes(role) && { key: '/cargos', icon: <InboxOutlined />, label: 'Hàng hóa' },
-    isCrewRole && { key: 'ca-truc', icon: <ClockCircleOutlined />, label: 'Ca trực', disabled: true },
+    isCrewRole && { key: '/shifts', icon: <ClockCircleOutlined />, label: 'Ca trực' },
     isDeck && { key: '/deck-logs', icon: <FileTextOutlined />, label: 'Nhật ký Trực boong' },
     isEngine && { key: '/engine-logs', icon: <ToolOutlined />, label: 'Nhật ký Kiểm tra Máy' },
     { key: '/reports', icon: <BarChartOutlined />, label: 'Báo cáo' },

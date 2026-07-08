@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { Select, Input, InputNumber, Button, Table, Card, Tag, Spin, Empty, Typography, Space, Row, Col, Alert, DatePicker, Upload, Modal, Image, Timeline } from 'antd';
 import { DashboardOutlined, SaveOutlined, ClockCircleOutlined, CompassOutlined, CalendarOutlined, UploadOutlined, EditOutlined, HistoryOutlined, PictureOutlined } from '@ant-design/icons';
 import MasterLayout from '../components/MasterLayout';
@@ -44,18 +45,32 @@ export default function EngineLogPage() {
   const canEdit = daysDiff <= 1; // Cho phép chỉnh sửa trong 24h
   const isCompleted = selectedVoyage?.status === 'Completed';
 
-  // ===== BƯỚC 1: Lấy danh sách hải trình =====
+  const [searchParams] = useSearchParams();
+
+  // ===== BƯỚC 1: Lấy danh sách hải trình (tự chọn sẵn nếu có tham số từ màn ca trực) =====
   useEffect(() => {
-    const fetchVoyages = async () => {
+    const initVoyageId = searchParams.get('voyageId');
+    const initDate = searchParams.get('date');
+    const initShiftId = searchParams.get('shiftId');
+    const init = async () => {
       try {
         const data = await engineLogService.getMyVoyages();
         setVoyages(data);
-        if (data.length > 0) {
-          const active = data.find(v => v.status !== 'Completed') || data[0];
-          setSelectedVoyage(active);
-          if (active.Ship?.Engines) setEngines(active.Ship.Engines);
-          const shiftsData = await engineLogService.getShifts(active.id, dayjs().format('YYYY-MM-DD'));
-          setShifts(shiftsData);
+        if (data.length === 0) return;
+        const voyage = (initVoyageId && data.find(v => v.id === Number(initVoyageId)))
+          || data.find(v => v.status !== 'Completed') || data[0];
+        setSelectedVoyage(voyage);
+        if (voyage.Ship?.Engines) setEngines(voyage.Ship.Engines);
+        const date = initDate ? dayjs(initDate) : dayjs();
+        setSelectedDate(date);
+        const shiftsData = await engineLogService.getShifts(voyage.id, date.format('YYYY-MM-DD'));
+        setShifts(shiftsData);
+        if (initShiftId) {
+          const shift = shiftsData.find(s => s.id === Number(initShiftId));
+          if (shift) {
+            setSelectedShift(shift);
+            try { setHistory(await engineLogService.getHistoryByShift(shift.id)); } catch (e) { console.error(e); }
+          }
         }
       } catch (error) {
         console.error('Không tìm thấy hải trình:', error);
@@ -63,7 +78,8 @@ export default function EngineLogPage() {
         setLoading(false);
       }
     };
-    fetchVoyages();
+    init();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleVoyageChange = async (voyageId) => {
