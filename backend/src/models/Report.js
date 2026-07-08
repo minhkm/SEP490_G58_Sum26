@@ -25,6 +25,10 @@ const Report = sequelize.define("Report", {
 
   resolvedAt: { type: DataTypes.DATE, allowNull: true },
   closedAt: { type: DataTypes.DATE, allowNull: true },
+
+  // Liên kết ca trực (FT-10 vòng 2): báo cáo tạo từ chi tiết ca trực
+  shiftId: { type: DataTypes.INTEGER, allowNull: true },       // FK → Shift; null = báo cáo thường
+  shiftSnapshot: { type: DataTypes.JSON, allowNull: true },    // số liệu đóng băng tại thời điểm tạo
 }, { tableName: "Report", timestamps: true }); // bật createdAt/updatedAt cho list/sort
 
 module.exports = Report;
