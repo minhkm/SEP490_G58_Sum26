@@ -20,6 +20,9 @@ async function seed() {
   console.log('🔄 Đang xoá dữ liệu cũ và đồng bộ lại database...');
   await sequelize.sync({ force: true });
 
+  let r6Id = null;
+  let cpKhoaId = null;
+
   const t = await sequelize.transaction();
   try {
     console.log('🌱 Bắt đầu seed data...');
@@ -86,6 +89,7 @@ async function seed() {
     const cpPhuc = await CrewProfile.create({ userId: uPhuc.id, fullName: 'Hoàng Văn Phúc', email: 'hvphuc@vqs.vn', phone: '0987000007', cccd: 'VHQ001007', department: 'Deck', position: 'Ordinary Seaman Deck (OSD)' }, { transaction: t });
     const cpThang = await CrewProfile.create({ userId: uThang.id, fullName: 'Nguyễn Bá Thắng', email: 'nbthang@vqs.vn', phone: '0987000008', cccd: 'VHQ001008', department: 'Engine', position: 'Engine Crew' }, { transaction: t });
     const cpKhoa = await CrewProfile.create({ userId: uKhoa.id, fullName: 'Lê Đức Khoa', email: 'ldkhoa@vqs.vn', phone: '0987000009', cccd: 'VHQ001009', department: 'Engine', position: 'Engine Crew (Thợ máy)' }, { transaction: t });
+    cpKhoaId = cpKhoa.id;
     const cpDat = await CrewProfile.create({ userId: uDat.id, fullName: 'Nguyễn Thanh Đạt', email: 'ntdat@vqs.vn', phone: '0987000010', cccd: 'VHQ001010', department: 'Engine', position: 'Engine Crew (Thợ máy)' }, { transaction: t });
 
     // --- Certificates: Nguyễn Viết Dương (từ tài liệu thực) ---
@@ -700,6 +704,7 @@ async function seed() {
       currentHandlerRole: 'Master',
       currentHandlerId: cpMinh.id,
     }, { transaction: t });
+    r6Id = r6.id;
     await ReportReply.create({ reportId: r6.id, repliedBy: cpQuan.id, kind: 'escalate', metadata: { fromRole: 'EngineOfficer', toRole: 'Master' }, content: 'Sĩ quan máy đã tiếp nhận. Vượt thẩm quyền xử lý tại chỗ, đẩy lên Thuyền trưởng quyết định phương án và cảng ghé sửa chữa.', repliedAt: new Date('2026-03-12T02:30:00') }, { transaction: t });
 
     console.log('✅ Reports xong');
@@ -737,6 +742,21 @@ async function seed() {
     // COMMIT
     // ================================================================
     await t.commit();
+    console.log('✅ Transaction committed thành công!');
+
+    // FT-10 v2: Gắn ca trực cho r6 (báo cáo sự cố từ ca trực)
+    if (r6Id && cpKhoaId) {
+      const { buildShiftSnapshot } = require('./services/shiftSnapshotService');
+      const shiftKhoa = await Shift.findOne({
+        where: { crewId: cpKhoaId },
+        include: [{ model: ShiftLog, where: { logType: 'Engine' } }]
+      });
+      if (shiftKhoa) {
+        const snapshot = await buildShiftSnapshot(shiftKhoa.id);
+        await Report.update({ shiftId: shiftKhoa.id, shiftSnapshot: snapshot }, { where: { id: r6Id } });
+        console.log('✅ Đã gắn ca trực và số liệu đóng băng (snapshot) cho báo cáo r6');
+      }
+    }
 
     console.log('\n🎉 Seed data hoàn tất!\n');
     console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
