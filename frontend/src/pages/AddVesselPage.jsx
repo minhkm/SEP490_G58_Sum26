@@ -297,7 +297,7 @@ export default function AddVesselPage() {
 
   const addEquipment = () => {
     const newId = equipment.length > 0 ? Math.max(...equipment.map((e) => e.id)) + 1 : 1;
-    setEquipment([...equipment, { id: newId, name: '', type: '', location: '', condition: 'Đúng hạn' }]);
+    setEquipment([...equipment, { id: newId, name: '', type: '', location: '', condition: 'Hoạt động' }]);
   };
 
   const handleEquipmentChange = (eqId, name, value) => {
@@ -445,6 +445,22 @@ export default function AddVesselPage() {
     );
   };
 
+  const equipmentTypeOptions = [
+    { label: 'Thiết bị cứu sinh', value: 'Thiết bị cứu sinh' },
+    { label: 'Thiết bị chữa cháy', value: 'Thiết bị chữa cháy' },
+    { label: 'Dụng cụ sửa chữa', value: 'Dụng cụ sửa chữa' },
+    { label: 'Thiết bị hàng hải', value: 'Thiết bị hàng hải' },
+    { label: 'Thiết bị liên lạc', value: 'Thiết bị liên lạc' },
+    { label: 'Thiết bị y tế', value: 'Thiết bị y tế' },
+    { label: 'Khác', value: 'Khác' },
+  ];
+
+  const equipmentLocationOptions = [
+    { label: 'Boong', value: 'Boong' },
+    { label: 'Buồng máy', value: 'Buồng máy' },
+    { label: 'Buồng lái', value: 'Buồng lái' },
+  ];
+
   const equipmentColumns = [
     {
       title: 'Tên thiết bị',
@@ -452,7 +468,7 @@ export default function AddVesselPage() {
       render: (value, record) => (
         <Input
           value={value}
-          placeholder="Tên thiết bị..."
+          placeholder="VD: Xuồng cứu sinh số 1..."
           onChange={(e) => handleEquipmentChange(record.id, 'name', e.target.value)}
         />
       ),
@@ -460,37 +476,28 @@ export default function AddVesselPage() {
     {
       title: 'Loại',
       dataIndex: 'type',
+      width: 200,
       render: (value, record) => (
-        <Input
-          value={value}
-          placeholder="Loại..."
-          onChange={(e) => handleEquipmentChange(record.id, 'type', e.target.value)}
+        <Select
+          style={{ width: '100%' }}
+          value={value || undefined}
+          placeholder="Chọn loại"
+          onChange={(v) => handleEquipmentChange(record.id, 'type', v)}
+          options={equipmentTypeOptions}
         />
       ),
     },
     {
       title: 'Vị trí',
       dataIndex: 'location',
-      render: (value, record) => (
-        <Input
-          value={value}
-          placeholder="Vị trí..."
-          onChange={(e) => handleEquipmentChange(record.id, 'location', e.target.value)}
-        />
-      ),
-    },
-    {
-      title: 'Tình trạng',
-      dataIndex: 'condition',
+      width: 150,
       render: (value, record) => (
         <Select
           style={{ width: '100%' }}
-          value={value}
-          onChange={(v) => handleEquipmentChange(record.id, 'condition', v)}
-          options={[
-            { label: 'Đúng hạn', value: 'Đúng hạn' },
-            { label: 'Quá hạn', value: 'Quá hạn' },
-          ]}
+          value={value || undefined}
+          placeholder="Chọn vị trí"
+          onChange={(v) => handleEquipmentChange(record.id, 'location', v)}
+          options={equipmentLocationOptions}
         />
       ),
     },
