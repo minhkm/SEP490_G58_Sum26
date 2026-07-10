@@ -84,7 +84,19 @@ Chi tiết & bảng mapping đầy đủ: **[frontend/ANTD_MIGRATION.md](fronten
 
 1. **Đọc trước khi sửa**: file liên quan + `roles.js` + `components/common` + `ANTD_MIGRATION.md` khi đụng UI.
 2. **Giữ hành vi**: refactor/chuyển đổi không được đổi API call, route, role gating, field name, validation — trừ khi được yêu cầu rõ.
-3. **Tự kiểm chứng**: sau khi sửa frontend, chạy `cd frontend && npm run build` (phải xanh). Không chạy nhiều `npm run dev`/build song song (đụng thư mục `dist`).
+3. **Tự kiểm chứng (BẮT BUỘC trước khi báo "xong")** — dự án **chưa có test tự động** (không jest/vitest; `backend test` chỉ là placeholder). Vì vậy "chạy test cho code sạch" = **build + lint + smoke thủ công**. Chạy đúng loại check theo phần đã đụng (xem bảng "Lệnh kiểm chứng" bên dưới) và **chỉ được báo hoàn thành khi tất cả xanh / không thêm lỗi mới**.
 4. **Một thay đổi rõ ràng / một PR nhỏ**; tránh nhiều người sửa cùng file.
 5. **Đừng tự ý**: gỡ `bootstrap` CSS (cần QA hình ảnh trước), xóa file `.css` đang được import, hay commit/push khi chưa được yêu cầu.
-6. Báo cáo trung thực: nếu build lỗi / bước bị bỏ qua → nói rõ kèm output.
+6. Báo cáo trung thực: nếu **build lỗi / lint tăng lỗi / bước bị bỏ qua** → nói rõ kèm output, không được che giấu hay báo "xong" khi chưa xanh.
+
+### Lệnh kiểm chứng bắt buộc (theo phần đã sửa)
+
+| Đụng vào | Lệnh bắt buộc | Tiêu chí PASS |
+|---|---|---|
+| **Frontend** (bất kỳ `.jsx`/`.js` trong `frontend/`) | `cd frontend && npm run build` | Build **xanh**, không lỗi. Không chạy nhiều `dev`/`build` song song (đụng `dist`). |
+| **Frontend** (như trên) | `cd frontend && npm run lint` | **Ratchet**: codebase đang có sẵn ~29 lỗi cũ (rule `react-hooks/*` của React 19) → **KHÔNG cần sửa hết**, nhưng **tuyệt đối không làm TĂNG** số lỗi; phần code bạn **thêm mới phải sạch lint** (0 lỗi trên vùng bạn sửa). |
+| **Backend** (`.js` đã sửa) | `node --check <file>` | Không lỗi cú pháp. |
+| **Backend** — sửa `models/*`, quan hệ trong `models/index.js`, hoặc `seed.js` | `cd backend && npm run seed` | Seed chạy xong, schema sync (cột/FK mới được thêm), **không văng lỗi**. |
+| **Luồng có runtime** (API/UI) | Smoke thủ công: `npm run dev` (BE+FE) rồi thao tác đúng luồng vừa sửa | Hành vi đúng như mong đợi (không có test tự động thay thế bước này). |
+
+> **Nguyên tắc lint "ratchet":** không đặt mục tiêu lint sạch tuyệt đối (nợ cũ toàn dự án), nhưng **không bao giờ để lỗi lint tăng thêm**. Trước/sau khi sửa, so số lỗi trên file mình đụng; nếu phát sinh lỗi mới do mình → phải xử lý (sửa hoặc, nếu là pattern hợp lệ, thêm `// eslint-disable-next-line <rule>` kèm lý do). Không tự ý hạ mức/tắt rule toàn cục nếu chưa được yêu cầu.
