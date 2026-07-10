@@ -31,6 +31,10 @@ const ENTRY_FIELDS = [
   { key: 'seaTemp', label: 'Nhiệt độ Biển (°C)', short: 'T° Biển', type: 'number' },
 ];
 
+// Nhóm field theo vị trí ca trực
+const HELMSMAN_FIELDS = ['courseTrue', 'courseGyro', 'courseSteer', 'gyroError', 'courseMagnetic', 'speed', 'rpm'];
+const LOOKOUT_FIELDS = ['windDirection', 'windForce', 'weather', 'barometer', 'seaState', 'visibility', 'airTemp', 'seaTemp'];
+
 // Tính các giờ thuộc ca trực (VD: ca 00:00-04:00 → giờ 1,2,3,4)
 const getShiftHours = (shift) => {
   if (!shift) return [];
@@ -260,18 +264,30 @@ export default function DeckLogPage() {
   const formatTime = (d) => d ? new Date(d).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }) : '';
   const formatDateTime = (d) => d ? new Date(d).toLocaleString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '';
 
+  // ===== Kiểm tra field có được phép điền theo vị trí =====
+  const isFieldAllowed = (fieldKey) => {
+    const pos = selectedShift?.position;
+    if (!pos) return true; // Không có position → cho điền hết
+    if (pos === 'Lái tàu') return HELMSMAN_FIELDS.includes(fieldKey);
+    if (pos === 'Canh boong') return LOOKOUT_FIELDS.includes(fieldKey);
+    return true;
+  };
+
   // ===== Render ô nhập liệu cho 1 field =====
-  const renderInputCell = (entry, field, onChange) => {
+  const renderInputCell = (entry, field, onChange, forceDisable = false) => {
+    const disabled = forceDisable || !isFieldAllowed(field.key);
     if (field.type === 'select') {
       return (
-        <Select size="small" style={{ width: '100%' }} allowClear placeholder="—"
+        <Select size="small" style={{ width: '100%', background: disabled ? '#f5f5f5' : undefined }} allowClear placeholder="—"
+          disabled={disabled}
           value={entry[field.key] || undefined}
           onChange={val => onChange(entry.hour, field.key, val || null)}
           options={field.options.map(o => ({ value: o, label: o }))} />
       );
     }
     return (
-      <InputNumber size="small" style={{ width: '100%' }} placeholder="—"
+      <InputNumber size="small" style={{ width: '100%', background: disabled ? '#f5f5f5' : undefined }} placeholder={disabled ? '' : '—'}
+        disabled={disabled}
         min={field.key === 'gyroError' ? undefined : 0}
         max={field.max}
         value={entry[field.key]}
@@ -388,7 +404,7 @@ export default function DeckLogPage() {
             <div style={{ minWidth: 320 }}>
               <div style={{ marginBottom: 6 }}><Text type="secondary"><ClockCircleOutlined /> Chọn Ca trực</Text></div>
               <Select style={{ width: '100%' }} placeholder="-- Chọn ca trực --" allowClear value={selectedShift?.id || undefined} onChange={handleShiftChange}
-                options={shifts.map(s => ({ value: s.id, label: `${s.CrewProfile?.fullName} | ${formatTime(s.startTime)} - ${formatTime(s.endTime)} (${s.status})` }))} />
+                options={shifts.map(s => ({ value: s.id, label: `${s.CrewProfile?.fullName} | ${formatTime(s.startTime)} - ${formatTime(s.endTime)}${s.position ? ` — ${s.position}` : ''} (${s.status})` }))} />
             </div>
           </Space>
         </Card>
@@ -406,7 +422,7 @@ export default function DeckLogPage() {
         {/* ===== BẢNG NHẬP LIỆU THEO GIỜ ===== */}
         {selectedShift && !isCompleted && isToday && entries.length > 0 && (
           <Card style={{ marginBottom: 16 }}
-            title={`📋 Nhật ký Boong — Ca: ${formatTime(selectedShift.startTime)} - ${formatTime(selectedShift.endTime)}`}>
+            title={<span>📋 Nhật ký Boong — Ca: {formatTime(selectedShift.startTime)} - {formatTime(selectedShift.endTime)} {selectedShift.position && <Tag color={selectedShift.position === 'Lái tàu' ? 'blue' : 'green'}>{selectedShift.position}</Tag>}</span>}>
 
             <div style={{ overflowX: 'auto', marginBottom: 16 }}>
               <table style={{ borderCollapse: 'collapse', width: '100%', minWidth: 1200 }}>
@@ -414,7 +430,11 @@ export default function DeckLogPage() {
                   <tr style={{ background: '#e6f4ff' }}>
                     <th style={{ padding: '8px 6px', border: '1px solid #d9d9d9', textAlign: 'center', fontWeight: 600, minWidth: 50 }}>Giờ</th>
                     {ENTRY_FIELDS.map(f => (
-                      <th key={f.key} style={{ padding: '8px 4px', border: '1px solid #d9d9d9', textAlign: 'center', fontSize: 12, fontWeight: 600, minWidth: 70, whiteSpace: 'nowrap' }}>
+                      <th key={f.key} style={{
+                        padding: '8px 4px', border: '1px solid #d9d9d9', textAlign: 'center', fontSize: 12, fontWeight: 600, minWidth: 70, whiteSpace: 'nowrap',
+                        background: isFieldAllowed(f.key) ? '#e6f4ff' : '#f0f0f0',
+                        color: isFieldAllowed(f.key) ? undefined : '#999',
+                      }}>
                         {f.short}
                       </th>
                     ))}
@@ -497,7 +517,11 @@ export default function DeckLogPage() {
                 <tr style={{ background: '#e6f4ff' }}>
                   <th style={{ padding: '6px', border: '1px solid #d9d9d9', textAlign: 'center', minWidth: 40 }}>Giờ</th>
                   {ENTRY_FIELDS.map(f => (
-                    <th key={f.key} style={{ padding: '4px', border: '1px solid #d9d9d9', textAlign: 'center', fontSize: 11, minWidth: 60, whiteSpace: 'nowrap' }}>
+                    <th key={f.key} style={{
+                      padding: '4px', border: '1px solid #d9d9d9', textAlign: 'center', fontSize: 11, minWidth: 60, whiteSpace: 'nowrap',
+                      background: isFieldAllowed(f.key) ? '#e6f4ff' : '#f0f0f0',
+                      color: isFieldAllowed(f.key) ? undefined : '#999',
+                    }}>
                       {f.short}
                     </th>
                   ))}
