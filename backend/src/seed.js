@@ -22,6 +22,11 @@ async function seed() {
 
   let r6Id = null;
   let cpKhoaId = null;
+  // FT-10 v2: seed thêm báo cáo gắn ca trực để test snapshot
+  let r7Id = null;            // báo cáo BOONG đính kèm snapshot (cpViet)
+  let cpVietId = null;
+  let r8Id = null;            // báo cáo MÁY có cảnh báo ngưỡng (cpDat)
+  let demoAlarmShiftId = null;
 
   const t = await sequelize.transaction();
   try {
@@ -90,6 +95,7 @@ async function seed() {
     const cpThang = await CrewProfile.create({ userId: uThang.id, fullName: 'Nguyễn Bá Thắng', email: 'nbthang@vqs.vn', phone: '0987000008', cccd: 'VHQ001008', department: 'Engine', position: 'Engine Crew' }, { transaction: t });
     const cpKhoa = await CrewProfile.create({ userId: uKhoa.id, fullName: 'Lê Đức Khoa', email: 'ldkhoa@vqs.vn', phone: '0987000009', cccd: 'VHQ001009', department: 'Engine', position: 'Engine Crew (Thợ máy)' }, { transaction: t });
     cpKhoaId = cpKhoa.id;
+    cpVietId = cpViet.id;
     const cpDat = await CrewProfile.create({ userId: uDat.id, fullName: 'Nguyễn Thanh Đạt', email: 'ntdat@vqs.vn', phone: '0987000010', cccd: 'VHQ001010', department: 'Engine', position: 'Engine Crew (Thợ máy)' }, { transaction: t });
 
     // --- Certificates: Nguyễn Viết Dương (từ tài liệu thực) ---
@@ -707,6 +713,59 @@ async function seed() {
     r6Id = r6.id;
     await ReportReply.create({ reportId: r6.id, repliedBy: cpQuan.id, kind: 'escalate', metadata: { fromRole: 'EngineOfficer', toRole: 'Master' }, content: 'Sĩ quan máy đã tiếp nhận. Vượt thẩm quyền xử lý tại chỗ, đẩy lên Thuyền trưởng quyết định phương án và cảng ghé sửa chữa.', repliedAt: new Date('2026-03-12T02:30:00') }, { transaction: t });
 
+    // ================================================================
+    // FT-10 v2: BÁO CÁO GẮN CA TRỰC (để test snapshot đóng băng)
+    // ================================================================
+
+    // (1) Báo cáo BOONG — Thủy thủ cpViet báo cáo ngoại lệ từ ca trực boong của mình.
+    //     Snapshot (bảng nhật ký boong theo giờ) được gắn sau commit.
+    const r7 = await Report.create({
+      createdBy: cpViet.id,
+      reportCategory: 'Routine',
+      reportType: 'ShiftException',
+      department: 'Deck',
+      priority: 'High',
+      shipId: shipVQS.id,
+      voyageId: vVQS04.id,
+      title: 'Ngoại lệ ca trực boong: phát hiện mục tiêu cắt hướng lúc trực đêm',
+      content: 'Trong ca trực, radar phát hiện tàu cá cắt hướng ở cự ly gần (2.5 hải lý). Đã báo cáo sĩ quan trực và điều chỉnh hướng tạm thời để tránh va. Đề nghị Sĩ quan boong ghi nhận. Số liệu ca trực đính kèm bên dưới.',
+      status: 'Open',
+      currentHandlerRole: 'DeckOfficer',
+      currentHandlerId: null,
+    }, { transaction: t });
+    r7Id = r7.id;
+
+    // (2) Ca máy "cảnh báo" với vài thông số vượt ngưỡng — để test tô màu tri-state trong snapshot.
+    //     RPM 720 (>90% max 750 → cảnh báo), Cooling Water 78°C (>75 → nguy hiểm), XL2 435°C (>420 → nguy hiểm).
+    const alarmSt = new Date(); alarmSt.setDate(alarmSt.getDate() - 1); alarmSt.setHours(8, 0, 0, 0);
+    const alarmEt = new Date(alarmSt); alarmEt.setHours(12, 0, 0, 0);
+    const demoAlarmShift = await Shift.create({ voyageId: vVQS04.id, crewId: cpDat.id, startTime: alarmSt, endTime: alarmEt, status: 'Completed' }, { transaction: t });
+    const demoAlarmSLog = await ShiftLog.create({ shiftId: demoAlarmShift.id, logType: 'Engine', content: 'Ca máy 08-12H. Phát hiện nhiệt độ nước làm mát và khí xả XL2 tăng cao bất thường.', createdAt: alarmEt }, { transaction: t });
+    const demoAlarmELog = await EngineLog.create({ shiftLogId: demoAlarmSLog.id, engineId: eVQSMain.id, note: 'Cooling water temp và exhaust gas XL2 vượt ngưỡng an toàn. Đã giảm tải và tăng cường làm mát.' }, { transaction: t });
+    const alarmValues = [720, 4.8, 5.2, 2.0, 1.2, 65, 78, 435, 395, 390, 385, 385]; // [0]RPM cảnh báo, [6]CoolWater nguy hiểm, [7]XL2 nguy hiểm
+    for (let i = 0; i < alarmValues.length; i++) {
+      if (epVQS[i]) {
+        await EngineLogValue.create({ engineLogId: demoAlarmELog.id, parameterId: epVQS[i].id, value: alarmValues[i] }, { transaction: t });
+      }
+    }
+    demoAlarmShiftId = demoAlarmShift.id;
+
+    const r8 = await Report.create({
+      createdBy: cpDat.id,
+      reportCategory: 'Incident',
+      reportType: 'Breakdown',
+      department: 'Engine',
+      priority: 'Urgent',
+      shipId: shipVQS.id,
+      voyageId: vVQS04.id,
+      title: 'Sự cố máy: nhiệt độ nước làm mát & khí xả XL2 vượt ngưỡng',
+      content: 'Ca máy 08-12H hôm qua: nhiệt độ nước làm mát đạt 78°C (ngưỡng 75°C) và khí xả XL2 đạt 435°C (ngưỡng 420°C). RPM 720 sát ngưỡng. Đã giảm tải khẩn cấp. Đề nghị Sĩ quan máy kiểm tra bơm nước làm mát. Số liệu ca trực đính kèm.',
+      status: 'Open',
+      currentHandlerRole: 'EngineOfficer',
+      currentHandlerId: null,
+    }, { transaction: t });
+    r8Id = r8.id;
+
     console.log('✅ Reports xong');
 
     // ================================================================
@@ -754,8 +813,31 @@ async function seed() {
       if (shiftKhoa) {
         const snapshot = await buildShiftSnapshot(shiftKhoa.id);
         await Report.update({ shiftId: shiftKhoa.id, shiftSnapshot: snapshot }, { where: { id: r6Id } });
-        console.log('✅ Đã gắn ca trực và số liệu đóng băng (snapshot) cho báo cáo r6');
+        console.log('✅ Đã gắn ca trực và số liệu đóng băng (snapshot) cho báo cáo r6 (máy - bình thường)');
       }
+    }
+
+    // FT-10 v2: Gắn snapshot BOONG cho r7 (ca trực boong của cpViet có nhật ký theo giờ)
+    if (r7Id && cpVietId) {
+      const { buildShiftSnapshot } = require('./services/shiftSnapshotService');
+      const shiftViet = await Shift.findOne({
+        where: { crewId: cpVietId },
+        include: [{ model: ShiftLog, where: { logType: 'Deck' }, required: true }],
+        order: [['startTime', 'DESC']],
+      });
+      if (shiftViet) {
+        const snapshot = await buildShiftSnapshot(shiftViet.id);
+        await Report.update({ shiftId: shiftViet.id, shiftSnapshot: snapshot }, { where: { id: r7Id } });
+        console.log('✅ Đã gắn snapshot ca trực boong cho báo cáo r7 (boong)');
+      }
+    }
+
+    // FT-10 v2: Gắn snapshot MÁY có cảnh báo ngưỡng cho r8
+    if (r8Id && demoAlarmShiftId) {
+      const { buildShiftSnapshot } = require('./services/shiftSnapshotService');
+      const snapshot = await buildShiftSnapshot(demoAlarmShiftId);
+      await Report.update({ shiftId: demoAlarmShiftId, shiftSnapshot: snapshot }, { where: { id: r8Id } });
+      console.log('✅ Đã gắn snapshot ca trực máy (cảnh báo ngưỡng) cho báo cáo r8');
     }
 
     console.log('\n🎉 Seed data hoàn tất!\n');

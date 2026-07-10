@@ -68,17 +68,23 @@ export default function ReportListPage() {
 
   // Danh sách loại báo cáo theo bộ phận (E)
   const typeOpts = useMemo(() => {
-    const dept = me?.department || (role === 'EngineOfficer' || role === 'EngineCrew' ? 'Engine' : null);
-    return reportTypeOptions(dept);
+    // Ưu tiên department thật từ hồ sơ; nếu chưa có (getMe lỗi) thì suy từ role.
+    // Lưu ý: Sailor có thể thuộc Boong HOẶC Máy → không suy đoán, để null (hiện tất cả).
+    const roleDept =
+      role === 'EngineOfficer' || role === 'EngineCrew' ? 'Engine'
+        : role === 'DeckOfficer' || role === 'ChiefOfficer' ? 'Deck'
+          : null;
+    return reportTypeOptions(me?.department || roleDept);
   }, [me, role]);
 
   // Tất cả loại (để lọc trên danh sách)
   const allTypeValues = useMemo(() => [...new Set([...typeOpts.Routine, ...typeOpts.Incident])], [typeOpts]);
 
-  // Mount: lấy profile
+  // Mount: lấy profile.
+  // Lưu ý: GET /crews/me trả THẲNG object hồ sơ (không bọc {success,data}) — xem CrewProfilePage/CrewDashboard.
   useEffect(() => {
     profileService.getMe()
-      .then((res) => { if (res.success) setMe(res.data); })
+      .then((data) => { if (data && data.id) setMe(data); })
       .catch(() => { /* fallback: me stays null, suy từ role */ });
   }, []);
 
