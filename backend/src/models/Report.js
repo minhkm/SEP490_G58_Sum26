@@ -3,11 +3,32 @@ const sequelize = require("../configs/database");
 
 const Report = sequelize.define("Report", {
   id: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
-  createdBy: { type: DataTypes.INTEGER, allowNull: false }, // crewId
-  reportType: { type: DataTypes.STRING }, // Engine, Deck, Administrative
+  createdBy: { type: DataTypes.INTEGER, allowNull: false }, // crewId người tạo
+
+  // Phân loại báo cáo
+  reportCategory: { type: DataTypes.STRING, defaultValue: "Routine" }, // Routine (thường nhật), Incident (sự cố/khẩn cấp)
+  reportType: { type: DataTypes.STRING }, // Leave, ShiftSwap, ShiftException (Routine) | Breakdown, ShipIssue, Other (Incident)
+  department: { type: DataTypes.STRING }, // Deck, Engine — chọn thang bậc escalation
+  priority: { type: DataTypes.STRING, defaultValue: "Normal" }, // Normal, High, Urgent
+
+  // Ngữ cảnh để định tuyến tới officer đúng tàu
+  shipId: { type: DataTypes.INTEGER, allowNull: true },
+  voyageId: { type: DataTypes.INTEGER, allowNull: true },
+
   title: { type: DataTypes.STRING },
   content: { type: DataTypes.TEXT },
-  status: { type: DataTypes.STRING, defaultValue: "Open" }, // Open, InProgress, Resolved, Rejected
-}, { tableName: "Report", timestamps: false });
+  status: { type: DataTypes.STRING, defaultValue: "Open" }, // Open, InProgress, Resolved, Closed, Rejected
+
+  // Con trỏ "báo cáo đang ở cấp nào" (BR-22 + Escalate)
+  currentHandlerRole: { type: DataTypes.STRING }, // role đang giữ lượt xử lý
+  currentHandlerId: { type: DataTypes.INTEGER, allowNull: true }, // crewId người cụ thể được ghim
+
+  resolvedAt: { type: DataTypes.DATE, allowNull: true },
+  closedAt: { type: DataTypes.DATE, allowNull: true },
+
+  // Liên kết ca trực (FT-10 vòng 2): báo cáo tạo từ chi tiết ca trực
+  shiftId: { type: DataTypes.INTEGER, allowNull: true },       // FK → Shift; null = báo cáo thường
+  shiftSnapshot: { type: DataTypes.JSON, allowNull: true },    // số liệu đóng băng tại thời điểm tạo
+}, { tableName: "Report", timestamps: true }); // bật createdAt/updatedAt cho list/sort
 
 module.exports = Report;

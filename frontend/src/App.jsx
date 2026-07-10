@@ -22,10 +22,12 @@ import ShiftSchedulePage from "./pages/ShiftSchedulePage";
 import ShiftViewPage from "./pages/ShiftViewPage";
 import AttendancePage from "./pages/AttendancePage";
 import RequireRole from "./components/RequireRole";
-import { CARGO_ROLES } from "./config/roles";
+import { CARGO_ROLES, REPORT_ROLES } from "./config/roles";
 import { SHIFT_OFFICER_ROLES } from "./config/shifts";
 
 import DeckLogPage from "./pages/DeckLogPage";
+import ReportListPage from "./pages/ReportListPage";
+import ReportDetailPage from "./pages/ReportDetailPage";
 
 function App() {
   return (
@@ -107,6 +109,22 @@ function App() {
         />
 
         <Route path="/deck-logs" element={<DeckLogPage />} />
+        <Route
+          path="/reports"
+          element={
+            <RequireRole allow={REPORT_ROLES}>
+              <ReportListPage />
+            </RequireRole>
+          }
+        />
+        <Route
+          path="/reports/:id"
+          element={
+            <RequireRole allow={REPORT_ROLES}>
+              <ReportDetailPage />
+            </RequireRole>
+          }
+        />
       </Routes>
     </Router>
   );
