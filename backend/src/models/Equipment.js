@@ -3,7 +3,7 @@ const sequelize = require("../configs/database");
 
 const Equipment = sequelize.define("Equipment", {
   id: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
-  shipId: { type: DataTypes.INTEGER, allowNull: false },
+  voyageId: { type: DataTypes.INTEGER, allowNull: false },
   equipmentName: { type: DataTypes.STRING },
   equipmentType: { type: DataTypes.STRING },
   location: { type: DataTypes.STRING },

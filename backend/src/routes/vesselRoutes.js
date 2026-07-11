@@ -1,5 +1,5 @@
 const express = require('express');
-const { Ship, ShipCapacity, Engine, EngineParameter, CargoHold, Equipment } = require('../models');
+const { Ship, ShipCapacity, Engine, EngineParameter, CargoHold } = require('../models');
 
 const router = express.Router();
 
@@ -24,8 +24,7 @@ router.get('/:id', async (req, res) => {
       include: [
         ShipCapacity,
         { model: Engine, include: [EngineParameter] },
-        CargoHold,
-        Equipment
+        CargoHold
       ]
     });
     if (!vessel) return res.status(404).json({ message: 'Không tìm thấy tàu' });
@@ -39,7 +38,7 @@ router.get('/:id', async (req, res) => {
 // POST /api/vessels - Tạo tàu mới và dữ liệu đi kèm
 router.post('/', async (req, res) => {
   try {
-    const { basicInfo, capacity, mainEngine, generatorEngines, holds, equipment } = req.body;
+    const { basicInfo, capacity, mainEngine, generatorEngines, holds } = req.body;
     
     // 1. Tạo bản ghi Ship
     const newShip = await Ship.create({
@@ -109,17 +108,7 @@ router.post('/', async (req, res) => {
       await CargoHold.bulkCreate(holdsData);
     }
 
-    // 6. Tạo Equipment
-    if (equipment && equipment.length > 0) {
-      const eqData = equipment.map(e => ({ 
-        shipId: newShip.id, 
-        equipmentName: e.name, 
-        equipmentType: e.type, 
-        location: e.location,
-        status: e.condition || 'Operational' 
-      }));
-      await Equipment.bulkCreate(eqData);
-    }
+
 
     res.status(201).json({ message: 'Tạo tàu thành công', ship: newShip });
   } catch (error) {
@@ -132,7 +121,7 @@ router.post('/', async (req, res) => {
 router.put('/:id', async (req, res) => {
   try {
     const vesselId = req.params.id;
-    const { basicInfo, capacity, mainEngine, generatorEngines, holds, equipment } = req.body;
+    const { basicInfo, capacity, mainEngine, generatorEngines, holds } = req.body;
     
     const vessel = await Ship.findByPk(vesselId);
     if (!vessel) return res.status(404).json({ message: 'Không tìm thấy tàu' });
@@ -248,24 +237,7 @@ router.put('/:id', async (req, res) => {
       }
     }
 
-    // 5. Sync Equipment
-    if (equipment) {
-      const existingEqs = await Equipment.findAll({ where: { shipId: vesselId } });
-      const keepIds = equipment.filter(e => e.id).map(e => e.id);
-      
-      for (const ex of existingEqs) {
-        if (!keepIds.includes(ex.id)) await ex.destroy();
-      }
 
-      for (const e of equipment) {
-        if (e.id) {
-          const eq = await Equipment.findByPk(e.id);
-          if (eq) await eq.update({ equipmentName: e.name, equipmentType: e.type, location: e.location, status: e.condition });
-        } else {
-          await Equipment.create({ shipId: vesselId, equipmentName: e.name, equipmentType: e.type, location: e.location, status: e.condition || 'Operational' });
-        }
-      }
-    }
 
     res.json({ message: 'Cập nhật tàu thành công', ship: vessel });
   } catch (error) {
@@ -287,7 +259,7 @@ router.delete('/:id', async (req, res) => {
       await e.destroy();
     }
     await CargoHold.destroy({ where: { shipId: vessel.id } });
-    await Equipment.destroy({ where: { shipId: vessel.id } });
+
     await vessel.destroy();
 
     res.json({ message: 'Xóa tàu thành công' });

@@ -240,14 +240,10 @@ async function seed() {
       { equipmentName: 'Tủ thuốc sơ cấp cứu', equipmentType: 'Thiết bị y tế', location: 'Boong', status: 'Hoạt động' },
     ];
 
+    // (Equipment được tạo sau Voyages)
     const vqsEquip = [];
     const s66Equip = [];
-    for (const e of equipList) {
-      vqsEquip.push(await Equipment.create({ shipId: shipVQS.id, ...e }, { transaction: t }));
-      s66Equip.push(await Equipment.create({ shipId: shipS66.id, ...e }, { transaction: t }));
-    }
-
-    console.log('✅ Equipment xong');
+    console.log('✅ Equipment sẽ tạo sau Voyages');
 
     // ================================================================
     // CARGO HOLDS
@@ -326,6 +322,15 @@ async function seed() {
     }, { transaction: t });
 
     console.log('✅ Voyages xong');
+
+    // ================================================================
+    // EQUIPMENT (thuộc Voyage)
+    // ================================================================
+    for (const e of equipList) {
+      vqsEquip.push(await Equipment.create({ voyageId: vVQS04.id, ...e }, { transaction: t }));
+      s66Equip.push(await Equipment.create({ voyageId: vS6601.id, ...e }, { transaction: t }));
+    }
+    console.log('✅ Equipment xong');
 
     // ================================================================
     // VOYAGE CREW
