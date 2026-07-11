@@ -262,6 +262,52 @@ export const deckLogService = {
   }
 };
 
+export const reportService = {
+  getReports: async (params = {}) => {
+    const clean = Object.fromEntries(Object.entries(params).filter(([, v]) => v));
+    const qs = new URLSearchParams(clean).toString();
+    const response = await api.get(`/reports${qs ? `?${qs}` : ''}`);
+    return response.data;
+  },
+  getById: async (id) => {
+    const response = await api.get(`/reports/${id}`);
+    return response.data;
+  },
+  create: async (data) => {
+    const response = await api.post('/reports', data);
+    return response.data;
+  },
+  addReply: async (id, content) => {
+    const response = await api.post(`/reports/${id}/replies`, { content });
+    return response.data;
+  },
+  escalate: async (id, note) => {
+    const response = await api.post(`/reports/${id}/escalate`, { note });
+    return response.data;
+  },
+  resolve: async (id, note) => {
+    const response = await api.post(`/reports/${id}/resolve`, { note });
+    return response.data;
+  },
+  close: async (id, note) => {
+    const response = await api.post(`/reports/${id}/close`, { note });
+    return response.data;
+  },
+  reopen: async (id, note) => {
+    const response = await api.post(`/reports/${id}/reopen`, { note });
+    return response.data;
+  },
+  reject: async (id, note) => {
+    const response = await api.post(`/reports/${id}/reject`, { note });
+    return response.data;
+  },
+  // FT-10 v2: preview ngữ cảnh ca trực trước khi tạo báo cáo
+  getShiftContext: async (shiftId) => {
+    const response = await api.get(`/reports/shift/${shiftId}/context`);
+    return response.data;
+  },
+};
+
 export const profileService = {
   getMe: async () => {
     const response = await api.get('/crews/me');

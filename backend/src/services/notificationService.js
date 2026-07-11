@@ -1,4 +1,4 @@
-const { Notification, CrewProfile, Ship, VoyageCrew } = require("../models");
+const { Notification, CrewProfile, Ship, VoyageCrew, Voyage, User } = require("../models");
 
 async function createNotification(data, options = {}) {
   if (!data || !data.recipientUserId || !data.type || !data.title || !data.message) {
@@ -151,9 +151,170 @@ async function notifyVoyageUpdated({ voyage, changes, actorUserId }, options = {
   return Notification.bulkCreate(payloads, options);
 }
 
+// ============ REPORT (FT-10) ============
+
+const REPORT_ROLE_LABELS = {
+  Sailor: "Thủy thủ",
+  DeckOfficer: "Sĩ quan boong",
+  ChiefOfficer: "Đại phó",
+  EngineCrew: "Thợ máy",
+  EngineOfficer: "Sĩ quan máy",
+  Master: "Thuyền trưởng",
+};
+
+function reportRoleLabel(role) {
+  return REPORT_ROLE_LABELS[role] || role || "cấp phụ trách";
+}
+
+// Lấy userId của một thuyền viên theo crewId.
+async function resolveCrewUserId(crewId, options = {}) {
+  if (!crewId) return null;
+  const profile = await CrewProfile.findByPk(crewId, {
+    attributes: ["id", "userId"],
+    transaction: options.transaction,
+  });
+  return profile ? profile.userId : null;
+}
+
+// Tìm userId của các thuyền viên có role cụ thể đang thuộc biên chế một tàu (qua VoyageCrew).
+async function resolveShipUserIdsByRole(shipId, role, options = {}) {
+  if (!shipId || !role) return [];
+  const voyages = await Voyage.findAll({
+    where: { shipId },
+    attributes: ["id"],
+    transaction: options.transaction,
+  });
+  const voyageIds = voyages.map((v) => v.id);
+  if (voyageIds.length === 0) return [];
+
+  const voyageCrews = await VoyageCrew.findAll({
+    where: { voyageId: voyageIds },
+    include: [
+      {
+        model: CrewProfile,
+        attributes: ["id", "userId"],
+        include: [{ model: User, attributes: ["id", "role"] }],
+      },
+    ],
+    transaction: options.transaction,
+  });
+
+  const userIds = new Set();
+  for (const vc of voyageCrews) {
+    const profile = vc.CrewProfile;
+    if (profile && profile.userId && profile.User && profile.User.role === role) {
+      userIds.add(profile.userId);
+    }
+  }
+  return [...userIds];
+}
+
+async function bulkNotifyUsers(userIds, payload, options = {}) {
+  const recipients = [...new Set((userIds || []).filter(Boolean))];
+  if (recipients.length === 0) return [];
+  const rows = recipients.map((uid) => ({
+    recipientUserId: uid,
+    actorUserId: payload.actorUserId || null,
+    voyageId: payload.voyageId || null,
+    type: payload.type,
+    title: payload.title,
+    message: payload.message,
+    metadata: payload.metadata || null,
+  }));
+  return Notification.bulkCreate(rows, options);
+}
+
+// Báo cáo mới được gửi -> báo cho officer đang giữ lượt (currentHandlerRole) trên tàu.
+async function notifyReportSubmitted({ report, actorUserId }, options = {}) {
+  if (!report) return [];
+  const userIds = await resolveShipUserIdsByRole(report.shipId, report.currentHandlerRole, options);
+  return bulkNotifyUsers(
+    userIds.filter((uid) => uid !== actorUserId),
+    {
+      actorUserId,
+      voyageId: report.voyageId,
+      type: "REPORT_SUBMITTED",
+      title: "Có báo cáo mới cần xử lý",
+      message: `Báo cáo "${report.title}" đang chờ ${reportRoleLabel(report.currentHandlerRole)} xử lý.`,
+      metadata: { reportId: report.id, category: report.reportCategory, priority: report.priority },
+    },
+    options
+  );
+}
+
+// Escalate -> báo cho officer cấp trên (toRole) trên tàu.
+async function notifyReportEscalated({ report, toRole, actorUserId }, options = {}) {
+  if (!report) return [];
+  const target = toRole || report.currentHandlerRole;
+  const userIds = await resolveShipUserIdsByRole(report.shipId, target, options);
+  return bulkNotifyUsers(
+    userIds.filter((uid) => uid !== actorUserId),
+    {
+      actorUserId,
+      voyageId: report.voyageId,
+      type: "REPORT_ESCALATED",
+      title: "Báo cáo được đẩy lên cấp trên",
+      message: `Báo cáo "${report.title}" đã được đẩy lên ${reportRoleLabel(target)} xử lý.`,
+      metadata: { reportId: report.id, category: report.reportCategory, priority: report.priority },
+    },
+    options
+  );
+}
+
+// Có phản hồi mới -> báo cho người tạo + người đang xử lý (trừ người vừa thao tác).
+async function notifyReportReplied({ report, actorUserId }, options = {}) {
+  if (!report) return [];
+  const creatorUserId = await resolveCrewUserId(report.createdBy, options);
+  let handlerUserIds = [];
+  if (report.currentHandlerId) {
+    const uid = await resolveCrewUserId(report.currentHandlerId, options);
+    if (uid) handlerUserIds = [uid];
+  } else {
+    handlerUserIds = await resolveShipUserIdsByRole(report.shipId, report.currentHandlerRole, options);
+  }
+  const recipients = [creatorUserId, ...handlerUserIds].filter((uid) => uid && uid !== actorUserId);
+  return bulkNotifyUsers(
+    recipients,
+    {
+      actorUserId,
+      voyageId: report.voyageId,
+      type: "REPORT_REPLIED",
+      title: "Báo cáo có phản hồi mới",
+      message: `Có phản hồi mới trong báo cáo "${report.title}".`,
+      metadata: { reportId: report.id },
+    },
+    options
+  );
+}
+
+// Trạng thái báo cáo thay đổi -> báo cho người tạo (+ người xử lý được ghim).
+async function notifyReportStatusChanged({ report, toStatus, actorUserId }, options = {}) {
+  if (!report) return [];
+  const creatorUserId = await resolveCrewUserId(report.createdBy, options);
+  let handlerUserId = null;
+  if (report.currentHandlerId) handlerUserId = await resolveCrewUserId(report.currentHandlerId, options);
+  const recipients = [creatorUserId, handlerUserId].filter((uid) => uid && uid !== actorUserId);
+  return bulkNotifyUsers(
+    recipients,
+    {
+      actorUserId,
+      voyageId: report.voyageId,
+      type: "REPORT_STATUS_CHANGED",
+      title: "Trạng thái báo cáo thay đổi",
+      message: `Báo cáo "${report.title}" chuyển sang trạng thái ${toStatus}.`,
+      metadata: { reportId: report.id, status: toStatus },
+    },
+    options
+  );
+}
+
 module.exports = {
   createNotification,
   notifyCrewAssignedToVoyage,
   notifyAttendanceUpdated,
   notifyVoyageUpdated,
+  notifyReportSubmitted,
+  notifyReportEscalated,
+  notifyReportReplied,
+  notifyReportStatusChanged,
 };

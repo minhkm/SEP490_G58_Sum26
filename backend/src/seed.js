@@ -20,6 +20,14 @@ async function seed() {
   console.log('🔄 Đang xoá dữ liệu cũ và đồng bộ lại database...');
   await sequelize.sync({ force: true });
 
+  let r6Id = null;
+  let cpKhoaId = null;
+  // FT-10 v2: seed thêm báo cáo gắn ca trực để test snapshot
+  let r7Id = null;            // báo cáo BOONG đính kèm snapshot (cpViet)
+  let cpVietId = null;
+  let r8Id = null;            // báo cáo MÁY có cảnh báo ngưỡng (cpDat)
+  let demoAlarmShiftId = null;
+
   const t = await sequelize.transaction();
   try {
     console.log('🌱 Bắt đầu seed data...');
@@ -86,6 +94,8 @@ async function seed() {
     const cpPhuc = await CrewProfile.create({ userId: uPhuc.id, fullName: 'Hoàng Văn Phúc', email: 'hvphuc@vqs.vn', phone: '0987000007', cccd: 'VHQ001007', department: 'Deck', position: 'Ordinary Seaman Deck (OSD)' }, { transaction: t });
     const cpThang = await CrewProfile.create({ userId: uThang.id, fullName: 'Nguyễn Bá Thắng', email: 'nbthang@vqs.vn', phone: '0987000008', cccd: 'VHQ001008', department: 'Engine', position: 'Engine Crew' }, { transaction: t });
     const cpKhoa = await CrewProfile.create({ userId: uKhoa.id, fullName: 'Lê Đức Khoa', email: 'ldkhoa@vqs.vn', phone: '0987000009', cccd: 'VHQ001009', department: 'Engine', position: 'Engine Crew (Thợ máy)' }, { transaction: t });
+    cpKhoaId = cpKhoa.id;
+    cpVietId = cpViet.id;
     const cpDat = await CrewProfile.create({ userId: uDat.id, fullName: 'Nguyễn Thanh Đạt', email: 'ntdat@vqs.vn', phone: '0987000010', cccd: 'VHQ001010', department: 'Engine', position: 'Engine Crew (Thợ máy)' }, { transaction: t });
 
     // --- Certificates: Nguyễn Viết Dương (từ tài liệu thực) ---
@@ -641,37 +651,148 @@ async function seed() {
     // ================================================================
     const r1 = await Report.create({
       createdBy: cpQuan.id,
-      reportType: 'Engine',
+      reportCategory: 'Incident',
+      reportType: 'Breakdown',
+      department: 'Engine',
+      priority: 'Urgent',
+      shipId: shipVQS.id,
       title: 'Báo cáo sự cố: Tiếng ồn bất thường tại Generator No.2',
       content: 'Ca máy 08-12H ngày 03/04/2026. Phát hiện Generator No.2 phát ra tiếng ồn bất thường. Kiểm tra sơ bộ: gioăng làm kín trục có dấu hiệu rò rỉ nhẹ. Đề nghị kiểm tra kỹ và thay thế tại cảng tiếp theo.',
       status: 'Resolved',
+      currentHandlerRole: 'Master',
+      currentHandlerId: cpMinh.id,
+      resolvedAt: new Date('2026-04-03T15:30:00'),
     }, { transaction: t });
     await ReportReply.create({ reportId: r1.id, repliedBy: cpMinh.id, content: 'Đã xem xét. Chấp thuận đề xuất thay gioăng. Yêu cầu ghi nhận vào Repair Log và đặt phụ tùng tại cảng Gen. Santos City.', repliedAt: new Date('2026-04-03T15:30:00') }, { transaction: t });
 
     await Report.create({
       createdBy: cpHungV.id,
-      reportType: 'Deck',
+      reportCategory: 'Routine',
+      reportType: 'ShiftException',
+      department: 'Deck',
+      priority: 'Normal',
+      shipId: shipVQS.id,
       title: 'Báo cáo tình trạng hầm hàng sau bốc dỡ - VQS Voyage 03/2026',
       content: 'H1 và H2 đã bốc dỡ hoàn tất lúc 22:20H ngày 15/04/2026. Tổng 112,000 bao = 2,800 MTS. Ghi nhận: 18 bao rách (busted bags), 50 bao rỗng (sweepings = 0.451 MTS). Đã ký xác nhận với Cargo Checker và đại diện người nhận hàng Kingfields Trade Inc. Đề nghị Master phê duyệt Cargo Discharge Certificate.',
       status: 'Open',
+      currentHandlerRole: 'Master',
+      currentHandlerId: null,
     }, { transaction: t });
 
     const r3 = await Report.create({
       createdBy: cpDuc.id,
-      reportType: 'Engine',
+      reportCategory: 'Routine',
+      reportType: 'Other',
+      department: 'Engine',
+      priority: 'Normal',
+      shipId: shipS66.id,
       title: 'Nhật ký máy - STAR 66 Voyage 01/26: HCM → Kuching',
       content: 'Hành trình tính đến 20/05/2026. Máy chính MAN B&W 6S35ME hoạt động ổn định, RPM 660. Nhiệt độ khí xả các xilanh: XL2=385, XL3=390, XL4=390, XL5=385, XL6=385°C. Áp suất FO=4.8 kg/cm², Scavenge=5.2 kg/cm². Tiêu thụ HFO 12.5 MT/ngày. Không có sự cố.',
       status: 'InProgress',
+      currentHandlerRole: 'Master',
+      currentHandlerId: cpDuong.id,
     }, { transaction: t });
     await ReportReply.create({ reportId: r3.id, repliedBy: cpDuong.id, content: 'Đã xem xét nhật ký máy. Tiếp tục duy trì. Yêu cầu cập nhật mỗi 24 giờ cho đến khi cập cảng Kuching.', repliedAt: new Date('2026-05-20T09:00:00') }, { transaction: t });
 
     await Report.create({
       createdBy: cpAn.id,
-      reportType: 'Deck',
+      reportCategory: 'Routine',
+      reportType: 'ShiftException',
+      department: 'Deck',
+      priority: 'Normal',
+      shipId: shipVQS.id,
       title: 'Báo cáo ca trực boong - Ngày 16/03/2026 (VQS Voyage 02)',
       content: 'Ngày 16/03/2026. Hành trình về cảng HCM. Thời tiết: Gió NE cấp 4-5, biển cấp 3-4. Hướng thật 283°, tốc độ 6.5 hải lý/giờ. Khí áp 1015 mbar. Không có sự cố trong ngày. Tất cả các ca trực an toàn. ETA HCM: 20/03/2026.',
       status: 'Resolved',
+      currentHandlerRole: 'ChiefOfficer',
+      currentHandlerId: cpHungV.id,
+      resolvedAt: new Date('2026-03-16T18:00:00'),
     }, { transaction: t });
+
+    // Mẫu escalation: báo cáo thường nhật mới, đang chờ Sĩ quan boong xử lý (Kịch bản A - bước 1)
+    await Report.create({
+      createdBy: cpViet.id,
+      reportCategory: 'Routine',
+      reportType: 'ShiftSwap',
+      department: 'Deck',
+      priority: 'Normal',
+      shipId: shipVQS.id,
+      title: 'Xin đổi ca trực boong ngày 18/03/2026',
+      content: 'Kính đề nghị được đổi ca trực 00-04H sang ca 08-12H ngày 18/03/2026 do lý do sức khỏe cá nhân (chóng mặt khi trực đêm). Rất mong Sĩ quan boong xem xét, chấp thuận.',
+      status: 'Open',
+      currentHandlerRole: 'DeckOfficer',
+      currentHandlerId: null,
+    }, { transaction: t });
+
+    // Mẫu escalation: báo cáo sự cố khẩn cấp đã được đẩy lên Thuyền trưởng (Kịch bản B)
+    const r6 = await Report.create({
+      createdBy: cpKhoa.id,
+      reportCategory: 'Incident',
+      reportType: 'Breakdown',
+      department: 'Engine',
+      priority: 'Urgent',
+      shipId: shipVQS.id,
+      title: 'Sự cố khẩn: Máy chính mất áp suất dầu bôi trơn đột ngột',
+      content: 'Lúc 02:15H phát hiện áp suất dầu bôi trơn máy chính tụt từ 4.8 xuống 2.1 kg/cm². Đã giảm tải khẩn cấp. Nghi ngờ bơm dầu nhờn số 1 hỏng. Cần chỉ đạo gấp từ cấp trên.',
+      status: 'InProgress',
+      currentHandlerRole: 'Master',
+      currentHandlerId: cpMinh.id,
+    }, { transaction: t });
+    r6Id = r6.id;
+    await ReportReply.create({ reportId: r6.id, repliedBy: cpQuan.id, kind: 'escalate', metadata: { fromRole: 'EngineOfficer', toRole: 'Master' }, content: 'Sĩ quan máy đã tiếp nhận. Vượt thẩm quyền xử lý tại chỗ, đẩy lên Thuyền trưởng quyết định phương án và cảng ghé sửa chữa.', repliedAt: new Date('2026-03-12T02:30:00') }, { transaction: t });
+
+    // ================================================================
+    // FT-10 v2: BÁO CÁO GẮN CA TRỰC (để test snapshot đóng băng)
+    // ================================================================
+
+    // (1) Báo cáo BOONG — Thủy thủ cpViet báo cáo ngoại lệ từ ca trực boong của mình.
+    //     Snapshot (bảng nhật ký boong theo giờ) được gắn sau commit.
+    const r7 = await Report.create({
+      createdBy: cpViet.id,
+      reportCategory: 'Routine',
+      reportType: 'ShiftException',
+      department: 'Deck',
+      priority: 'High',
+      shipId: shipVQS.id,
+      voyageId: vVQS04.id,
+      title: 'Ngoại lệ ca trực boong: phát hiện mục tiêu cắt hướng lúc trực đêm',
+      content: 'Trong ca trực, radar phát hiện tàu cá cắt hướng ở cự ly gần (2.5 hải lý). Đã báo cáo sĩ quan trực và điều chỉnh hướng tạm thời để tránh va. Đề nghị Sĩ quan boong ghi nhận. Số liệu ca trực đính kèm bên dưới.',
+      status: 'Open',
+      currentHandlerRole: 'DeckOfficer',
+      currentHandlerId: null,
+    }, { transaction: t });
+    r7Id = r7.id;
+
+    // (2) Ca máy "cảnh báo" với vài thông số vượt ngưỡng — để test tô màu tri-state trong snapshot.
+    //     RPM 720 (>90% max 750 → cảnh báo), Cooling Water 78°C (>75 → nguy hiểm), XL2 435°C (>420 → nguy hiểm).
+    const alarmSt = new Date(); alarmSt.setDate(alarmSt.getDate() - 1); alarmSt.setHours(8, 0, 0, 0);
+    const alarmEt = new Date(alarmSt); alarmEt.setHours(12, 0, 0, 0);
+    const demoAlarmShift = await Shift.create({ voyageId: vVQS04.id, crewId: cpDat.id, startTime: alarmSt, endTime: alarmEt, status: 'Completed' }, { transaction: t });
+    const demoAlarmSLog = await ShiftLog.create({ shiftId: demoAlarmShift.id, logType: 'Engine', content: 'Ca máy 08-12H. Phát hiện nhiệt độ nước làm mát và khí xả XL2 tăng cao bất thường.', createdAt: alarmEt }, { transaction: t });
+    const demoAlarmELog = await EngineLog.create({ shiftLogId: demoAlarmSLog.id, engineId: eVQSMain.id, note: 'Cooling water temp và exhaust gas XL2 vượt ngưỡng an toàn. Đã giảm tải và tăng cường làm mát.' }, { transaction: t });
+    const alarmValues = [720, 4.8, 5.2, 2.0, 1.2, 65, 78, 435, 395, 390, 385, 385]; // [0]RPM cảnh báo, [6]CoolWater nguy hiểm, [7]XL2 nguy hiểm
+    for (let i = 0; i < alarmValues.length; i++) {
+      if (epVQS[i]) {
+        await EngineLogValue.create({ engineLogId: demoAlarmELog.id, parameterId: epVQS[i].id, value: alarmValues[i] }, { transaction: t });
+      }
+    }
+    demoAlarmShiftId = demoAlarmShift.id;
+
+    const r8 = await Report.create({
+      createdBy: cpDat.id,
+      reportCategory: 'Incident',
+      reportType: 'Breakdown',
+      department: 'Engine',
+      priority: 'Urgent',
+      shipId: shipVQS.id,
+      voyageId: vVQS04.id,
+      title: 'Sự cố máy: nhiệt độ nước làm mát & khí xả XL2 vượt ngưỡng',
+      content: 'Ca máy 08-12H hôm qua: nhiệt độ nước làm mát đạt 78°C (ngưỡng 75°C) và khí xả XL2 đạt 435°C (ngưỡng 420°C). RPM 720 sát ngưỡng. Đã giảm tải khẩn cấp. Đề nghị Sĩ quan máy kiểm tra bơm nước làm mát. Số liệu ca trực đính kèm.',
+      status: 'Open',
+      currentHandlerRole: 'EngineOfficer',
+      currentHandlerId: null,
+    }, { transaction: t });
+    r8Id = r8.id;
 
     console.log('✅ Reports xong');
 
@@ -708,6 +829,44 @@ async function seed() {
     // COMMIT
     // ================================================================
     await t.commit();
+    console.log('✅ Transaction committed thành công!');
+
+    // FT-10 v2: Gắn ca trực cho r6 (báo cáo sự cố từ ca trực)
+    if (r6Id && cpKhoaId) {
+      const { buildShiftSnapshot } = require('./services/shiftSnapshotService');
+      const shiftKhoa = await Shift.findOne({
+        where: { crewId: cpKhoaId },
+        include: [{ model: ShiftLog, where: { logType: 'Engine' } }]
+      });
+      if (shiftKhoa) {
+        const snapshot = await buildShiftSnapshot(shiftKhoa.id);
+        await Report.update({ shiftId: shiftKhoa.id, shiftSnapshot: snapshot }, { where: { id: r6Id } });
+        console.log('✅ Đã gắn ca trực và số liệu đóng băng (snapshot) cho báo cáo r6 (máy - bình thường)');
+      }
+    }
+
+    // FT-10 v2: Gắn snapshot BOONG cho r7 (ca trực boong của cpViet có nhật ký theo giờ)
+    if (r7Id && cpVietId) {
+      const { buildShiftSnapshot } = require('./services/shiftSnapshotService');
+      const shiftViet = await Shift.findOne({
+        where: { crewId: cpVietId },
+        include: [{ model: ShiftLog, where: { logType: 'Deck' }, required: true }],
+        order: [['startTime', 'DESC']],
+      });
+      if (shiftViet) {
+        const snapshot = await buildShiftSnapshot(shiftViet.id);
+        await Report.update({ shiftId: shiftViet.id, shiftSnapshot: snapshot }, { where: { id: r7Id } });
+        console.log('✅ Đã gắn snapshot ca trực boong cho báo cáo r7 (boong)');
+      }
+    }
+
+    // FT-10 v2: Gắn snapshot MÁY có cảnh báo ngưỡng cho r8
+    if (r8Id && demoAlarmShiftId) {
+      const { buildShiftSnapshot } = require('./services/shiftSnapshotService');
+      const snapshot = await buildShiftSnapshot(demoAlarmShiftId);
+      await Report.update({ shiftId: demoAlarmShiftId, shiftSnapshot: snapshot }, { where: { id: r8Id } });
+      console.log('✅ Đã gắn snapshot ca trực máy (cảnh báo ngưỡng) cho báo cáo r8');
+    }
 
     console.log('\n🎉 Seed data hoàn tất!\n');
     console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');

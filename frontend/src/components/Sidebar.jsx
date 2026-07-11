@@ -37,7 +37,7 @@ export default function Sidebar() {
     isCrewRole && { key: '/shifts', icon: <ClockCircleOutlined />, label: 'Ca trực' },
     isDeck && { key: '/deck-logs', icon: <FileTextOutlined />, label: 'Nhật ký Trực boong' },
     isEngine && { key: '/engine-logs', icon: <ToolOutlined />, label: 'Nhật ký Kiểm tra Máy' },
-    { key: 'bao-cao', icon: <BarChartOutlined />, label: 'Báo cáo', disabled: !isMasterOrChief },
+    { key: '/reports', icon: <BarChartOutlined />, label: 'Báo cáo' },
     { key: '/crew-profile', icon: <UserOutlined />, label: 'Hồ sơ của tôi' },
     isMasterOrChief && { key: 'cai-dat', icon: <SettingOutlined />, label: 'Cài đặt', disabled: true },
   ].filter(Boolean);

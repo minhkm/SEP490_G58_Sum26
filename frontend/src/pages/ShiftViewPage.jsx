@@ -253,8 +253,8 @@ export default function ShiftViewPage() {
                           Nhận ca
                         </Button>
                       )}
-                      <Tooltip title="Sẽ làm sau (từ chối → báo cáo)">
-                        <Button icon={<StopOutlined />} disabled danger>Từ chối ca</Button>
+                      <Tooltip title="Tạo báo cáo ngoại lệ / sự cố từ ca trực này">
+                        <Button icon={<StopOutlined />} danger onClick={() => navigate(`/reports?shiftId=${detail.id}`)}>Báo cáo ca trực</Button>
                       </Tooltip>
                     </Space>
                   )}
