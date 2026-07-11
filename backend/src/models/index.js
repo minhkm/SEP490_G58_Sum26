@@ -57,8 +57,8 @@ ShipCapacity.belongsTo(Ship, { foreignKey: "shipId" });
 Ship.hasMany(Engine, { foreignKey: "shipId" });
 Engine.belongsTo(Ship, { foreignKey: "shipId" });
 
-Ship.hasMany(Equipment, { foreignKey: "shipId" });
-Equipment.belongsTo(Ship, { foreignKey: "shipId" });
+Voyage.hasMany(Equipment, { foreignKey: "voyageId" });
+Equipment.belongsTo(Voyage, { foreignKey: "voyageId" });
 
 Ship.hasMany(CargoHold, { foreignKey: "shipId" });
 CargoHold.belongsTo(Ship, { foreignKey: "shipId" });

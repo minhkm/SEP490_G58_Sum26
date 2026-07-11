@@ -14,6 +14,7 @@ import {
   Typography,
   Empty,
   Alert,
+  Table,
 } from 'antd';
 import {
   PlusOutlined,
@@ -22,6 +23,7 @@ import {
   NodeIndexOutlined,
   TeamOutlined,
   ArrowRightOutlined,
+  ToolOutlined,
 } from '@ant-design/icons';
 import MasterLayout from '../components/MasterLayout';
 import AgencyLayout from '../components/AgencyLayout';
@@ -38,6 +40,22 @@ const CREW_ROLE_OPTIONS = [
   { value: 'Đại phó (Chief Officer)', label: 'Đại phó (Chief Officer)' },
   { value: 'Máy trưởng (Chief Engineer)', label: 'Máy trưởng (Chief Engineer)' },
   { value: 'Thủy thủ (Crew)', label: 'Thủy thủ (Crew)' },
+];
+
+const EQUIPMENT_TYPE_OPTIONS = [
+  { label: 'Thiết bị cứu sinh', value: 'Thiết bị cứu sinh' },
+  { label: 'Thiết bị chữa cháy', value: 'Thiết bị chữa cháy' },
+  { label: 'Dụng cụ sửa chữa', value: 'Dụng cụ sửa chữa' },
+  { label: 'Thiết bị hàng hải', value: 'Thiết bị hàng hải' },
+  { label: 'Thiết bị liên lạc', value: 'Thiết bị liên lạc' },
+  { label: 'Thiết bị y tế', value: 'Thiết bị y tế' },
+  { label: 'Khác', value: 'Khác' },
+];
+
+const EQUIPMENT_LOCATION_OPTIONS = [
+  { label: 'Boong', value: 'Boong' },
+  { label: 'Buồng máy', value: 'Buồng máy' },
+  { label: 'Buồng lái', value: 'Buồng lái' },
 ];
 
 export default function CreateVoyagePage() {
@@ -63,6 +81,9 @@ export default function CreateVoyagePage() {
 
   // Crew State
   const [crewList, setCrewList] = useState([]);
+
+  // Equipment State
+  const [equipmentList, setEquipmentList] = useState([]);
 
   // Options State
   const [availableShips, setAvailableShips] = useState([]);
@@ -162,6 +183,52 @@ export default function CreateVoyagePage() {
     setCrewList(crewList.map((c) => (c.id === id ? { ...c, [name]: value } : c)));
   };
 
+  // Equipment handlers
+  const addEquipment = () => {
+    const newId = equipmentList.length > 0 ? Math.max(...equipmentList.map((e) => e.id)) + 1 : 1;
+    setEquipmentList([...equipmentList, { id: newId, name: '', type: '', location: '' }]);
+  };
+
+  const removeEquipment = (eqId) => {
+    setEquipmentList(equipmentList.filter((e) => e.id !== eqId));
+  };
+
+  const handleEquipmentChange = (eqId, field, value) => {
+    setEquipmentList(equipmentList.map((eq) => (eq.id === eqId ? { ...eq, [field]: value } : eq)));
+  };
+
+  const equipmentColumns = [
+    {
+      title: 'Tên thiết bị', dataIndex: 'name',
+      render: (value, record) => (
+        <Input placeholder="VD: La bàn, Radar,..." value={value}
+          onChange={(e) => handleEquipmentChange(record.id, 'name', e.target.value)} />
+      ),
+    },
+    {
+      title: 'Loại', dataIndex: 'type', width: 200,
+      render: (value, record) => (
+        <Select style={{ width: '100%' }} value={value || undefined} placeholder="Chọn loại"
+          onChange={(v) => handleEquipmentChange(record.id, 'type', v)}
+          options={EQUIPMENT_TYPE_OPTIONS} />
+      ),
+    },
+    {
+      title: 'Vị trí', dataIndex: 'location', width: 150,
+      render: (value, record) => (
+        <Select style={{ width: '100%' }} value={value || undefined} placeholder="Chọn vị trí"
+          onChange={(v) => handleEquipmentChange(record.id, 'location', v)}
+          options={EQUIPMENT_LOCATION_OPTIONS} />
+      ),
+    },
+    {
+      title: 'Thao tác', key: 'actions', width: 80, align: 'center',
+      render: (_, record) => (
+        <Button type="text" danger icon={<DeleteOutlined />} onClick={() => removeEquipment(record.id)} />
+      ),
+    },
+  ];
+
   const handleSubmit = async () => {
     if (!shipId) return notifyWarning('Vui lòng chọn tàu vận chuyển!');
 
@@ -193,7 +260,7 @@ export default function CreateVoyagePage() {
     }
 
     try {
-      const data = { shipId, routeInfo, cargoList, crewList };
+      const data = { shipId, routeInfo, cargoList, crewList, equipmentList };
       console.log('Saving Voyage:', data);
       await voyageService.createVoyage(data);
       notifySuccess('Khởi tạo Hải trình thành công!');
@@ -446,6 +513,37 @@ export default function CreateVoyagePage() {
                       </Row>
                     ))}
                   </Space>
+                )}
+              </Card>
+
+              {/* Card: Equipment */}
+              <Card
+                title={<span><ToolOutlined /> Thiết bị được cấp (Equipment)</span>}
+                style={{ marginBottom: 24 }}
+                extra={
+                  <Button type="link" icon={<PlusOutlined />} onClick={addEquipment}>
+                    Thêm thiết bị
+                  </Button>
+                }
+              >
+                {equipmentList.length === 0 ? (
+                  <Empty
+                    image={<ToolOutlined style={{ fontSize: 32, color: '#94a3b8' }} />}
+                    description={
+                      <div>
+                        <p style={{ margin: 0 }}>Chưa có thiết bị nào được cấp cho hải trình.</p>
+                        <Text type="secondary">Thêm thiết bị cứu sinh, hàng hải, liên lạc,...</Text>
+                      </div>
+                    }
+                  />
+                ) : (
+                  <Table
+                    rowKey="id"
+                    size="small"
+                    columns={equipmentColumns}
+                    dataSource={equipmentList}
+                    pagination={false}
+                  />
                 )}
               </Card>
             </Form>

@@ -100,8 +100,7 @@ export default function AddVesselPage() {
     },
   ]);
 
-  // Equipment State
-  const [equipment, setEquipment] = useState([]);
+
 
   useEffect(() => {
     if (isEditMode) {
@@ -193,17 +192,7 @@ export default function AddVesselPage() {
             );
           }
 
-          if (data.Equipment && data.Equipment.length > 0) {
-            setEquipment(
-              data.Equipment.map((eq) => ({
-                id: eq.id,
-                name: eq.equipmentName,
-                type: eq.equipmentType,
-                location: eq.location,
-                condition: eq.status,
-              }))
-            );
-          }
+
         } catch (error) {
           console.error('Lỗi tải thông tin tàu:', error);
           notifyError('Không thể tải thông tin tàu');
@@ -295,18 +284,7 @@ export default function AddVesselPage() {
     setHolds(holds.filter((h) => h.id !== holdId));
   };
 
-  const addEquipment = () => {
-    const newId = equipment.length > 0 ? Math.max(...equipment.map((e) => e.id)) + 1 : 1;
-    setEquipment([...equipment, { id: newId, name: '', type: '', location: '', condition: 'Đúng hạn' }]);
-  };
 
-  const handleEquipmentChange = (eqId, name, value) => {
-    setEquipment(equipment.map((eq) => (eq.id === eqId ? { ...eq, [name]: value } : eq)));
-  };
-
-  const removeEquipment = (eqId) => {
-    setEquipment(equipment.filter((e) => e.id !== eqId));
-  };
 
   const handleSubmit = async () => {
     // Validation: Tên tàu & IMO bắt buộc
@@ -336,7 +314,6 @@ export default function AddVesselPage() {
         mainEngine,
         generatorEngines,
         holds,
-        equipment,
       };
 
       if (isEditMode) {
@@ -445,65 +422,7 @@ export default function AddVesselPage() {
     );
   };
 
-  const equipmentColumns = [
-    {
-      title: 'Tên thiết bị',
-      dataIndex: 'name',
-      render: (value, record) => (
-        <Input
-          value={value}
-          placeholder="Tên thiết bị..."
-          onChange={(e) => handleEquipmentChange(record.id, 'name', e.target.value)}
-        />
-      ),
-    },
-    {
-      title: 'Loại',
-      dataIndex: 'type',
-      render: (value, record) => (
-        <Input
-          value={value}
-          placeholder="Loại..."
-          onChange={(e) => handleEquipmentChange(record.id, 'type', e.target.value)}
-        />
-      ),
-    },
-    {
-      title: 'Vị trí',
-      dataIndex: 'location',
-      render: (value, record) => (
-        <Input
-          value={value}
-          placeholder="Vị trí..."
-          onChange={(e) => handleEquipmentChange(record.id, 'location', e.target.value)}
-        />
-      ),
-    },
-    {
-      title: 'Tình trạng',
-      dataIndex: 'condition',
-      render: (value, record) => (
-        <Select
-          style={{ width: '100%' }}
-          value={value}
-          onChange={(v) => handleEquipmentChange(record.id, 'condition', v)}
-          options={[
-            { label: 'Đúng hạn', value: 'Đúng hạn' },
-            { label: 'Quá hạn', value: 'Quá hạn' },
-          ]}
-        />
-      ),
-    },
-    {
-      title: 'Thao tác',
-      key: 'actions',
-      width: 80,
-      align: 'center',
-      render: (_, record) => (
-        <Button type="text" danger icon={<DeleteOutlined />} onClick={() => removeEquipment(record.id)} />
-      ),
-    },
-  ];
+
 
   const engineStatusOptions = [
     { label: 'Hoạt động', value: 'Hoạt động' },
@@ -692,27 +611,7 @@ export default function AddVesselPage() {
                 ))}
               </div>
 
-              <Divider />
 
-              {/* Equipment Section */}
-              <div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-                  <Title level={5} style={{ margin: 0 }}>
-                    Danh mục thiết bị (Equipment)
-                  </Title>
-                  <Button type="link" icon={<PlusOutlined />} onClick={addEquipment}>
-                    Thêm thiết bị
-                  </Button>
-                </div>
-                <Table
-                  rowKey="id"
-                  size="small"
-                  columns={equipmentColumns}
-                  dataSource={equipment}
-                  pagination={false}
-                  locale={{ emptyText: 'Chưa có thiết bị nào' }}
-                />
-              </div>
             </Card>
           </Col>
 

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Select, Input, InputNumber, Button, Table, Card, Tag, Spin, Empty, Typography, Space, Row, Col, Alert, DatePicker, Upload, Modal, Image, Timeline } from 'antd';
+import { Select, Input, InputNumber, Button, Table, Card, Tag, Spin, Empty, Typography, Space, Row, Col, Alert, DatePicker, Upload, Modal, Image, Timeline, Tooltip } from 'antd';
 import { DashboardOutlined, SaveOutlined, ClockCircleOutlined, CompassOutlined, CalendarOutlined, UploadOutlined, EditOutlined, HistoryOutlined, PictureOutlined } from '@ant-design/icons';
 import MasterLayout from '../components/MasterLayout';
 import { engineLogService } from '../services/api';
@@ -132,6 +132,7 @@ export default function EngineLogPage() {
   };
 
   const handleSelectEngine = (engine) => {
+    if (engine.status !== 'Operational') return; // Block non-operational engines
     setSelectedEngine(engine);
     const defaultValues = {};
     if (engine.EngineParameters) {
@@ -371,21 +372,43 @@ export default function EngineLogPage() {
         {/* Chọn máy + Form */}
         {selectedShift && !isCompleted && isToday && (
           <>
-            <Title level={5} style={{ marginBottom: 12 }}>Chọn máy cần kiểm tra ({engines.length} máy)</Title>
+            <Title level={5} style={{ marginBottom: 12 }}>Chọn máy cần kiểm tra ({engines.filter(e => e.status === 'Operational').length}/{engines.length} máy hoạt động)</Title>
             <Row gutter={[16, 16]}>
-              {engines.map(engine => (
-                <Col xs={24} sm={12} lg={8} key={engine.id}>
-                  <Card hoverable onClick={() => handleSelectEngine(engine)}
-                    style={{ borderColor: selectedEngine?.id === engine.id ? '#1677ff' : undefined, borderWidth: selectedEngine?.id === engine.id ? 2 : 1 }}>
+              {engines.map(engine => {
+                const isOperational = engine.status === 'Operational';
+                const isSelected = selectedEngine?.id === engine.id;
+                const card = (
+                  <Card
+                    hoverable={isOperational}
+                    onClick={() => handleSelectEngine(engine)}
+                    style={{
+                      borderColor: isSelected ? '#1677ff' : undefined,
+                      borderWidth: isSelected ? 2 : 1,
+                      opacity: isOperational ? 1 : 0.55,
+                      cursor: isOperational ? 'pointer' : 'not-allowed',
+                    }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <h4 style={{ margin: 0 }}>{engine.engineName}</h4>
+                      <h4 style={{ margin: 0, color: isOperational ? undefined : '#999' }}>{engine.engineName}</h4>
                       <Tag color={engine.engineType?.includes('2') ? 'blue' : 'gold'}>{engine.engineType?.includes('2') ? 'Máy chính' : 'Máy đèn'}</Tag>
                     </div>
-                    <div style={{ marginTop: 8 }}><Tag>{engine.status}</Tag></div>
-                    <Text type="secondary" style={{ fontSize: 12 }}>{engine.EngineParameters?.length || 0} thông số cần kiểm tra</Text>
+                    <div style={{ marginTop: 8 }}>
+                      <Tag color={isOperational ? 'green' : 'default'}>{engine.status}</Tag>
+                    </div>
+                    <Text type="secondary" style={{ fontSize: 12 }}>
+                      {isOperational ? `${engine.EngineParameters?.length || 0} thông số cần kiểm tra` : 'Không cần ghi nhật ký'}
+                    </Text>
                   </Card>
-                </Col>
-              ))}
+                );
+                return (
+                  <Col xs={24} sm={12} lg={8} key={engine.id}>
+                    {isOperational ? card : (
+                      <Tooltip title={`Máy đang ${engine.status} — không cần ghi nhật ký`}>
+                        {card}
+                      </Tooltip>
+                    )}
+                  </Col>
+                );
+              })}
             </Row>
           </>
         )}

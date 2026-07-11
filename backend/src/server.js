@@ -34,6 +34,7 @@ async function start() {
     await sequelize.authenticate();
     console.log("✅ Kết nối MySQL thành công");
 
+    await sequelize.query("SET SESSION sql_mode=''");
     await sequelize.sync({ alter: true }); // Dùng lại alter để giữ data
     console.log("✅ Đồng bộ models xong");
 

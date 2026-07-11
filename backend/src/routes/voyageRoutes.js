@@ -1,7 +1,7 @@
 const express = require('express');
 const bcrypt = require('bcrypt');
 const crypto = require('crypto');
-const { sequelize, Voyage, User, CrewProfile, VoyageCrew, Ship, Attendance, Cargo, CargoItem, ShipCapacity, CargoHold, CargoAllocation } = require('../models');
+const { sequelize, Voyage, User, CrewProfile, VoyageCrew, Ship, Attendance, Cargo, CargoItem, ShipCapacity, CargoHold, CargoAllocation, Equipment } = require('../models');
 const { sendCrewCredentialsEmail } = require('../services/emailService');
 const { notifyCrewAssignedToVoyage, notifyAttendanceUpdated, notifyVoyageUpdated } = require('../services/notificationService');
 const authMiddleware = require('../middlewares/authMiddleware');
@@ -11,7 +11,7 @@ const router = express.Router();
 router.post('/', async (req, res) => {
   const t = await sequelize.transaction();
   try {
-    const { shipId, routeInfo, cargoList, crewList } = req.body;
+    const { shipId, routeInfo, cargoList, crewList, equipmentList } = req.body;
 
     // Validate Ship Capacity against selected Cargo
     if (cargoList && cargoList.length > 0) {
@@ -119,6 +119,18 @@ router.post('/', async (req, res) => {
           { where: { id: cargo.cargoId }, transaction: t }
         );
       }
+    }
+
+    // Tạo Equipment cho hải trình
+    if (equipmentList && equipmentList.length > 0) {
+      const eqData = equipmentList.map(e => ({
+        voyageId: voyage.id,
+        equipmentName: e.name,
+        equipmentType: e.type,
+        location: e.location,
+        status: 'Operational'
+      }));
+      await Equipment.bulkCreate(eqData, { transaction: t });
     }
 
     await t.commit();
