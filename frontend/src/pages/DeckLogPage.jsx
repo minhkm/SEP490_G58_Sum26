@@ -264,6 +264,16 @@ export default function DeckLogPage() {
   const formatTime = (d) => d ? new Date(d).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }) : '';
   const formatDateTime = (d) => d ? new Date(d).toLocaleString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '';
 
+  // ===== Kiểm tra giờ đã qua chưa (chỉ cho nhập giờ đã qua) =====
+  const isHourAllowed = (hour) => {
+    if (!selectedShift) return false;
+    const now = new Date();
+    const shiftDate = new Date(selectedShift.startTime);
+    // Nếu không phải hôm nay → cho phép hết (xem lại)
+    if (now.toDateString() !== shiftDate.toDateString()) return true;
+    return hour <= now.getHours();
+  };
+
   // ===== Kiểm tra field có được phép điền theo vị trí =====
   const isFieldAllowed = (fieldKey) => {
     const pos = selectedShift?.position;
@@ -441,18 +451,21 @@ export default function DeckLogPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {entries.map(entry => (
-                    <tr key={entry.hour}>
-                      <td style={{ padding: '4px 6px', border: '1px solid #d9d9d9', textAlign: 'center', fontWeight: 700, background: '#fafafa', fontSize: 14 }}>
+                {entries.map(entry => {
+                    const hourDisabled = !isHourAllowed(entry.hour);
+                    return (
+                    <tr key={entry.hour} style={{ opacity: hourDisabled ? 0.45 : 1 }}>
+                      <td style={{ padding: '4px 6px', border: '1px solid #d9d9d9', textAlign: 'center', fontWeight: 700, background: hourDisabled ? '#f0f0f0' : '#fafafa', fontSize: 14 }}>
                         {entry.hour}
                       </td>
                       {ENTRY_FIELDS.map(f => (
                         <td key={f.key} style={{ padding: '2px 2px', border: '1px solid #d9d9d9' }}>
-                          {renderInputCell(entry, f, handleEntryChange)}
+                          {renderInputCell(entry, f, handleEntryChange, hourDisabled)}
                         </td>
                       ))}
                     </tr>
-                  ))}
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
