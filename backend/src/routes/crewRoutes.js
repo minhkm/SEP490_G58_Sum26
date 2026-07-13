@@ -137,20 +137,28 @@ router.get('/', async (req, res) => {
       order: [['id', 'DESC']]
     });
 
+    const { Op } = require('sequelize');
+    const { VoyageCrew, Voyage } = require('../models');
+    
+    const busyCrews = await VoyageCrew.findAll({
+      include: [{
+        model: Voyage,
+        where: { status: { [Op.notIn]: ['Completed', 'Cancelled'] } },
+        required: true
+      }]
+    });
+    const busyCrewIds = busyCrews.map(bc => bc.crewId);
+
     if (available === 'true') {
-      const { Op } = require('sequelize');
-      const { VoyageCrew, Voyage } = require('../models');
-      
-      const busyCrews = await VoyageCrew.findAll({
-        include: [{
-          model: Voyage,
-          where: { status: { [Op.notIn]: ['Completed', 'Cancelled'] } },
-          required: true
-        }]
+      crews = crews.filter(c => !busyCrewIds.includes(c.id) && c.User && c.User.status === 'Available');
+    } else {
+      crews = crews.map(c => {
+        const plain = c.toJSON();
+        if (busyCrewIds.includes(plain.id) && plain.User) {
+          plain.User.status = 'OnVoyage';
+        }
+        return plain;
       });
-      const busyCrewIds = busyCrews.map(bc => bc.crewId);
-      
-      crews = crews.filter(c => !busyCrewIds.includes(c.id) && c.User && c.User.status === 'Active');
     }
 
     res.json(crews);
