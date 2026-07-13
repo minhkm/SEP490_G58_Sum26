@@ -79,7 +79,7 @@ router.post('/', async (req, res) => {
 
         const inactiveCrews = await CrewProfile.findAll({
           where: { id: crewIds },
-          include: [{ model: User, where: { status: { [Op.ne]: 'Active' } }, required: true }]
+          include: [{ model: User, where: { status: { [Op.ne]: 'Available' } }, required: true }]
         });
         
         if (inactiveCrews.length > 0) {

@@ -207,8 +207,8 @@ export default function AddCrewPage() {
                   <Col span={12}>
                     <Form.Item label="Trạng thái" name="status">
                       <Select>
-                        <Select.Option value="Active">Đang công tác (Active)</Select.Option>
-                        <Select.Option value="Inactive">Tạm nghỉ (Inactive)</Select.Option>
+                        <Select.Option value="Available">Sẵn sàng (Available)</Select.Option>
+                        <Select.Option value="OnVoyage">Đang trên hải trình (OnVoyage)</Select.Option>
                       </Select>
                     </Form.Item>
                   </Col>

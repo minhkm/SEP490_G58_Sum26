@@ -353,6 +353,7 @@ export default function CreateVoyagePage() {
                         style={{ width: '100%' }}
                         format={DATE_FORMAT}
                         value={toDayjs(routeInfo.departureDate)}
+                        disabledDate={(current) => current && current.startOf('day').isBefore(dayjs().startOf('day'))}
                         onChange={(d) =>
                           handleRouteInfoChange('departureDate', d ? d.format(DATE_FORMAT) : '')
                         }
@@ -365,6 +366,12 @@ export default function CreateVoyagePage() {
                         style={{ width: '100%' }}
                         format={DATE_FORMAT}
                         value={toDayjs(routeInfo.arrivalDate)}
+                        disabledDate={(current) => {
+                          if (!current) return false;
+                          if (current.startOf('day').isBefore(dayjs().startOf('day'))) return true;
+                          if (routeInfo.departureDate && current.startOf('day').isBefore(dayjs(routeInfo.departureDate, DATE_FORMAT).startOf('day'))) return true;
+                          return false;
+                        }}
                         onChange={(d) =>
                           handleRouteInfoChange('arrivalDate', d ? d.format(DATE_FORMAT) : '')
                         }
@@ -482,12 +489,15 @@ export default function CreateVoyagePage() {
                         <Col flex="1.5">
                           <Form.Item label="Chọn Nhân sự" required style={{ marginBottom: 0 }}>
                             <Select
+                              showSearch
+                              optionFilterProp="label"
                               placeholder="Chọn thủy thủ..."
                               value={crew.crewId || undefined}
                               onChange={(value) => handleCrewChange(crew.id, 'crewId', value)}
                               options={availableCrews.map((ac) => ({
                                 value: ac.id,
                                 label: `${ac.fullName} (${ac.email}) - ${ac.position}`,
+                                disabled: crewList.some(c => c.crewId === ac.id && c.id !== crew.id)
                               }))}
                             />
                           </Form.Item>

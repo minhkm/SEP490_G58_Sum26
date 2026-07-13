@@ -139,8 +139,8 @@ export default function CrewListPage() {
       key: 'status',
       render: (_, crew) => (
         <StatusTag
-          status={crew.User?.status === 'Active' ? 'Đang công tác' : 'Tạm nghỉ'}
-          color={crew.User?.status === 'Active' ? 'green' : 'default'}
+          status={crew.User?.status === 'OnVoyage' ? 'Đang trên hải trình' : (crew.User?.status === 'Available' ? 'Sẵn sàng' : 'Không xác định')}
+          color={crew.User?.status === 'OnVoyage' ? 'blue' : (crew.User?.status === 'Available' ? 'green' : 'default')}
         />
       ),
     },
