@@ -11,6 +11,7 @@ import {
   Space,
   Typography,
   Empty,
+  Alert,
 } from 'antd';
 import {
   SaveOutlined,
@@ -40,8 +41,26 @@ export default function AttendancePage() {
   const user = JSON.parse(localStorage.getItem('user')) || {};
   const userRole = (user.role || '').replace(/\s+/g, '').toLowerCase();
 
-  // Master, Admin, Agency can view. Master, ChiefOfficer, DeckOfficer can edit.
-  const canEdit = ['master', 'chiefofficer', 'deckofficer'].includes(userRole);
+  const [voyageStatus, setVoyageStatus] = useState('');
+
+  const fetchVoyageInfo = async () => {
+    try {
+      const allVoyages = await voyageService.getAll();
+      const currentVoyage = allVoyages.find((v) => String(v.id) === String(id));
+      if (currentVoyage) {
+        setVoyageStatus(currentVoyage.status);
+      }
+    } catch (error) {
+      console.error('Lỗi tải thông tin hải trình:', error);
+    }
+  };
+
+  useEffect(() => {
+    fetchVoyageInfo();
+  }, [id]);
+
+  // Master, Admin, Agency can view. Master can edit.
+  const canEdit = ['master'].includes(userRole);
   const Layout = userRole === 'admin' || userRole === 'agency' ? AgencyLayout : MasterLayout;
 
   const fetchAttendances = async () => {
@@ -97,8 +116,23 @@ export default function AttendancePage() {
     }
   };
 
+  const isStatusValidForTab = () => {
+    if (activeTab === 'PreDeparture') return voyageStatus === 'Loaded';
+    if (activeTab === 'Daily') return voyageStatus === 'Underway';
+    if (activeTab === 'PostDischarge') return voyageStatus === 'Discharged';
+    return false;
+  };
+
+  const statusValid = isStatusValidForTab();
   const isLockedDate = activeTab === 'Daily' && selectedDate !== today;
-  const rowDisabled = !canEdit || isLockedDate;
+  const rowDisabled = !canEdit || isLockedDate || !statusValid;
+
+  const getStatusWarning = () => {
+    if (activeTab === 'PreDeparture') return 'Điểm danh "Trước khi xuất phát" chỉ được thực hiện khi trạng thái hải trình là Đã làm hàng xong (Loaded).';
+    if (activeTab === 'Daily') return 'Điểm danh "Hằng ngày" chỉ được thực hiện khi tàu Đang di chuyển (Underway).';
+    if (activeTab === 'PostDischarge') return 'Điểm danh "Kết thúc chuyến đi" chỉ được thực hiện khi tàu Đã dỡ hàng xong (Discharged).';
+    return '';
+  };
 
   const columns = [
     { title: 'STT', key: 'stt', width: 60, render: (_, __, index) => index + 1 },
@@ -153,6 +187,16 @@ export default function AttendancePage() {
         <Card>
           <Tabs activeKey={activeTab} onChange={setActiveTab} items={tabItems} />
 
+          {!statusValid && voyageStatus && (
+            <Alert
+              message="Chưa đủ điều kiện điểm danh"
+              description={getStatusWarning()}
+              type="warning"
+              showIcon
+              style={{ marginBottom: 16 }}
+            />
+          )}
+
           <div
             style={{
               display: 'flex',
@@ -180,7 +224,7 @@ export default function AttendancePage() {
               <div />
             )}
 
-            {canEdit && (
+            {canEdit && statusValid && (
               <Space>
                 <Button onClick={() => markAll(true)}>Có mặt tất cả</Button>
                 <Button onClick={() => markAll(false)}>Vắng mặt tất cả</Button>
@@ -209,7 +253,7 @@ export default function AttendancePage() {
               icon={<SaveOutlined />}
               loading={saving}
               onClick={handleSave}
-              disabled={loading || !canEdit || crewList.length === 0 || isLockedDate}
+              disabled={loading || !canEdit || crewList.length === 0 || isLockedDate || !statusValid}
             >
               Lưu điểm danh
             </Button>

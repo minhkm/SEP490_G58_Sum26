@@ -29,7 +29,7 @@ export default function VoyageListPage() {
   const user = JSON.parse(localStorage.getItem('user')) || {};
   const userRole = (user.role || '').replace(/\s+/g, '').toLowerCase();
   const canEdit = ['admin', 'agency', 'chiefofficer', 'master'].includes(userRole);
-  const canAttendance = ['chiefofficer', 'master'].includes(userRole);
+  const canAttendance = ['master'].includes(userRole);
 
   const Layout = userRole === 'admin' || userRole === 'agency' ? AgencyLayout : MasterLayout;
 

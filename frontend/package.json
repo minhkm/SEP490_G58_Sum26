@@ -15,8 +15,11 @@
     "axios": "^1.17.0",
     "bootstrap": "^5.3.8",
     "dayjs": "^1.11.21",
+    "leaflet": "^1.9.4",
     "react": "^19.2.6",
     "react-dom": "^19.2.6",
+    "react-joyride": "^3.2.0",
+    "react-leaflet": "^5.0.0",
     "react-router-dom": "^6.20.0"
   },
   "devDependencies": {

@@ -43,7 +43,7 @@ export default function AddVesselPage() {
     shipName: '',
     imoNumber: '',
     flag: '',
-    status: 'Hoạt động',
+    status: 'Active',
   });
 
   // Capacity State
@@ -86,7 +86,7 @@ export default function AddVesselPage() {
   const [mainEngine, setMainEngine] = useState({
     engineName: '',
     engineType: 'Diesel 2-kỳ',
-    status: 'Hoạt động',
+    status: 'Active',
     parameters: makeRequiredParams(),
   });
 
@@ -95,7 +95,7 @@ export default function AddVesselPage() {
       id: 1,
       engineName: '',
       engineType: 'Diesel 4-kỳ',
-      status: 'Hoạt động',
+      status: 'Active',
       parameters: makeRequiredParams(),
     },
   ]);
@@ -111,7 +111,7 @@ export default function AddVesselPage() {
             shipName: data.shipName || '',
             imoNumber: data.imoNumber || '',
             flag: data.flag || '',
-            status: data.status || 'Hoạt động',
+            status: data.status || 'Active',
           });
           if (data.ShipCapacity) {
             setCapacity({
@@ -261,7 +261,7 @@ export default function AddVesselPage() {
         id: newId,
         engineName: '',
         engineType: 'Diesel 4-kỳ',
-        status: 'Hoạt động',
+        status: 'Active',
         parameters: makeRequiredParams(),
       },
     ]);
@@ -290,6 +290,11 @@ export default function AddVesselPage() {
     // Validation: Tên tàu & IMO bắt buộc
     if (!basicInfo.shipName || !basicInfo.imoNumber) {
       notifyWarning('Vui lòng nhập đầy đủ Tên tàu và Mã số IMO.');
+      return;
+    }
+
+    if (!/^\d{7}$/.test(basicInfo.imoNumber)) {
+      notifyWarning('Mã số IMO phải bao gồm chính xác 7 chữ số.');
       return;
     }
 
@@ -425,8 +430,8 @@ export default function AddVesselPage() {
 
 
   const engineStatusOptions = [
-    { label: 'Hoạt động', value: 'Hoạt động' },
-    { label: 'Tạm ngưng', value: 'Tạm ngưng' },
+    { label: 'Hoạt động', value: 'Active' },
+    { label: 'Tạm ngưng', value: 'Inactive' },
   ];
 
   return (
@@ -464,9 +469,13 @@ export default function AddVesselPage() {
                     Mã số IMO <Text type="danger">*</Text>
                   </div>
                   <Input
-                    placeholder="IMO 1234567"
+                    placeholder="VD: 1234567"
+                    maxLength={7}
                     value={basicInfo.imoNumber}
-                    onChange={(e) => setBasicInfo({ ...basicInfo, imoNumber: e.target.value })}
+                    onChange={(e) => {
+                      const val = e.target.value.replace(/\D/g, '');
+                      setBasicInfo({ ...basicInfo, imoNumber: val });
+                    }}
                   />
                 </Col>
               </Row>
@@ -488,15 +497,14 @@ export default function AddVesselPage() {
                 </Col>
                 <Col xs={24} sm={12} style={{ marginBottom: 16 }}>
                   <div style={{ marginBottom: 4 }}>Trạng thái hiện tại</div>
-                  <Radio.Group
-                    optionType="button"
-                    buttonStyle="solid"
+                  <Select
+                    style={{ width: '100%' }}
                     value={basicInfo.status}
-                    onChange={(e) => setBasicInfo({ ...basicInfo, status: e.target.value })}
+                    onChange={(value) => setBasicInfo({ ...basicInfo, status: value })}
                     options={[
-                      { label: 'Hoạt động', value: 'Hoạt động' },
-                      { label: 'Đang sửa chữa', value: 'Đang sửa chữa' },
-                      { label: 'Dự phòng', value: 'Dự phòng' },
+                      { label: 'Active', value: 'Active' },
+                      { label: 'Bảo trì', value: 'Maintenance' },
+                      { label: 'Ngừng h.động', value: 'Inactive' },
                     ]}
                   />
                 </Col>

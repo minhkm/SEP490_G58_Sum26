@@ -12,6 +12,8 @@ const Voyage = sequelize.define("Voyage", {
   isCrewSufficient: { type: DataTypes.BOOLEAN, defaultValue: false },
   isCargoLoaded: { type: DataTypes.BOOLEAN, defaultValue: false },
   issueReason: { type: DataTypes.TEXT },
+  routeWaypoints: { type: DataTypes.JSON },
+  routeStatus: { type: DataTypes.STRING, defaultValue: "Draft" },
 }, { tableName: "Voyage", timestamps: false });
 
 module.exports = Voyage;
