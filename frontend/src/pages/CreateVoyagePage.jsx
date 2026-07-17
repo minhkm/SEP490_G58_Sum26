@@ -29,6 +29,7 @@ import MasterLayout from '../components/MasterLayout';
 import AgencyLayout from '../components/AgencyLayout';
 import { voyageService, vesselService, crewService, cargoService } from '../services/api';
 import { PageHeader, notifySuccess, notifyError, notifyWarning } from '../components/common';
+import { SEAPORTS } from '../data/ports';
 
 const { Title, Text } = Typography;
 const DATE_FORMAT = 'YYYY-MM-DD';
@@ -232,6 +233,18 @@ export default function CreateVoyagePage() {
   const handleSubmit = async () => {
     if (!shipId) return notifyWarning('Vui lòng chọn tàu vận chuyển!');
 
+    if (routeInfo.departurePort && routeInfo.destinationPort && routeInfo.departurePort === routeInfo.destinationPort) {
+      return notifyWarning('Cảng đi và Cảng đến không được trùng nhau!');
+    }
+
+    if (!routeInfo.departurePort || !routeInfo.destinationPort) {
+      return notifyWarning('Vui lòng chọn cảng đi và cảng đến!');
+    }
+
+    if (!routeInfo.departureDate || !routeInfo.arrivalDate) {
+      return notifyWarning('Vui lòng chọn Ngày khởi hành và Ngày đến!');
+    }
+
     if (currentCargoTotal.weight > selectedShipCapacity.maxWeight) {
       return notifyWarning(
         `Tổng trọng lượng hàng (${currentCargoTotal.weight} MT) vượt quá tải trọng của tàu (${selectedShipCapacity.maxWeight} MT)! Vui lòng điều chỉnh.`
@@ -264,7 +277,7 @@ export default function CreateVoyagePage() {
       console.log('Saving Voyage:', data);
       await voyageService.createVoyage(data);
       notifySuccess('Khởi tạo Hải trình thành công!');
-      navigate('/master-dashboard');
+      navigate('/voyages');
     } catch (error) {
       console.error('Lỗi khi tạo hải trình:', error);
       notifyError('Lỗi khi khởi tạo hải trình. Vui lòng thử lại.');
@@ -326,10 +339,16 @@ export default function CreateVoyagePage() {
                 <Row gutter={16} align="bottom">
                   <Col flex="1">
                     <Form.Item label="Cảng đi" required style={{ marginBottom: 0 }}>
-                      <Input
-                        placeholder="📍 Nhập tên cảng..."
-                        value={routeInfo.departurePort}
-                        onChange={(e) => handleRouteInfoChange('departurePort', e.target.value)}
+                      <Select
+                        showSearch
+                        placeholder="📍 Chọn cảng đi..."
+                        optionFilterProp="label"
+                        options={SEAPORTS.map(port => ({
+                          ...port,
+                          disabled: port.value === routeInfo.destinationPort
+                        }))}
+                        value={routeInfo.departurePort || undefined}
+                        onChange={(value) => handleRouteInfoChange('departurePort', value)}
                       />
                     </Form.Item>
                   </Col>
@@ -338,10 +357,16 @@ export default function CreateVoyagePage() {
                   </Col>
                   <Col flex="1">
                     <Form.Item label="Cảng đến" required style={{ marginBottom: 0 }}>
-                      <Input
-                        placeholder="📍 Nhập tên cảng..."
-                        value={routeInfo.destinationPort}
-                        onChange={(e) => handleRouteInfoChange('destinationPort', e.target.value)}
+                      <Select
+                        showSearch
+                        placeholder="📍 Chọn cảng đến..."
+                        optionFilterProp="label"
+                        options={SEAPORTS.map(port => ({
+                          ...port,
+                          disabled: port.value === routeInfo.departurePort
+                        }))}
+                        value={routeInfo.destinationPort || undefined}
+                        onChange={(value) => handleRouteInfoChange('destinationPort', value)}
                       />
                     </Form.Item>
                   </Col>
@@ -508,7 +533,10 @@ export default function CreateVoyagePage() {
                               placeholder="Chọn chức danh..."
                               value={crew.role || undefined}
                               onChange={(value) => handleCrewChange(crew.id, 'role', value)}
-                              options={CREW_ROLE_OPTIONS}
+                              options={CREW_ROLE_OPTIONS.map(opt => ({
+                                ...opt,
+                                disabled: opt.value !== 'Thủy thủ (Crew)' && crewList.some(c => c.role === opt.value && c.id !== crew.id)
+                              }))}
                             />
                           </Form.Item>
                         </Col>

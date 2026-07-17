@@ -82,9 +82,15 @@ export default function Sidebar() {
       />
 
       <div style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 8 }}>
-        {isMasterOrChief && (
-          <Button type="primary" icon={<SendOutlined />} block>
-            Thiết lập lộ trình
+        {(role === 'ChiefOfficer' || role === 'Master') && (
+          <Button 
+             type="primary" 
+             icon={<SendOutlined />} 
+             block 
+             onClick={() => navigate('/route-planner')}
+             style={role === 'Master' ? { background: '#10b981', borderColor: '#10b981' } : {}}
+          >
+            {role === 'Master' ? 'Phê duyệt lộ trình' : 'Thiết lập lộ trình'}
           </Button>
         )}
         <Button danger icon={<LogoutOutlined />} block onClick={handleLogout}>

@@ -1,5 +1,7 @@
 const express = require('express');
-const { Ship, CrewProfile, Voyage, User } = require('../models');
+const { Ship, CrewProfile, Voyage, User, VoyageCrew, Cargo, CargoItem, Equipment } = require('../models');
+const { Op } = require('sequelize');
+const authMiddleware = require('../middlewares/authMiddleware');
 
 const router = express.Router();
 
@@ -25,8 +27,6 @@ router.get('/agency', async (req, res) => {
       attributes: ['id', 'shipName', 'imoNumber', 'status', 'flag']
     });
 
-    // Không lấy newCrews nữa theo yêu cầu
-
     res.json({
       totalVessels,
       totalCrews,
@@ -37,6 +37,85 @@ router.get('/agency', async (req, res) => {
   } catch (error) {
     console.error('Lỗi khi lấy dữ liệu Agency Dashboard:', error);
     res.status(500).json({ message: 'Lỗi server khi tải dữ liệu tổng quan.', error: error.message, stack: error.stack });
+  }
+});
+
+// Lấy dữ liệu cho Master Dashboard
+router.get('/master', authMiddleware, async (req, res) => {
+  try {
+    if (!req.user || !req.user.profileId) {
+      return res.status(400).json({ message: 'Không tìm thấy profile của người dùng.' });
+    }
+
+    // 1. Tìm VoyageCrew của user đang login trong các voyage chưa hoàn thành
+    const userCrew = await VoyageCrew.findOne({
+      where: { crewId: req.user.profileId },
+      include: [{
+        model: Voyage,
+        where: { status: { [Op.notIn]: ['Completed', 'Cancelled'] } }
+      }]
+    });
+
+    if (!userCrew) {
+      return res.json(null); // Không có hải trình active
+    }
+
+    const voyageId = userCrew.Voyage.id;
+
+    // 2. Lấy toàn bộ thông tin chi tiết của hải trình
+    const activeVoyage = await Voyage.findByPk(voyageId, {
+      include: [
+        { model: Ship, attributes: ['id', 'shipName', 'imoNumber'] },
+        { 
+          model: Cargo, 
+          include: [{ model: CargoItem }] 
+        },
+        { model: VoyageCrew }, // Để đếm nhân sự ca trực (tổng thuyền viên tham gia chuyến đi)
+        { model: Equipment } // Để tính tình trạng thiết bị
+      ]
+    });
+
+    if (!activeVoyage) {
+      return res.json(null);
+    }
+
+    // 3. Tính toán một số thông số thống kê
+    let totalWeight = 0;
+    let totalVolume = 0;
+    const cargos = activeVoyage.Cargos || [];
+    
+    cargos.forEach(cargo => {
+      const items = cargo.CargoItems || [];
+      items.forEach(item => {
+        totalWeight += (item.weight || 0);
+        totalVolume += (item.volume || 0);
+      });
+    });
+
+    // Tính trạng thiết bị (Ví dụ: số thiết bị "Hoạt động" / tổng số)
+    const equipments = activeVoyage.Equipment || [];
+    const operationalEquipments = equipments.filter(eq => eq.status === 'Hoạt động' || eq.status === 'Operational').length;
+    const equipmentStatus = equipments.length > 0 ? `${operationalEquipments}/${equipments.length} Tốt` : 'Không có dữ liệu';
+
+    // Số nhân sự
+    const totalCrewCount = (activeVoyage.VoyageCrews || []).length;
+
+    // Chuẩn bị response payload
+    const dashboardData = {
+      voyage: activeVoyage,
+      stats: {
+        totalWeight,
+        totalVolume,
+        equipmentStatus,
+        totalCrewCount
+      }
+    };
+
+    res.json(dashboardData);
+
+  } catch (error) {
+    console.error('Lỗi khi lấy dữ liệu Master Dashboard:', error);
+    res.status(500).json({ message: 'Lỗi server.', error: error.message });
   }
 });
 

@@ -114,6 +114,10 @@ export const dashboardService = {
   getAgencyDashboardData: async () => {
     const response = await api.get('/dashboard/agency');
     return response.data;
+  },
+  getMasterDashboardData: async () => {
+    const response = await api.get('/dashboard/master');
+    return response.data;
   }
 };
 

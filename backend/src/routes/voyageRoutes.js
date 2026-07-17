@@ -2,7 +2,7 @@ const express = require('express');
 const bcrypt = require('bcrypt');
 const crypto = require('crypto');
 const { sequelize, Voyage, User, CrewProfile, VoyageCrew, Ship, Attendance, Cargo, CargoItem, ShipCapacity, CargoHold, CargoAllocation, Equipment } = require('../models');
-const { sendCrewCredentialsEmail } = require('../services/emailService');
+const { sendCrewCredentialsEmail, sendRouteApprovalEmail } = require('../services/emailService');
 const { notifyCrewAssignedToVoyage, notifyAttendanceUpdated, notifyVoyageUpdated } = require('../services/notificationService');
 const authMiddleware = require('../middlewares/authMiddleware');
 
@@ -123,14 +123,17 @@ router.post('/', async (req, res) => {
 
     // Tạo Equipment cho hải trình
     if (equipmentList && equipmentList.length > 0) {
-      const eqData = equipmentList.map(e => ({
-        voyageId: voyage.id,
-        equipmentName: e.name,
-        equipmentType: e.type,
-        location: e.location,
-        status: 'Operational'
-      }));
-      await Equipment.bulkCreate(eqData, { transaction: t });
+      const validEquipments = equipmentList.filter(e => e.name && e.name.trim() !== '');
+      if (validEquipments.length > 0) {
+        const eqData = validEquipments.map(e => ({
+          voyageId: voyage.id,
+          equipmentName: e.name,
+          equipmentType: e.type || 'Khác',
+          location: e.location || 'Khác',
+          status: 'Operational'
+        }));
+        await Equipment.bulkCreate(eqData, { transaction: t });
+      }
     }
 
     await t.commit();
@@ -230,7 +233,7 @@ router.get('/:id/cargo', authMiddleware, async (req, res) => {
       include: [
         {
           model: CargoItem,
-          attributes: ['id', 'itemName', 'quantity', 'weight', 'isLoaded', 'holdId']
+          attributes: ['id', 'itemName', 'quantity', 'weight', 'isLoaded', 'holdId', 'allocations']
         }
       ]
     });
@@ -293,7 +296,8 @@ router.put('/:id', authMiddleware, async (req, res) => {
       arrivalDate: voyage.arrivalDate,
       isCrewSufficient: voyage.isCrewSufficient,
       isCargoLoaded: voyage.isCargoLoaded,
-      issueReason: voyage.issueReason
+      issueReason: voyage.issueReason,
+      routeStatus: voyage.routeStatus
     };
 
     // Check authorization
@@ -311,7 +315,7 @@ router.put('/:id', authMiddleware, async (req, res) => {
       }
     }
 
-    const { status, departureDate, arrivalDate, isCargoLoaded, issueReason, attendanceList, cargoList } = req.body;
+    const { status, departureDate, arrivalDate, isCargoLoaded, issueReason, attendanceList, cargoList, routeWaypoints, routeStatus } = req.body;
 
     if (userRole === 'admin') {
       const lockedForAdminStatuses = [
@@ -336,6 +340,13 @@ router.put('/:id', authMiddleware, async (req, res) => {
     if (arrivalDate) voyage.arrivalDate = arrivalDate;
     if (isCargoLoaded !== undefined) voyage.isCargoLoaded = isCargoLoaded;
     if (issueReason !== undefined) voyage.issueReason = issueReason;
+    if (routeWaypoints !== undefined) voyage.routeWaypoints = routeWaypoints;
+    
+    let routeStatusChangedToPending = false;
+    if (routeStatus !== undefined && routeStatus !== voyage.routeStatus) {
+      if (routeStatus === 'Pending') routeStatusChangedToPending = true;
+      voyage.routeStatus = routeStatus;
+    }
 
     const isShipStaff = userRole === 'chiefofficer' || userRole === 'master';
 
@@ -343,25 +354,22 @@ router.put('/:id', authMiddleware, async (req, res) => {
     if (isShipStaff && attendanceList && Array.isArray(attendanceList)) {
       let allPresent = attendanceList.length > 0;
       const attendanceChanges = [];
+      
       for (const item of attendanceList) {
         if (!item.isPresent) allPresent = false;
         const nextAttendanceStatus = item.isPresent ? 'Present' : 'Absent';
         
-        const existingAtt = await Attendance.findOne({
-          where: { voyageId: id, crewId: item.crewId }
-        });
-
-        if (existingAtt) {
-          // Update only if changing
-          if (existingAtt.status !== nextAttendanceStatus) {
-            existingAtt.status = nextAttendanceStatus;
-            existingAtt.recordedAt = new Date();
-            await existingAtt.save();
-            attendanceChanges.push({
-              crewId: item.crewId,
-              isPresent: item.isPresent,
-              recordedAt: existingAtt.recordedAt
-            });
+        const existingAttendance = await Attendance.findOne({ where: { voyageId: id, crewId: item.crewId } });
+        if (existingAttendance) {
+          if (existingAttendance.status !== nextAttendanceStatus) {
+             existingAttendance.status = nextAttendanceStatus;
+             existingAttendance.recordedAt = new Date();
+             await existingAttendance.save();
+             attendanceChanges.push({
+               crewId: item.crewId,
+               isPresent: item.isPresent,
+               recordedAt: existingAttendance.recordedAt
+             });
           }
         } else {
           const newAttendance = await Attendance.create({
@@ -398,6 +406,25 @@ router.put('/:id', authMiddleware, async (req, res) => {
       // Assuming isCrewSufficient being false means attendance is missing or crew is absent
       if (!nextIsCrewSufficient) {
         return res.status(400).json({ message: 'Thuyền trưởng chưa điểm danh hoặc nhân sự chưa đủ, không thể chuyển trạng thái Đang di chuyển (Underway)!' });
+      }
+      if (voyage.routeStatus !== 'Approved' && routeStatus !== 'Approved') {
+        return res.status(400).json({ message: 'Lộ trình chưa được phê duyệt, không thể chuyển trạng thái Đang di chuyển (Underway)!' });
+      }
+      // Check if cargo is loaded (or being marked as loaded in this request)
+      const nextIsCargoLoaded = req.body.isCargoLoaded !== undefined ? req.body.isCargoLoaded : voyage.isCargoLoaded;
+      if (!nextIsCargoLoaded) {
+        // Also check if they are marking cargo loaded right now
+        let allCargoLoaded = true;
+        if (cargoList && Array.isArray(cargoList) && cargoList.length > 0) {
+           for (const item of cargoList) {
+             if (!item.isLoaded) allCargoLoaded = false;
+           }
+        } else {
+           allCargoLoaded = false;
+        }
+        if (!allCargoLoaded) {
+           return res.status(400).json({ message: 'Chưa bốc xếp hàng hóa xong, không thể chuyển trạng thái Đang di chuyển (Underway)!' });
+        }
       }
     }
 
@@ -502,6 +529,17 @@ router.put('/:id', authMiddleware, async (req, res) => {
     }
 
     await voyage.save();
+
+    if (routeStatusChangedToPending) {
+       const captainProfile = await CrewProfile.findOne({ where: { voyageId: voyage.id, position: 'Master' } });
+       if (captainProfile) {
+          const captainUser = await User.findByPk(captainProfile.userId);
+          if (captainUser && captainUser.username) {
+             const applicantName = req.user.username; // Hoặc có thể lấy tên hiển thị nếu có
+             await sendRouteApprovalEmail(captainUser.username, voyage.id, voyage.departurePort, voyage.destinationPort, applicantName);
+          }
+       }
+    }
 
     const voyageChanges = {};
     for (const field of Object.keys(previousVoyage)) {

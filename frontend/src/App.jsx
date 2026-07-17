@@ -21,6 +21,7 @@ import EngineLogPage from "./pages/EngineLogPage";
 import ShiftSchedulePage from "./pages/ShiftSchedulePage";
 import ShiftViewPage from "./pages/ShiftViewPage";
 import AttendancePage from "./pages/AttendancePage";
+import RoutePlannerPage from "./pages/RoutePlannerPage";
 import RequireRole from "./components/RequireRole";
 import { CARGO_ROLES, REPORT_ROLES } from "./config/roles";
 import { SHIFT_OFFICER_ROLES } from "./config/shifts";
@@ -44,6 +45,7 @@ function App() {
         <Route path="/voyages" element={<VoyageListPage />} />
         <Route path="/voyages/new" element={<CreateVoyagePage />} />
         <Route path="/voyages/:id/attendance" element={<AttendancePage />} />
+        <Route path="/route-planner" element={<RoutePlannerPage />} />
         <Route
           path="/cargos"
           element={
