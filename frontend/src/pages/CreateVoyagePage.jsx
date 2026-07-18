@@ -280,7 +280,11 @@ export default function CreateVoyagePage() {
       navigate('/voyages');
     } catch (error) {
       console.error('Lỗi khi tạo hải trình:', error);
-      notifyError('Lỗi khi khởi tạo hải trình. Vui lòng thử lại.');
+      if (error.response && error.response.data && error.response.data.message) {
+        notifyError(error.response.data.message);
+      } else {
+        notifyError('Lỗi khi khởi tạo hải trình. Vui lòng thử lại.');
+      }
     }
   };
 

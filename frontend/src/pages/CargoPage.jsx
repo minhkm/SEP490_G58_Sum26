@@ -25,8 +25,8 @@ export default function CargoPage() {
 
   const user = JSON.parse(localStorage.getItem('user')) || {};
   const Layout = (user.role === 'Admin' || user.role === 'Agency') ? AgencyLayout : MasterLayout;
-  // Chỉ Admin được chỉnh sửa/xoá; thuyền trưởng (Master) & thuyền phó (ChiefOfficer) chỉ được xem
-  const canEdit = user.role === 'Admin';
+  // Chỉ Admin và Agency được tạo/sửa; thuyền trưởng (Master) & thuyền phó (ChiefOfficer) chỉ được xem
+  const canEdit = ['Admin', 'Agency'].includes(user.role);
 
   const fetchData = async () => {
     try {
@@ -148,9 +148,11 @@ export default function CargoPage() {
           breadcrumb="Tổng quan lô hàng và phân bổ hầm tàu"
           title="Quản lý Hàng hóa"
           extra={
-            <Button type="primary" icon={<PlusOutlined />} onClick={() => navigate('/cargos/new')}>
-              Thêm Lô hàng Mới
-            </Button>
+            canEdit && (
+              <Button type="primary" icon={<PlusOutlined />} onClick={() => navigate('/cargos/new')}>
+                Thêm Lô hàng Mới
+              </Button>
+            )
           }
         />
 
