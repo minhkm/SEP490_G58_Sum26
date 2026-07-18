@@ -3,7 +3,7 @@ import { useSearchParams } from 'react-router-dom';
 import { Select, Input, InputNumber, Button, Table, Card, Tag, Spin, Empty, Typography, Space, Row, Col, Alert, DatePicker, Upload, Modal, Image, Timeline, Tooltip } from 'antd';
 import { DashboardOutlined, SaveOutlined, ClockCircleOutlined, CompassOutlined, CalendarOutlined, UploadOutlined, EditOutlined, HistoryOutlined, PictureOutlined } from '@ant-design/icons';
 import MasterLayout from '../components/MasterLayout';
-import { engineLogService } from '../services/api';
+import { engineLogService, voyageService } from '../services/api';
 import { PageHeader, notifyWarning, notifySuccess, notifyError } from '../components/common';
 import dayjs from 'dayjs';
 import './EngineLogPage.css';
@@ -37,6 +37,14 @@ export default function EngineLogPage() {
   const [historyModalOpen, setHistoryModalOpen] = useState(false);
   const [editHistoryData, setEditHistoryData] = useState([]);
 
+  // Equipment selection state
+  const [allVoyageEquipments, setAllVoyageEquipments] = useState([]);
+  const [selectedEqType, setSelectedEqType] = useState('Tất cả');
+  const [selectedEquipments, setSelectedEquipments] = useState([]);
+  // Edit equipment state for modal
+  const [editEqType, setEditEqType] = useState('Tất cả');
+  const [editSelectedEquipments, setEditSelectedEquipments] = useState([]);
+
   // ===== Tính toán ngày =====
   const today = dayjs().startOf('day');
   const isToday = selectedDate && selectedDate.startOf('day').isSame(today);
@@ -60,6 +68,12 @@ export default function EngineLogPage() {
         const voyage = (initVoyageId && data.find(v => v.id === Number(initVoyageId)))
           || data.find(v => v.status !== 'Completed') || data[0];
         setSelectedVoyage(voyage);
+        
+        try {
+          const eqs = await voyageService.getVoyageEquipments(voyage.id);
+          setAllVoyageEquipments(eqs || []);
+        } catch (e) { console.error(e); }
+
         if (voyage.Ship?.Engines) setEngines(voyage.Ship.Engines);
         const date = initDate ? dayjs(initDate) : dayjs();
         setSelectedDate(date);
@@ -92,8 +106,14 @@ export default function EngineLogPage() {
     setParamValues({});
     setNote('');
     setFileList([]);
+    setSelectedEquipments([]);
+    setSelectedEqType('Tất cả');
     if (v) {
       if (v.Ship?.Engines) setEngines(v.Ship.Engines);
+      try {
+        const eqs = await voyageService.getVoyageEquipments(v.id);
+        setAllVoyageEquipments(eqs || []);
+      } catch (e) { console.error(e); }
       const shiftsData = await engineLogService.getShifts(v.id, selectedDate.format('YYYY-MM-DD'));
       setShifts(shiftsData);
     }
@@ -123,6 +143,8 @@ export default function EngineLogPage() {
     setParamValues({});
     setNote('');
     setFileList([]);
+    setSelectedEquipments([]);
+    setSelectedEqType('Tất cả');
     try {
       const logs = await engineLogService.getHistoryByShift(shiftId);
       setHistory(logs);
@@ -182,6 +204,7 @@ export default function EngineLogPage() {
         shiftId: selectedShift.id,
         engineId: selectedEngine.id,
         note, values,
+        equipmentIds: selectedEquipments
       });
 
       // Upload ảnh nếu có
@@ -197,6 +220,8 @@ export default function EngineLogPage() {
       setParamValues({});
       setNote('');
       setFileList([]);
+      setSelectedEquipments([]);
+      setSelectedEqType('Tất cả');
     } catch (error) {
       console.error('Lỗi:', error);
       notifyError('Có lỗi xảy ra khi lưu nhật ký');
@@ -211,6 +236,11 @@ export default function EngineLogPage() {
     const vals = {};
     log.EngineLog?.EngineLogValues?.forEach(v => { vals[v.parameterId] = v.value; });
     setEditValues(vals);
+
+    // Load equipments associated
+    const savedEquipIds = log.Equipments?.map(eq => eq.id) || [];
+    setEditSelectedEquipments(savedEquipIds);
+    setEditEqType('Tất cả');
 
     // Get all parameters for this engine
     const engineName = log.EngineLog?.Engine?.engineName;
@@ -243,7 +273,10 @@ export default function EngineLogPage() {
       }
 
       await engineLogService.update(editingLog.id, {
-        note: editNote, values, editReason: editReason.trim()
+        note: editNote, 
+        values, 
+        editReason: editReason.trim(),
+        equipmentIds: editSelectedEquipments
       });
       notifySuccess('Cập nhật nhật ký thành công');
       setEditModalOpen(false);
@@ -305,6 +338,22 @@ export default function EngineLogPage() {
       }),
     },
     { title: 'Ghi chú', key: 'note', render: (_, log) => log.EngineLog?.note || log.content },
+    {
+      title: 'Thiết bị sử dụng', key: 'equipments', width: 150,
+      render: (_, log) => {
+        const eqList = log.Equipments || [];
+        if (eqList.length === 0) return <Text type="secondary">—</Text>;
+        return (
+          <Space wrap>
+            {eqList.map(eq => (
+              <Tag color="cyan" key={eq.id} title={`${eq.equipmentType} - ${eq.location}`}>
+                {eq.equipmentName}
+              </Tag>
+            ))}
+          </Space>
+        );
+      }
+    },
     {
       title: 'Ảnh', key: 'images', width: 100,
       render: (_, log) => log.LogImages?.length > 0 ? (
@@ -433,6 +482,29 @@ export default function EngineLogPage() {
                 );
               })}
             </Row>
+            {/* Thiết bị sử dụng */}
+            <div style={{ marginTop: 16 }}>
+              <label style={{ fontSize: 14, fontWeight: 500, color: '#475569', marginBottom: 8, display: 'block' }}>
+                Thiết bị sử dụng trong ca
+              </label>
+              <Row gutter={8}>
+                <Col span={6}>
+                  <Select style={{ width: '100%' }} value={selectedEqType} onChange={setSelectedEqType}
+                    options={[
+                      { value: 'Tất cả', label: 'Tất cả các loại' },
+                      ...Array.from(new Set(allVoyageEquipments.map(e => e.equipmentType))).map(t => ({ value: t, label: t }))
+                    ]} />
+                </Col>
+                <Col span={18}>
+                  <Select mode="multiple" style={{ width: '100%' }} placeholder="Chọn thiết bị..." value={selectedEquipments} onChange={setSelectedEquipments}
+                    options={allVoyageEquipments
+                      .filter(e => selectedEqType === 'Tất cả' || e.equipmentType === selectedEqType)
+                      .map(e => ({ value: e.id, label: `${e.equipmentName} (${e.equipmentType} - ${e.location})` }))
+                    } />
+                </Col>
+              </Row>
+            </div>
+
             <div style={{ marginTop: 16 }}>
               <label style={{ fontSize: 14, fontWeight: 500, color: '#475569', marginBottom: 8, display: 'block' }}>Ghi chú</label>
               <TextArea rows={3} placeholder="VD: Máy chạy ổn định..." value={note} onChange={e => setNote(e.target.value)} />
@@ -475,6 +547,26 @@ export default function EngineLogPage() {
           <label style={{ fontWeight: 500, display: 'block', marginBottom: 4 }}>Ghi chú</label>
           <TextArea rows={2} value={editNote} onChange={e => setEditNote(e.target.value)} />
         </div>
+
+        <div style={{ marginBottom: 16 }}>
+          <label style={{ fontWeight: 500, display: 'block', marginBottom: 4 }}>Thiết bị sử dụng trong ca</label>
+          <Row gutter={8}>
+            <Col span={6}>
+              <Select style={{ width: '100%' }} value={editEqType} onChange={setEditEqType}
+                options={[
+                  { value: 'Tất cả', label: 'Tất cả các loại' },
+                  ...Array.from(new Set(allVoyageEquipments.map(e => e.equipmentType))).map(t => ({ value: t, label: t }))
+                ]} />
+            </Col>
+            <Col span={18}>
+              <Select mode="multiple" style={{ width: '100%' }} placeholder="Chọn thiết bị..." value={editSelectedEquipments} onChange={setEditSelectedEquipments}
+                options={allVoyageEquipments
+                  .filter(e => editEqType === 'Tất cả' || e.equipmentType === editEqType)
+                  .map(e => ({ value: e.id, label: `${e.equipmentName} (${e.equipmentType} - ${e.location})` }))
+                } />
+            </Col>
+          </Row>
+        </div>
         {editEngineParams.map(param => {
           const isMain = ['Fuel Oil Pressure', 'Exhaust Gas Temp XL2', 'Cooling Water Temp'].some(kw => param.name.includes(kw));
           return (
@@ -503,6 +595,21 @@ export default function EngineLogPage() {
                   <div style={{ marginTop: 4, background: '#f8fafc', padding: 8, borderRadius: 4, fontSize: 13 }}>
                     <div><strong>Nội dung trước khi sửa:</strong></div>
                     <div>Ghi chú: {prev.note || '(trống)'}</div>
+                    {prev.equipmentIds?.length > 0 && (
+                      <div style={{ marginTop: 4, marginBottom: 4 }}>
+                        <span style={{ marginRight: 4 }}>Thiết bị trước đó:</span>
+                        <Space wrap>
+                          {prev.equipmentIds.map(eqId => {
+                            const eq = allVoyageEquipments.find(e => e.id === Number(eqId));
+                            return (
+                              <Tag color="default" key={eqId}>
+                                {eq ? eq.equipmentName : `#${eqId}`}
+                              </Tag>
+                            );
+                          })}
+                        </Space>
+                      </div>
+                    )}
                     {prev.values?.map((v, i) => (
                       <Tag key={i} style={{ marginTop: 2 }}>{v.parameterName}: {v.value}</Tag>
                     ))}

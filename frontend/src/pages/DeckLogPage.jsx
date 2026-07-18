@@ -3,7 +3,7 @@ import { useSearchParams } from 'react-router-dom';
 import { Select, Input, InputNumber, Button, Table, Card, Spin, Empty, Typography, Space, Alert, DatePicker, Upload, Modal, Image, Timeline, Tag, Row, Col } from 'antd';
 import { FileTextOutlined, SaveOutlined, ClockCircleOutlined, CompassOutlined, CalendarOutlined, UploadOutlined, EditOutlined, HistoryOutlined, PictureOutlined } from '@ant-design/icons';
 import MasterLayout from '../components/MasterLayout';
-import { deckLogService } from '../services/api';
+import { deckLogService, voyageService } from '../services/api';
 import { PageHeader, notifyWarning, notifySuccess, notifyError } from '../components/common';
 import dayjs from 'dayjs';
 
@@ -77,6 +77,14 @@ export default function DeckLogPage() {
   const [historyModalOpen, setHistoryModalOpen] = useState(false);
   const [editHistoryData, setEditHistoryData] = useState([]);
 
+  // Equipment selection state
+  const [allVoyageEquipments, setAllVoyageEquipments] = useState([]);
+  const [selectedEqType, setSelectedEqType] = useState('Tất cả');
+  const [selectedEquipments, setSelectedEquipments] = useState([]);
+  // Edit equipment state for modal
+  const [editEqType, setEditEqType] = useState('Tất cả');
+  const [editSelectedEquipments, setEditSelectedEquipments] = useState([]);
+
   // ===== Tính toán ngày =====
   const today = dayjs().startOf('day');
   const isToday = selectedDate && selectedDate.startOf('day').isSame(today);
@@ -100,6 +108,12 @@ export default function DeckLogPage() {
         const voyage = (initVoyageId && data.find(v => v.id === Number(initVoyageId)))
           || data.find(v => v.status !== 'Completed') || data[0];
         setSelectedVoyage(voyage);
+        
+        try {
+          const eqs = await voyageService.getVoyageEquipments(voyage.id);
+          setAllVoyageEquipments(eqs || []);
+        } catch (e) { console.error(e); }
+
         const date = initDate ? dayjs(initDate) : dayjs();
         setSelectedDate(date);
         const shiftsData = await deckLogService.getShifts(voyage.id, date.format('YYYY-MM-DD'));
@@ -131,7 +145,13 @@ export default function DeckLogPage() {
     setNote('');
     setFileList([]);
     setEntries([]);
+    setSelectedEquipments([]);
+    setSelectedEqType('Tất cả');
     if (v) {
+      try {
+        const eqs = await voyageService.getVoyageEquipments(v.id);
+        setAllVoyageEquipments(eqs || []);
+      } catch (e) { console.error(e); }
       const shiftsData = await deckLogService.getShifts(v.id, selectedDate.format('YYYY-MM-DD'));
       setShifts(shiftsData);
     }
@@ -191,7 +211,12 @@ export default function DeckLogPage() {
     }
 
     try {
-      const result = await deckLogService.create({ shiftId: selectedShift.id, note, entries: filledEntries });
+      const result = await deckLogService.create({ 
+        shiftId: selectedShift.id, 
+        note, 
+        entries: filledEntries,
+        equipmentIds: selectedEquipments
+      });
 
       if (fileList.length > 0 && result.shiftLog?.id) {
         const files = fileList.map(f => f.originFileObj);
@@ -203,6 +228,8 @@ export default function DeckLogPage() {
       setHistory(logs);
       setNote('');
       setFileList([]);
+      setSelectedEquipments([]);
+      setSelectedEqType('Tất cả');
       const hours = getShiftHours(selectedShift);
       setEntries(hours.map(h => createEmptyRow(h)));
     } catch (error) {
@@ -216,6 +243,11 @@ export default function DeckLogPage() {
     setEditingLog(log);
     setEditNote(log.DeckLog?.note || log.content || '');
     setEditReason('');
+    
+    // Load equipments associated
+    const savedEquipIds = log.Equipments?.map(eq => eq.id) || [];
+    setEditSelectedEquipments(savedEquipIds);
+    setEditEqType('Tất cả');
 
     // Load entries hiện tại hoặc tạo dòng trống
     const existingEntries = log.DeckLog?.DeckLogEntries || [];
@@ -244,7 +276,8 @@ export default function DeckLogPage() {
       await deckLogService.update(editingLog.id, {
         note: editNote,
         entries: filledEntries,
-        editReason: editReason.trim()
+        editReason: editReason.trim(),
+        equipmentIds: editSelectedEquipments
       });
       notifySuccess('Cập nhật nhật ký thành công');
       setEditModalOpen(false);
@@ -367,6 +400,22 @@ export default function DeckLogPage() {
       render: (_, log) => log.DeckLog?.note || <Text type="secondary">—</Text>
     },
     {
+      title: 'Thiết bị sử dụng', key: 'equipments', width: 150,
+      render: (_, log) => {
+        const eqList = log.Equipments || [];
+        if (eqList.length === 0) return <Text type="secondary">—</Text>;
+        return (
+          <Space wrap>
+            {eqList.map(eq => (
+              <Tag color="cyan" key={eq.id} title={`${eq.equipmentType} - ${eq.location}`}>
+                {eq.equipmentName}
+              </Tag>
+            ))}
+          </Space>
+        );
+      }
+    },
+    {
       title: 'Ảnh', key: 'images', width: 100,
       render: (_, log) => log.LogImages?.length > 0 ? (
         <Image.PreviewGroup>
@@ -470,6 +519,29 @@ export default function DeckLogPage() {
               </table>
             </div>
 
+            {/* Thiết bị sử dụng */}
+            <div style={{ marginBottom: 16 }}>
+              <label style={{ fontSize: 14, fontWeight: 500, color: '#475569', marginBottom: 8, display: 'block' }}>
+                Thiết bị sử dụng trong ca
+              </label>
+              <Row gutter={8}>
+                <Col span={6}>
+                  <Select style={{ width: '100%' }} value={selectedEqType} onChange={setSelectedEqType}
+                    options={[
+                      { value: 'Tất cả', label: 'Tất cả các loại' },
+                      ...Array.from(new Set(allVoyageEquipments.map(e => e.equipmentType))).map(t => ({ value: t, label: t }))
+                    ]} />
+                </Col>
+                <Col span={18}>
+                  <Select mode="multiple" style={{ width: '100%' }} placeholder="Chọn thiết bị..." value={selectedEquipments} onChange={setSelectedEquipments}
+                    options={allVoyageEquipments
+                      .filter(e => selectedEqType === 'Tất cả' || e.equipmentType === selectedEqType)
+                      .map(e => ({ value: e.id, label: `${e.equipmentName} (${e.equipmentType} - ${e.location})` }))
+                    } />
+                </Col>
+              </Row>
+            </div>
+
             {/* Ghi chú */}
             <div style={{ marginBottom: 16 }}>
               <label style={{ fontSize: 14, fontWeight: 500, color: '#475569', marginBottom: 8, display: 'block' }}>
@@ -520,6 +592,31 @@ export default function DeckLogPage() {
         <div style={{ marginBottom: 16 }}>
           <label style={{ fontWeight: 500, display: 'block', marginBottom: 4 }}>Lý do chỉnh sửa <span style={{ color: 'red' }}>*</span></label>
           <TextArea rows={2} placeholder="VD: Bổ sung thông tin, sửa lỗi chính tả..." value={editReason} onChange={e => setEditReason(e.target.value)} />
+        </div>
+
+        <div style={{ marginBottom: 16 }}>
+          <label style={{ fontWeight: 500, display: 'block', marginBottom: 4 }}>Ghi chú</label>
+          <TextArea rows={2} placeholder="Nhập ghi chú..." value={editNote} onChange={e => setEditNote(e.target.value)} />
+        </div>
+
+        <div style={{ marginBottom: 16 }}>
+          <label style={{ fontWeight: 500, display: 'block', marginBottom: 4 }}>Thiết bị sử dụng trong ca</label>
+          <Row gutter={8}>
+            <Col span={6}>
+              <Select style={{ width: '100%' }} value={editEqType} onChange={setEditEqType}
+                options={[
+                  { value: 'Tất cả', label: 'Tất cả các loại' },
+                  ...Array.from(new Set(allVoyageEquipments.map(e => e.equipmentType))).map(t => ({ value: t, label: t }))
+                ]} />
+            </Col>
+            <Col span={18}>
+              <Select mode="multiple" style={{ width: '100%' }} placeholder="Chọn thiết bị..." value={editSelectedEquipments} onChange={setEditSelectedEquipments}
+                options={allVoyageEquipments
+                  .filter(e => editEqType === 'Tất cả' || e.equipmentType === editEqType)
+                  .map(e => ({ value: e.id, label: `${e.equipmentName} (${e.equipmentType} - ${e.location})` }))
+                } />
+            </Col>
+          </Row>
         </div>
 
         {/* Bảng chỉnh sửa entries */}
@@ -575,6 +672,21 @@ export default function DeckLogPage() {
                   <div style={{ marginTop: 4, background: '#f8fafc', padding: 8, borderRadius: 4, fontSize: 13 }}>
                     <div><strong>Nội dung trước khi sửa:</strong></div>
                     {prev.note && <div>Ghi chú: {prev.note}</div>}
+                    {prev.equipmentIds?.length > 0 && (
+                      <div style={{ marginTop: 4 }}>
+                        <span style={{ marginRight: 4 }}>Thiết bị trước đó:</span>
+                        <Space wrap>
+                          {prev.equipmentIds.map(eqId => {
+                            const eq = allVoyageEquipments.find(e => e.id === Number(eqId));
+                            return (
+                              <Tag color="default" key={eqId}>
+                                {eq ? eq.equipmentName : `#${eqId}`}
+                              </Tag>
+                            );
+                          })}
+                        </Space>
+                      </div>
+                    )}
                     {prev.entries?.length > 0 && (
                       <div style={{ overflowX: 'auto', marginTop: 4 }}>
                         <table style={{ fontSize: 11, borderCollapse: 'collapse' }}>

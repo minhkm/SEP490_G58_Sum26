@@ -65,6 +65,10 @@ export const voyageService = {
   saveAttendances: async (id, payload) => {
     const response = await api.post(`/voyages/${id}/attendances`, payload);
     return response.data;
+  },
+  getVoyageEquipments: async (id) => {
+    const response = await api.get(`/voyages/${id}/equipments`);
+    return response.data;
   }
 };
 
