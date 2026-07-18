@@ -22,6 +22,7 @@ const Shift = require("./Shift");
 const ShiftLog = require("./ShiftLog");
 const Report = require("./Report");
 const ReportReply = require("./ReportReply");
+const ShiftLogEquipment = require("./ShiftLogEquipment");
 const EngineParameter = require("./EngineParameter");
 const DeckLog = require("./DeckLog");
 const EngineLog = require("./EngineLog");
@@ -155,6 +156,10 @@ LogImage.belongsTo(ShiftLog, { foreignKey: "shiftLogId" });
 ShiftLog.hasMany(LogEditHistory, { foreignKey: "shiftLogId" });
 LogEditHistory.belongsTo(ShiftLog, { foreignKey: "shiftLogId" });
 
+// ShiftLog N-M Equipment (Many-to-Many via ShiftLogEquipment)
+ShiftLog.belongsToMany(Equipment, { through: ShiftLogEquipment, foreignKey: "shiftLogId", as: "Equipments" });
+Equipment.belongsToMany(ShiftLog, { through: ShiftLogEquipment, foreignKey: "equipmentId", as: "ShiftLogs" });
+
 // CrewProfile -> LogEditHistory
 CrewProfile.hasMany(LogEditHistory, { foreignKey: "editedBy" });
 LogEditHistory.belongsTo(CrewProfile, { foreignKey: "editedBy" });
@@ -193,7 +198,7 @@ module.exports = {
   Voyage, VoyageCrew,
   Cargo, CargoItem, CargoType,
   Attendance,
-  Shift, ShiftLog,
+  Shift, ShiftLog, ShiftLogEquipment,
   Report, ReportReply,
   EngineParameter,
   DeckLog,

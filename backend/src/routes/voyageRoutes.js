@@ -278,6 +278,21 @@ router.get('/:id/cargo', authMiddleware, async (req, res) => {
   }
 });
 
+// Lấy danh sách thiết bị của một chuyến đi
+router.get('/:id/equipments', authMiddleware, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const equipments = await Equipment.findAll({
+      where: { voyageId: id }
+    });
+    res.json(equipments);
+  } catch (error) {
+    console.error('Lỗi khi lấy danh sách thiết bị:', error);
+    res.status(500).json({ message: 'Lỗi server khi lấy danh sách thiết bị', error: error.message });
+  }
+});
+
+
 router.put('/:id', authMiddleware, async (req, res) => {
   try {
     const { id } = req.params;
