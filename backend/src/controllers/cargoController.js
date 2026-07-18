@@ -130,7 +130,7 @@ exports.createCargo = async (req, res) => {
       cargoType,
       totalWeight,
       totalVolume,
-      status: status || "Registered"
+      status: status || "Đã ở cảng"
     });
 
     // Tự động tạo 1 CargoItem mặc định bằng toàn bộ khối lượng lô hàng
