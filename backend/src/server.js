@@ -16,6 +16,8 @@ app.use("/uploads", express.static(path.join(__dirname, "../uploads")));
 
 app.use("/api/auth", authRoutes);
 app.use("/api/voyages", voyageRoutes);
+app.use("/api/voyages/:voyageId/operation-reports", require("./routes/operationReportRoutes"));
+app.use("/api/voyages/:voyageId/operation-report", require("./routes/operationReportRoutes"));
 app.use("/api/vessels", require("./routes/vesselRoutes"));
 app.use("/api/cargos", require("./routes/cargoRoutes"));
 app.use("/api/cargo-types", require("./routes/cargoTypeRoutes"));

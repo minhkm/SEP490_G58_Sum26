@@ -1,7 +1,7 @@
 const express = require('express');
 const bcrypt = require('bcrypt');
 const crypto = require('crypto');
-const { sequelize, Voyage, User, CrewProfile, VoyageCrew, Ship, Attendance, Cargo, CargoItem, ShipCapacity, CargoHold, CargoAllocation, Equipment } = require('../models');
+const { sequelize, Voyage, User, CrewProfile, VoyageCrew, Ship, Attendance, Cargo, CargoItem, CargoOperation, ShipCapacity, CargoHold, CargoAllocation, Equipment } = require('../models');
 const { sendCrewCredentialsEmail, sendRouteApprovalEmail } = require('../services/emailService');
 const { notifyCrewAssignedToVoyage, notifyAttendanceUpdated, notifyVoyageUpdated } = require('../services/notificationService');
 const authMiddleware = require('../middlewares/authMiddleware');
@@ -535,6 +535,7 @@ router.put('/:id', authMiddleware, async (req, res) => {
            if (item.itemId) {
              const cargoItem = await CargoItem.findByPk(item.itemId);
              if (cargoItem) {
+               const wasLoaded = Boolean(cargoItem.isLoaded);
                // 1. Revert old allocations from hold currentUsage
                if (cargoItem.isLoaded && !cargoItem.isDischarged) {
                  for (const a of (cargoItem.allocations || [])) {
@@ -564,9 +565,29 @@ router.put('/:id', authMiddleware, async (req, res) => {
 
                cargoItem.isLoaded = item.isLoaded;
                cargoItem.holdId = null;
-               cargoItem.allocations = item.allocations || [];
-               await cargoItem.save();
-             }
+                cargoItem.allocations = item.allocations || [];
+                await cargoItem.save();
+
+                if (!wasLoaded && item.isLoaded) {
+                  await CargoOperation.create({
+                    voyageId: voyage.id,
+                    cargoId: cargoItem.cargoId,
+                    cargoItemId: cargoItem.id,
+                    operationType: 'LOAD',
+                    plannedQuantity: cargoItem.quantity,
+                    actualQuantity: item.actualQuantity !== undefined ? item.actualQuantity : cargoItem.quantity,
+                    plannedWeight: cargoItem.weight,
+                    actualWeight: item.actualWeight !== undefined ? item.actualWeight : cargoItem.weight,
+                    unit: item.unit || 'ton',
+                    port: item.port || voyage.departurePort,
+                    startedAt: item.startedAt || null,
+                    completedAt: item.completedAt || new Date(),
+                    status: 'Completed',
+                    confirmedBy: req.user.profileId,
+                    note: item.note || null
+                  });
+                }
+              }
           }
         }
         voyage.isCargoLoaded = allCargoLoaded;
@@ -687,6 +708,14 @@ router.get('/:id/attendances', authMiddleware, async (req, res) => {
     }
 
     // Lấy danh sách thuyền viên của chuyến đi
+    const viewerRole = String(req.user.role || '').replace(/\s+/g, '').toLowerCase();
+    if (!['admin', 'agency'].includes(viewerRole)) {
+      const assignment = await VoyageCrew.findOne({ where: { voyageId: id, crewId: req.user.profileId } });
+      if (!assignment) {
+        return res.status(403).json({ message: 'Bạn không được phân công vào hải trình này' });
+      }
+    }
+
     const crewList = await VoyageCrew.findAll({
       where: { voyageId: id },
       include: [{ model: CrewProfile, attributes: ['id', 'fullName', 'position', 'department'] }]
@@ -703,6 +732,7 @@ router.get('/:id/attendances', authMiddleware, async (req, res) => {
     let filteredAttendances = attendances;
     if (type === 'Daily' && date) {
       filteredAttendances = attendances.filter(a => {
+        if (a.attendanceDate) return a.attendanceDate === date;
         if (!a.recordedAt) return false;
         const attDate = new Date(a.recordedAt).toISOString().split('T')[0];
         return attDate === date;
@@ -720,7 +750,10 @@ router.get('/:id/attendances', authMiddleware, async (req, res) => {
         fullName: crewProfile.fullName,
         position: vc.role || crewProfile.position,
         isPresent: att ? (att.status === 'Present') : false,
-        recordedAt: att ? att.recordedAt : null
+        recordedAt: att ? att.recordedAt : null,
+        attendanceDate: att ? att.attendanceDate : null,
+        note: att ? att.note : null,
+        recordedBy: att ? att.recordedBy : null
       };
     });
 
@@ -749,6 +782,20 @@ router.post('/:id/attendances', authMiddleware, async (req, res) => {
       return res.status(404).json({ message: 'Không tìm thấy chuyến đi' });
     }
 
+    if (userRole !== 'admin') {
+      const assignment = await VoyageCrew.findOne({ where: { voyageId: id, crewId: req.user.profileId } });
+      if (!assignment) {
+        return res.status(403).json({ message: 'Bạn không được phân công vào hải trình này' });
+      }
+    }
+
+    if (!['PreDeparture', 'Daily', 'PostDischarge'].includes(type)) {
+      return res.status(400).json({ message: 'Loại điểm danh không hợp lệ' });
+    }
+    if (type === 'Daily' && !/^\d{4}-\d{2}-\d{2}$/.test(date || '')) {
+      return res.status(400).json({ message: 'Điểm danh hằng ngày cần date theo định dạng YYYY-MM-DD' });
+    }
+
     if (!attendanceList || !Array.isArray(attendanceList)) {
       return res.status(400).json({ message: 'Danh sách điểm danh không hợp lệ' });
     }
@@ -759,6 +806,13 @@ router.post('/:id/attendances', authMiddleware, async (req, res) => {
     const attendanceChanges = [];
 
     for (const item of attendanceList) {
+      const crewAssignment = await VoyageCrew.findOne({ where: { voyageId: id, crewId: item.crewId } });
+      if (!crewAssignment) {
+        return res.status(400).json({ message: `Thuyền viên #${item.crewId} không thuộc hải trình này` });
+      }
+      const attendanceDate = type === 'Daily'
+        ? date
+        : (date && /^\d{4}-\d{2}-\d{2}$/.test(date) ? date : new Date().toISOString().split('T')[0]);
       let whereClause = { voyageId: id, crewId: item.crewId, attendanceType: type };
       
       const existingAttendances = await Attendance.findAll({ where: whereClause });
@@ -767,6 +821,7 @@ router.post('/:id/attendances', authMiddleware, async (req, res) => {
       if (type === 'Daily') {
         // Tìm attendance của ngày đó
         targetAtt = existingAttendances.find(a => {
+           if (a.attendanceDate) return a.attendanceDate === date;
            if (!a.recordedAt) return false;
            return new Date(a.recordedAt).toISOString().split('T')[0] === date;
         });
@@ -777,10 +832,14 @@ router.post('/:id/attendances', authMiddleware, async (req, res) => {
 
       if (targetAtt) {
         const nextAttendanceStatus = item.isPresent ? 'Present' : 'Absent';
-        if (targetAtt.status !== nextAttendanceStatus) {
-          targetAtt.status = nextAttendanceStatus;
-          targetAtt.recordedAt = new Date();
-          await targetAtt.save();
+        const statusChanged = targetAtt.status !== nextAttendanceStatus;
+        targetAtt.status = nextAttendanceStatus;
+        targetAtt.recordedAt = new Date();
+        targetAtt.attendanceDate = attendanceDate;
+        targetAtt.recordedBy = req.user.profileId;
+        targetAtt.note = item.note || null;
+        await targetAtt.save();
+        if (statusChanged) {
           attendanceChanges.push({
             crewId: item.crewId,
             isPresent: item.isPresent,
@@ -801,7 +860,10 @@ router.post('/:id/attendances', authMiddleware, async (req, res) => {
           crewId: item.crewId,
           attendanceType: type,
           status: item.isPresent ? 'Present' : 'Absent',
-          recordedAt: recordDate
+          attendanceDate,
+          recordedAt: recordDate,
+          recordedBy: req.user.profileId,
+          note: item.note || null
         });
         attendanceChanges.push({
           crewId: item.crewId,
@@ -835,12 +897,24 @@ router.post('/:id/attendances', authMiddleware, async (req, res) => {
 router.put('/:id/cargo/:itemId/discharge', authMiddleware, async (req, res) => {
   try {
     const { id, itemId } = req.params;
-    const { isDischarged } = req.body;
+    const { isDischarged, actualQuantity, actualWeight, unit, port, startedAt, completedAt, note } = req.body;
 
     const voyage = await Voyage.findByPk(id);
     if (!voyage) return res.status(404).json({ message: 'Không tìm thấy chuyến đi' });
 
-    const cargoItem = await CargoItem.findByPk(itemId);
+    const userRole = String(req.user.role || '').replace(/\s+/g, '').toLowerCase();
+    if (!['master', 'chiefofficer'].includes(userRole)) {
+      return res.status(403).json({ message: 'Chỉ Thuyền trưởng hoặc Đại phó được cập nhật dỡ hàng' });
+    }
+    const assignment = await VoyageCrew.findOne({ where: { voyageId: id, crewId: req.user.profileId } });
+    if (!assignment) {
+      return res.status(403).json({ message: 'Bạn không được phân công vào hải trình này' });
+    }
+
+    const cargoItem = await CargoItem.findOne({
+      where: { id: itemId },
+      include: [{ model: Cargo, where: { voyageId: id }, attributes: ['id'] }]
+    });
     if (!cargoItem) return res.status(404).json({ message: 'Không tìm thấy kiện hàng' });
 
     // Trừ tải trọng khỏi hầm hàng nếu hàng bị dỡ
@@ -868,8 +942,29 @@ router.put('/:id/cargo/:itemId/discharge', authMiddleware, async (req, res) => {
       }
     }
 
+    const wasDischarged = Boolean(cargoItem.isDischarged);
     cargoItem.isDischarged = isDischarged;
     await cargoItem.save();
+
+    if (!wasDischarged && isDischarged) {
+      await CargoOperation.create({
+        voyageId: voyage.id,
+        cargoId: cargoItem.cargoId,
+        cargoItemId: cargoItem.id,
+        operationType: 'UNLOAD',
+        plannedQuantity: cargoItem.quantity,
+        actualQuantity: actualQuantity !== undefined ? actualQuantity : cargoItem.quantity,
+        plannedWeight: cargoItem.weight,
+        actualWeight: actualWeight !== undefined ? actualWeight : cargoItem.weight,
+        unit: unit || 'ton',
+        port: port || voyage.destinationPort,
+        startedAt: startedAt || null,
+        completedAt: completedAt || new Date(),
+        status: 'Completed',
+        confirmedBy: req.user.profileId,
+        note: note || null
+      });
+    }
 
     res.json({ message: 'Cập nhật trạng thái dỡ hàng thành công', cargoItem });
   } catch (error) {
