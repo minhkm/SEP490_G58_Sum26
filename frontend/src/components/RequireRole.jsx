@@ -14,7 +14,8 @@ import { getDashboardPath } from '../config/roles';
 export default function RequireRole({ allow = [], children }) {
   const token = localStorage.getItem('token');
   const user = JSON.parse(localStorage.getItem('user') || '{}');
-  const role = user.role || '';
+  const activeVoyageRole = localStorage.getItem('activeVoyageRole');
+  const role = activeVoyageRole || user.role || '';
 
   if (!token) {
     return <Navigate to="/login" replace />;
@@ -22,6 +23,9 @@ export default function RequireRole({ allow = [], children }) {
 
   if (!allow.includes(role)) {
     // Không đủ quyền: đưa về dashboard tương ứng với role của họ
+    if (!activeVoyageRole && role !== 'Admin' && role !== 'Agency') {
+      return <Navigate to="/my-voyages" replace />;
+    }
     return <Navigate to={getDashboardPath(role)} replace />;
   }
 

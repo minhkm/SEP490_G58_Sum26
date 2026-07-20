@@ -45,7 +45,8 @@ export default function MasterDashboard() {
   useEffect(() => {
     const fetchDashboardData = async () => {
       try {
-        const data = await dashboardService.getMasterDashboardData();
+        const activeVoyageId = localStorage.getItem('activeVoyageId');
+        const data = await dashboardService.getMasterDashboardData(activeVoyageId);
         setDashboardData(data); // data can be null if no active voyage
       } catch (error) {
         console.error('Failed to fetch dashboard data', error);
@@ -99,7 +100,7 @@ export default function MasterDashboard() {
               <div className="user-info">
                 <span className="user-name">{user.fullName || user.username}</span>
                 <span className="user-role">
-                  {(user.role || 'MASTER').toUpperCase()} • ID: {user.employeeId || user.id || '3'}
+                  {((localStorage.getItem('activeVoyageRole') || user.role) || 'MASTER').toUpperCase()} • ID: {user.employeeId || user.id || '3'}
                 </span>
               </div>
               <div className="user-avatar">

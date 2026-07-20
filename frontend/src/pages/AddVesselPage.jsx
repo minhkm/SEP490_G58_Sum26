@@ -38,6 +38,8 @@ export default function AddVesselPage() {
   const { id } = useParams();
   const isEditMode = Boolean(id);
 
+  const requiredTag = <span style={{ marginLeft: 6, fontSize: 11, color: '#ea580c', fontWeight: 500, fontStyle: 'italic' }}>(Bắt buộc)</span>;
+
   // Basic Info State
   const [basicInfo, setBasicInfo] = useState({
     shipName: '',
@@ -287,7 +289,7 @@ export default function AddVesselPage() {
 
 
   const handleSubmit = async () => {
-    // Validation: Tên tàu & IMO bắt buộc
+    // Validation: Các trường bắt buộc
     if (!basicInfo.shipName || !basicInfo.imoNumber) {
       notifyWarning('Vui lòng nhập đầy đủ Tên tàu và Mã số IMO.');
       return;
@@ -296,6 +298,36 @@ export default function AddVesselPage() {
     if (!/^\d{7}$/.test(basicInfo.imoNumber)) {
       notifyWarning('Mã số IMO phải bao gồm chính xác 7 chữ số.');
       return;
+    }
+
+    if (!capacity.maxWeight || !capacity.maxVolume) {
+      notifyWarning('Vui lòng nhập đầy đủ Tải trọng Max và Thể tích Max.');
+      return;
+    }
+
+    if (!mainEngine.engineName) {
+      notifyWarning('Vui lòng nhập Tên động cơ cho Máy chính.');
+      return;
+    }
+
+    // Validation: Thông số an toàn bắt buộc cho máy chính
+    const missingMainParams = mainEngine.parameters.filter(p => p.fixed && (p.maxValue === '' || p.maxValue === null));
+    if (missingMainParams.length > 0) {
+      notifyWarning(`Vui lòng nhập đủ các hạn mức chỉ số an toàn bắt buộc cho Máy chính.`);
+      return;
+    }
+
+    // Validation: Thông số an toàn bắt buộc cho máy đèn
+    for (const gen of generatorEngines) {
+      if (!gen.engineName) {
+        notifyWarning(`Vui lòng nhập Tên máy cho các máy đèn.`);
+        return;
+      }
+      const missingGenParams = gen.parameters.filter(p => p.fixed && (p.maxValue === '' || p.maxValue === null));
+      if (missingGenParams.length > 0) {
+        notifyWarning(`Vui lòng nhập đủ các hạn mức chỉ số an toàn bắt buộc cho Máy đèn (${gen.engineName || 'chưa có tên'}).`);
+        return;
+      }
     }
 
     // Validation: Tổng thể tích khoang KHÔNG ĐƯỢC VƯỢT QUÁ Thể tích Max của tàu
@@ -369,7 +401,7 @@ export default function AddVesselPage() {
         <Row gutter={12} style={{ marginTop: 8 }}>
           {fixedParams.map((param) => (
             <Col xs={24} sm={8} key={param._uid}>
-              <div style={{ marginBottom: 4 }}>{requiredParamLabel(param.name)}</div>
+              <div style={{ marginBottom: 6, fontWeight: 600 }}>{requiredParamLabel(param.name)} {requiredTag}</div>
               <InputNumber
                 style={{ width: '100%' }}
                 min={0}
@@ -455,8 +487,8 @@ export default function AddVesselPage() {
             >
               <Row gutter={16}>
                 <Col xs={24} sm={12} style={{ marginBottom: 16 }}>
-                  <div style={{ marginBottom: 4 }}>
-                    Tên Tàu <Text type="danger">*</Text>
+                  <div style={{ marginBottom: 6, fontWeight: 600 }}>
+                    Tên Tàu {requiredTag}
                   </div>
                   <Input
                     placeholder="Ví dụ: Blue Atlantic Voyager"
@@ -465,8 +497,8 @@ export default function AddVesselPage() {
                   />
                 </Col>
                 <Col xs={24} sm={12} style={{ marginBottom: 16 }}>
-                  <div style={{ marginBottom: 4 }}>
-                    Mã số IMO <Text type="danger">*</Text>
+                  <div style={{ marginBottom: 6, fontWeight: 600 }}>
+                    Mã số IMO {requiredTag}
                   </div>
                   <Input
                     placeholder="VD: 1234567"
@@ -530,7 +562,7 @@ export default function AddVesselPage() {
 
                 <Row gutter={16}>
                   <Col xs={24} sm={12} style={{ marginBottom: 16 }}>
-                    <div style={{ marginBottom: 4 }}>Tên động cơ</div>
+                    <div style={{ marginBottom: 6, fontWeight: 600 }}>Tên động cơ {requiredTag}</div>
                     <Input
                       placeholder="Wärtsilä 14RT"
                       value={mainEngine.engineName}
@@ -591,7 +623,7 @@ export default function AddVesselPage() {
                     </div>
                     <Row gutter={16}>
                       <Col xs={24} sm={12} style={{ marginBottom: 16 }}>
-                        <div style={{ marginBottom: 4 }}>Tên máy</div>
+                        <div style={{ marginBottom: 6, fontWeight: 600 }}>Tên máy {requiredTag}</div>
                         <Input
                           placeholder="Caterpillar C32"
                           value={gen.engineName}
@@ -636,7 +668,7 @@ export default function AddVesselPage() {
             >
               <Row gutter={16}>
                 <Col xs={24} sm={12} style={{ marginBottom: 16 }}>
-                  <div style={{ marginBottom: 4 }}>Tải trọng Max (Tấn)</div>
+                  <div style={{ marginBottom: 6, fontWeight: 600 }}>Tải trọng Max (Tấn) {requiredTag}</div>
                   <InputNumber
                     style={{ width: '100%' }}
                     placeholder="50000"
@@ -645,7 +677,7 @@ export default function AddVesselPage() {
                   />
                 </Col>
                 <Col xs={24} sm={12} style={{ marginBottom: 16 }}>
-                  <div style={{ marginBottom: 4 }}>Thể tích Max (m³)</div>
+                  <div style={{ marginBottom: 6, fontWeight: 600 }}>Thể tích Max (m³) {requiredTag}</div>
                   <InputNumber
                     style={{ width: '100%' }}
                     placeholder="75000"
