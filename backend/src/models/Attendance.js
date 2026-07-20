@@ -7,7 +7,10 @@ const Attendance = sequelize.define("Attendance", {
   crewId: { type: DataTypes.INTEGER, allowNull: false },
   attendanceType: { type: DataTypes.STRING }, // PreDeparture, PostDischarge
   status: { type: DataTypes.STRING },
+  attendanceDate: { type: DataTypes.DATEONLY, allowNull: true },
   recordedAt: { type: DataTypes.DATE },
+  recordedBy: { type: DataTypes.INTEGER, allowNull: true },
+  note: { type: DataTypes.TEXT, allowNull: true },
 }, { tableName: "Attendance", timestamps: false });
 
 module.exports = Attendance;
