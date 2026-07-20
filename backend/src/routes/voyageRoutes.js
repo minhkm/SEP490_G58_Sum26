@@ -425,7 +425,8 @@ router.put('/:id', authMiddleware, async (req, res) => {
     const isShipStaff = userRole === 'chiefofficer' || userRole === 'master';
 
     // Process attendanceList if provided and allowed
-    if (isShipStaff && attendanceList && Array.isArray(attendanceList)) {
+    // Điểm danh phải đi qua POST /:id/attendances để luôn có loại, ngày và người ghi nhận.
+    if (isShipStaff && attendanceList && Array.isArray(attendanceList) && req.body.attendanceType) {
       let allPresent = attendanceList.length > 0;
       const attendanceChanges = [];
       
@@ -725,7 +726,8 @@ router.get('/:id/attendances', authMiddleware, async (req, res) => {
     if (type) whereClause.attendanceType = type;
 
     const attendances = await Attendance.findAll({
-      where: whereClause
+      where: whereClause,
+      include: [{ model: CrewProfile, as: 'Recorder', attributes: ['id', 'fullName', 'position'] }]
     });
 
     // Nếu lọc theo ngày (chỉ cho loại Daily)
@@ -750,10 +752,15 @@ router.get('/:id/attendances', authMiddleware, async (req, res) => {
         fullName: crewProfile.fullName,
         position: vc.role || crewProfile.position,
         isPresent: att ? (att.status === 'Present') : false,
+        attendanceType: att ? att.attendanceType : type || null,
         recordedAt: att ? att.recordedAt : null,
         attendanceDate: att ? att.attendanceDate : null,
         note: att ? att.note : null,
-        recordedBy: att ? att.recordedBy : null
+        recordedBy: att && att.Recorder ? {
+          id: att.Recorder.id,
+          fullName: att.Recorder.fullName,
+          position: att.Recorder.position
+        } : null
       };
     });
 

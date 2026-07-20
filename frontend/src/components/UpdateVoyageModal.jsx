@@ -302,7 +302,6 @@ export default function UpdateVoyageModal({ voyage, onClose, onUpdate }) {
 
       const payload = {
         ...formData,
-        attendanceList: crewList.map((c) => ({ crewId: c.crewId, isPresent: c.isPresent })),
         cargoList: cargoList.map((c) => ({
           itemId: c.itemId,
           isLoaded: c.isLoaded,

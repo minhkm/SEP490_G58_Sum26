@@ -74,7 +74,10 @@ async function buildOperationReport(voyageId, options = {}) {
   const operationWhere = { voyageId: voyage.id };
   if (dateRange) operationWhere.completedAt = dateRange;
 
-  const attendanceWhere = { voyageId: voyage.id };
+  const attendanceWhere = {
+    voyageId: voyage.id,
+    attendanceType: { [Op.in]: ["PreDeparture", "Daily", "PostDischarge"] },
+  };
   if (period.filterByDate) {
     attendanceWhere[Op.or] = [
       { attendanceDate: { [Op.between]: [period.fromDate, period.toDate] } },

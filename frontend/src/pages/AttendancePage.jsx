@@ -60,8 +60,8 @@ export default function AttendancePage() {
     fetchVoyageInfo();
   }, [id]);
 
-  // Master, Admin, Agency can view. Master can edit.
-  const canEdit = ['master'].includes(userRole);
+  // Thuyền trưởng và Đại phó thuộc hải trình được phép thực hiện điểm danh.
+  const canEdit = ['master', 'chiefofficer'].includes(userRole);
   const Layout = userRole === 'admin' || userRole === 'agency' ? AgencyLayout : MasterLayout;
 
   const fetchAttendances = async () => {
@@ -145,6 +145,16 @@ export default function AttendancePage() {
     },
     { title: 'Chức vụ', dataIndex: 'position', key: 'position' },
     {
+      title: 'Loại điểm danh',
+      dataIndex: 'attendanceType',
+      key: 'attendanceType',
+      render: (type) => ({
+        PreDeparture: 'Trước khi xuất phát',
+        Daily: 'Hằng ngày',
+        PostDischarge: 'Kết thúc chuyến đi',
+      })[type || activeTab] || type || '--',
+    },
+    {
       title: 'Trạng thái',
       key: 'status',
       align: 'center',
@@ -169,6 +179,12 @@ export default function AttendancePage() {
         </Text>
       ),
     },
+    {
+      title: 'Người điểm danh',
+      dataIndex: 'recordedBy',
+      key: 'recordedBy',
+      render: (recorder) => recorder?.fullName || 'Chưa ghi nhận',
+    },
   ];
 
   const tabItems = [
@@ -187,6 +203,13 @@ export default function AttendancePage() {
 
         <Card>
           <Tabs activeKey={activeTab} onChange={setActiveTab} items={tabItems} />
+
+          <Alert
+            message={`Loại điểm danh đang chọn: ${tabItems.find((item) => item.key === activeTab)?.label}`}
+            type="info"
+            showIcon
+            style={{ marginBottom: 16 }}
+          />
 
           {!statusValid && voyageStatus && (
             <Alert
