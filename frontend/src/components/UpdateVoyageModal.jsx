@@ -21,6 +21,7 @@ import {
   Empty,
   Tag,
   Tooltip,
+  Popconfirm,
 } from 'antd';
 import { 
   SaveOutlined, CalendarOutlined, TeamOutlined, InboxOutlined,
@@ -62,6 +63,20 @@ const statusConfig = {
   'At Anchor': { color: 'error', icon: <PushpinOutlined />, text: '#dc2626', bg: '#fef2f2' },
   Completed: { color: 'success', icon: <FlagOutlined />, text: '#16a34a', bg: '#f0fdf4' },
   Cancelled: { color: 'error', icon: <CloseCircleOutlined />, text: '#dc2626', bg: '#fef2f2' },
+};
+
+const STATUS_WORKFLOW = {
+  'Planning': ['Loading', 'Cancelled'],
+  'Loading': ['Loaded', 'Cancelled'],
+  'Loaded': ['Underway', 'Cancelled'],
+  'Underway': ['Arrived', 'At Anchor', 'Cancelled'],
+  'Arrived': ['Discharge', 'Cancelled'],
+  'Discharge': ['Discharged', 'Cancelled'],
+  'Discharged': ['Homeward Bounding', 'Cancelled'],
+  'Homeward Bounding': ['Completed', 'Cancelled'],
+  'At Anchor': ['Underway', 'Arrived', 'Cancelled'],
+  'Completed': [],
+  'Cancelled': []
 };
 
 const AllocationModal = ({ open, cargo, holds, onClose, onSave }) => {
@@ -256,6 +271,23 @@ export default function UpdateVoyageModal({ voyage, onClose, onUpdate }) {
     );
   };
 
+  const handleCargoDischarge = async (itemId) => {
+    try {
+      setLoading(true);
+      await voyageService.dischargeCargoItem(voyage.id, itemId, true);
+      message.success('Đã dỡ hàng thành công!');
+      
+      // Fetch both cargo and holds to sync everything
+      await fetchCargo(voyage.id);
+      await fetchHolds(voyage.shipId);
+    } catch (err) {
+      console.error(err);
+      message.error('Lỗi khi dỡ hàng!');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleSaveAllocations = (itemId, allocations) => {
     setCargoList((prevList) =>
       prevList.map((cargo) => (cargo.itemId === itemId ? { ...cargo, allocations } : cargo))
@@ -293,7 +325,8 @@ export default function UpdateVoyageModal({ voyage, onClose, onUpdate }) {
   if (!voyage) return null;
 
   const user = JSON.parse(localStorage.getItem('user')) || {};
-  const userRole = (user.role || '').replace(/\s+/g, '').toLowerCase();
+  const activeVoyageRole = localStorage.getItem('activeVoyageRole');
+  const userRole = (activeVoyageRole || user.role || '').replace(/\s+/g, '').toLowerCase();
 
   const isShipStaff = userRole === 'chiefofficer' || userRole === 'master';
   const isChiefOfficer = userRole === 'chiefofficer';
@@ -310,6 +343,8 @@ export default function UpdateVoyageModal({ voyage, onClose, onUpdate }) {
       ['Planning', 'Cancelled'].includes(opt.value) || opt.value === voyage.status
     );
   }
+
+  const allowedNextStatuses = STATUS_WORKFLOW[voyage.status] || [];
 
   const lockedForAdminStatuses = [
     'Loading',
@@ -364,58 +399,93 @@ export default function UpdateVoyageModal({ voyage, onClose, onUpdate }) {
   ];
 
   if (userRole !== 'admin') {
-    cargoColumns.push(
-      {
-        title: 'Phân bổ khoang',
-        key: 'allocations',
-        width: 180,
-        render: (_, cargo) => {
-          const totalAllocated = (cargo.allocations || []).reduce(
-            (sum, a) => sum + Number(a.weight),
-            0
-          );
-          return (
-            <Space direction="vertical" size="small">
-              <Button
-                size="small"
-                type="primary"
-                disabled={!cargo.itemId || !isCargoLoadAllowed}
-                onClick={() => setAllocatingCargoItem(cargo)}
+    if (formData.status === 'Discharge' || formData.status === 'Arrived' || formData.status === 'Completed') {
+      // Discharge UI
+      cargoColumns.push(
+        {
+          title: 'Trạng thái dỡ',
+          key: 'dischargeStatus',
+          align: 'center',
+          width: 150,
+          render: (_, cargo) => {
+            if (cargo.isDischarged) {
+              return <Tag color="success">Đã dỡ xong</Tag>;
+            }
+            if (userRole !== 'chiefofficer') {
+              return <Tag color="default">Chưa dỡ</Tag>;
+            }
+            return (
+              <Popconfirm
+                title="Xác nhận dỡ hàng?"
+                description={`Bạn có chắc chắn đã dỡ toàn bộ lô ${cargo.itemName} khỏi hầm?`}
+                onConfirm={() => handleCargoDischarge(cargo.itemId)}
+                okText="Xác nhận"
+                cancelText="Hủy"
+                disabled={formData.status === 'Completed'}
               >
-                Phân bổ ({(cargo.allocations || []).length} khoang)
-              </Button>
-              {totalAllocated > 0 && (
-                <Text type="secondary" style={{ fontSize: 12 }}>
-                  Đã PB: {totalAllocated} MT
-                </Text>
-              )}
-            </Space>
-          );
+                <Button type="primary" size="small" style={{ background: '#fa8c16', borderColor: '#fa8c16' }}>
+                  Tiến hành dỡ
+                </Button>
+              </Popconfirm>
+            );
+          },
+        }
+      );
+    } else {
+      // Loading UI
+      cargoColumns.push(
+        {
+          title: 'Phân bổ khoang',
+          key: 'allocations',
+          width: 180,
+          render: (_, cargo) => {
+            const totalAllocated = (cargo.allocations || []).reduce(
+              (sum, a) => sum + Number(a.weight),
+              0
+            );
+            return (
+              <Space direction="vertical" size="small">
+                <Button
+                  size="small"
+                  type="primary"
+                  disabled={!cargo.itemId || !isCargoLoadAllowed}
+                  onClick={() => setAllocatingCargoItem(cargo)}
+                >
+                  Phân bổ ({(cargo.allocations || []).length} khoang)
+                </Button>
+                {totalAllocated > 0 && (
+                  <Text type="secondary" style={{ fontSize: 12 }}>
+                    Đã PB: {totalAllocated} MT
+                  </Text>
+                )}
+              </Space>
+            );
+          },
         },
-      },
-      {
-        title: 'Đã lên tàu',
-        key: 'isLoaded',
-        align: 'center',
-        width: 100,
-        render: (_, cargo) => {
-          const totalAllocated = (cargo.allocations || []).reduce(
-            (sum, a) => sum + Number(a.weight),
-            0
-          );
-          const isFullyAllocated = totalAllocated === Number(cargo.weight);
-          return (
-            <Tooltip title={!isFullyAllocated && !cargo.isLoaded ? "Vui lòng phân bổ đủ khối lượng vào khoang trước khi đánh dấu" : ""}>
-              <Checkbox
-                checked={cargo.isLoaded}
-                onChange={(e) => handleCargoLoadChange(cargo.itemId, e.target.checked)}
-                disabled={!cargo.itemId || !isCargoLoadAllowed || (!isFullyAllocated && !cargo.isLoaded)}
-              />
-            </Tooltip>
-          );
-        },
-      }
-    );
+        {
+          title: 'Đã lên tàu',
+          key: 'isLoaded',
+          align: 'center',
+          width: 100,
+          render: (_, cargo) => {
+            const totalAllocated = (cargo.allocations || []).reduce(
+              (sum, a) => sum + Number(a.weight),
+              0
+            );
+            const isFullyAllocated = totalAllocated === Number(cargo.weight);
+            return (
+              <Tooltip title={!isFullyAllocated && !cargo.isLoaded ? "Vui lòng phân bổ đủ khối lượng vào khoang trước khi đánh dấu" : ""}>
+                <Checkbox
+                  checked={cargo.isLoaded}
+                  onChange={(e) => handleCargoLoadChange(cargo.itemId, e.target.checked)}
+                  disabled={!cargo.itemId || !isCargoLoadAllowed || (!isFullyAllocated && !cargo.isLoaded)}
+                />
+              </Tooltip>
+            );
+          },
+        }
+      );
+    }
   }
 
   const showIssueReason = !formData.isCrewSufficient || !formData.isCargoLoaded;
@@ -470,14 +540,26 @@ export default function UpdateVoyageModal({ voyage, onClose, onUpdate }) {
             >
               {allowedStatusOptions.map((opt) => {
                 const conf = statusConfig[opt.value] || { color: 'default', icon: <CompassOutlined />, text: '#475569', bg: '#f1f5f9' };
-                const isUnderwayDisabled = opt.value === 'Underway' && voyage.routeStatus !== 'Approved';
+                let isOptionDisabled = false;
+                let disableReason = '';
+
+                if (userRole !== 'admin' && opt.value !== voyage.status && !allowedNextStatuses.includes(opt.value)) {
+                  isOptionDisabled = true;
+                  disableReason = 'Phải hoàn thành tuần tự các bước trước đó!';
+                }
+                
+                if (opt.value === 'Underway' && voyage.routeStatus !== 'Approved') {
+                  isOptionDisabled = true;
+                  disableReason = 'Lộ trình chưa được phê duyệt!';
+                }
+
                 return (
-                  <Select.Option key={opt.value} value={opt.value} disabled={isUnderwayDisabled} label={
+                  <Select.Option key={opt.value} value={opt.value} disabled={isOptionDisabled} label={
                     <Tag icon={conf.icon} color={conf.color} style={{ border: 'none', background: 'transparent', fontSize: 14, margin: 0, padding: 0 }}>
                       <span style={{ fontWeight: 500 }}>{opt.label}</span>
                     </Tag>
                   }>
-                    <div style={{ padding: '8px 4px', display: 'flex', alignItems: 'center', gap: 12, borderBottom: '1px solid #f8fafc', opacity: isUnderwayDisabled ? 0.5 : 1 }}>
+                    <div style={{ padding: '8px 4px', display: 'flex', alignItems: 'center', gap: 12, borderBottom: '1px solid #f8fafc', opacity: isOptionDisabled ? 0.5 : 1 }}>
                       <div style={{ 
                         width: 36, height: 36, borderRadius: '50%', 
                         background: conf.bg, color: conf.text,
@@ -487,8 +569,8 @@ export default function UpdateVoyageModal({ voyage, onClose, onUpdate }) {
                       </div>
                       <div style={{ flex: 1 }}>
                         <div style={{ fontWeight: 600, color: '#1e293b', fontSize: 14 }}>{opt.label}</div>
-                        <div style={{ fontSize: 12, color: isUnderwayDisabled ? '#ef4444' : '#64748b' }}>
-                          {isUnderwayDisabled ? 'Lộ trình chưa được phê duyệt!' : `Chuyển sang trạng thái ${opt.label.toLowerCase()}`}
+                        <div style={{ fontSize: 12, color: isOptionDisabled ? '#ef4444' : '#64748b' }}>
+                          {isOptionDisabled ? disableReason : `Chuyển sang trạng thái ${opt.label.toLowerCase()}`}
                         </div>
                       </div>
                     </div>
@@ -579,12 +661,12 @@ export default function UpdateVoyageModal({ voyage, onClose, onUpdate }) {
                     let simulatedUsage = hold.currentUsage || 0;
                     cargoList.forEach((c) => {
                       const orig = originalCargoList.find((o) => o.itemId === c.itemId);
-                      const origWeight = orig?.isLoaded
+                      const origWeight = orig?.isLoaded && !orig?.isDischarged
                         ? (orig.allocations || [])
                             .filter((a) => String(a.holdId) === String(hold.id))
                             .reduce((s, a) => s + Number(a.weight), 0)
                         : 0;
-                      const newWeight = c.isLoaded
+                      const newWeight = c.isLoaded && !c.isDischarged
                         ? (c.allocations || [])
                             .filter((a) => String(a.holdId) === String(hold.id))
                             .reduce((s, a) => s + Number(a.weight), 0)

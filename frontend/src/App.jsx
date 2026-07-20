@@ -29,6 +29,7 @@ import { SHIFT_OFFICER_ROLES } from "./config/shifts";
 import DeckLogPage from "./pages/DeckLogPage";
 import ReportListPage from "./pages/ReportListPage";
 import ReportDetailPage from "./pages/ReportDetailPage";
+import MyVoyagesPage from './pages/MyVoyagesPage';
 
 function App() {
   return (
@@ -36,6 +37,7 @@ function App() {
       <Routes>
         <Route path="/" element={<LandingPageWrapper />} />
         <Route path="/login" element={<LoginPage />} />
+        <Route path="/my-voyages" element={<MyVoyagesPage />} />
         <Route path="/master-dashboard" element={<MasterDashboard />} />
         <Route path="/agency-dashboard" element={<AgencyDashboard />} />
         <Route path="/vessels" element={<VesselListPage />} />

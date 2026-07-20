@@ -14,6 +14,8 @@ import {
   FileTextOutlined,
 } from '@ant-design/icons';
 import { CARGO_ROLES } from '../config/roles';
+import { voyageService } from '../services/api';
+import { useState, useEffect } from 'react';
 
 const { Sider } = Layout;
 
@@ -21,18 +23,44 @@ export default function Sidebar() {
   const navigate = useNavigate();
   const location = useLocation();
   const user = JSON.parse(localStorage.getItem('user') || '{}');
-  const role = user.role || '';
+  const activeVoyageRole = localStorage.getItem('activeVoyageRole');
+  const role = activeVoyageRole || user.role || '';
 
   const isMasterOrChief = role === 'Master' || role === 'ChiefOfficer';
   const isCrewRole = !isMasterOrChief && role !== 'Admin' && role !== 'Agency';
   const isEngine = role === 'EngineOfficer' || role === 'EngineCrew' || role === 'ChiefEngineer';
   const isDeck = role === 'Sailor' || role === 'ChiefOfficer' || role === 'Master';
+  
+  const isGlobalRoleNonAdmin = user.role !== 'Admin' && user.role !== 'Agency';
+
+  const [hasValidVoyage, setHasValidVoyage] = useState(true); // default true to avoid flicker
+
+  useEffect(() => {
+    if (isMasterOrChief) {
+      voyageService.getAll()
+        .then(data => {
+          // Check if there is any voyage that is Loaded (or beyond, like Underway)
+          const valid = (data || []).some(v => v.status === 'Loaded' || v.status === 'Underway');
+          setHasValidVoyage(valid);
+        })
+        .catch(err => {
+          console.error('Error fetching voyages for sidebar:', err);
+          setHasValidVoyage(false);
+        });
+    }
+  }, [isMasterOrChief]);
 
   const dashboardPath = isMasterOrChief ? '/master-dashboard' : '/crew-dashboard';
 
   const items = [
     { key: dashboardPath, icon: <DashboardOutlined />, label: 'Tổng quan' },
     { key: '/voyages', icon: <CompassOutlined />, label: 'Hải Trình' },
+    isMasterOrChief && { 
+      key: '/route-planner', 
+      icon: <SendOutlined />, 
+      label: role === 'Master' ? 'Phê duyệt lộ trình' : 'Thiết lập lộ trình',
+      disabled: !hasValidVoyage
+    },
     CARGO_ROLES.includes(role) && { key: '/cargos', icon: <InboxOutlined />, label: 'Hàng hóa' },
     isCrewRole && { key: '/shifts', icon: <ClockCircleOutlined />, label: 'Ca trực' },
     isDeck && { key: '/deck-logs', icon: <FileTextOutlined />, label: 'Nhật ký Trực boong' },
@@ -52,7 +80,15 @@ export default function Sidebar() {
   const handleLogout = () => {
     localStorage.removeItem('token');
     localStorage.removeItem('user');
+    localStorage.removeItem('activeVoyageId');
+    localStorage.removeItem('activeVoyageRole');
     navigate('/login');
+  };
+
+  const handleSwitchVoyage = () => {
+    localStorage.removeItem('activeVoyageId');
+    localStorage.removeItem('activeVoyageRole');
+    navigate('/my-voyages');
   };
 
   const onMenuClick = ({ key }) => {
@@ -82,15 +118,15 @@ export default function Sidebar() {
       />
 
       <div style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 8 }}>
-        {(role === 'ChiefOfficer' || role === 'Master') && (
+        {isGlobalRoleNonAdmin && (
           <Button 
-             type="primary" 
-             icon={<SendOutlined />} 
-             block 
-             onClick={() => navigate('/route-planner')}
-             style={role === 'Master' ? { background: '#10b981', borderColor: '#10b981' } : {}}
+            type="default" 
+            icon={<CompassOutlined />} 
+            block 
+            onClick={handleSwitchVoyage}
+            style={{ color: '#fff', background: 'transparent', borderColor: '#475569' }}
           >
-            {role === 'Master' ? 'Phê duyệt lộ trình' : 'Thiết lập lộ trình'}
+            Đổi Hải Trình
           </Button>
         )}
         <Button danger icon={<LogoutOutlined />} block onClick={handleLogout}>

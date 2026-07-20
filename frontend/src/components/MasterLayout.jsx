@@ -19,7 +19,7 @@ export default function MasterLayout({ children, hideTopbar = false }) {
             <div className="app-topbar-user">
               <div className="app-topbar-user-info">
                 <span className="app-topbar-user-name">{displayName}</span>
-                <span className="app-topbar-user-role">{user.role || 'Crew'}</span>
+                <span className="app-topbar-user-role">{localStorage.getItem('activeVoyageRole') || user.role || 'Crew'}</span>
               </div>
               <div className="app-topbar-avatar">
                 <img

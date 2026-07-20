@@ -39,7 +39,8 @@ export default function AttendancePage() {
   const [saving, setSaving] = useState(false);
 
   const user = JSON.parse(localStorage.getItem('user')) || {};
-  const userRole = (user.role || '').replace(/\s+/g, '').toLowerCase();
+  const activeVoyageRole = localStorage.getItem('activeVoyageRole');
+  const userRole = (activeVoyageRole || user.role || '').replace(/\s+/g, '').toLowerCase();
 
   const [voyageStatus, setVoyageStatus] = useState('');
 

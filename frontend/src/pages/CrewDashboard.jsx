@@ -48,7 +48,8 @@ export default function CrewDashboard() {
       .catch(() => {});
   }, []);
 
-  const roleLabel = ROLE_LABELS[user.role] || user.role;
+  const activeVoyageRole = localStorage.getItem('activeVoyageRole');
+  const roleLabelStr = ROLE_LABELS[activeVoyageRole || user.role] || (activeVoyageRole || user.role);
   const deptLabel = profile ? DEPT_LABELS[profile.department] || profile.department : '';
 
   const quickLinks = [
@@ -129,7 +130,7 @@ export default function CrewDashboard() {
               {profile?.fullName || user.fullName || user.username}
             </h2>
             <Space>
-              <Tag color="blue">{roleLabel}</Tag>
+              <Tag color="blue">{roleLabelStr}</Tag>
               {deptLabel && <Tag>{deptLabel}</Tag>}
               {profile?.position && <Tag>{profile.position}</Tag>}
             </Space>
