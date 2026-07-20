@@ -103,7 +103,7 @@ exports.finalize = async (req, res) => {
       fromDate: data.general.fromDate,
       toDate: data.general.toDate,
       cargoSnapshot: data.cargo,
-      attendanceSnapshot: { rows: data.attendance, summary: data.attendanceSummary },
+      attendanceSnapshot: { rows: data.attendance, summary: data.attendanceSummary, matrix: data.attendanceMatrix },
       summarySnapshot: data.summary,
       generalSnapshot: data.general,
       status: "Finalized",

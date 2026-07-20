@@ -85,7 +85,7 @@ async function buildOperationReport(voyageId, options = {}) {
     ];
   }
 
-  const [operations, attendances, totalCrew, cargos] = await Promise.all([
+  const [operations, attendances, voyageCrews, cargos] = await Promise.all([
     CargoOperation.findAll({
       where: operationWhere,
       include: [
@@ -103,7 +103,11 @@ async function buildOperationReport(voyageId, options = {}) {
       ],
       order: [["attendanceDate", "ASC"], ["recordedAt", "ASC"], ["id", "ASC"]],
     }),
-    VoyageCrew.count({ where: { voyageId: voyage.id } }),
+    VoyageCrew.findAll({
+      where: { voyageId: voyage.id },
+      include: [{ model: CrewProfile, attributes: ["id", "fullName", "position", "department"] }],
+      order: [["crewId", "ASC"]],
+    }),
     Cargo.findAll({
       where: { voyageId: voyage.id },
       include: [{ model: CargoItem }],
@@ -203,6 +207,73 @@ async function buildOperationReport(voyageId, options = {}) {
     attendanceRate: group.total ? Math.round((group.present / group.total) * 10000) / 100 : 0,
   }));
 
+  const dailyAttendances = attendanceRows.filter((row) => row.attendanceType === "Daily" && row.attendanceDate);
+  let matrixFrom = period.fromDate;
+  let matrixTo = period.toDate;
+  if (!matrixFrom && dailyAttendances.length) matrixFrom = dailyAttendances[0].attendanceDate;
+  if (!matrixTo && dailyAttendances.length) matrixTo = dailyAttendances[dailyAttendances.length - 1].attendanceDate;
+
+  const attendanceDates = [];
+  if (matrixFrom && matrixTo) {
+    const cursor = parseDate(matrixFrom);
+    const end = parseDate(matrixTo);
+    // Giới hạn an toàn; hải trình dài hơn một năm chỉ hiện các ngày đã có điểm danh.
+    if (cursor && end && Math.floor((end - cursor) / 86400000) <= 366) {
+      while (cursor <= end) {
+        attendanceDates.push(isoDate(cursor));
+        cursor.setDate(cursor.getDate() + 1);
+      }
+    }
+  }
+  if (attendanceDates.length === 0) {
+    attendanceDates.push(...[...new Set(dailyAttendances.map((row) => row.attendanceDate))].sort());
+  }
+
+  const dailyByCrewAndDate = new Map(
+    dailyAttendances.map((row) => [`${row.crewId}|${row.attendanceDate}`, row])
+  );
+  const attendanceMatrix = voyageCrews.map((assignment) => {
+    const profile = assignment.CrewProfile || {};
+    const days = {};
+    const absenceNotes = [];
+    const recorders = [];
+    let present = 0;
+    let absent = 0;
+    attendanceDates.forEach((date) => {
+      const attendance = dailyByCrewAndDate.get(`${assignment.crewId}|${date}`);
+      if (!attendance) {
+        days[date] = "";
+      } else if (attendance.status === "Present") {
+        days[date] = "✓";
+        present += 1;
+      } else {
+        days[date] = "X";
+        absent += 1;
+      }
+      if (attendance) {
+        if (attendance.recordedBy && attendance.recordedBy !== "N/A") {
+          recorders.push(`${date}: ${attendance.recordedBy}`);
+        }
+        if (attendance.status !== "Present" && attendance.note) {
+          absenceNotes.push(`${date}: ${attendance.note}`);
+        }
+      }
+    });
+    return {
+      crewId: assignment.crewId,
+      fullName: profile.fullName || "N/A",
+      position: assignment.role || profile.position || "N/A",
+      department: profile.department || "N/A",
+      days,
+      present,
+      absent,
+      unmarked: Math.max(attendanceDates.length - present - absent, 0),
+      attendanceRate: present + absent ? Math.round((present / (present + absent)) * 10000) / 100 : 0,
+      absenceNotes: absenceNotes.join("; "),
+      recorders: [...new Set(recorders)].join("; "),
+    };
+  });
+
   const loadRows = cargoRows.filter((row) => row.operationType === "LOAD");
   const unloadRows = cargoRows.filter((row) => row.operationType === "UNLOAD");
   const presentCount = attendanceRows.filter((row) => row.status === "Present").length;
@@ -215,7 +286,7 @@ async function buildOperationReport(voyageId, options = {}) {
     actualUnloadWeight: unloadRows.reduce((sum, row) => sum + row.actualWeight, 0),
     loadDifference: loadRows.reduce((sum, row) => sum + row.difference, 0),
     unloadDifference: unloadRows.reduce((sum, row) => sum + row.difference, 0),
-    totalCrew,
+    totalCrew: voyageCrews.length,
     attendanceSessions: attendanceSummary.length,
     presentCount,
     absentCount,
@@ -241,6 +312,7 @@ async function buildOperationReport(voyageId, options = {}) {
     cargo: cargoRows,
     attendance: attendanceRows,
     attendanceSummary,
+    attendanceMatrix: { dates: attendanceDates, rows: attendanceMatrix },
   };
 }
 
@@ -252,6 +324,7 @@ function fromSnapshot(report) {
     cargo: report.cargoSnapshot || [],
     attendance: attendanceSnapshot.rows || [],
     attendanceSummary: attendanceSnapshot.summary || [],
+    attendanceMatrix: attendanceSnapshot.matrix || { dates: [], rows: [] },
   };
 }
 
@@ -337,19 +410,59 @@ async function createWorkbook(data) {
   ]);
   data.cargo.forEach((row, index) => cargo.addRow({ ...row, index: index + 1, operationType: operationLabel(row.operationType) }));
 
-  const attendance = workbook.addWorksheet("CHI_TIET_DIEM_DANH");
-  setupTableSheet(attendance, [
-    { header: "STT", key: "index", width: 7 }, { header: "Ngày", key: "attendanceDate", width: 14 },
-    { header: "Thời gian", key: "recordedAt", width: 20 }, { header: "Loại điểm danh", key: "attendanceType", width: 22 },
-    { header: "Mã thuyền viên", key: "crewId", width: 16 }, { header: "Họ tên", key: "fullName", width: 25 },
-    { header: "Chức vụ", key: "position", width: 20 }, { header: "Bộ phận", key: "department", width: 14 },
-    { header: "Trạng thái", key: "status", width: 14 }, { header: "Lý do/Ghi chú", key: "note", width: 35 },
-    { header: "Người điểm danh", key: "recordedBy", width: 24 },
-  ]);
-  data.attendance.forEach((row, index) => attendance.addRow({
-    ...row, index: index + 1, attendanceType: attendanceTypeLabel(row.attendanceType),
-    status: row.status === "Present" ? "Có mặt" : "Vắng",
-  }));
+  // Bảng chấm công ngang ngay trong CHI_TIET_DIEM_DANH: mỗi người một dòng, mỗi ngày một cột.
+  const attendance = workbook.addWorksheet("CHI_TIET_DIEM_DANH", { properties: { tabColor: { argb: "FF70AD47" } } });
+  const matrixDates = data.attendanceMatrix?.dates || [];
+  const attendanceColumns = [
+    { header: "STT", key: "index", width: 7 },
+    { header: "Mã TV", key: "crewId", width: 10 },
+    { header: "Họ tên", key: "fullName", width: 25 },
+    { header: "Chức vụ", key: "position", width: 22 },
+    { header: "Bộ phận", key: "department", width: 14 },
+    ...matrixDates.map((date, index) => ({
+      header: date.split("-").reverse().slice(0, 2).join("/"),
+      key: `day_${index}`,
+      width: 9,
+    })),
+    { header: "Tổng đi", key: "present", width: 11 },
+    { header: "Tổng vắng", key: "absent", width: 12 },
+    { header: "Chưa chấm", key: "unmarked", width: 12 },
+    { header: "Chuyên cần (%)", key: "attendanceRate", width: 16 },
+    { header: "Lý do/Ghi chú vắng", key: "absenceNotes", width: 35 },
+    { header: "Người điểm danh", key: "recorders", width: 35 },
+  ];
+  attendance.columns = attendanceColumns;
+  attendance.views = [{ state: "frozen", xSplit: 5, ySplit: 1 }];
+  styleHeader(attendance.getRow(1));
+  attendance.getRow(1).height = 35;
+  (data.attendanceMatrix?.rows || []).forEach((row, rowIndex) => {
+    const excelRow = {
+      index: rowIndex + 1,
+      crewId: row.crewId,
+      fullName: row.fullName,
+      position: row.position,
+      department: row.department,
+      present: row.present,
+      absent: row.absent,
+      unmarked: row.unmarked,
+      attendanceRate: row.attendanceRate,
+      absenceNotes: row.absenceNotes || "",
+      recorders: row.recorders || "",
+    };
+    matrixDates.forEach((date, index) => { excelRow[`day_${index}`] = row.days?.[date] || ""; });
+    const addedRow = attendance.addRow(excelRow);
+    matrixDates.forEach((date, index) => {
+      const cell = addedRow.getCell(6 + index);
+      cell.alignment = { horizontal: "center", vertical: "middle" };
+      cell.font = { bold: true, size: 14, color: { argb: cell.value === "✓" ? "FF008000" : cell.value === "X" ? "FFFF0000" : "FF808080" } };
+      if (cell.value === "✓") cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFE2F0D9" } };
+      if (cell.value === "X") cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFFCE4D6" } };
+    });
+  });
+  attendance.autoFilter = { from: "A1", to: `${attendance.getColumn(attendanceColumns.length).letter}1` };
+  attendance.addRow([]);
+  const attendanceLegend = attendance.addRow(["Chú thích", "✓ = Có mặt", "X = Vắng", "Trống = Chưa điểm danh"]);
+  attendanceLegend.font = { italic: true, color: { argb: "FF595959" } };
 
   const attendanceSummary = workbook.addWorksheet("TONG_HOP_DIEM_DANH");
   setupTableSheet(attendanceSummary, [

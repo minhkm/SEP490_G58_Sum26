@@ -12,6 +12,7 @@ import {
   Typography,
   Empty,
   Alert,
+  Input,
 } from 'antd';
 import {
   SaveOutlined,
@@ -31,7 +32,8 @@ export default function AttendancePage() {
   const navigate = useNavigate();
 
   const [activeTab, setActiveTab] = useState('Daily'); // PreDeparture, Daily, PostDischarge
-  const today = new Date().toISOString().split('T')[0];
+  // Dùng ngày địa phương của trình duyệt; toISOString() dùng UTC và có thể lùi 1 ngày tại Việt Nam.
+  const today = dayjs().format(DATE_FORMAT);
   const [selectedDate, setSelectedDate] = useState(today);
 
   const [crewList, setCrewList] = useState([]);
@@ -92,6 +94,11 @@ export default function AttendancePage() {
     setCrewList((prev) => prev.map((c) => (c.crewId === crewId ? { ...c, isPresent } : c)));
   };
 
+  const handleNoteChange = (crewId, note) => {
+    if (!canEdit) return;
+    setCrewList((prev) => prev.map((c) => (c.crewId === crewId ? { ...c, note } : c)));
+  };
+
   const markAll = (isPresent) => {
     if (!canEdit) return;
     setCrewList((prev) => prev.map((c) => ({ ...c, isPresent })));
@@ -103,7 +110,7 @@ export default function AttendancePage() {
       const payload = {
         type: activeTab,
         date: activeTab === 'Daily' ? selectedDate : null,
-        attendanceList: crewList.map((c) => ({ crewId: c.crewId, isPresent: c.isPresent })),
+        attendanceList: crewList.map((c) => ({ crewId: c.crewId, isPresent: c.isPresent, note: c.note || '' })),
       };
 
       await voyageService.saveAttendances(id, payload);
@@ -184,6 +191,20 @@ export default function AttendancePage() {
       dataIndex: 'recordedBy',
       key: 'recordedBy',
       render: (recorder) => recorder?.fullName || 'Chưa ghi nhận',
+    },
+    {
+      title: 'Lý do/Ghi chú',
+      dataIndex: 'note',
+      key: 'note',
+      width: 220,
+      render: (note, crew) => (
+        <Input
+          value={note || ''}
+          placeholder={crew.isPresent ? 'Ghi chú (nếu có)' : 'Nhập lý do vắng'}
+          onChange={(event) => handleNoteChange(crew.crewId, event.target.value)}
+          disabled={rowDisabled}
+        />
+      ),
     },
   ];
 
