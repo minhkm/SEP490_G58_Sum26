@@ -12,6 +12,46 @@ router.post('/', async (req, res) => {
   const t = await sequelize.transaction();
   try {
     const { shipId, routeInfo, cargoList, crewList, equipmentList } = req.body;
+    const { Op } = require('sequelize');
+    const errors = [];
+
+    // 1. Kiểm tra tàu có đang trong hải trình khác không
+    const activeVoyageForShip = await Voyage.findOne({
+      where: {
+        shipId,
+        status: { [Op.notIn]: ['Completed', 'Cancelled'] }
+      }
+    });
+    if (activeVoyageForShip) {
+      errors.push('Tàu này đang thực hiện một hải trình khác chưa hoàn thành.');
+    }
+
+    // 2. Kiểm tra hàng hoá có đang trong hải trình khác không
+    if (cargoList && cargoList.length > 0) {
+      const cargoIds = cargoList.map(c => c.cargoId).filter(Boolean);
+      if (cargoIds.length > 0) {
+        const busyCargos = await Cargo.findAll({
+          where: { id: cargoIds, voyageId: { [Op.not]: null } },
+          include: [{
+            model: Voyage,
+            where: { status: { [Op.notIn]: ['Completed', 'Cancelled'] } },
+            required: true
+          }]
+        });
+
+        if (busyCargos.length > 0) {
+          const busyCargoNames = busyCargos.map(c => c.cargoName).join(', ');
+          errors.push(`Các lô hàng sau đang thuộc hải trình khác: ${busyCargoNames}`);
+        }
+      }
+    }
+
+    if (errors.length > 0) {
+      await t.rollback();
+      return res.status(400).json({ 
+        message: `Không thể tạo hải trình!\n- ${errors.join('\n- ')}` 
+      });
+    }
 
     // Validate Ship Capacity against selected Cargo
     if (cargoList && cargoList.length > 0) {
@@ -544,6 +584,11 @@ router.put('/:id', authMiddleware, async (req, res) => {
     }
 
     await voyage.save();
+
+    // Hủy hải trình -> giải phóng lô hàng
+    if (nextStatus === 'Cancelled' && previousVoyage.status !== 'Cancelled') {
+      await Cargo.update({ voyageId: null, status: 'Đã ở cảng' }, { where: { voyageId: id } });
+    }
 
     if (routeStatusChangedToPending) {
        const captainProfile = await CrewProfile.findOne({ where: { voyageId: voyage.id, position: 'Master' } });

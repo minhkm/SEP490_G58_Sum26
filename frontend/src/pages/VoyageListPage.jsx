@@ -30,6 +30,7 @@ export default function VoyageListPage() {
   const userRole = (user.role || '').replace(/\s+/g, '').toLowerCase();
   const canEdit = ['admin', 'agency', 'chiefofficer', 'master'].includes(userRole);
   const canAttendance = ['master'].includes(userRole);
+  const canCreate = ['admin', 'agency'].includes(userRole);
 
   const Layout = userRole === 'admin' || userRole === 'agency' ? AgencyLayout : MasterLayout;
 
@@ -144,9 +145,11 @@ export default function VoyageListPage() {
           breadcrumb="Voyages"
           title="Danh sách hải trình"
           extra={
-            <Button type="primary" icon={<PlusOutlined />} onClick={() => navigate('/voyages/new')}>
-              Tạo hải trình
-            </Button>
+            canCreate && (
+              <Button type="primary" icon={<PlusOutlined />} onClick={() => navigate('/voyages/new')}>
+                Tạo hải trình
+              </Button>
+            )
           }
         />
 
