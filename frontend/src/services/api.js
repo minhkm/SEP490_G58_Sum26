@@ -69,6 +69,12 @@ export const voyageService = {
   saveAttendances: async (id, payload) => {
     const response = await api.post(`/voyages/${id}/attendances`, payload);
     return response.data;
+  },
+  exportOperationReport: async (id, params = {}) => {
+    return api.get(`/voyages/${id}/operation-report/export`, {
+      params,
+      responseType: 'blob',
+    });
   }
 };
 
