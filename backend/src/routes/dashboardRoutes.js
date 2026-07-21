@@ -14,8 +14,8 @@ router.get('/agency', async (req, res) => {
     // Nếu bảng Voyage có trường status, ví dụ 'In Progress', tạm đếm những chuyến đang có
     // Nếu chưa có, tạm đếm tất cả
     const voyagesInProgress = await Voyage.count({ 
-      where: { status: 'In Progress' } 
-    }).catch(() => Voyage.count()); // Dự phòng lỗi nếu ko có status 'In Progress'
+      where: { status: { [Op.notIn]: ['Completed', 'Cancelled'] } } 
+    }).catch(() => Voyage.count()); // Dự phòng lỗi
     
     // Pending approvals (giả lập là 0 trước)
     const pendingApprovals = 0;

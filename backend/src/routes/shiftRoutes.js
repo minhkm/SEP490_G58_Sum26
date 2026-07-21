@@ -59,7 +59,7 @@ async function resolveContext(req) {
 
   const membership = await VoyageCrew.findOne({
     where: { crewId: profile.id },
-    include: [{ model: Voyage, where: { status: 'InProgress' }, include: [Ship] }],
+    include: [{ model: Voyage, where: { status: { [Op.notIn]: ['Completed', 'Cancelled'] } }, include: [Ship] }],
   });
   if (!membership || !membership.Voyage) {
     return { error: 'Hiện không có hải trình nào đang diễn ra cho bạn.', profile };

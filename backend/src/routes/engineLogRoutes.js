@@ -7,6 +7,14 @@ const upload = require('../middleware/upload');
 // Áp dụng xác thực cho toàn bộ routes này
 router.use(authMiddleware);
 
+// Chỉ Thợ máy (EngineCrew) mới được ghi nhật ký trực máy
+router.use((req, res, next) => {
+  if (req.user?.role !== 'EngineCrew') {
+    return res.status(403).json({ message: 'Chỉ Thợ máy mới được truy cập nhật ký trực máy.' });
+  }
+  next();
+});
+
 // Lấy danh sách hải trình của user
 router.get('/my-voyages', ctrl.getMyVoyages);
 

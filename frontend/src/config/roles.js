@@ -3,6 +3,12 @@
 // Các role được phép quản lý chức năng Hàng hóa (Cargo).
 export const CARGO_ROLES = ['Admin', 'Master', 'ChiefOfficer'];
 
+// Thủy thủ boong (Sailor) mới được ghi Nhật ký trực boong.
+export const DECK_LOG_ROLES = ['Sailor'];
+
+// Thợ máy (EngineCrew) mới được ghi Nhật ký trực máy.
+export const ENGINE_LOG_ROLES = ['EngineCrew'];
+
 // Trả về dashboard tương ứng với role hiện tại.
 export function getDashboardPath(role) {
   if (role === 'Master' || role === 'ChiefOfficer') return '/master-dashboard';

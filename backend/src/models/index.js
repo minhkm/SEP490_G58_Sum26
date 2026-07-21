@@ -24,6 +24,7 @@ const Shift = require("./Shift");
 const ShiftLog = require("./ShiftLog");
 const Report = require("./Report");
 const ReportReply = require("./ReportReply");
+const ShiftLogEquipment = require("./ShiftLogEquipment");
 const EngineParameter = require("./EngineParameter");
 const DeckLog = require("./DeckLog");
 const EngineLog = require("./EngineLog");
@@ -59,8 +60,12 @@ ShipCapacity.belongsTo(Ship, { foreignKey: "shipId" });
 Ship.hasMany(Engine, { foreignKey: "shipId" });
 Engine.belongsTo(Ship, { foreignKey: "shipId" });
 
-Voyage.hasMany(Equipment, { foreignKey: "voyageId" });
-Equipment.belongsTo(Voyage, { foreignKey: "voyageId" });
+// Equipment: hải trình (thiết bị y tế) hoặc tàu (thiết bị cứu sinh, chữa cháy,...)
+Voyage.hasMany(Equipment, { foreignKey: { name: "voyageId", allowNull: true } });
+Equipment.belongsTo(Voyage, { foreignKey: { name: "voyageId", allowNull: true } });
+
+Ship.hasMany(Equipment, { foreignKey: { name: "shipId", allowNull: true } });
+Equipment.belongsTo(Ship, { foreignKey: { name: "shipId", allowNull: true } });
 
 Ship.hasMany(CargoHold, { foreignKey: "shipId" });
 CargoHold.belongsTo(Ship, { foreignKey: "shipId" });
@@ -178,6 +183,10 @@ LogImage.belongsTo(ShiftLog, { foreignKey: "shiftLogId" });
 ShiftLog.hasMany(LogEditHistory, { foreignKey: "shiftLogId" });
 LogEditHistory.belongsTo(ShiftLog, { foreignKey: "shiftLogId" });
 
+// ShiftLog N-M Equipment (Many-to-Many via ShiftLogEquipment)
+ShiftLog.belongsToMany(Equipment, { through: ShiftLogEquipment, foreignKey: "shiftLogId", as: "Equipments" });
+Equipment.belongsToMany(ShiftLog, { through: ShiftLogEquipment, foreignKey: "equipmentId", as: "ShiftLogs" });
+
 // CrewProfile -> LogEditHistory
 CrewProfile.hasMany(LogEditHistory, { foreignKey: "editedBy" });
 LogEditHistory.belongsTo(CrewProfile, { foreignKey: "editedBy" });
@@ -216,7 +225,7 @@ module.exports = {
   Voyage, VoyageCrew,
   Cargo, CargoItem, CargoType, CargoOperation,
   Attendance, VoyageOperationReport,
-  Shift, ShiftLog,
+  Shift, ShiftLog, ShiftLogEquipment,
   Report, ReportReply,
   EngineParameter,
   DeckLog,

@@ -40,20 +40,27 @@ export default function MyVoyagesPage() {
     }
   };
 
-  const parseRole = (roleStr) => {
-    if (!roleStr) return 'Sailor';
-    const lower = roleStr.toLowerCase();
+  // Đưa chuỗi role trong VoyageCrew và role thực tế của tài khoản vào để map sang frontend role
+  const parseRole = (roleStr, accountRole) => {
+    if (!roleStr && !accountRole) return 'Sailor';
+    const lower = (roleStr || '').toLowerCase();
+    // Map vai trò rõ ràng trước
     if (lower.includes('captain') || lower.includes('master')) return 'Master';
     if (lower.includes('chief officer')) return 'ChiefOfficer';
-    if (lower.includes('chief engineer')) return 'ChiefEngineer';
+    if (lower.includes('chief engineer') || lower.includes('engine officer')) return 'EngineOfficer';
     if (lower.includes('deck officer')) return 'DeckOfficer';
-    if (lower.includes('engine officer')) return 'EngineOfficer';
     if (lower.includes('engine crew')) return 'EngineCrew';
+    // Với các chuỗi chung (“Thủy thủ”, “Crew”, v.v.), dùng role thực tế của tài khoản
+    if (accountRole === 'EngineCrew') return 'EngineCrew';
+    if (accountRole === 'Sailor') return 'Sailor';
+    if (accountRole === 'DeckOfficer') return 'DeckOfficer';
+    if (accountRole === 'EngineOfficer') return 'EngineOfficer';
+    if (accountRole === 'ChiefEngineer') return 'EngineOfficer'; // legacy
     return 'Sailor';
   };
 
   const handleSelectVoyage = (voyage) => {
-    const activeRole = parseRole(voyage.userRoleInVoyage);
+    const activeRole = parseRole(voyage.userRoleInVoyage, user.role);
     
     // Save context
     localStorage.setItem('activeVoyageId', voyage.id);

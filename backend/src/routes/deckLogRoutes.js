@@ -7,6 +7,14 @@ const upload = require('../middleware/upload');
 // Áp dụng xác thực cho toàn bộ routes này
 router.use(authMiddleware);
 
+// Chỉ Thủy thủ boong (Sailor) mới được ghi nhật ký trực boong
+router.use((req, res, next) => {
+  if (req.user?.role !== 'Sailor') {
+    return res.status(403).json({ message: 'Chỉ Thủy thủ boong mới được truy cập nhật ký trực boong.' });
+  }
+  next();
+});
+
 // Lấy danh sách hải trình mà user tham gia
 router.get('/my-voyages', ctrl.getMyVoyages);
 

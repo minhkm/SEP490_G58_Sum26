@@ -3,9 +3,10 @@ import { useSearchParams } from 'react-router-dom';
 import { Select, Input, InputNumber, Button, Table, Card, Spin, Empty, Typography, Space, Alert, DatePicker, Upload, Modal, Image, Timeline, Tag, Row, Col } from 'antd';
 import { FileTextOutlined, SaveOutlined, ClockCircleOutlined, CompassOutlined, CalendarOutlined, UploadOutlined, EditOutlined, HistoryOutlined, PictureOutlined } from '@ant-design/icons';
 import MasterLayout from '../components/MasterLayout';
-import { deckLogService } from '../services/api';
+import { deckLogService, voyageService } from '../services/api';
 import { PageHeader, notifyWarning, notifySuccess, notifyError } from '../components/common';
 import dayjs from 'dayjs';
+import { SHIFT_SLOTS, slotFromStart } from '../config/shifts';
 
 const { Title, Text } = Typography;
 const { TextArea } = Input;
@@ -35,7 +36,7 @@ const ENTRY_FIELDS = [
 const HELMSMAN_FIELDS = ['courseTrue', 'courseGyro', 'courseSteer', 'gyroError', 'courseMagnetic', 'speed', 'rpm'];
 const LOOKOUT_FIELDS = ['windDirection', 'windForce', 'weather', 'barometer', 'seaState', 'visibility', 'airTemp', 'seaTemp'];
 
-// Tính các giờ thuộc ca trực (VD: ca 00:00-04:00 → giờ 1,2,3,4)
+// Tính các giờ thuộc ca trực (VD: ca 08:00-12:00 → giờ 8,9,10,11)
 const getShiftHours = (shift) => {
   if (!shift) return [];
   const st = new Date(shift.startTime);
@@ -43,7 +44,7 @@ const getShiftHours = (shift) => {
   const startH = st.getHours();
   const endH = et.getHours() === 0 ? 24 : et.getHours();
   const hours = [];
-  for (let h = startH + 1; h <= endH; h++) {
+  for (let h = startH; h < endH; h++) {
     hours.push(h);
   }
   return hours;
@@ -100,6 +101,7 @@ export default function DeckLogPage() {
         const voyage = (initVoyageId && data.find(v => v.id === Number(initVoyageId)))
           || data.find(v => v.status !== 'Completed') || data[0];
         setSelectedVoyage(voyage);
+
         const date = initDate ? dayjs(initDate) : dayjs();
         setSelectedDate(date);
         const shiftsData = await deckLogService.getShifts(voyage.id, date.format('YYYY-MM-DD'));
@@ -181,6 +183,13 @@ export default function DeckLogPage() {
   const handleSubmit = async () => {
     if (!selectedShift) { notifyWarning('Vui lòng chọn ca trực'); return; }
 
+    // Kiểm tra ca trực đã bắt đầu chưa
+    const shiftStart = new Date(selectedShift.startTime);
+    if (new Date() < shiftStart) {
+      notifyWarning('Ca trực chưa bắt đầu, chưa thể ghi nhật ký');
+      return;
+    }
+
     // Check có ít nhất 1 dòng có dữ liệu
     const filledEntries = entries.filter(e => 
       ENTRY_FIELDS.some(f => e[f.key] !== null && e[f.key] !== '' && e[f.key] !== undefined)
@@ -191,7 +200,11 @@ export default function DeckLogPage() {
     }
 
     try {
-      const result = await deckLogService.create({ shiftId: selectedShift.id, note, entries: filledEntries });
+      const result = await deckLogService.create({ 
+        shiftId: selectedShift.id, 
+        note, 
+        entries: filledEntries
+      });
 
       if (fileList.length > 0 && result.shiftLog?.id) {
         const files = fileList.map(f => f.originFileObj);
@@ -216,7 +229,7 @@ export default function DeckLogPage() {
     setEditingLog(log);
     setEditNote(log.DeckLog?.note || log.content || '');
     setEditReason('');
-
+    
     // Load entries hiện tại hoặc tạo dòng trống
     const existingEntries = log.DeckLog?.DeckLogEntries || [];
     if (existingEntries.length > 0) {
@@ -261,8 +274,8 @@ export default function DeckLogPage() {
     setHistoryModalOpen(true);
   };
 
-  const formatTime = (d) => d ? new Date(d).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }) : '';
-  const formatDateTime = (d) => d ? new Date(d).toLocaleString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '';
+  const formatTime = (d) => d ? dayjs(d).format('HH:mm') : '';
+  const formatDateTime = (d) => d ? dayjs(d).format('DD/MM/YYYY HH:mm') : '';
 
   // ===== Kiểm tra giờ đã qua chưa (chỉ cho nhập giờ đã qua) =====
   const isHourAllowed = (hour) => {
@@ -271,8 +284,20 @@ export default function DeckLogPage() {
     const shiftDate = new Date(selectedShift.startTime);
     // Nếu không phải hôm nay → cho phép hết (xem lại)
     if (now.toDateString() !== shiftDate.toDateString()) return true;
+    // Giờ 24 (ca đêm 20-24) = 00:00 ngày hôm sau → chỉ cho phép sau nửa đêm
+    if (hour === 24) {
+      const nextDay = new Date(shiftDate);
+      nextDay.setDate(nextDay.getDate() + 1);
+      nextDay.setHours(0, 0, 0, 0);
+      return now >= nextDay;
+    }
     return hour <= now.getHours();
   };
+
+  // Kiểm tra ca trực đã bắt đầu chưa (dể hiển thị cảnh báo)
+  const isShiftStarted = selectedShift ? new Date() >= new Date(selectedShift.startTime) : false;
+  // Kiểm tra ca trực đã kết thúc chưa
+  const isShiftEnded = selectedShift ? new Date() > new Date(selectedShift.endTime) : false;
 
   // ===== Kiểm tra field có được phép điền theo vị trí =====
   const isFieldAllowed = (fieldKey) => {
@@ -414,7 +439,11 @@ export default function DeckLogPage() {
             <div style={{ minWidth: 320 }}>
               <div style={{ marginBottom: 6 }}><Text type="secondary"><ClockCircleOutlined /> Chọn Ca trực</Text></div>
               <Select style={{ width: '100%' }} placeholder="-- Chọn ca trực --" allowClear value={selectedShift?.id || undefined} onChange={handleShiftChange}
-                options={shifts.map(s => ({ value: s.id, label: `${s.CrewProfile?.fullName} | ${formatTime(s.startTime)} - ${formatTime(s.endTime)}${s.position ? ` — ${s.position}` : ''} (${s.status})` }))} />
+                options={shifts.map(s => {
+                  const slot = SHIFT_SLOTS.find(sl => sl.slot === slotFromStart(s.startTime));
+                  const timeLabel = slot ? slot.label : `${formatTime(s.startTime)} - ${formatTime(s.endTime)}`;
+                  return { value: s.id, label: `${s.CrewProfile?.fullName} | ${timeLabel}${s.position ? ` — ${s.position}` : ''} (${s.status})` };
+                })} />
             </div>
           </Space>
         </Card>
@@ -429,10 +458,24 @@ export default function DeckLogPage() {
             type={canEdit ? 'info' : 'warning'} showIcon style={{ marginBottom: 16 }} />
         )}
 
+        {/* Cảnh báo ca đã kết thúc */}
+        {selectedShift && !isCompleted && isToday && isShiftEnded && (
+          <Alert
+            message="Ca trực đã kết thúc"
+            description={history.length > 0
+              ? 'Giờ trực đã qua, không thể ghi nhật ký mới. Bạn có thể xem và chỉnh sửa lịch sử ghi chép bên dưới.'
+              : 'Giờ trực đã qua, không thể ghi nhật ký mới cho ca này.'}
+            type="warning" showIcon style={{ marginBottom: 16 }} />
+        )}
+
         {/* ===== BẢNG NHẬP LIỆU THEO GIỜ ===== */}
-        {selectedShift && !isCompleted && isToday && entries.length > 0 && (
+        {selectedShift && !isCompleted && isToday && !isShiftEnded && entries.length > 0 && (
           <Card style={{ marginBottom: 16 }}
-            title={<span>📋 Nhật ký Boong — Ca: {formatTime(selectedShift.startTime)} - {formatTime(selectedShift.endTime)} {selectedShift.position && <Tag color={selectedShift.position === 'Lái tàu' ? 'blue' : 'green'}>{selectedShift.position}</Tag>}</span>}>
+            title={(() => {
+              const slot = SHIFT_SLOTS.find(sl => sl.slot === slotFromStart(selectedShift.startTime));
+              const timeLabel = slot ? slot.label : `${formatTime(selectedShift.startTime)} - ${formatTime(selectedShift.endTime)}`;
+              return <span>📋 Nhật ký Boong — Ca: {timeLabel} {selectedShift.position && <Tag color={selectedShift.position === 'Lái tàu' ? 'blue' : 'green'}>{selectedShift.position}</Tag>}</span>;
+            })()}>
 
             <div style={{ overflowX: 'auto', marginBottom: 16 }}>
               <table style={{ borderCollapse: 'collapse', width: '100%', minWidth: 1200 }}>
@@ -520,6 +563,11 @@ export default function DeckLogPage() {
         <div style={{ marginBottom: 16 }}>
           <label style={{ fontWeight: 500, display: 'block', marginBottom: 4 }}>Lý do chỉnh sửa <span style={{ color: 'red' }}>*</span></label>
           <TextArea rows={2} placeholder="VD: Bổ sung thông tin, sửa lỗi chính tả..." value={editReason} onChange={e => setEditReason(e.target.value)} />
+        </div>
+
+        <div style={{ marginBottom: 16 }}>
+          <label style={{ fontWeight: 500, display: 'block', marginBottom: 4 }}>Ghi chú</label>
+          <TextArea rows={2} placeholder="Nhập ghi chú..." value={editNote} onChange={e => setEditNote(e.target.value)} />
         </div>
 
         {/* Bảng chỉnh sửa entries */}
