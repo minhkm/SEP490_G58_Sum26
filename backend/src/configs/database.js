@@ -9,6 +9,7 @@ const sequelize = new Sequelize(
     host: process.env.DB_HOST,
     port: process.env.DB_PORT,
     dialect: "mysql",
+    timezone: '+07:00', // múi giờ Việt Nam
     logging: false, // bật true nếu muốn xem câu SQL Sequelize chạy
     dialectOptions: {
       dateStrings: true,

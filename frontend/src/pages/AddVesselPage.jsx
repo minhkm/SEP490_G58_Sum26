@@ -15,6 +15,8 @@ import {
   Typography,
   Radio,
   Divider,
+  Empty,
+  Alert,
 } from 'antd';
 import {
   PlusOutlined,
@@ -26,6 +28,7 @@ import {
   DashboardOutlined,
   FireOutlined,
   CloudOutlined,
+  ToolOutlined,
 } from '@ant-design/icons';
 import AgencyLayout from '../components/AgencyLayout';
 import { vesselService } from '../services/api';
@@ -58,6 +61,11 @@ export default function AddVesselPage() {
 
   // Holds State
   const [holds, setHolds] = useState([]);
+
+  // Ship Equipment State (thiết bị của tàu — không phải hải trình)
+  const SHIP_EQ_TYPES = ['Thiết bị cứu sinh', 'Thiết bị chữa cháy', 'Dụng cụ sửa chữa', 'Thiết bị hàng hải', 'Thiết bị liên lạc', 'Khác'];
+  const SHIP_EQ_LOCATIONS = ['Boong', 'Buồng máy', 'Buồng lái'];
+  const [shipEquipments, setShipEquipments] = useState([]);
 
   // 3 thông số bắt buộc (fix cứng, không xóa được)
   const REQUIRED_PARAMS = ['Fuel Oil Pressure (kg/cm²)', 'Exhaust Gas Temp XL2 (°C)', 'Cooling Water Temp (°C)'];
@@ -194,6 +202,21 @@ export default function AddVesselPage() {
             );
           }
 
+          // Load equipment của tàu nếu edit mode
+          try {
+            const eqs = await vesselService.getShipEquipments(data.id);
+            if (eqs && eqs.length > 0) {
+              setShipEquipments(eqs.map((e, i) => ({
+                _uid: i + 1,
+                id: e.id,
+                equipmentName: e.equipmentName,
+                equipmentType: e.equipmentType,
+                location: e.location,
+                quantity: e.quantity,
+                expiryNote: e.expiryNote || '',
+              })));
+            }
+          } catch (e) { console.error(e); }
 
         } catch (error) {
           console.error('Lỗi tải thông tin tàu:', error);
@@ -286,7 +309,17 @@ export default function AddVesselPage() {
     setHolds(holds.filter((h) => h.id !== holdId));
   };
 
-
+  // ===== Ship Equipment Handlers =====
+  const addShipEquipment = () => {
+    const newUid = shipEquipments.length > 0 ? Math.max(...shipEquipments.map(e => e._uid)) + 1 : 1;
+    setShipEquipments([...shipEquipments, { _uid: newUid, equipmentName: '', equipmentType: '', location: 'Boong', quantity: 1, expiryNote: '' }]);
+  };
+  const removeShipEquipment = (uid) => {
+    setShipEquipments(shipEquipments.filter(e => e._uid !== uid));
+  };
+  const handleShipEquipChange = (uid, field, value) => {
+    setShipEquipments(shipEquipments.map(e => e._uid === uid ? { ...e, [field]: value } : e));
+  };
 
   const handleSubmit = async () => {
     // Validation: Các trường bắt buộc
@@ -345,19 +378,35 @@ export default function AddVesselPage() {
     }
 
     try {
-      const payload = {
-        basicInfo,
-        capacity,
-        mainEngine,
-        generatorEngines,
-        holds,
-      };
+      const payload = { basicInfo, capacity, mainEngine, generatorEngines, holds };
 
       if (isEditMode) {
         await vesselService.update(id, payload);
+        // Cập nhật equipment (chỉ tạo mới nếu có điền vào)
+        const validEqs = shipEquipments.filter(e => e.equipmentName && e.equipmentName.trim() && e.quantity >= 1);
+        if (validEqs.length > 0) {
+          await vesselService.createShipEquipments(id, validEqs.map(e => ({
+            equipmentName: e.equipmentName,
+            equipmentType: e.equipmentType || 'Khác',
+            location: e.location || 'Boong',
+            quantity: Number(e.quantity) || 1,
+            expiryNote: e.expiryNote || null,
+          })));
+        }
         notifySuccess('Cập nhật thông tin tàu thành công!');
       } else {
-        await vesselService.create(payload);
+        const created = await vesselService.create(payload);
+        // Tạo equipment cho tàu mới
+        const validEqs = shipEquipments.filter(e => e.equipmentName && e.equipmentName.trim() && e.quantity >= 1);
+        if (validEqs.length > 0 && created?.ship?.id) {
+          await vesselService.createShipEquipments(created.ship.id, validEqs.map(e => ({
+            equipmentName: e.equipmentName,
+            equipmentType: e.equipmentType || 'Khác',
+            location: e.location || 'Boong',
+            quantity: Number(e.quantity) || 1,
+            expiryNote: e.expiryNote || null,
+          })));
+        }
         notifySuccess('Thêm tàu mới thành công!');
       }
       navigate('/vessels');
@@ -754,6 +803,54 @@ export default function AddVesselPage() {
             </Card>
           </Col>
         </Row>
+
+        {/* Card: Thiết bị của tàu */}
+        <Card
+          title={<Space><ToolOutlined /><span>Thiết bị của tàu</span></Space>}
+          extra={<Button type="link" icon={<PlusOutlined />} onClick={addShipEquipment}>Thêm thiết bị</Button>}
+          style={{ marginTop: 24 }}
+        >
+          {shipEquipments.length === 0 ? (
+            <Empty description="Chưa có thiết bị nào. Nhấn &lsquo;Thêm thiết bị&rsquo; để bắt đầu." />
+          ) : (
+            <Space direction="vertical" style={{ width: '100%' }} size={8}>
+              {shipEquipments.map((eq) => (
+                <div key={eq._uid} style={{ display: 'flex', gap: 8, alignItems: 'flex-start', padding: '10px 12px', border: '1px solid #e2e8f0', borderRadius: 6, background: '#fafbfc' }}>
+                  <div style={{ flex: 2 }}>
+                    <div style={{ fontSize: 11, color: '#64748b', marginBottom: 2 }}>Tên thiết bị <span style={{ color: 'red' }}>*</span></div>
+                    <Input placeholder="VD: Áo phao cá nhân, Radar, Bình chữa cháy..." value={eq.equipmentName}
+                      onChange={e => handleShipEquipChange(eq._uid, 'equipmentName', e.target.value)} />
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: 11, color: '#64748b', marginBottom: 2 }}>Loại</div>
+                    <Select style={{ width: '100%' }} value={eq.equipmentType || undefined} placeholder="Chọn loại"
+                      onChange={v => handleShipEquipChange(eq._uid, 'equipmentType', v)}
+                      options={SHIP_EQ_TYPES.map(t => ({ value: t, label: t }))} />
+                  </div>
+                  <div style={{ width: 120 }}>
+                    <div style={{ fontSize: 11, color: '#64748b', marginBottom: 2 }}>Vị trí</div>
+                    <Select style={{ width: '100%' }} value={eq.location || 'Boong'}
+                      onChange={v => handleShipEquipChange(eq._uid, 'location', v)}
+                      options={SHIP_EQ_LOCATIONS.map(l => ({ value: l, label: l }))} />
+                  </div>
+                  <div style={{ width: 90 }}>
+                    <div style={{ fontSize: 11, color: '#64748b', marginBottom: 2 }}>Số lượng <span style={{ color: 'red' }}>*</span></div>
+                    <InputNumber min={1} style={{ width: '100%' }} value={eq.quantity || 1}
+                      onChange={v => handleShipEquipChange(eq._uid, 'quantity', v)} />
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: 11, color: '#64748b', marginBottom: 2 }}>Hạn sử dụng (ghi chú)</div>
+                    <Input placeholder="VD: 06/2027 hoặc Không có hạn" value={eq.expiryNote || ''}
+                      onChange={e => handleShipEquipChange(eq._uid, 'expiryNote', e.target.value)} />
+                  </div>
+                  <div style={{ paddingTop: 22 }}>
+                    <Button type="text" danger icon={<DeleteOutlined />} onClick={() => removeShipEquipment(eq._uid)} />
+                  </div>
+                </div>
+              ))}
+            </Space>
+          )}
+        </Card>
 
         {/* Footer actions */}
         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 12, marginTop: 24 }}>

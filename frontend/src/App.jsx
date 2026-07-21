@@ -23,10 +23,11 @@ import ShiftViewPage from "./pages/ShiftViewPage";
 import AttendancePage from "./pages/AttendancePage";
 import RoutePlannerPage from "./pages/RoutePlannerPage";
 import RequireRole from "./components/RequireRole";
-import { CARGO_ROLES, REPORT_ROLES } from "./config/roles";
+import { CARGO_ROLES, REPORT_ROLES, DECK_LOG_ROLES, ENGINE_LOG_ROLES } from "./config/roles";
 import { SHIFT_OFFICER_ROLES } from "./config/shifts";
 
 import DeckLogPage from "./pages/DeckLogPage";
+import EngineManagePage from "./pages/EngineManagePage";
 import ReportListPage from "./pages/ReportListPage";
 import ReportDetailPage from "./pages/ReportDetailPage";
 import MyVoyagesPage from './pages/MyVoyagesPage';
@@ -101,7 +102,11 @@ function App() {
         <Route path="/crews/edit/:id" element={<AddCrewPage />} />
         <Route path="/crew-dashboard" element={<CrewDashboard />} />
         <Route path="/crew-profile" element={<CrewProfilePage />} />
-        <Route path="/engine-logs" element={<EngineLogPage />} />
+        <Route path="/engine-logs" element={
+          <RequireRole allow={ENGINE_LOG_ROLES}>
+            <EngineLogPage />
+          </RequireRole>
+        } />
         <Route path="/shifts" element={<ShiftViewPage />} />
         <Route
           path="/shifts/manage"
@@ -112,7 +117,16 @@ function App() {
           }
         />
 
-        <Route path="/deck-logs" element={<DeckLogPage />} />
+        <Route path="/deck-logs" element={
+          <RequireRole allow={DECK_LOG_ROLES}>
+            <DeckLogPage />
+          </RequireRole>
+        } />
+        <Route path="/engine-management" element={
+          <RequireRole allow={['EngineOfficer', 'ChiefEngineer']}>
+            <EngineManagePage />
+          </RequireRole>
+        } />
         <Route
           path="/reports"
           element={

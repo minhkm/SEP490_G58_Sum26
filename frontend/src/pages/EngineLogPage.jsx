@@ -3,9 +3,10 @@ import { useSearchParams } from 'react-router-dom';
 import { Select, Input, InputNumber, Button, Table, Card, Tag, Spin, Empty, Typography, Space, Row, Col, Alert, DatePicker, Upload, Modal, Image, Timeline, Tooltip } from 'antd';
 import { DashboardOutlined, SaveOutlined, ClockCircleOutlined, CompassOutlined, CalendarOutlined, UploadOutlined, EditOutlined, HistoryOutlined, PictureOutlined } from '@ant-design/icons';
 import MasterLayout from '../components/MasterLayout';
-import { engineLogService } from '../services/api';
+import { engineLogService, voyageService } from '../services/api';
 import { PageHeader, notifyWarning, notifySuccess, notifyError } from '../components/common';
 import dayjs from 'dayjs';
+import { SHIFT_SLOTS, slotFromStart } from '../config/shifts';
 import './EngineLogPage.css';
 
 const { Title, Text } = Typography;
@@ -60,7 +61,9 @@ export default function EngineLogPage() {
         const voyage = (initVoyageId && data.find(v => v.id === Number(initVoyageId)))
           || data.find(v => v.status !== 'Completed') || data[0];
         setSelectedVoyage(voyage);
-        if (voyage.Ship?.Engines) setEngines(voyage.Ship.Engines);
+
+        // Chỉ hiển thị máy đang Operational cho thợ máy ghi nhật ký
+        if (voyage.Ship?.Engines) setEngines(voyage.Ship.Engines.filter(e => e.status === 'Operational'));
         const date = initDate ? dayjs(initDate) : dayjs();
         setSelectedDate(date);
         const shiftsData = await engineLogService.getShifts(voyage.id, date.format('YYYY-MM-DD'));
@@ -93,7 +96,8 @@ export default function EngineLogPage() {
     setNote('');
     setFileList([]);
     if (v) {
-      if (v.Ship?.Engines) setEngines(v.Ship.Engines);
+      // Chỉ hiển thị máy đang Operational cho thợ máy ghi nhật ký
+      if (v.Ship?.Engines) setEngines(v.Ship.Engines.filter(e => e.status === 'Operational'));
       const shiftsData = await engineLogService.getShifts(v.id, selectedDate.format('YYYY-MM-DD'));
       setShifts(shiftsData);
     }
@@ -162,6 +166,11 @@ export default function EngineLogPage() {
       notifyWarning('Vui lòng chọn ca trực và máy cần kiểm tra');
       return;
     }
+    // Kiểm tra ca trực đã bắt đầu chưa
+    if (new Date() < new Date(selectedShift.startTime)) {
+      notifyWarning('Ca trực chưa bắt đầu, chưa thể ghi nhật ký');
+      return;
+    }
     const values = Object.entries(paramValues)
       .filter(([, val]) => val !== '' && val !== null)
       .map(([paramId, value]) => ({ parameterId: parseInt(paramId), value: parseFloat(value) }));
@@ -181,7 +190,7 @@ export default function EngineLogPage() {
       const result = await engineLogService.create({
         shiftId: selectedShift.id,
         engineId: selectedEngine.id,
-        note, values,
+        note, values
       });
 
       // Upload ảnh nếu có
@@ -243,7 +252,9 @@ export default function EngineLogPage() {
       }
 
       await engineLogService.update(editingLog.id, {
-        note: editNote, values, editReason: editReason.trim()
+        note: editNote, 
+        values, 
+        editReason: editReason.trim()
       });
       notifySuccess('Cập nhật nhật ký thành công');
       setEditModalOpen(false);
@@ -261,10 +272,8 @@ export default function EngineLogPage() {
     setHistoryModalOpen(true);
   };
 
-  const formatTime = (d) =>
-    d ? new Date(d).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }) : '';
-  const formatDateTime = (d) =>
-    d ? new Date(d).toLocaleString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '';
+  const formatTime = (d) => d ? dayjs(d).format('HH:mm') : '';
+  const formatDateTime = (d) => d ? dayjs(d).format('DD/MM/YYYY HH:mm') : '';
 
   const statusBorderColor = (status) =>
     status === 'danger' ? '#dc2626' : status === 'warning' ? '#f59e0b' : undefined;
@@ -354,7 +363,11 @@ export default function EngineLogPage() {
             <div style={{ minWidth: 320 }}>
               <div style={{ marginBottom: 6 }}><Text type="secondary"><ClockCircleOutlined /> Chọn Ca trực</Text></div>
               <Select style={{ width: '100%' }} placeholder="-- Chọn ca trực --" allowClear value={selectedShift?.id || undefined} onChange={handleShiftChange}
-                options={shifts.map(s => ({ value: s.id, label: `${s.CrewProfile?.fullName} | ${formatTime(s.startTime)} - ${formatTime(s.endTime)} (${s.status})` }))} />
+                options={shifts.map(s => {
+                  const slot = SHIFT_SLOTS.find(sl => sl.slot === slotFromStart(s.startTime));
+                  const timeLabel = slot ? slot.label : `${formatTime(s.startTime)} - ${formatTime(s.endTime)}`;
+                  return { value: s.id, label: `${s.CrewProfile?.fullName} | ${timeLabel} (${s.status})` };
+                })} />
             </div>
           </Space>
         </Card>
@@ -369,9 +382,26 @@ export default function EngineLogPage() {
             type={canEdit ? 'info' : 'warning'} showIcon style={{ marginBottom: 16 }} />
         )}
 
+        {/* Cảnh báo ca đã kết thúc */}
+        {selectedShift && !isCompleted && isToday && new Date() > new Date(selectedShift.endTime) && (
+          <Alert
+            message="Ca trực đã kết thúc"
+            description={history.length > 0
+              ? 'Giờ trực đã qua, không thể ghi nhật ký mới. Bạn có thể xem và chỉnh sửa lịch sử ghi chép bên dưới.'
+              : 'Giờ trực đã qua, không thể ghi nhật ký mới cho ca này.'}
+            type="warning" showIcon style={{ marginBottom: 16 }} />
+        )}
+
         {/* Chọn máy + Form */}
-        {selectedShift && !isCompleted && isToday && (
+        {selectedShift && !isCompleted && isToday && new Date() <= new Date(selectedShift.endTime) && (
           <>
+            {/* Cảnh báo ca chưa bắt đầu */}
+            {new Date() < new Date(selectedShift.startTime) && (
+              <Alert
+                message="Ca trực chưa bắt đầu"
+                description={`Ca này bắt đầu lúc ${formatTime(selectedShift.startTime)}. Chưa thể ghi nhật ký.`}
+                type="warning" showIcon style={{ marginBottom: 16 }} />
+            )}
             <Title level={5} style={{ marginBottom: 12 }}>Chọn máy cần kiểm tra ({engines.filter(e => e.status === 'Operational').length}/{engines.length} máy hoạt động)</Title>
             <Row gutter={[16, 16]}>
               {engines.map(engine => {
@@ -414,7 +444,7 @@ export default function EngineLogPage() {
         )}
 
         {/* Form nhập thông số */}
-        {selectedEngine && !isCompleted && isToday && (
+        {selectedEngine && !isCompleted && isToday && new Date() <= new Date(selectedShift?.endTime) && (
           <Card style={{ marginTop: 16 }} title={`Kiểm tra: ${selectedEngine.engineName} (${selectedEngine.engineType})`}>
             <Row gutter={[16, 16]}>
               {selectedEngine.EngineParameters?.map((param, index) => {
@@ -433,6 +463,7 @@ export default function EngineLogPage() {
                 );
               })}
             </Row>
+
             <div style={{ marginTop: 16 }}>
               <label style={{ fontSize: 14, fontWeight: 500, color: '#475569', marginBottom: 8, display: 'block' }}>Ghi chú</label>
               <TextArea rows={3} placeholder="VD: Máy chạy ổn định..." value={note} onChange={e => setNote(e.target.value)} />
@@ -475,6 +506,7 @@ export default function EngineLogPage() {
           <label style={{ fontWeight: 500, display: 'block', marginBottom: 4 }}>Ghi chú</label>
           <TextArea rows={2} value={editNote} onChange={e => setEditNote(e.target.value)} />
         </div>
+
         {editEngineParams.map(param => {
           const isMain = ['Fuel Oil Pressure', 'Exhaust Gas Temp XL2', 'Cooling Water Temp'].some(kw => param.name.includes(kw));
           return (

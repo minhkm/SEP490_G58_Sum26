@@ -161,15 +161,19 @@ router.post('/', async (req, res) => {
       }
     }
 
-    // Tạo Equipment cho hải trình
+    // Tạo Equipment y tế cho hải trình (chỉ cho phép Thiết bị y tế)
     if (equipmentList && equipmentList.length > 0) {
-      const validEquipments = equipmentList.filter(e => e.name && e.name.trim() !== '');
+      const validEquipments = equipmentList.filter(e => e.name && e.name.trim() !== '' && e.quantity && e.quantity >= 1);
       if (validEquipments.length > 0) {
         const eqData = validEquipments.map(e => ({
           voyageId: voyage.id,
+          shipId: null,
           equipmentName: e.name,
-          equipmentType: e.type || 'Khác',
-          location: e.location || 'Khác',
+          equipmentType: 'Vật tư y tế',   // Chỉ cho phép loại vật tư y tế trong hải trình
+          location: e.location || '',
+          quantity: Number(e.quantity) || 1,
+          expiryNote: e.expiryNote || null,
+          brokenCount: 0,
           status: 'Operational'
         }));
         await Equipment.bulkCreate(eqData, { transaction: t });
@@ -334,6 +338,21 @@ router.get('/:id/cargo', authMiddleware, async (req, res) => {
     res.status(500).json({ message: 'Lỗi server khi lấy danh sách hàng hóa', error: error.message });
   }
 });
+
+// Lấy danh sách thiết bị của một chuyến đi
+router.get('/:id/equipments', authMiddleware, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const equipments = await Equipment.findAll({
+      where: { voyageId: id }
+    });
+    res.json(equipments);
+  } catch (error) {
+    console.error('Lỗi khi lấy danh sách thiết bị:', error);
+    res.status(500).json({ message: 'Lỗi server khi lấy danh sách thiết bị', error: error.message });
+  }
+});
+
 
 router.put('/:id', authMiddleware, async (req, res) => {
   try {
@@ -858,6 +877,52 @@ router.post('/:id/attendances', authMiddleware, async (req, res) => {
   } catch (error) {
     console.error('Lỗi khi lưu điểm danh:', error);
     res.status(500).json({ message: 'Lỗi server khi lưu điểm danh' });
+  }
+});
+
+// PATCH /api/voyages/equipments/:equipmentId/status — Cập nhật trạng thái thiết bị (chỉ EngineOfficer)
+router.patch('/equipments/:equipmentId/status', authMiddleware, async (req, res) => {
+  if (req.user?.role !== 'EngineOfficer') {
+    return res.status(403).json({ message: 'Chỉ Sĩ quan máy mới được đổi trạng thái thiết bị' });
+  }
+
+  const VALID_EQUIPMENT_STATUSES = ['Operational', 'Broken', 'Lost'];
+  const { status } = req.body;
+  if (!VALID_EQUIPMENT_STATUSES.includes(status)) {
+    return res.status(400).json({ message: `Trạng thái không hợp lệ. Chỉ chấp nhận: ${VALID_EQUIPMENT_STATUSES.join(', ')}` });
+  }
+
+  try {
+    const equipment = await Equipment.findByPk(req.params.equipmentId);
+    if (!equipment) return res.status(404).json({ message: 'Không tìm thấy thiết bị' });
+    await equipment.update({ status });
+    res.json({ message: 'Cập nhật trạng thái thiết bị thành công', equipment });
+  } catch (error) {
+    console.error('Lỗi cập nhật trạng thái thiết bị:', error);
+    res.status(500).json({ message: 'Lỗi server', error: error.message });
+  }
+});
+
+// PATCH /api/voyages/equipments/:equipmentId/broken-count — Cập nhật số lượng hỏng (EngineOfficer)
+router.patch('/equipments/:equipmentId/broken-count', authMiddleware, async (req, res) => {
+  if (req.user?.role !== 'EngineOfficer') {
+    return res.status(403).json({ message: 'Chỉ Sĩ quan máy mới được cập nhật số thiết bị hỏng' });
+  }
+  const { brokenCount } = req.body;
+  if (brokenCount === undefined || brokenCount === null || brokenCount < 0) {
+    return res.status(400).json({ message: 'Số lượng hỏng phải là số ≥ 0' });
+  }
+  try {
+    const equipment = await Equipment.findByPk(req.params.equipmentId);
+    if (!equipment) return res.status(404).json({ message: 'Không tìm thấy thiết bị' });
+    if (brokenCount > equipment.quantity) {
+      return res.status(400).json({ message: `Số lượng hỏng (${brokenCount}) không được lớn hơn tổng (${equipment.quantity})` });
+    }
+    await equipment.update({ brokenCount });
+    res.json({ message: 'Cập nhật số lượng hỏng thành công', equipment });
+  } catch (error) {
+    console.error('Lỗi cập nhật broken-count:', error);
+    res.status(500).json({ message: 'Lỗi server', error: error.message });
   }
 });
 

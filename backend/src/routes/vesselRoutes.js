@@ -1,5 +1,6 @@
 const express = require('express');
-const { Ship, ShipCapacity, Engine, EngineParameter, CargoHold } = require('../models');
+const { Ship, ShipCapacity, Engine, EngineParameter, CargoHold, Equipment } = require('../models');
+const authMiddleware = require('../middlewares/authMiddleware');
 
 const router = express.Router();
 
@@ -266,6 +267,117 @@ router.delete('/:id', async (req, res) => {
   } catch (error) {
     console.error('Lỗi xoá tàu:', error);
     res.status(500).json({ message: 'Lỗi server khi xoá tàu', error: error.message });
+  }
+});
+
+// PATCH /api/vessels/engines/:engineId/status — Cập nhật trạng thái máy (chỉ EngineOfficer)
+router.patch('/engines/:engineId/status', async (req, res) => {
+  const authHeader = req.headers.authorization;
+  if (!authHeader) return res.status(401).json({ message: 'Không tìm thấy token' });
+  const jwt = require('jsonwebtoken');
+  let decoded;
+  try { decoded = jwt.verify(authHeader.split(' ')[1], process.env.JWT_SECRET || 'super_secret_key'); }
+  catch { return res.status(403).json({ message: 'Token không hợp lệ' }); }
+  if (decoded.role !== 'EngineOfficer') {
+    return res.status(403).json({ message: 'Chỉ Sĩ quan máy mới được đổi trạng thái máy' });
+  }
+
+  const VALID_ENGINE_STATUSES = ['Operational', 'Standby', 'Under Maintenance'];
+  const { status } = req.body;
+  if (!VALID_ENGINE_STATUSES.includes(status)) {
+    return res.status(400).json({ message: `Trạng thái không hợp lệ. Chỉ chấp nhận: ${VALID_ENGINE_STATUSES.join(', ')}` });
+  }
+
+  try {
+    const engine = await Engine.findByPk(req.params.engineId);
+    if (!engine) return res.status(404).json({ message: 'Không tìm thấy máy' });
+    await engine.update({ status });
+    res.json({ message: 'Cập nhật trạng thái máy thành công', engine });
+  } catch (error) {
+    console.error('Lỗi cập nhật trạng thái máy:', error);
+    res.status(500).json({ message: 'Lỗi server', error: error.message });
+  }
+});
+
+// ============================================================
+// VESSEL EQUIPMENT (thiết bị của tàu — không phải hải trình)
+// ============================================================
+
+// GET /api/vessels/:id/equipments - Lấy thiết bị của tàu
+router.get('/:id/equipments', async (req, res) => {
+  try {
+    const equipments = await Equipment.findAll({
+      where: { shipId: req.params.id },
+      order: [['equipmentType', 'ASC'], ['equipmentName', 'ASC']]
+    });
+    res.json(equipments);
+  } catch (error) {
+    console.error('Lỗi lấy thiết bị tàu:', error);
+    res.status(500).json({ message: 'Lỗi server', error: error.message });
+  }
+});
+
+// POST /api/vessels/:id/equipments - Tạo thiết bị cho tàu (Admin/Agency)
+router.post('/:id/equipments', authMiddleware, async (req, res) => {
+  const { role } = req.user;
+  if (role !== 'Admin' && role !== 'Agency') {
+    return res.status(403).json({ message: 'Chỉ Admin/Agency mới được thêm thiết bị tàu' });
+  }
+  try {
+    const ship = await Ship.findByPk(req.params.id);
+    if (!ship) return res.status(404).json({ message: 'Không tìm thấy tàu' });
+
+    const { equipmentList } = req.body;
+    if (!equipmentList || equipmentList.length === 0) {
+      return res.status(400).json({ message: 'Danh sách thiết bị không được để trống' });
+    }
+
+    const VESSEL_EQ_TYPES = ['Thiết bị cứu sinh', 'Thiết bị chữa cháy', 'Dụng cụ sửa chữa', 'Thiết bị hàng hải', 'Thiết bị liên lạc', 'Khác'];
+    const invalid = equipmentList.filter(e => !e.equipmentName || !e.quantity || e.quantity < 1);
+    if (invalid.length > 0) {
+      return res.status(400).json({ message: 'Tên thiết bị và số lượng là bắt buộc' });
+    }
+
+    const eqData = equipmentList.map(e => ({
+      shipId: ship.id,
+      voyageId: null,
+      equipmentName: e.equipmentName,
+      equipmentType: e.equipmentType || 'Khác',
+      location: e.location || '',
+      quantity: Number(e.quantity) || 1,
+      expiryNote: e.expiryNote || null,
+      brokenCount: 0,
+      status: 'Operational'
+    }));
+
+    const created = await Equipment.bulkCreate(eqData);
+    res.json({ message: 'Tạo thiết bị tàu thành công', equipments: created });
+  } catch (error) {
+    console.error('Lỗi tạo thiết bị tàu:', error);
+    res.status(500).json({ message: 'Lỗi server', error: error.message });
+  }
+});
+
+// PATCH /api/vessels/equipments/:equipmentId/broken-count - Cập nhật số lượng hỏng (EngineOfficer)
+router.patch('/equipments/:equipmentId/broken-count', authMiddleware, async (req, res) => {
+  if (req.user?.role !== 'EngineOfficer') {
+    return res.status(403).json({ message: 'Chỉ Sĩ quan máy mới được cập nhật số thiết bị hỏng' });
+  }
+  const { brokenCount } = req.body;
+  if (brokenCount === undefined || brokenCount === null || brokenCount < 0) {
+    return res.status(400).json({ message: 'Số lượng hỏng phải là số ≥ 0' });
+  }
+  try {
+    const equipment = await Equipment.findByPk(req.params.equipmentId);
+    if (!equipment) return res.status(404).json({ message: 'Không tìm thấy thiết bị' });
+    if (brokenCount > equipment.quantity) {
+      return res.status(400).json({ message: `Số lượng hỏng (${brokenCount}) không được lớn hơn số lượng tổng (${equipment.quantity})` });
+    }
+    await equipment.update({ brokenCount });
+    res.json({ message: 'Cập nhật số lượng hỏng thành công', equipment });
+  } catch (error) {
+    console.error('Lỗi cập nhật:', error);
+    res.status(500).json({ message: 'Lỗi server', error: error.message });
   }
 });
 
