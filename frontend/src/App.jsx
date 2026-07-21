@@ -123,7 +123,7 @@ function App() {
           </RequireRole>
         } />
         <Route path="/engine-management" element={
-          <RequireRole allow={['EngineOfficer']}>
+          <RequireRole allow={['EngineOfficer', 'ChiefEngineer']}>
             <EngineManagePage />
           </RequireRole>
         } />

@@ -28,7 +28,7 @@ export default function Sidebar() {
 
   const isMasterOrChief = role === 'Master' || role === 'ChiefOfficer';
   const isCrewRole = !isMasterOrChief && role !== 'Admin' && role !== 'Agency';
-  const isEngineOfficer = role === 'EngineOfficer';
+  const isEngineOfficer = role === 'EngineOfficer' || role === 'ChiefEngineer';
   const isEngine = role === 'EngineCrew';
   const isDeck = role === 'Sailor';
   

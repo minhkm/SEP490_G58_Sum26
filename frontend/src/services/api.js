@@ -77,6 +77,10 @@ export const voyageService = {
   updateEquipmentStatus: async (equipmentId, status) => {
     const response = await api.patch(`/voyages/equipments/${equipmentId}/status`, { status });
     return response.data;
+  },
+  updateEquipmentBrokenCount: async (equipmentId, brokenCount) => {
+    const response = await api.patch(`/voyages/equipments/${equipmentId}/broken-count`, { brokenCount });
+    return response.data;
   }
 };
 
@@ -205,6 +209,18 @@ export const vesselService = {
   },
   updateEngineStatus: async (engineId, status) => {
     const response = await api.patch(`/vessels/engines/${engineId}/status`, { status });
+    return response.data;
+  },
+  getShipEquipments: async (shipId) => {
+    const response = await api.get(`/vessels/${shipId}/equipments`);
+    return response.data;
+  },
+  createShipEquipments: async (shipId, equipmentList) => {
+    const response = await api.post(`/vessels/${shipId}/equipments`, { equipmentList });
+    return response.data;
+  },
+  updateEquipmentBrokenCount: async (equipmentId, brokenCount) => {
+    const response = await api.patch(`/vessels/equipments/${equipmentId}/broken-count`, { brokenCount });
     return response.data;
   }
 };
