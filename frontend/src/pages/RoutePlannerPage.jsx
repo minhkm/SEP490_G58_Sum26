@@ -69,11 +69,12 @@ export default function RoutePlannerPage() {
   const fetchVoyages = async () => {
     try {
       const data = await voyageService.getAll();
-      setVoyages(data || []);
+      const activeData = (data || []).filter(v => v.status !== 'Completed' && v.status !== 'Cancelled');
+      setVoyages(activeData);
       // Auto select first loaded/underway voyage
-      const activeVoyages = (data || []).filter(v => v.status === 'Loaded' || v.status === 'Underway');
+      const activeVoyages = activeData.filter(v => v.status === 'Loaded' || v.status === 'Underway');
       if (activeVoyages.length > 0) {
-        handleSelectVoyage(activeVoyages[0].id, data);
+        handleSelectVoyage(activeVoyages[0].id, activeData);
       }
     } catch (err) {
       console.error(err);

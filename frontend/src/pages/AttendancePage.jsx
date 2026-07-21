@@ -119,7 +119,7 @@ export default function AttendancePage() {
 
   const isStatusValidForTab = () => {
     if (activeTab === 'PreDeparture') return voyageStatus === 'Loaded';
-    if (activeTab === 'Daily') return voyageStatus === 'Underway';
+    if (activeTab === 'Daily') return ['Underway', 'Homeward Bounding', 'At Anchor'].includes(voyageStatus);
     if (activeTab === 'PostDischarge') return voyageStatus === 'Discharged';
     return false;
   };
@@ -130,7 +130,7 @@ export default function AttendancePage() {
 
   const getStatusWarning = () => {
     if (activeTab === 'PreDeparture') return 'Điểm danh "Trước khi xuất phát" chỉ được thực hiện khi trạng thái hải trình là Đã làm hàng xong (Loaded).';
-    if (activeTab === 'Daily') return 'Điểm danh "Hằng ngày" chỉ được thực hiện khi tàu Đang di chuyển (Underway).';
+    if (activeTab === 'Daily') return 'Điểm danh "Hằng ngày" chỉ được thực hiện khi tàu Đang di chuyển (Underway), Đang quay về (Homeward Bounding), hoặc Đang neo đậu (At Anchor).';
     if (activeTab === 'PostDischarge') return 'Điểm danh "Kết thúc chuyến đi" chỉ được thực hiện khi tàu Đã dỡ hàng xong (Discharged).';
     return '';
   };
