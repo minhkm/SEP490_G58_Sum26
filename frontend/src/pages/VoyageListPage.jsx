@@ -53,9 +53,15 @@ export default function VoyageListPage() {
   }, []);
 
   const filteredVoyages = useMemo(() => {
+    let list = voyages;
+    const activeVoyageId = localStorage.getItem('activeVoyageId');
+    if (activeVoyageId && !['admin', 'agency'].includes(userRole)) {
+      list = list.filter(v => v.id.toString() === activeVoyageId.toString());
+    }
+    
     const keyword = searchTerm.trim().toLowerCase();
-    if (!keyword) return voyages;
-    return voyages.filter((voyage) =>
+    if (!keyword) return list;
+    return list.filter((voyage) =>
       [
         voyage.id,
         voyage.departurePort,
@@ -65,7 +71,7 @@ export default function VoyageListPage() {
         voyage.Ship?.imoNumber,
       ].some((value) => String(value || '').toLowerCase().includes(keyword))
     );
-  }, [searchTerm, voyages]);
+  }, [searchTerm, voyages, userRole]);
 
   const activeCount = voyages.filter((v) =>
     ['underway', 'homeward bounding', 'active', 'in progress'].includes((v.status || '').toLowerCase())
@@ -154,23 +160,7 @@ export default function VoyageListPage() {
           }
         />
 
-        <Row gutter={16} style={{ marginBottom: 24 }}>
-          <Col span={8}>
-            <Card>
-              <Statistic title="TỔNG SỐ HẢI TRÌNH" value={voyages.length} />
-            </Card>
-          </Col>
-          <Col span={8}>
-            <Card>
-              <Statistic title="ĐANG HOẠT ĐỘNG" value={activeCount} />
-            </Card>
-          </Col>
-          <Col span={8}>
-            <Card>
-              <Statistic title="ĐÃ LÊN KẾ HOẠCH" value={plannedCount} />
-            </Card>
-          </Col>
-        </Row>
+
 
         <Card
           title="Tất cả hải trình"

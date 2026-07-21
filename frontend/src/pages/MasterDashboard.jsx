@@ -19,6 +19,12 @@ import {
   FileAddOutlined,
   HistoryOutlined,
   RightOutlined,
+  SyncOutlined,
+  SendOutlined,
+  RollbackOutlined,
+  PushpinOutlined,
+  FlagOutlined,
+  CloseCircleOutlined,
 } from '@ant-design/icons';
 import { Spin } from 'antd';
 import './MasterDashboard.css';
@@ -26,6 +32,20 @@ import MasterLayout from '../components/MasterLayout';
 import NotificationBell from '../components/NotificationBell';
 import { notifyInfo, notifyError } from '../utils/feedback';
 import { dashboardService } from '../services/api';
+
+const statusConfig = {
+  Planning: { color: 'default', icon: <FileTextOutlined />, text: '#475569', bg: '#f1f5f9' },
+  Loading: { color: 'processing', icon: <SyncOutlined spin />, text: '#2563eb', bg: '#eff6ff' },
+  Loaded: { color: 'success', icon: <CheckCircleOutlined />, text: '#16a34a', bg: '#f0fdf4' },
+  Underway: { color: 'processing', icon: <SendOutlined />, text: '#2563eb', bg: '#eff6ff' },
+  Arrived: { color: 'success', icon: <EnvironmentOutlined />, text: '#16a34a', bg: '#f0fdf4' },
+  Discharge: { color: 'warning', icon: <SyncOutlined spin />, text: '#d97706', bg: '#fffbeb' },
+  Discharged: { color: 'success', icon: <CheckCircleOutlined />, text: '#16a34a', bg: '#f0fdf4' },
+  'Homeward Bounding': { color: 'processing', icon: <RollbackOutlined />, text: '#2563eb', bg: '#eff6ff' },
+  Completed: { color: 'success', icon: <FlagOutlined />, text: '#16a34a', bg: '#f0fdf4' },
+  'At Anchor': { color: 'error', icon: <PushpinOutlined />, text: '#dc2626', bg: '#fef2f2' },
+  Cancelled: { color: 'error', icon: <CloseCircleOutlined />, text: '#dc2626', bg: '#fef2f2' },
+};
 
 export default function MasterDashboard() {
   const navigate = useNavigate();
@@ -145,10 +165,23 @@ export default function MasterDashboard() {
                 </h1>
               </div>
               <div className="title-right">
-                <div className={`status-badge ${voyage ? 'status-active' : 'status-waiting'}`} style={{ backgroundColor: voyage ? '#ecfdf5' : '', color: voyage ? '#10b981' : '' }}>
-                  <span className="status-dot" style={{ backgroundColor: voyage ? '#10b981' : '' }}></span>
-                  {voyage ? voyage.status : 'Chưa có dữ liệu'}
-                </div>
+                {voyage ? (
+                  <div style={{ 
+                    display: 'flex', alignItems: 'center', gap: '8px', 
+                    padding: '8px 16px', borderRadius: '24px', 
+                    backgroundColor: statusConfig[voyage.status]?.bg || '#f1f5f9',
+                    color: statusConfig[voyage.status]?.text || '#475569',
+                    fontWeight: 600, fontSize: '14px', border: `1px solid ${statusConfig[voyage.status]?.text || '#cbd5e1'}33`
+                  }}>
+                    {statusConfig[voyage.status]?.icon || <div className="status-dot" style={{ backgroundColor: '#94a3b8' }}></div>}
+                    <span style={{ textTransform: 'uppercase', letterSpacing: '0.5px' }}>{voyage.status}</span>
+                  </div>
+                ) : (
+                  <div className="status-badge status-waiting">
+                    <span className="status-dot"></span>
+                    Chưa có dữ liệu
+                  </div>
+                )}
                 <div className="utc-badge">
                   UTC {new Date().toISOString().substring(11, 16)}
                 </div>
@@ -214,15 +247,30 @@ export default function MasterDashboard() {
                           <p style={{ color: '#94a3b8', fontSize: '13px' }}>ETA: {voyage.arrivalDate}</p>
                         </div>
                       </div>
-                      <div style={{ background: '#f8fafc', padding: '12px', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
-                        <p style={{ margin: 0, color: '#334155' }}>
-                          <strong>Trạng thái:</strong> {voyage.status}
-                        </p>
-                        {voyage.issueReason && (
-                          <p style={{ margin: '8px 0 0 0', color: '#ef4444' }}>
-                            <strong>Vấn đề:</strong> {voyage.issueReason}
+                      <div style={{ 
+                        background: statusConfig[voyage.status]?.bg || '#f8fafc', 
+                        padding: '16px', borderRadius: '8px', 
+                        border: `1px solid ${statusConfig[voyage.status]?.text || '#e2e8f0'}33`,
+                        display: 'flex', alignItems: 'flex-start', gap: '12px',
+                        boxShadow: '0 1px 3px rgba(0,0,0,0.02)'
+                      }}>
+                        <div style={{ 
+                          fontSize: '24px', 
+                          color: statusConfig[voyage.status]?.text || '#64748b',
+                          marginTop: '-2px'
+                        }}>
+                          {statusConfig[voyage.status]?.icon}
+                        </div>
+                        <div>
+                          <p style={{ margin: 0, color: statusConfig[voyage.status]?.text || '#334155', fontWeight: 600, fontSize: '15px', textTransform: 'uppercase' }}>
+                            Trạng thái hiện tại: {voyage.status}
                           </p>
-                        )}
+                          {voyage.issueReason && (
+                            <p style={{ margin: '8px 0 0 0', color: '#ef4444', fontSize: '13px', fontWeight: 500 }}>
+                              <CloseCircleOutlined style={{ marginRight: '6px' }}/> Vấn đề: {voyage.issueReason}
+                            </p>
+                          )}
+                        </div>
                       </div>
                     </div>
                   ) : (
@@ -260,7 +308,7 @@ export default function MasterDashboard() {
                               <td style={{ padding: '12px 24px', fontWeight: 500, color: '#0f172a' }}>{cargo.cargoName}</td>
                               <td style={{ padding: '12px 24px', color: '#475569' }}>{cargo.loadPort}</td>
                               <td style={{ padding: '12px 24px' }}>
-                                <span style={{ padding: '4px 8px', borderRadius: '4px', fontSize: '12px', background: cargo.status === 'Completed' ? '#dcfce7' : '#fef9c3', color: cargo.status === 'Completed' ? '#166534' : '#854d0e' }}>
+                                <span style={{ padding: '4px 8px', borderRadius: '4px', fontSize: '12px', background: cargo.status === 'Đã giao thành công' ? '#dcfce7' : '#fef9c3', color: cargo.status === 'Đã giao thành công' ? '#166534' : '#854d0e' }}>
                                   {cargo.status}
                                 </span>
                               </td>

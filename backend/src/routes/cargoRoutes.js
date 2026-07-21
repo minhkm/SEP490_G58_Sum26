@@ -4,13 +4,12 @@ const cargoController = require('../controllers/cargoController');
 const authMiddleware = require('../middlewares/authMiddleware');
 const requireRole = require('../middlewares/roleMiddleware');
 
-// Chỉ Admin, Thuyền trưởng (Master) và Thuyền phó (ChiefOfficer) được quản lý hàng hóa
-const cargoRoles = requireRole('Admin', 'Master', 'ChiefOfficer');
+const editRoles = requireRole('Admin', 'Agency');
 
-router.get('/', authMiddleware, cargoRoles, cargoController.getAllCargos);
-router.get('/:id', authMiddleware, cargoRoles, cargoController.getCargoById);
-router.post('/', authMiddleware, cargoRoles, cargoController.createCargo);
-router.put('/:id', authMiddleware, cargoRoles, cargoController.updateCargo);
-router.delete('/:id', authMiddleware, cargoRoles, cargoController.deleteCargo);
+router.get('/', authMiddleware, cargoController.getAllCargos);
+router.get('/:id', authMiddleware, cargoController.getCargoById);
+router.post('/', authMiddleware, editRoles, cargoController.createCargo);
+router.put('/:id', authMiddleware, editRoles, cargoController.updateCargo);
+router.delete('/:id', authMiddleware, editRoles, cargoController.deleteCargo);
 
 module.exports = router;

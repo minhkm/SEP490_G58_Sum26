@@ -46,8 +46,8 @@ const STATUS_OPTIONS = [
   { value: 'Discharge', label: 'Dỡ hàng (Discharge)', roles: ['master'] },
   { value: 'Discharged', label: 'Đã dỡ hàng xong (Discharged)', roles: ['master'] },
   { value: 'Homeward Bounding', label: 'Đang quay về cảng xuất phát (Homeward Bounding)', roles: ['master'] },
+  { value: 'Completed', label: 'Đã hoàn thành (Completed)', roles: ['admin', 'agency', 'master'] },
   { value: 'At Anchor', label: 'Đang neo đậu (At Anchor)', roles: ['master'] },
-  { value: 'Completed', label: 'Đã hoàn thành (Completed)', roles: ['admin', 'agency'] },
   { value: 'Cancelled', label: 'Đã hủy (Cancelled)', roles: ['admin', 'agency', 'master'] },
 ];
 
@@ -60,21 +60,21 @@ const statusConfig = {
   Discharge: { color: 'warning', icon: <SyncOutlined spin />, text: '#d97706', bg: '#fffbeb' },
   Discharged: { color: 'success', icon: <CheckCircleOutlined />, text: '#16a34a', bg: '#f0fdf4' },
   'Homeward Bounding': { color: 'processing', icon: <RollbackOutlined />, text: '#2563eb', bg: '#eff6ff' },
-  'At Anchor': { color: 'error', icon: <PushpinOutlined />, text: '#dc2626', bg: '#fef2f2' },
   Completed: { color: 'success', icon: <FlagOutlined />, text: '#16a34a', bg: '#f0fdf4' },
+  'At Anchor': { color: 'error', icon: <PushpinOutlined />, text: '#dc2626', bg: '#fef2f2' },
   Cancelled: { color: 'error', icon: <CloseCircleOutlined />, text: '#dc2626', bg: '#fef2f2' },
 };
 
 const STATUS_WORKFLOW = {
   'Planning': ['Loading', 'Cancelled'],
-  'Loading': ['Loaded', 'Cancelled'],
-  'Loaded': ['Underway', 'Cancelled'],
-  'Underway': ['Arrived', 'At Anchor', 'Cancelled'],
-  'Arrived': ['Discharge', 'Cancelled'],
-  'Discharge': ['Discharged', 'Cancelled'],
-  'Discharged': ['Homeward Bounding', 'Cancelled'],
-  'Homeward Bounding': ['Completed', 'Cancelled'],
-  'At Anchor': ['Underway', 'Arrived', 'Cancelled'],
+  'Loading': ['Loaded'],
+  'Loaded': ['Underway'],
+  'Underway': ['Arrived', 'At Anchor'],
+  'Arrived': ['Discharge'],
+  'Discharge': ['Discharged'],
+  'Discharged': ['Homeward Bounding'],
+  'Homeward Bounding': ['Completed', 'At Anchor'],
+  'At Anchor': ['Underway', 'Homeward Bounding', 'Arrived', 'Completed'],
   'Completed': [],
   'Cancelled': []
 };
@@ -259,11 +259,7 @@ export default function UpdateVoyageModal({ voyage, onClose, onUpdate }) {
     }
   };
 
-  const handleAttendanceChange = (crewId, isPresent) => {
-    setCrewList((prevList) =>
-      prevList.map((crew) => (crew.crewId === crewId ? { ...crew, isPresent } : crew))
-    );
-  };
+  // handleAttendanceChange removed
 
   const handleCargoLoadChange = (itemId, isLoaded) => {
     setCargoList((prevList) =>
@@ -302,7 +298,6 @@ export default function UpdateVoyageModal({ voyage, onClose, onUpdate }) {
 
       const payload = {
         ...formData,
-        attendanceList: crewList.map((c) => ({ crewId: c.crewId, isPresent: c.isPresent })),
         cargoList: cargoList.map((c) => ({
           itemId: c.itemId,
           isLoaded: c.isLoaded,
@@ -365,26 +360,7 @@ export default function UpdateVoyageModal({ voyage, onClose, onUpdate }) {
     { title: 'Chức vụ', dataIndex: 'position', key: 'position' },
   ];
 
-  if (userRole !== 'admin') {
-    crewColumns.push({
-      title: 'Có mặt',
-      key: 'isPresent',
-      align: 'center',
-      width: 90,
-      render: (_, crew) => (
-        <Checkbox
-          checked={crew.isPresent}
-          onChange={(e) => handleAttendanceChange(crew.crewId, e.target.checked)}
-          disabled={!isAttendanceAllowed}
-          title={
-            !isAttendanceAllowed
-              ? 'Chỉ được điểm danh khi trạng thái là Loaded hoặc Discharged và bạn là thuyền trưởng'
-              : ''
-          }
-        />
-      ),
-    });
-  }
+  // Removed the "Có mặt" column block as attendance is managed on a separate page
 
   const cargoColumns = [
     { title: 'STT', key: 'stt', width: 60, render: (_, __, idx) => idx + 1 },

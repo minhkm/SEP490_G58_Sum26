@@ -116,7 +116,8 @@ export default function CreateVoyagePage() {
 
         const cargosRes = await cargoService.getAllCargos();
         if (cargosRes && cargosRes.data) {
-          setAvailableCargos(cargosRes.data);
+          const unassignedCargos = cargosRes.data.filter(c => !c.voyageId);
+          setAvailableCargos(unassignedCargos);
         }
       } catch (err) {
         console.error('Failed to fetch reference data', err);
