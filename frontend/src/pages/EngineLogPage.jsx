@@ -63,7 +63,7 @@ export default function EngineLogPage() {
         setSelectedVoyage(voyage);
 
         // Chỉ hiển thị máy đang Operational cho thợ máy ghi nhật ký
-        if (voyage.Ship?.Engines) setEngines(voyage.Ship.Engines.filter(e => e.status === 'Operational' || e.status === 'Active'));
+        if (voyage.Ship?.Engines) setEngines(voyage.Ship.Engines.filter(e => e.status === 'Operational'));
         const date = initDate ? dayjs(initDate) : dayjs();
         setSelectedDate(date);
         const shiftsData = await engineLogService.getShifts(voyage.id, date.format('YYYY-MM-DD'));
@@ -97,7 +97,7 @@ export default function EngineLogPage() {
     setFileList([]);
     if (v) {
       // Chỉ hiển thị máy đang Operational cho thợ máy ghi nhật ký
-      if (v.Ship?.Engines) setEngines(v.Ship.Engines.filter(e => e.status === 'Operational' || e.status === 'Active'));
+      if (v.Ship?.Engines) setEngines(v.Ship.Engines.filter(e => e.status === 'Operational'));
       const shiftsData = await engineLogService.getShifts(v.id, selectedDate.format('YYYY-MM-DD'));
       setShifts(shiftsData);
     }
@@ -136,7 +136,7 @@ export default function EngineLogPage() {
   };
 
   const handleSelectEngine = (engine) => {
-    if (engine.status !== 'Operational' && engine.status !== 'Active') return; // Block non-operational engines
+    if (engine.status !== 'Operational') return; // Block non-operational engines
     setSelectedEngine(engine);
     const defaultValues = {};
     if (engine.EngineParameters) {
@@ -402,10 +402,10 @@ export default function EngineLogPage() {
                 description={`Ca này bắt đầu lúc ${formatTime(selectedShift.startTime)}. Chưa thể ghi nhật ký.`}
                 type="warning" showIcon style={{ marginBottom: 16 }} />
             )}
-            <Title level={5} style={{ marginBottom: 12 }}>Chọn máy cần kiểm tra ({engines.filter(e => e.status === 'Operational' || e.status === 'Active').length}/{engines.length} máy hoạt động)</Title>
+            <Title level={5} style={{ marginBottom: 12 }}>Chọn máy cần kiểm tra ({engines.filter(e => e.status === 'Operational').length}/{engines.length} máy hoạt động)</Title>
             <Row gutter={[16, 16]}>
               {engines.map(engine => {
-                const isOperational = engine.status === 'Operational' || engine.status === 'Active';
+                const isOperational = engine.status === 'Operational';
                 const isSelected = selectedEngine?.id === engine.id;
                 const card = (
                   <Card

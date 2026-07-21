@@ -10,11 +10,11 @@ const { Text } = Typography;
 
 // Cấu hình trạng thái Engine
 const ENGINE_STATUSES = [
-  { value: 'Operational',      label: 'Hoạt động', color: '#22c55e', textColor: '#16a34a' },
-  { value: 'Active',           label: 'Hoạt động', color: '#22c55e', textColor: '#16a34a' },
-  { value: 'Standby',          label: 'Dự phòng / Chờ', color: '#3b82f6', textColor: '#2563eb' },
-  { value: 'Under Maintenance',label: 'Đang bảo dưỡng', color: '#f59e0b', textColor: '#b45309' },
+  { value: 'Operational',      label: 'Hoạt động',       color: '#22c55e', textColor: '#16a34a' },
+  { value: 'Standby',          label: 'Dự phòng / Chờ',  color: '#3b82f6', textColor: '#2563eb' },
+  { value: 'Under Maintenance',label: 'Đang bảo dưỡng',  color: '#f59e0b', textColor: '#b45309' },
 ];
+
 
 const getEngineStatusCfg = (s) => ENGINE_STATUSES.find(x => x.value === s) || { label: s, color: 'default' };
 
