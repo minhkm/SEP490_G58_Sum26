@@ -58,8 +58,12 @@ ShipCapacity.belongsTo(Ship, { foreignKey: "shipId" });
 Ship.hasMany(Engine, { foreignKey: "shipId" });
 Engine.belongsTo(Ship, { foreignKey: "shipId" });
 
-Voyage.hasMany(Equipment, { foreignKey: "voyageId" });
-Equipment.belongsTo(Voyage, { foreignKey: "voyageId" });
+// Equipment: hải trình (thiết bị y tế) hoặc tàu (thiết bị cứu sinh, chữa cháy,...)
+Voyage.hasMany(Equipment, { foreignKey: { name: "voyageId", allowNull: true } });
+Equipment.belongsTo(Voyage, { foreignKey: { name: "voyageId", allowNull: true } });
+
+Ship.hasMany(Equipment, { foreignKey: { name: "shipId", allowNull: true } });
+Equipment.belongsTo(Ship, { foreignKey: { name: "shipId", allowNull: true } });
 
 Ship.hasMany(CargoHold, { foreignKey: "shipId" });
 CargoHold.belongsTo(Ship, { foreignKey: "shipId" });

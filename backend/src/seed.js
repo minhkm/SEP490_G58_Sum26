@@ -190,48 +190,57 @@ async function seed() {
     console.log('✅ Engines & Parameters xong');
 
     // ================================================================
-    // EQUIPMENT
+    // EQUIPMENT (gắn với tàu — không phải hải trình)
+    // Thiết bị y tế hải trình sẽ được tạo riêng khi tạo hải trình
     // ================================================================
-    const equipList = [
+    const shipEquipTemplate = [
       // Thiết bị cứu sinh
-      { equipmentName: 'Xuồng cứu sinh số 1 (Mạn trái)', equipmentType: 'Thiết bị cứu sinh', location: 'Boong', status: 'Hoạt động' },
-      { equipmentName: 'Xuồng cứu sinh số 2 (Mạn phải)', equipmentType: 'Thiết bị cứu sinh', location: 'Boong', status: 'Hoạt động' },
-      { equipmentName: 'Bè cứu sinh tự thổi', equipmentType: 'Thiết bị cứu sinh', location: 'Boong', status: 'Hoạt động' },
-      { equipmentName: 'Áo phao cá nhân (25 chiếc)', equipmentType: 'Thiết bị cứu sinh', location: 'Boong', status: 'Hoạt động' },
-      { equipmentName: 'Phao tròn (8 chiếc)', equipmentType: 'Thiết bị cứu sinh', location: 'Boong', status: 'Hoạt động' },
+      { equipmentName: 'Xuồng cứu sinh số 1 (Mạn trái)', equipmentType: 'Thiết bị cứu sinh', location: 'Boong', quantity: 1, expiryNote: null },
+      { equipmentName: 'Xuồng cứu sinh số 2 (Mạn phải)', equipmentType: 'Thiết bị cứu sinh', location: 'Boong', quantity: 1, expiryNote: null },
+      { equipmentName: 'Bè cứu sinh tự thổi', equipmentType: 'Thiết bị cứu sinh', location: 'Boong', quantity: 2, expiryNote: '12/2027' },
+      { equipmentName: 'Áo phao cá nhân', equipmentType: 'Thiết bị cứu sinh', location: 'Boong', quantity: 25, expiryNote: null },
+      { equipmentName: 'Phao tròn', equipmentType: 'Thiết bị cứu sinh', location: 'Boong', quantity: 8, expiryNote: null },
       // Thiết bị chữa cháy
-      { equipmentName: 'Bình chữa cháy CO2 (Buồng máy)', equipmentType: 'Thiết bị chữa cháy', location: 'Buồng máy', status: 'Hoạt động' },
-      { equipmentName: 'Bình chữa cháy bột xách tay', equipmentType: 'Thiết bị chữa cháy', location: 'Boong', status: 'Hoạt động' },
-      { equipmentName: 'Hệ thống chữa cháy cố định (Foam)', equipmentType: 'Thiết bị chữa cháy', location: 'Boong', status: 'Hoạt động' },
-      // Dụng cụ sửa chữa (gộp máy móc chính + phụ trợ + dụng cụ)
-      { equipmentName: 'Máy phát điện số 1', equipmentType: 'Dụng cụ sửa chữa', location: 'Buồng máy', status: 'Hoạt động' },
-      { equipmentName: 'Máy phát điện số 2', equipmentType: 'Dụng cụ sửa chữa', location: 'Buồng máy', status: 'Hoạt động' },
-      { equipmentName: 'Nồi hơi (Boiler)', equipmentType: 'Dụng cụ sửa chữa', location: 'Buồng máy', status: 'Hoạt động' },
-      { equipmentName: 'Máy nén khí', equipmentType: 'Dụng cụ sửa chữa', location: 'Buồng máy', status: 'Hoạt động' },
-      { equipmentName: 'Máy lọc dầu (Purifier)', equipmentType: 'Dụng cụ sửa chữa', location: 'Buồng máy', status: 'Hoạt động' },
-      { equipmentName: 'Máy hàn, máy cắt, máy tiện', equipmentType: 'Dụng cụ sửa chữa', location: 'Buồng máy', status: 'Hoạt động' },
-      { equipmentName: 'Tủ đồ nghề (cờ lê, mỏ lết, búa)', equipmentType: 'Dụng cụ sửa chữa', location: 'Buồng máy', status: 'Hoạt động' },
+      { equipmentName: 'Bình chữa cháy CO2 (Buồng máy)', equipmentType: 'Thiết bị chữa cháy', location: 'Buồng máy', quantity: 4, expiryNote: '06/2027' },
+      { equipmentName: 'Bình chữa cháy bột xách tay', equipmentType: 'Thiết bị chữa cháy', location: 'Boong', quantity: 6, expiryNote: '06/2027' },
+      { equipmentName: 'Hệ thống chữa cháy cố định (Foam)', equipmentType: 'Thiết bị chữa cháy', location: 'Boong', quantity: 1, expiryNote: null },
+      // Dụng cụ sửa chữa
+      { equipmentName: 'Nồi hơi (Boiler)', equipmentType: 'Dụng cụ sửa chữa', location: 'Buồng máy', quantity: 1, expiryNote: null },
+      { equipmentName: 'Máy nén khí', equipmentType: 'Dụng cụ sửa chữa', location: 'Buồng máy', quantity: 1, expiryNote: null },
+      { equipmentName: 'Máy lọc dầu (Purifier)', equipmentType: 'Dụng cụ sửa chữa', location: 'Buồng máy', quantity: 1, expiryNote: null },
+      { equipmentName: 'Tủ đồ nghề (cờ lê, mỏ lết, búa)', equipmentType: 'Dụng cụ sửa chữa', location: 'Buồng máy', quantity: 1, expiryNote: null },
       // Thiết bị hàng hải
-      { equipmentName: 'Radar hàng hải', equipmentType: 'Thiết bị hàng hải', location: 'Buồng lái', status: 'Hoạt động' },
-      { equipmentName: 'Hải đồ điện tử (ECDIS)', equipmentType: 'Thiết bị hàng hải', location: 'Buồng lái', status: 'Hoạt động' },
-      { equipmentName: 'La bàn điện (Gyro Compass)', equipmentType: 'Thiết bị hàng hải', location: 'Buồng lái', status: 'Hoạt động' },
-      { equipmentName: 'Hệ thống AIS', equipmentType: 'Thiết bị hàng hải', location: 'Buồng lái', status: 'Hoạt động' },
-      // Thiết bị liên lạc (gộp thông tin cứu nạn)
-      { equipmentName: 'Máy vô tuyến VHF', equipmentType: 'Thiết bị liên lạc', location: 'Buồng lái', status: 'Hoạt động' },
-      { equipmentName: 'Hệ thống liên lạc vệ tinh (Inmarsat)', equipmentType: 'Thiết bị liên lạc', location: 'Buồng lái', status: 'Hoạt động' },
-      { equipmentName: 'Phao vô tuyến chỉ báo vị trí (EPIRB)', equipmentType: 'Thiết bị liên lạc', location: 'Buồng lái', status: 'Hoạt động' },
-      { equipmentName: 'Thiết bị phát đáp radar (SART)', equipmentType: 'Thiết bị liên lạc', location: 'Buồng lái', status: 'Hoạt động' },
-      // Thiết bị boong khác
-      { equipmentName: 'Mỏ neo & Máy tời neo (Windlass)', equipmentType: 'Khác', location: 'Boong', status: 'Hoạt động' },
-      { equipmentName: 'Dây buộc tàu (Mooring lines)', equipmentType: 'Khác', location: 'Boong', status: 'Hoạt động' },
-      { equipmentName: 'Cần cẩu hàng số 1', equipmentType: 'Khác', location: 'Boong', status: 'Hoạt động' },
-      { equipmentName: 'Nắp hầm hàng thủy lực (Hatch covers)', equipmentType: 'Khác', location: 'Boong', status: 'Hoạt động' },
-      { equipmentName: 'Cọc khóa container (Twistlock)', equipmentType: 'Khác', location: 'Boong', status: 'Hoạt động' },
-      // Thiết bị y tế & khác
-      { equipmentName: 'Tủ thuốc sơ cấp cứu', equipmentType: 'Thiết bị y tế', location: 'Boong', status: 'Hoạt động' },
+      { equipmentName: 'Radar hàng hải', equipmentType: 'Thiết bị hàng hải', location: 'Buồng lái', quantity: 1, expiryNote: null },
+      { equipmentName: 'Hải đồ điện tử (ECDIS)', equipmentType: 'Thiết bị hàng hải', location: 'Buồng lái', quantity: 1, expiryNote: null },
+      { equipmentName: 'La bàn điện (Gyro Compass)', equipmentType: 'Thiết bị hàng hải', location: 'Buồng lái', quantity: 1, expiryNote: null },
+      { equipmentName: 'Hệ thống AIS', equipmentType: 'Thiết bị hàng hải', location: 'Buồng lái', quantity: 1, expiryNote: null },
+      // Thiết bị liên lạc
+      { equipmentName: 'Máy vô tuyến VHF', equipmentType: 'Thiết bị liên lạc', location: 'Buồng lái', quantity: 2, expiryNote: null },
+      { equipmentName: 'Hệ thống liên lạc vệ tinh (Inmarsat)', equipmentType: 'Thiết bị liên lạc', location: 'Buồng lái', quantity: 1, expiryNote: null },
+      { equipmentName: 'Phao vô tuyến chỉ báo vị trí (EPIRB)', equipmentType: 'Thiết bị liên lạc', location: 'Buồng lái', quantity: 1, expiryNote: '08/2028' },
+      { equipmentName: 'Thiết bị phát đáp radar (SART)', equipmentType: 'Thiết bị liên lạc', location: 'Buồng lái', quantity: 2, expiryNote: '08/2028' },
+      // Khác (boong)
+      { equipmentName: 'Mỏ neo & Máy tời neo (Windlass)', equipmentType: 'Khác', location: 'Boong', quantity: 1, expiryNote: null },
+      { equipmentName: 'Dây buộc tàu (Mooring lines)', equipmentType: 'Khác', location: 'Boong', quantity: 8, expiryNote: null },
+      { equipmentName: 'Cần cẩu hàng số 1', equipmentType: 'Khác', location: 'Boong', quantity: 1, expiryNote: null },
+      { equipmentName: 'Nắp hầm hàng thủy lực (Hatch covers)', equipmentType: 'Khác', location: 'Boong', quantity: 2, expiryNote: null },
     ];
 
-    // (Equipment bị lược bỏ vì yêu cầu xoá toàn bộ hải trình, mà Equipment model bắt buộc phải có voyageId)
+    // Tạo equipment cho từng tàu
+    for (const ship of [shipVQS, shipS66]) {
+      await Equipment.bulkCreate(
+        shipEquipTemplate.map(e => ({
+          ...e,
+          shipId: ship.id,
+          voyageId: null,
+          brokenCount: 0,
+          status: 'Operational',
+        })),
+        { transaction: t }
+      );
+    }
+
+    console.log('✅ Equipment (Ship) xong');
 
     // ================================================================
     // CARGO HOLDS
