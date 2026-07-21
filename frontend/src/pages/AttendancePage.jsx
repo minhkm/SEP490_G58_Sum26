@@ -12,6 +12,7 @@ import {
   Typography,
   Empty,
   Alert,
+  Input,
 } from 'antd';
 import {
   SaveOutlined,
@@ -31,7 +32,8 @@ export default function AttendancePage() {
   const navigate = useNavigate();
 
   const [activeTab, setActiveTab] = useState('Daily'); // PreDeparture, Daily, PostDischarge
-  const today = new Date().toISOString().split('T')[0];
+  // Dùng ngày địa phương của trình duyệt; toISOString() dùng UTC và có thể lùi 1 ngày tại Việt Nam.
+  const today = dayjs().format(DATE_FORMAT);
   const [selectedDate, setSelectedDate] = useState(today);
 
   const [crewList, setCrewList] = useState([]);
@@ -60,8 +62,8 @@ export default function AttendancePage() {
     fetchVoyageInfo();
   }, [id]);
 
-  // Master, Admin, Agency can view. Master can edit.
-  const canEdit = ['master'].includes(userRole);
+  // Thuyền trưởng và Đại phó thuộc hải trình được phép thực hiện điểm danh.
+  const canEdit = ['master', 'chiefofficer'].includes(userRole);
   const Layout = userRole === 'admin' || userRole === 'agency' ? AgencyLayout : MasterLayout;
 
   const fetchAttendances = async () => {
@@ -92,6 +94,11 @@ export default function AttendancePage() {
     setCrewList((prev) => prev.map((c) => (c.crewId === crewId ? { ...c, isPresent } : c)));
   };
 
+  const handleNoteChange = (crewId, note) => {
+    if (!canEdit) return;
+    setCrewList((prev) => prev.map((c) => (c.crewId === crewId ? { ...c, note } : c)));
+  };
+
   const markAll = (isPresent) => {
     if (!canEdit) return;
     setCrewList((prev) => prev.map((c) => ({ ...c, isPresent })));
@@ -103,7 +110,7 @@ export default function AttendancePage() {
       const payload = {
         type: activeTab,
         date: activeTab === 'Daily' ? selectedDate : null,
-        attendanceList: crewList.map((c) => ({ crewId: c.crewId, isPresent: c.isPresent })),
+        attendanceList: crewList.map((c) => ({ crewId: c.crewId, isPresent: c.isPresent, note: c.note || '' })),
       };
 
       await voyageService.saveAttendances(id, payload);
@@ -145,6 +152,16 @@ export default function AttendancePage() {
     },
     { title: 'Chức vụ', dataIndex: 'position', key: 'position' },
     {
+      title: 'Loại điểm danh',
+      dataIndex: 'attendanceType',
+      key: 'attendanceType',
+      render: (type) => ({
+        PreDeparture: 'Trước khi xuất phát',
+        Daily: 'Hằng ngày',
+        PostDischarge: 'Kết thúc chuyến đi',
+      })[type || activeTab] || type || '--',
+    },
+    {
       title: 'Trạng thái',
       key: 'status',
       align: 'center',
@@ -169,6 +186,26 @@ export default function AttendancePage() {
         </Text>
       ),
     },
+    {
+      title: 'Người điểm danh',
+      dataIndex: 'recordedBy',
+      key: 'recordedBy',
+      render: (recorder) => recorder?.fullName || 'Chưa ghi nhận',
+    },
+    {
+      title: 'Lý do/Ghi chú',
+      dataIndex: 'note',
+      key: 'note',
+      width: 220,
+      render: (note, crew) => (
+        <Input
+          value={note || ''}
+          placeholder={crew.isPresent ? 'Ghi chú (nếu có)' : 'Nhập lý do vắng'}
+          onChange={(event) => handleNoteChange(crew.crewId, event.target.value)}
+          disabled={rowDisabled}
+        />
+      ),
+    },
   ];
 
   const tabItems = [
@@ -187,6 +224,13 @@ export default function AttendancePage() {
 
         <Card>
           <Tabs activeKey={activeTab} onChange={setActiveTab} items={tabItems} />
+
+          <Alert
+            message={`Loại điểm danh đang chọn: ${tabItems.find((item) => item.key === activeTab)?.label}`}
+            type="info"
+            showIcon
+            style={{ marginBottom: 16 }}
+          />
 
           {!statusValid && voyageStatus && (
             <Alert

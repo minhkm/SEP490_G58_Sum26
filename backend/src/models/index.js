@@ -18,6 +18,8 @@ const Cargo = require("./Cargo");
 const CargoItem = require("./CargoItem");
 const CargoType = require("./CargoType");
 const Attendance = require("./Attendance");
+const CargoOperation = require("./CargoOperation");
+const VoyageOperationReport = require("./VoyageOperationReport");
 const Shift = require("./Shift");
 const ShiftLog = require("./ShiftLog");
 const Report = require("./Report");
@@ -134,6 +136,9 @@ VoyageCrew.belongsTo(CrewProfile, { foreignKey: "crewId" });
 CrewProfile.hasMany(Attendance, { foreignKey: "crewId" });
 Attendance.belongsTo(CrewProfile, { foreignKey: "crewId" });
 
+CrewProfile.hasMany(Attendance, { foreignKey: "recordedBy", as: "RecordedAttendances" });
+Attendance.belongsTo(CrewProfile, { foreignKey: "recordedBy", as: "Recorder" });
+
 CrewProfile.hasMany(Shift, { foreignKey: "crewId" });
 Shift.belongsTo(CrewProfile, { foreignKey: "crewId" });
 
@@ -147,6 +152,24 @@ CargoAllocation.belongsTo(Cargo, { foreignKey: "cargoId" });
 // CargoHold 1-N CargoAllocation
 CargoHold.hasMany(CargoAllocation, { foreignKey: "cargoHoldId" });
 CargoAllocation.belongsTo(CargoHold, { foreignKey: "cargoHoldId" });
+
+Voyage.hasMany(CargoOperation, { foreignKey: "voyageId" });
+CargoOperation.belongsTo(Voyage, { foreignKey: "voyageId" });
+Cargo.hasMany(CargoOperation, { foreignKey: "cargoId" });
+CargoOperation.belongsTo(Cargo, { foreignKey: "cargoId" });
+CargoItem.hasMany(CargoOperation, { foreignKey: "cargoItemId" });
+CargoOperation.belongsTo(CargoItem, { foreignKey: "cargoItemId" });
+CrewProfile.hasMany(CargoOperation, { foreignKey: "confirmedBy", as: "ConfirmedCargoOperations" });
+CargoOperation.belongsTo(CrewProfile, { foreignKey: "confirmedBy", as: "Confirmer" });
+
+Voyage.hasMany(VoyageOperationReport, { foreignKey: "voyageId" });
+VoyageOperationReport.belongsTo(Voyage, { foreignKey: "voyageId" });
+Ship.hasMany(VoyageOperationReport, { foreignKey: "shipId" });
+VoyageOperationReport.belongsTo(Ship, { foreignKey: "shipId" });
+CrewProfile.hasMany(VoyageOperationReport, { foreignKey: "preparedBy", as: "PreparedOperationReports" });
+VoyageOperationReport.belongsTo(CrewProfile, { foreignKey: "preparedBy", as: "Preparer" });
+CrewProfile.hasMany(VoyageOperationReport, { foreignKey: "acknowledgedBy", as: "AcknowledgedOperationReports" });
+VoyageOperationReport.belongsTo(CrewProfile, { foreignKey: "acknowledgedBy", as: "Acknowledger" });
 
 // Shift 1-N ShiftLog
 Shift.hasMany(ShiftLog, { foreignKey: "shiftId" });
@@ -200,8 +223,8 @@ module.exports = {
   Engine, Equipment, RepairLog,
   CargoHold, CargoAllocation,
   Voyage, VoyageCrew,
-  Cargo, CargoItem, CargoType,
-  Attendance,
+  Cargo, CargoItem, CargoType, CargoOperation,
+  Attendance, VoyageOperationReport,
   Shift, ShiftLog, ShiftLogEquipment,
   Report, ReportReply,
   EngineParameter,

@@ -1,5 +1,5 @@
 const express = require('express');
-const { Ship, CrewProfile, Voyage, User, VoyageCrew, Cargo, CargoItem, Equipment } = require('../models');
+const { Ship, CrewProfile, Voyage, User, VoyageCrew, Cargo, CargoItem, Equipment, VoyageOperationReport } = require('../models');
 const { Op } = require('sequelize');
 const authMiddleware = require('../middlewares/authMiddleware');
 
@@ -107,6 +107,13 @@ router.get('/master', authMiddleware, async (req, res) => {
     // Số nhân sự
     const totalCrewCount = (activeVoyage.VoyageCrews || []).length;
 
+    const latestOperationReport = await VoyageOperationReport.findOne({
+      where: { voyageId },
+      attributes: { exclude: ['cargoSnapshot', 'attendanceSnapshot'] },
+      include: [{ model: CrewProfile, as: 'Preparer', attributes: ['id', 'fullName'] }],
+      order: [['finalizedAt', 'DESC'], ['id', 'DESC']]
+    });
+
     // Chuẩn bị response payload
     const dashboardData = {
       voyage: activeVoyage,
@@ -115,7 +122,8 @@ router.get('/master', authMiddleware, async (req, res) => {
         totalVolume,
         equipmentStatus,
         totalCrewCount
-      }
+      },
+      latestOperationReport
     };
 
     res.json(dashboardData);

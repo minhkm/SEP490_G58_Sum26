@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Table, Button, Input, Card, Row, Col, Statistic, Space, Typography, Tooltip } from 'antd';
-import { PlusOutlined, ReloadOutlined, TeamOutlined, ArrowRightOutlined, CompassOutlined } from '@ant-design/icons';
+import { Table, Button, Input, Card, Row, Col, Statistic, Space, Typography, Tooltip, Modal, Select, DatePicker, message } from 'antd';
+import { PlusOutlined, ReloadOutlined, TeamOutlined, ArrowRightOutlined, CompassOutlined, FileExcelOutlined } from '@ant-design/icons';
 import MasterLayout from '../components/MasterLayout';
 import AgencyLayout from '../components/AgencyLayout';
 import UpdateVoyageModal from '../components/UpdateVoyageModal';
@@ -25,12 +25,17 @@ export default function VoyageListPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [loading, setLoading] = useState(true);
   const [selectedVoyage, setSelectedVoyage] = useState(null);
+  const [reportVoyage, setReportVoyage] = useState(null);
+  const [reportPeriodType, setReportPeriodType] = useState('voyage');
+  const [reportDate, setReportDate] = useState(null);
+  const [exporting, setExporting] = useState(false);
 
   const user = JSON.parse(localStorage.getItem('user')) || {};
   const activeVoyageRole = localStorage.getItem('activeVoyageRole');
   const userRole = (activeVoyageRole || user.role || '').replace(/\s+/g, '').toLowerCase();
   const canEdit = ['admin', 'agency', 'chiefofficer', 'master'].includes(userRole);
-  const canAttendance = ['master'].includes(userRole);
+  const canAttendance = ['master', 'chiefofficer'].includes(userRole);
+  const canExportReport = ['admin', 'agency', 'master', 'chiefofficer', 'deckofficer'].includes(userRole);
   const canCreate = ['admin', 'agency'].includes(userRole);
 
   const Layout = userRole === 'admin' || userRole === 'agency' ? AgencyLayout : MasterLayout;
@@ -51,6 +56,47 @@ export default function VoyageListPage() {
   useEffect(() => {
     loadVoyages();
   }, []);
+
+  const openExportModal = (voyage) => {
+    setReportVoyage(voyage);
+    setReportPeriodType('voyage');
+    setReportDate(null);
+  };
+
+  const handleExportExcel = async () => {
+    if (!reportVoyage) return;
+    if (reportPeriodType !== 'voyage' && !reportDate) {
+      message.warning('Vui lòng chọn thời gian cần xuất báo cáo.');
+      return;
+    }
+
+    try {
+      setExporting(true);
+      const params = { periodType: reportPeriodType };
+      if (reportPeriodType !== 'voyage') params.date = reportDate.format('YYYY-MM-DD');
+      const response = await voyageService.exportOperationReport(reportVoyage.id, params);
+      const disposition = response.headers?.['content-disposition'] || '';
+      const filenameMatch = disposition.match(/filename="?([^";]+)"?/i);
+      const filename = filenameMatch?.[1] || `Cargo_Attendance_Voyage-${reportVoyage.id}.xlsx`;
+      const url = window.URL.createObjectURL(new Blob([response.data], {
+        type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      }));
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+      message.success('Đã xuất báo cáo Excel thành công.');
+      setReportVoyage(null);
+    } catch (error) {
+      console.error('Unable to export operation report:', error);
+      message.error('Không thể xuất báo cáo Excel. Vui lòng kiểm tra backend và thử lại.');
+    } finally {
+      setExporting(false);
+    }
+  };
 
   const filteredVoyages = useMemo(() => {
     let list = voyages;
@@ -118,7 +164,7 @@ export default function VoyageListPage() {
       dataIndex: 'status',
       render: (status) => <StatusTag status={status} text={status || 'Planning'} />,
     },
-    ...(canEdit || canAttendance
+    ...(canEdit || canAttendance || canExportReport
       ? [
           {
             title: 'Thao tác',
@@ -128,7 +174,16 @@ export default function VoyageListPage() {
                 onEdit={canEdit ? () => setSelectedVoyage(voyage) : undefined}
                 editTitle="Cập nhật thông tin chuyến đi"
               >
-                {canAttendance && (
+                {canExportReport && voyage.status !== 'Cancelled' && (
+                  <Tooltip title="Xuất báo cáo Excel">
+                    <Button
+                      type="text"
+                      icon={<FileExcelOutlined style={{ color: '#16a34a' }} />}
+                      onClick={() => openExportModal(voyage)}
+                    />
+                  </Tooltip>
+                )}
+                {canAttendance && ['Loaded', 'Underway', 'Discharged'].includes(voyage.status) && (
                   <Tooltip title="Điểm danh thuyền viên">
                     <Button
                       type="text"
@@ -197,6 +252,51 @@ export default function VoyageListPage() {
           onUpdate={loadVoyages}
         />
       )}
+
+      <Modal
+        title={`Xuất báo cáo Excel - VY-${String(reportVoyage?.id || '').padStart(4, '0')}`}
+        open={Boolean(reportVoyage)}
+        onCancel={() => !exporting && setReportVoyage(null)}
+        onOk={handleExportExcel}
+        okText="Xuất Excel"
+        cancelText="Hủy"
+        confirmLoading={exporting}
+        okButtonProps={{ icon: <FileExcelOutlined /> }}
+        destroyOnHidden
+      >
+        <div style={{ marginBottom: 16 }}>
+          <div style={{ fontWeight: 600, marginBottom: 8 }}>Phạm vi báo cáo</div>
+          <Select
+            value={reportPeriodType}
+            onChange={(value) => {
+              setReportPeriodType(value);
+              setReportDate(null);
+            }}
+            style={{ width: '100%' }}
+            options={[
+              { value: 'day', label: 'Theo ngày' },
+              { value: 'week', label: 'Theo tuần' },
+              { value: 'month', label: 'Theo tháng' },
+              { value: 'voyage', label: 'Toàn bộ hải trình' },
+            ]}
+          />
+        </div>
+        {reportPeriodType !== 'voyage' && (
+          <div>
+            <div style={{ fontWeight: 600, marginBottom: 8 }}>
+              {reportPeriodType === 'day' ? 'Chọn ngày' : reportPeriodType === 'week' ? 'Chọn tuần' : 'Chọn tháng'}
+            </div>
+            <DatePicker
+              value={reportDate}
+              onChange={setReportDate}
+              picker={reportPeriodType === 'week' ? 'week' : reportPeriodType === 'month' ? 'month' : 'date'}
+              format={reportPeriodType === 'month' ? 'MM/YYYY' : reportPeriodType === 'week' ? 'wo [năm] YYYY' : 'DD/MM/YYYY'}
+              style={{ width: '100%' }}
+              allowClear={false}
+            />
+          </div>
+        )}
+      </Modal>
     </Layout>
   );
 }

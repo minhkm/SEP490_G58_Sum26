@@ -70,6 +70,12 @@ export const voyageService = {
     const response = await api.post(`/voyages/${id}/attendances`, payload);
     return response.data;
   },
+  exportOperationReport: async (id, params = {}) => {
+    return api.get(`/voyages/${id}/operation-report/export`, {
+      params,
+      responseType: 'blob',
+    });
+  },
   getVoyageEquipments: async (id) => {
     const response = await api.get(`/voyages/${id}/equipments`);
     return response.data;
