@@ -36,7 +36,11 @@ export default function LoginPage() {
       localStorage.setItem("token", response.token);
       localStorage.setItem("user", JSON.stringify(response.user));
 
-      navigate(getDashboardPath(response.user.role));
+      if (response.user.role === 'Admin' || response.user.role === 'Agency') {
+        navigate(getDashboardPath(response.user.role));
+      } else {
+        navigate('/my-voyages');
+      }
     } catch (error) {
       if (error.response && error.response.data && error.response.data.message) {
         setApiError(error.response.data.message);
@@ -69,7 +73,11 @@ export default function LoginPage() {
       localStorage.setItem("token", tempUser.token);
       localStorage.setItem("user", JSON.stringify(tempUser.user));
 
-      navigate(getDashboardPath(tempUser.user.role));
+      if (tempUser.user.role === 'Admin' || tempUser.user.role === 'Agency') {
+        navigate(getDashboardPath(tempUser.user.role));
+      } else {
+        navigate('/my-voyages');
+      }
     } catch (error) {
       setChangePassError(error.response?.data?.message || "Lỗi đổi mật khẩu.");
     } finally {

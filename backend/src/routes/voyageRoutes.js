@@ -200,9 +200,15 @@ router.get("/", authMiddleware, async (req, res) => {
       // Tìm các voyageId mà người này được phân công
       const userVoyages = await VoyageCrew.findAll({
         where: { crewId: profileId },
-        attributes: ['voyageId']
+        attributes: ['voyageId', 'role']
       });
       const voyageIds = userVoyages.map(vc => vc.voyageId);
+      
+      const roleMap = {};
+      userVoyages.forEach(vc => {
+        roleMap[vc.voyageId] = vc.role;
+      });
+      req.voyageRoleMap = roleMap; // Store temporarily to use after fetching
 
       whereClause = { id: voyageIds };
     }
@@ -221,7 +227,16 @@ router.get("/", authMiddleware, async (req, res) => {
       ],
     });
 
-    res.json(voyages);
+    let resultVoyages = voyages;
+    if (userRole !== 'Admin' && userRole !== 'Agency' && req.voyageRoleMap) {
+       resultVoyages = voyages.map(v => {
+          const vJson = v.toJSON();
+          vJson.userRoleInVoyage = req.voyageRoleMap[v.id];
+          return vJson;
+       });
+    }
+
+    res.json(resultVoyages);
   } catch (error) {
     console.error("Error fetching voyages:", error);
     res.status(500).json({ message: "Unable to fetch voyage list." });
@@ -273,7 +288,7 @@ router.get('/:id/cargo', authMiddleware, async (req, res) => {
       include: [
         {
           model: CargoItem,
-          attributes: ['id', 'itemName', 'quantity', 'weight', 'isLoaded', 'holdId', 'allocations']
+          attributes: ['id', 'itemName', 'quantity', 'weight', 'isLoaded', 'isDischarged', 'holdId', 'allocations']
         }
       ]
     });
@@ -291,6 +306,7 @@ router.get('/:id/cargo', authMiddleware, async (req, res) => {
              quantity: item.quantity,
              weight: item.weight,
              isLoaded: item.isLoaded,
+             isDischarged: item.isDischarged,
              holdId: null,
              allocations: item.allocations || []
            });
@@ -305,6 +321,7 @@ router.get('/:id/cargo', authMiddleware, async (req, res) => {
            quantity: 0,
            weight: cargo.totalWeight,
            isLoaded: false,
+           isDischarged: false,
            holdId: null,
            allocations: []
          });
@@ -395,11 +412,28 @@ router.put('/:id', authMiddleware, async (req, res) => {
     if (arrivalDate) voyage.arrivalDate = arrivalDate;
     if (isCargoLoaded !== undefined) voyage.isCargoLoaded = isCargoLoaded;
     if (issueReason !== undefined) voyage.issueReason = issueReason;
-    if (routeWaypoints !== undefined) voyage.routeWaypoints = routeWaypoints;
+    if (routeWaypoints !== undefined) {
+      if (['Approved', 'Pending'].includes(voyage.routeStatus)) {
+        return res.status(403).json({ message: 'Lộ trình đã được gửi duyệt hoặc phê duyệt, không thể chỉnh sửa!' });
+      }
+      const lockedStatuses = ['Underway', 'Arrived', 'Completed', 'Discharge', 'Discharged', 'Homeward Bounding'];
+      if (lockedStatuses.includes(voyage.status)) {
+        return res.status(403).json({ message: 'Hải trình đang chạy hoặc đã hoàn thành, không thể chỉnh sửa lộ trình!' });
+      }
+      if (userRole === 'chiefofficer' && voyage.status !== 'Loaded') {
+        return res.status(403).json({ message: 'Đại phó chỉ được chỉnh sửa lộ trình khi trạng thái tàu là Loaded!' });
+      }
+      voyage.routeWaypoints = routeWaypoints;
+    }
     
     let routeStatusChangedToPending = false;
     if (routeStatus !== undefined && routeStatus !== voyage.routeStatus) {
-      if (routeStatus === 'Pending') routeStatusChangedToPending = true;
+      if (routeStatus === 'Pending') {
+        if (userRole === 'chiefofficer' && voyage.status !== 'Loaded') {
+           return res.status(403).json({ message: 'Đại phó chỉ được gửi duyệt lộ trình khi trạng thái tàu là Loaded!' });
+        }
+        routeStatusChangedToPending = true;
+      }
       voyage.routeStatus = routeStatus;
     }
 
@@ -483,6 +517,29 @@ router.put('/:id', authMiddleware, async (req, res) => {
       }
     }
 
+    if (nextStatus === 'Discharged') {
+      const cargosInVoyage = await Cargo.findAll({
+        where: { voyageId: id },
+        include: [{ model: CargoItem }]
+      });
+
+      let allDischarged = true;
+      for (const cargo of cargosInVoyage) {
+        if (cargo.CargoItems && cargo.CargoItems.length > 0) {
+          for (const item of cargo.CargoItems) {
+            if (!item.isDischarged) {
+              allDischarged = false;
+              break;
+            }
+          }
+        }
+      }
+
+      if (!allDischarged) {
+        return res.status(400).json({ message: 'Chưa dỡ hết hàng hóa, không thể chuyển trạng thái Đã dỡ hàng xong (Discharged)!' });
+      }
+    }
+
     // Process cargoList if provided and allowed
     if (isShipStaff && cargoList && Array.isArray(cargoList)) {
       if (cargoList.length > 0) {
@@ -494,7 +551,7 @@ router.put('/:id', authMiddleware, async (req, res) => {
              const cargoItem = await CargoItem.findByPk(item.itemId);
              if (cargoItem) {
                // 1. Revert old allocations from hold currentUsage
-               if (cargoItem.isLoaded) {
+               if (cargoItem.isLoaded && !cargoItem.isDischarged) {
                  for (const a of (cargoItem.allocations || [])) {
                    if (a.holdId) {
                      const h = await CargoHold.findByPk(a.holdId);
@@ -508,7 +565,7 @@ router.put('/:id', authMiddleware, async (req, res) => {
                }
 
                // 2. Apply new allocations
-               if (item.isLoaded) {
+               if (item.isLoaded && !cargoItem.isDischarged) {
                  for (const a of (item.allocations || [])) {
                    if (a.holdId) {
                      const h = await CargoHold.findByPk(a.holdId);
@@ -591,12 +648,22 @@ router.put('/:id', authMiddleware, async (req, res) => {
     }
 
     if (routeStatusChangedToPending) {
-       const captainProfile = await CrewProfile.findOne({ where: { voyageId: voyage.id, position: 'Master' } });
-       if (captainProfile) {
-          const captainUser = await User.findByPk(captainProfile.userId);
-          if (captainUser && captainUser.username) {
-             const applicantName = req.user.username; // Hoặc có thể lấy tên hiển thị nếu có
-             await sendRouteApprovalEmail(captainUser.username, voyage.id, voyage.departurePort, voyage.destinationPort, applicantName);
+       const captainAssignment = await VoyageCrew.findOne({ where: { voyageId: voyage.id, role: 'Captain (CAPT)' } });
+       if (captainAssignment) {
+          const captainProfile = await CrewProfile.findByPk(captainAssignment.crewId);
+          if (captainProfile) {
+             const captainUser = await User.findByPk(captainProfile.userId);
+             if (captainUser && captainUser.username) {
+                const applicantName = req.user.username || 'Đại phó';
+                // If sendRouteApprovalEmail is defined (need to check if it's imported properly, assuming it is or skipping if not)
+                if (typeof sendRouteApprovalEmail === 'function') {
+                  try {
+                    await sendRouteApprovalEmail(captainUser.username, voyage.id, voyage.departurePort, voyage.destinationPort, applicantName);
+                  } catch (e) {
+                    console.error('Lỗi gửi email cho thuyền trưởng:', e);
+                  }
+                }
+             }
           }
        }
     }
@@ -799,6 +866,53 @@ router.patch('/equipments/:equipmentId/status', authMiddleware, async (req, res)
   } catch (error) {
     console.error('Lỗi cập nhật trạng thái thiết bị:', error);
     res.status(500).json({ message: 'Lỗi server', error: error.message });
+  }
+});
+
+// Dỡ hàng (Discharge)
+router.put('/:id/cargo/:itemId/discharge', authMiddleware, async (req, res) => {
+  try {
+    const { id, itemId } = req.params;
+    const { isDischarged } = req.body;
+
+    const voyage = await Voyage.findByPk(id);
+    if (!voyage) return res.status(404).json({ message: 'Không tìm thấy chuyến đi' });
+
+    const cargoItem = await CargoItem.findByPk(itemId);
+    if (!cargoItem) return res.status(404).json({ message: 'Không tìm thấy kiện hàng' });
+
+    // Trừ tải trọng khỏi hầm hàng nếu hàng bị dỡ
+    if (isDischarged && !cargoItem.isDischarged && cargoItem.isLoaded) {
+      for (const a of (cargoItem.allocations || [])) {
+        if (a.holdId) {
+          const h = await CargoHold.findByPk(a.holdId);
+          if (h) {
+            h.currentUsage -= Number(a.weight || 0);
+            if (h.currentUsage < 0) h.currentUsage = 0;
+            await h.save();
+          }
+        }
+      }
+    } else if (!isDischarged && cargoItem.isDischarged && cargoItem.isLoaded) {
+      // Nếu undo dỡ hàng (ít khi xảy ra, nhưng an toàn)
+      for (const a of (cargoItem.allocations || [])) {
+        if (a.holdId) {
+          const h = await CargoHold.findByPk(a.holdId);
+          if (h) {
+            h.currentUsage += Number(a.weight || 0);
+            await h.save();
+          }
+        }
+      }
+    }
+
+    cargoItem.isDischarged = isDischarged;
+    await cargoItem.save();
+
+    res.json({ message: 'Cập nhật trạng thái dỡ hàng thành công', cargoItem });
+  } catch (error) {
+    console.error('Lỗi khi dỡ hàng:', error);
+    res.status(500).json({ message: 'Lỗi server khi dỡ hàng', error: error.message });
   }
 });
 

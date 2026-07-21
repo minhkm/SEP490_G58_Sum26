@@ -52,6 +52,10 @@ export const voyageService = {
     const response = await api.get(`/voyages/${id}/cargo`);
     return response.data;
   },
+  dischargeCargoItem: async (voyageId, itemId, isDischarged) => {
+    const response = await api.put(`/voyages/${voyageId}/cargo/${itemId}/discharge`, { isDischarged });
+    return response.data;
+  },
   updateVoyage: async (id, data) => {
     const response = await api.put(`/voyages/${id}`, data);
     return response.data;
@@ -124,8 +128,10 @@ export const dashboardService = {
     const response = await api.get('/dashboard/agency');
     return response.data;
   },
-  getMasterDashboardData: async () => {
-    const response = await api.get('/dashboard/master');
+  getMasterDashboardData: async (voyageId) => {
+    let url = '/dashboard/master';
+    if (voyageId) url += `?voyageId=${voyageId}`;
+    const response = await api.get(url);
     return response.data;
   }
 };

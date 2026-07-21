@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Typography, Card, Button, Select, Spin, message, Row, Col, Tag, Space } from 'antd';
-import { SaveOutlined, DeleteOutlined, UndoOutlined, SendOutlined, CheckOutlined, CloseOutlined } from '@ant-design/icons';
+import { Typography, Card, Button, Select, Spin, message, Row, Col, Tag, Space, Input } from 'antd';
+import { SaveOutlined, DeleteOutlined, UndoOutlined, SendOutlined, CheckOutlined, CloseOutlined, PlusOutlined } from '@ant-design/icons';
 import { MapContainer, TileLayer, Marker, Polyline, useMapEvents } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
@@ -22,9 +22,10 @@ L.Marker.prototype.options.icon = DefaultIcon;
 const { Title, Text } = Typography;
 
 // Component to handle map clicks
-function LocationMarkers({ waypoints, setWaypoints }) {
+function LocationMarkers({ waypoints, setWaypoints, isReadOnly }) {
   useMapEvents({
     click(e) {
+      if (isReadOnly) return;
       setWaypoints((prev) => {
         if (prev.length >= 2) {
           const newPts = [...prev];
@@ -54,9 +55,12 @@ export default function RoutePlannerPage() {
   const [selectedVoyageId, setSelectedVoyageId] = useState(null);
   const [waypoints, setWaypoints] = useState([]);
   const [saving, setSaving] = useState(false);
+  const [inputLat, setInputLat] = useState('');
+  const [inputLng, setInputLng] = useState('');
 
   const user = JSON.parse(localStorage.getItem('user')) || {};
-  const userRole = (user.role || '').replace(/\s+/g, '').toLowerCase();
+  const activeVoyageRole = localStorage.getItem('activeVoyageRole');
+  const userRole = (activeVoyageRole || user.role || '').replace(/\s+/g, '').toLowerCase();
 
   useEffect(() => {
     fetchVoyages();
@@ -118,16 +122,41 @@ export default function RoutePlannerPage() {
     });
   };
 
+  const handleAddWaypoint = () => {
+    const lat = parseFloat(inputLat);
+    const lng = parseFloat(inputLng);
+    if (isNaN(lat) || isNaN(lng)) {
+      return message.error('Vui lòng nhập toạ độ hợp lệ (số thực)');
+    }
+    if (lat < -90 || lat > 90) {
+      return message.error('Vĩ độ (Latitude) phải từ -90 đến 90');
+    }
+    if (lng < -180 || lng > 180) {
+      return message.error('Kinh độ (Longitude) phải từ -180 đến 180');
+    }
+    
+    setWaypoints((prev) => {
+      if (prev.length >= 2) {
+        const newPts = [...prev];
+        newPts.splice(newPts.length - 1, 0, { lat, lng });
+        return newPts;
+      }
+      return [...prev, { lat, lng }];
+    });
+    setInputLat('');
+    setInputLng('');
+  };
+
   const handleSave = async () => {
     if (!selectedVoyageId) return message.warning('Vui lòng chọn chuyến đi');
     try {
       setSaving(true);
-      await voyageService.updateVoyage(selectedVoyageId, { routeWaypoints: waypoints });
+      await voyageService.updateVoyage(selectedVoyageId, { routeWaypoints: waypoints, userRole });
       message.success('Đã lưu lộ trình thành công!');
       fetchVoyages();
     } catch (err) {
       console.error(err);
-      message.error('Lỗi khi lưu lộ trình');
+      message.error(err.response?.data?.message || 'Lỗi khi lưu lộ trình');
     } finally {
       setSaving(false);
     }
@@ -137,12 +166,12 @@ export default function RoutePlannerPage() {
     if (!selectedVoyageId) return message.warning('Vui lòng chọn chuyến đi');
     try {
       setSaving(true);
-      await voyageService.updateVoyage(selectedVoyageId, { routeWaypoints: waypoints, routeStatus: 'Pending' });
+      await voyageService.updateVoyage(selectedVoyageId, { routeWaypoints: waypoints, routeStatus: 'Pending', userRole });
       message.success('Đã gửi Thuyền trưởng duyệt!');
       fetchVoyages();
     } catch (err) {
       console.error(err);
-      message.error('Lỗi khi gửi duyệt');
+      message.error(err.response?.data?.message || 'Lỗi khi gửi duyệt');
     } finally {
       setSaving(false);
     }
@@ -152,12 +181,12 @@ export default function RoutePlannerPage() {
     if (!selectedVoyageId) return message.warning('Vui lòng chọn chuyến đi');
     try {
       setSaving(true);
-      await voyageService.updateVoyage(selectedVoyageId, { routeStatus: 'Approved' });
+      await voyageService.updateVoyage(selectedVoyageId, { routeStatus: 'Approved', userRole });
       message.success('Đã phê duyệt lộ trình!');
       fetchVoyages();
     } catch (err) {
       console.error(err);
-      message.error('Lỗi khi phê duyệt lộ trình');
+      message.error(err.response?.data?.message || 'Lỗi khi phê duyệt');
     } finally {
       setSaving(false);
     }
@@ -167,18 +196,30 @@ export default function RoutePlannerPage() {
     if (!selectedVoyageId) return message.warning('Vui lòng chọn chuyến đi');
     try {
       setSaving(true);
-      await voyageService.updateVoyage(selectedVoyageId, { routeStatus: 'Draft' });
+      await voyageService.updateVoyage(selectedVoyageId, { routeStatus: 'Draft', userRole });
       message.success('Đã từ chối lộ trình, trả về trạng thái Nháp!');
       fetchVoyages();
     } catch (err) {
       console.error(err);
-      message.error('Lỗi khi từ chối lộ trình');
+      message.error(err.response?.data?.message || 'Lỗi khi từ chối');
     } finally {
       setSaving(false);
     }
   };
 
   const selectedVoyage = voyages.find(v => v.id === selectedVoyageId);
+
+  let isReadOnly = !selectedVoyage || 
+                     ['Approved', 'Pending'].includes(selectedVoyage.routeStatus) || 
+                     ['Underway', 'Arrived', 'Completed', 'Discharge', 'Discharged', 'Homeward Bounding'].includes(selectedVoyage.status);
+
+  if (userRole === 'chiefofficer' && selectedVoyage && selectedVoyage.status !== 'Loaded') {
+    isReadOnly = true;
+  }
+
+  if (userRole === 'master') {
+    isReadOnly = true;
+  }
 
   return (
     <MasterLayout>
@@ -213,17 +254,21 @@ export default function RoutePlannerPage() {
             </Col>
             <Col span={16} style={{ textAlign: 'right', marginTop: 28 }}>
               <Space>
-                <Button icon={<UndoOutlined />} onClick={handleUndo} disabled={waypoints.length === 0 || selectedVoyage?.routeStatus === 'Approved'}>
-                  Hoàn tác điểm cuối
-                </Button>
-                <Button danger icon={<DeleteOutlined />} onClick={handleClear} disabled={waypoints.length === 0 || selectedVoyage?.routeStatus === 'Approved'}>
-                  Xoá lộ trình
-                </Button>
-                <Button type="primary" icon={<SaveOutlined />} onClick={handleSave} loading={saving} disabled={!selectedVoyage || selectedVoyage?.routeStatus === 'Approved'}>
-                  Lưu lộ trình
-                </Button>
+                {userRole !== 'master' && (
+                  <>
+                    <Button icon={<UndoOutlined />} onClick={handleUndo} disabled={waypoints.length === 0 || isReadOnly}>
+                      Hoàn tác điểm cuối
+                    </Button>
+                    <Button danger icon={<DeleteOutlined />} onClick={handleClear} disabled={waypoints.length === 0 || isReadOnly}>
+                      Xoá lộ trình
+                    </Button>
+                    <Button type="primary" icon={<SaveOutlined />} onClick={handleSave} loading={saving} disabled={isReadOnly}>
+                      Lưu lộ trình
+                    </Button>
+                  </>
+                )}
                 {userRole === 'chiefofficer' && (!selectedVoyage?.routeStatus || selectedVoyage?.routeStatus === 'Draft') && (
-                  <Button type="primary" icon={<SendOutlined />} onClick={handleSubmitReview} loading={saving} disabled={!selectedVoyage || waypoints.length === 0} style={{ background: '#f59e0b', borderColor: '#f59e0b' }}>
+                  <Button type="primary" icon={<SendOutlined />} onClick={handleSubmitReview} loading={saving} disabled={isReadOnly || waypoints.length === 0} style={{ background: '#f59e0b', borderColor: '#f59e0b' }}>
                     Gửi duyệt
                   </Button>
                 )}
@@ -240,6 +285,39 @@ export default function RoutePlannerPage() {
               </Space>
             </Col>
           </Row>
+          
+          {userRole !== 'master' && (
+            <Row gutter={16} align="middle" style={{ marginTop: 16, paddingTop: 16, borderTop: '1px solid #f0f0f0' }}>
+              <Col span={24}>
+                <Space>
+                  <Text strong>Thêm toạ độ thủ công:</Text>
+                  <Input 
+                    placeholder="Vĩ độ (Latitude) VD: 16.04" 
+                    value={inputLat} 
+                    onChange={e => setInputLat(e.target.value)} 
+                    style={{ width: 200 }} 
+                    disabled={isReadOnly || !selectedVoyageId} 
+                  />
+                  <Input 
+                    placeholder="Kinh độ (Longitude) VD: 108.20" 
+                    value={inputLng} 
+                    onChange={e => setInputLng(e.target.value)} 
+                    style={{ width: 200 }} 
+                    disabled={isReadOnly || !selectedVoyageId} 
+                  />
+                  <Button 
+                    type="primary" 
+                    icon={<PlusOutlined />} 
+                    onClick={handleAddWaypoint} 
+                    disabled={isReadOnly || !inputLat || !inputLng}
+                    style={{ background: '#3b82f6', borderColor: '#3b82f6' }}
+                  >
+                    Thêm điểm
+                  </Button>
+                </Space>
+              </Col>
+            </Row>
+          )}
         </Card>
 
         <Card 
@@ -261,7 +339,7 @@ export default function RoutePlannerPage() {
                 attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
                 url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
               />
-              <LocationMarkers waypoints={waypoints} setWaypoints={setWaypoints} />
+              <LocationMarkers waypoints={waypoints} setWaypoints={setWaypoints} isReadOnly={isReadOnly} />
             </MapContainer>
           )}
         </Card>

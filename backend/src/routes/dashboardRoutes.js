@@ -47,12 +47,19 @@ router.get('/master', authMiddleware, async (req, res) => {
       return res.status(400).json({ message: 'Không tìm thấy profile của người dùng.' });
     }
 
-    // 1. Tìm VoyageCrew của user đang login trong các voyage chưa hoàn thành
+    const { voyageId: queryVoyageId } = req.query;
+
+    let voyageCondition = { status: { [Op.notIn]: ['Completed', 'Cancelled'] } };
+    if (queryVoyageId) {
+      voyageCondition = { id: queryVoyageId };
+    }
+
+    // 1. Tìm VoyageCrew của user đang login trong các voyage chưa hoàn thành (hoặc theo voyageId cụ thể)
     const userCrew = await VoyageCrew.findOne({
       where: { crewId: req.user.profileId },
       include: [{
         model: Voyage,
-        where: { status: { [Op.notIn]: ['Completed', 'Cancelled'] } }
+        where: voyageCondition
       }]
     });
 

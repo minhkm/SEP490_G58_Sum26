@@ -59,6 +59,16 @@ const EQUIPMENT_LOCATION_OPTIONS = [
   { label: 'Buồng lái', value: 'Buồng lái' },
 ];
 
+const mapPositionToRole = (position) => {
+  if (!position) return '';
+  const pos = position.toLowerCase();
+  if (pos.includes('captain') || pos.includes('master') || pos.includes('thuyền trưởng') || pos.includes('capt')) return 'Captain (CAPT)';
+  if (pos.includes('chief officer') || pos.includes('đại phó') || pos.includes('c/o')) return 'Đại phó (Chief Officer)';
+  if (pos.includes('chief engineer') || pos.includes('máy trưởng') || pos.includes('c/e')) return 'Máy trưởng (Chief Engineer)';
+  if (pos.includes('deck officer') || pos.includes('sĩ quan boong') || pos.includes('d/o')) return 'Sĩ quan boong (Deck Officer)';
+  return 'Thủy thủ (Crew)';
+};
+
 export default function CreateVoyagePage() {
   const navigate = useNavigate();
 
@@ -92,7 +102,7 @@ export default function CreateVoyagePage() {
   const [availableCrews, setAvailableCrews] = useState([]);
 
   // Capacity Calculations
-  const [selectedShipCapacity, setSelectedShipCapacity] = useState({ maxWeight: 0, maxVolume: 0 });
+  const [selectedShipCapacity, setSelectedShipCapacity] = useState({ maxWeight: 0, maxVolume: 0, minCrew: 0, maxCrew: 0 });
   const [currentCargoTotal, setCurrentCargoTotal] = useState({ weight: 0, volume: 0 });
 
   useEffect(() => {
@@ -123,17 +133,21 @@ export default function CreateVoyagePage() {
         setSelectedShipCapacity({
           maxWeight: ship.ShipCapacity.maxCargoWeight || 0,
           maxVolume: ship.ShipCapacity.maxCargoVolume || 0,
+          minCrew: ship.ShipCapacity.minCrew || 10,
+          maxCrew: ship.ShipCapacity.maxCrew || 25,
         });
       } else if (ship && ship.ShipCapacities && ship.ShipCapacities.length > 0) {
         setSelectedShipCapacity({
           maxWeight: ship.ShipCapacities[0].maxCargoWeight || 0,
           maxVolume: ship.ShipCapacities[0].maxCargoVolume || 0,
+          minCrew: ship.ShipCapacities[0].minCrew || 10,
+          maxCrew: ship.ShipCapacities[0].maxCrew || 25,
         });
       } else {
-        setSelectedShipCapacity({ maxWeight: 0, maxVolume: 0 });
+        setSelectedShipCapacity({ maxWeight: 0, maxVolume: 0, minCrew: 0, maxCrew: 0 });
       }
     } else {
-      setSelectedShipCapacity({ maxWeight: 0, maxVolume: 0 });
+      setSelectedShipCapacity({ maxWeight: 0, maxVolume: 0, minCrew: 0, maxCrew: 0 });
     }
   }, [shipId, availableShips]);
 
@@ -181,7 +195,13 @@ export default function CreateVoyagePage() {
   };
 
   const handleCrewChange = (id, name, value) => {
-    setCrewList(crewList.map((c) => (c.id === id ? { ...c, [name]: value } : c)));
+    if (name === 'crewId') {
+      const selectedCrew = availableCrews.find(c => c.id === value);
+      const autoRole = selectedCrew ? mapPositionToRole(selectedCrew.position) : '';
+      setCrewList(crewList.map((c) => (c.id === id ? { ...c, crewId: value, role: autoRole } : c)));
+    } else {
+      setCrewList(crewList.map((c) => (c.id === id ? { ...c, [name]: value } : c)));
+    }
   };
 
   // Equipment handlers
@@ -254,6 +274,16 @@ export default function CreateVoyagePage() {
       return notifyWarning(
         `Tổng thể tích hàng (${currentCargoTotal.volume} CBM) vượt quá dung tích của tàu (${selectedShipCapacity.maxVolume} CBM)! Vui lòng điều chỉnh.`
       );
+    }
+
+    const validCargos = cargoList.filter(c => c.cargoId);
+    if (validCargos.length === 0) {
+      return notifyWarning('Hải trình bắt buộc phải có ít nhất một lô hàng được gán!');
+    }
+
+    const validCrews = crewList.filter(c => c.crewId && c.role);
+    if (selectedShipCapacity.minCrew > 0 && (validCrews.length < selectedShipCapacity.minCrew || validCrews.length > selectedShipCapacity.maxCrew)) {
+      return notifyWarning(`Số lượng nhân sự (${validCrews.length} người) không phù hợp với quy định của tàu này (Tối thiểu: ${selectedShipCapacity.minCrew}, Tối đa: ${selectedShipCapacity.maxCrew} người)!`);
     }
 
     const selectedRoles = crewList.map((c) => c.role);

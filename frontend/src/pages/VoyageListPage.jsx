@@ -27,7 +27,8 @@ export default function VoyageListPage() {
   const [selectedVoyage, setSelectedVoyage] = useState(null);
 
   const user = JSON.parse(localStorage.getItem('user')) || {};
-  const userRole = (user.role || '').replace(/\s+/g, '').toLowerCase();
+  const activeVoyageRole = localStorage.getItem('activeVoyageRole');
+  const userRole = (activeVoyageRole || user.role || '').replace(/\s+/g, '').toLowerCase();
   const canEdit = ['admin', 'agency', 'chiefofficer', 'master'].includes(userRole);
   const canAttendance = ['master'].includes(userRole);
   const canCreate = ['admin', 'agency'].includes(userRole);
