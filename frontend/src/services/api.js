@@ -69,8 +69,13 @@ export const voyageService = {
   getVoyageEquipments: async (id) => {
     const response = await api.get(`/voyages/${id}/equipments`);
     return response.data;
+  },
+  updateEquipmentStatus: async (equipmentId, status) => {
+    const response = await api.patch(`/voyages/equipments/${equipmentId}/status`, { status });
+    return response.data;
   }
 };
+
 
 export const cargoService = {
   getAllCargos: async () => {
@@ -190,6 +195,10 @@ export const vesselService = {
   },
   delete: async (id) => {
     const response = await api.delete(`/vessels/${id}`);
+    return response.data;
+  },
+  updateEngineStatus: async (engineId, status) => {
+    const response = await api.patch(`/vessels/engines/${engineId}/status`, { status });
     return response.data;
   }
 };

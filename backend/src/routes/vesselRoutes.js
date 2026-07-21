@@ -269,4 +269,33 @@ router.delete('/:id', async (req, res) => {
   }
 });
 
+// PATCH /api/vessels/engines/:engineId/status — Cập nhật trạng thái máy (chỉ EngineOfficer)
+router.patch('/engines/:engineId/status', async (req, res) => {
+  const authHeader = req.headers.authorization;
+  if (!authHeader) return res.status(401).json({ message: 'Không tìm thấy token' });
+  const jwt = require('jsonwebtoken');
+  let decoded;
+  try { decoded = jwt.verify(authHeader.split(' ')[1], process.env.JWT_SECRET || 'super_secret_key'); }
+  catch { return res.status(403).json({ message: 'Token không hợp lệ' }); }
+  if (decoded.role !== 'EngineOfficer') {
+    return res.status(403).json({ message: 'Chỉ Sĩ quan máy mới được đổi trạng thái máy' });
+  }
+
+  const VALID_ENGINE_STATUSES = ['Operational', 'Standby', 'Under Maintenance'];
+  const { status } = req.body;
+  if (!VALID_ENGINE_STATUSES.includes(status)) {
+    return res.status(400).json({ message: `Trạng thái không hợp lệ. Chỉ chấp nhận: ${VALID_ENGINE_STATUSES.join(', ')}` });
+  }
+
+  try {
+    const engine = await Engine.findByPk(req.params.engineId);
+    if (!engine) return res.status(404).json({ message: 'Không tìm thấy máy' });
+    await engine.update({ status });
+    res.json({ message: 'Cập nhật trạng thái máy thành công', engine });
+  } catch (error) {
+    console.error('Lỗi cập nhật trạng thái máy:', error);
+    res.status(500).json({ message: 'Lỗi server', error: error.message });
+  }
+});
+
 module.exports = router;

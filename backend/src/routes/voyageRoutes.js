@@ -779,4 +779,27 @@ router.post('/:id/attendances', authMiddleware, async (req, res) => {
   }
 });
 
+// PATCH /api/voyages/equipments/:equipmentId/status — Cập nhật trạng thái thiết bị (chỉ EngineOfficer)
+router.patch('/equipments/:equipmentId/status', authMiddleware, async (req, res) => {
+  if (req.user?.role !== 'EngineOfficer') {
+    return res.status(403).json({ message: 'Chỉ Sĩ quan máy mới được đổi trạng thái thiết bị' });
+  }
+
+  const VALID_EQUIPMENT_STATUSES = ['Operational', 'Broken', 'Lost'];
+  const { status } = req.body;
+  if (!VALID_EQUIPMENT_STATUSES.includes(status)) {
+    return res.status(400).json({ message: `Trạng thái không hợp lệ. Chỉ chấp nhận: ${VALID_EQUIPMENT_STATUSES.join(', ')}` });
+  }
+
+  try {
+    const equipment = await Equipment.findByPk(req.params.equipmentId);
+    if (!equipment) return res.status(404).json({ message: 'Không tìm thấy thiết bị' });
+    await equipment.update({ status });
+    res.json({ message: 'Cập nhật trạng thái thiết bị thành công', equipment });
+  } catch (error) {
+    console.error('Lỗi cập nhật trạng thái thiết bị:', error);
+    res.status(500).json({ message: 'Lỗi server', error: error.message });
+  }
+});
+
 module.exports = router;

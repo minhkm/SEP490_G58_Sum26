@@ -27,6 +27,7 @@ import { CARGO_ROLES, REPORT_ROLES, DECK_LOG_ROLES, ENGINE_LOG_ROLES } from "./c
 import { SHIFT_OFFICER_ROLES } from "./config/shifts";
 
 import DeckLogPage from "./pages/DeckLogPage";
+import EngineManagePage from "./pages/EngineManagePage";
 import ReportListPage from "./pages/ReportListPage";
 import ReportDetailPage from "./pages/ReportDetailPage";
 
@@ -117,6 +118,11 @@ function App() {
         <Route path="/deck-logs" element={
           <RequireRole allow={DECK_LOG_ROLES}>
             <DeckLogPage />
+          </RequireRole>
+        } />
+        <Route path="/engine-management" element={
+          <RequireRole allow={['EngineOfficer']}>
+            <EngineManagePage />
           </RequireRole>
         } />
         <Route

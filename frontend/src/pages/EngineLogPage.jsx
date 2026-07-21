@@ -74,7 +74,8 @@ export default function EngineLogPage() {
           setAllVoyageEquipments(eqs || []);
         } catch (e) { console.error(e); }
 
-        if (voyage.Ship?.Engines) setEngines(voyage.Ship.Engines);
+        // Chỉ hiển thị máy đang Operational cho thợ máy ghi nhật ký
+        if (voyage.Ship?.Engines) setEngines(voyage.Ship.Engines.filter(e => e.status === 'Operational'));
         const date = initDate ? dayjs(initDate) : dayjs();
         setSelectedDate(date);
         const shiftsData = await engineLogService.getShifts(voyage.id, date.format('YYYY-MM-DD'));
@@ -109,7 +110,8 @@ export default function EngineLogPage() {
     setSelectedEquipments([]);
     setSelectedEqType('Tất cả');
     if (v) {
-      if (v.Ship?.Engines) setEngines(v.Ship.Engines);
+      // Chỉ hiển thị máy đang Operational cho thợ máy ghi nhật ký
+      if (v.Ship?.Engines) setEngines(v.Ship.Engines.filter(e => e.status === 'Operational'));
       try {
         const eqs = await voyageService.getVoyageEquipments(v.id);
         setAllVoyageEquipments(eqs || []);

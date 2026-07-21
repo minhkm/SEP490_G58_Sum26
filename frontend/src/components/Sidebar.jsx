@@ -25,8 +25,9 @@ export default function Sidebar() {
 
   const isMasterOrChief = role === 'Master' || role === 'ChiefOfficer';
   const isCrewRole = !isMasterOrChief && role !== 'Admin' && role !== 'Agency';
-  const isEngine = role === 'EngineOfficer' || role === 'EngineCrew' || role === 'ChiefEngineer';
-  const isDeck = role === 'Sailor' || role === 'ChiefOfficer' || role === 'Master';
+  const isEngineOfficer = role === 'EngineOfficer';
+  const isEngine = role === 'EngineCrew';
+  const isDeck = role === 'Sailor';
 
   const dashboardPath = isMasterOrChief ? '/master-dashboard' : '/crew-dashboard';
 
@@ -37,6 +38,7 @@ export default function Sidebar() {
     isCrewRole && { key: '/shifts', icon: <ClockCircleOutlined />, label: 'Ca trực' },
     isDeck && { key: '/deck-logs', icon: <FileTextOutlined />, label: 'Nhật ký Trực boong' },
     isEngine && { key: '/engine-logs', icon: <ToolOutlined />, label: 'Nhật ký Kiểm tra Máy' },
+    isEngineOfficer && { key: '/engine-management', icon: <SettingOutlined />, label: 'Quản lý Máy & Thiết bị' },
     { key: '/reports', icon: <BarChartOutlined />, label: 'Báo cáo' },
     { key: '/crew-profile', icon: <UserOutlined />, label: 'Hồ sơ của tôi' },
     isMasterOrChief && { key: 'cai-dat', icon: <SettingOutlined />, label: 'Cài đặt', disabled: true },
