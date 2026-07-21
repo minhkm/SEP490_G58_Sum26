@@ -339,7 +339,7 @@ router.put('/:id', authMiddleware, async (req, res) => {
   try {
     const { id } = req.params;
     const rawUserRole = req.user.role || '';
-    const userRole = rawUserRole.replace(/\s+/g, '').toLowerCase();
+    let userRole = rawUserRole.replace(/\s+/g, '').toLowerCase();
     const profileId = req.user.profileId;
 
     const voyage = await Voyage.findByPk(id);
@@ -359,17 +359,23 @@ router.put('/:id', authMiddleware, async (req, res) => {
 
     // Check authorization
     if (userRole !== 'admin' && userRole !== 'agency') {
-      if (userRole !== 'chiefofficer' && userRole !== 'master') {
-        return res.status(403).json({ message: 'Bạn không có quyền cập nhật chuyến đi này' });
-      }
-      
-      // If ChiefOfficer or Master, check if they are part of the voyage
       const isAssigned = await VoyageCrew.findOne({
         where: { voyageId: id, crewId: profileId }
       });
       if (!isAssigned) {
         return res.status(403).json({ message: 'Bạn không được phân công vào chuyến đi này' });
       }
+      
+      const voyageRole = isAssigned.role || '';
+      const isCaptain = voyageRole.toLowerCase().includes('captain') || voyageRole.toLowerCase().includes('master') || voyageRole.toLowerCase().includes('thuyền trưởng');
+      const isChiefOfficer = voyageRole.toLowerCase().includes('chief officer') || voyageRole.toLowerCase().includes('đại phó');
+
+      if (!isCaptain && !isChiefOfficer) {
+        return res.status(403).json({ message: 'Bạn không có quyền cập nhật chuyến đi này' });
+      }
+
+      if (isChiefOfficer) userRole = 'chiefofficer';
+      else if (isCaptain) userRole = 'master';
     }
 
     const { status, departureDate, arrivalDate, isCargoLoaded, issueReason, attendanceList, cargoList, routeWaypoints, routeStatus } = req.body;
@@ -387,6 +393,10 @@ router.put('/:id', authMiddleware, async (req, res) => {
       if (status && status !== voyage.status && !['Planning', 'Cancelled'].includes(status)) {
          return res.status(403).json({ message: 'Admin chỉ được phép chuyển trạng thái thành Planning hoặc Cancelled!' });
       }
+    }
+
+    if (status === 'Cancelled' && voyage.status !== 'Planning' && voyage.status !== 'Cancelled') {
+      return res.status(400).json({ message: 'Không thể hủy hải trình khi đã bắt đầu làm hàng hoặc di chuyển!' });
     }
 
     const nextStatus = status || voyage.status;
@@ -526,6 +536,17 @@ router.put('/:id', authMiddleware, async (req, res) => {
       }
     }
 
+    if (nextStatus === 'Homeward Bounding') {
+      const requiredCrewCount = await VoyageCrew.count({ where: { voyageId: id } });
+      const postDischargeAttendanceCount = await Attendance.count({ 
+        where: { voyageId: id, attendanceType: 'PostDischarge' } 
+      });
+
+      if (postDischargeAttendanceCount === 0 || postDischargeAttendanceCount < requiredCrewCount) {
+        return res.status(400).json({ message: 'Chưa hoàn thành điểm danh "Kết thúc chuyến đi" cho toàn bộ thuyền viên, không thể chuyển trạng thái Đang quay về (Homeward Bounding)!' });
+      }
+    }
+
     // Process cargoList if provided and allowed
     if (isShipStaff && cargoList && Array.isArray(cargoList)) {
       if (cargoList.length > 0) {
@@ -602,12 +623,17 @@ router.put('/:id', authMiddleware, async (req, res) => {
         for (const cargo of cargosInVoyage) {
            let allLoaded = true;
            let anyLoaded = false;
+           let allDischarged = true;
+           let anyDischarged = false;
            const holdAllocations = {}; 
            
            if (cargo.CargoItems && cargo.CargoItems.length > 0) {
               cargo.CargoItems.forEach(item => {
                  if (!item.isLoaded) allLoaded = false;
                  if (item.isLoaded) anyLoaded = true;
+
+                 if (!item.isDischarged) allDischarged = false;
+                 if (item.isDischarged) anyDischarged = true;
                  
                  if (item.isLoaded && item.allocations && item.allocations.length > 0) {
                     item.allocations.forEach(a => {
@@ -620,12 +646,16 @@ router.put('/:id', authMiddleware, async (req, res) => {
               });
            } else {
               allLoaded = false;
+              allDischarged = false;
            }
 
            // Cập nhật trạng thái lô hàng
-           if (allLoaded && anyLoaded) cargo.status = 'Đã lên tàu';
+           if (allDischarged && anyDischarged) cargo.status = 'Đã giao thành công';
+           else if (anyDischarged) cargo.status = 'Đang dỡ hàng';
+           else if (allLoaded && anyLoaded) cargo.status = 'Đã lên tàu';
            else if (anyLoaded) cargo.status = 'Đang xếp hàng';
            else cargo.status = 'Đã ở cảng';
+           
            await cargo.save();
 
            // Đồng bộ bảng CargoAllocation
@@ -971,6 +1001,29 @@ router.put('/:id/cargo/:itemId/discharge', authMiddleware, async (req, res) => {
         confirmedBy: req.user.profileId,
         note: note || null
       });
+    }
+
+    // Check parent cargo and update its status
+    const parentCargo = await Cargo.findByPk(cargoItem.cargoId, {
+      include: [{ model: CargoItem }]
+    });
+    
+    if (parentCargo && parentCargo.CargoItems) {
+      let allDischarged = true;
+      let anyDischarged = false;
+      parentCargo.CargoItems.forEach(item => {
+        if (!item.isDischarged) allDischarged = false;
+        if (item.isDischarged) anyDischarged = true;
+      });
+
+      if (allDischarged) {
+        parentCargo.status = 'Đã giao thành công';
+      } else if (anyDischarged) {
+        parentCargo.status = 'Đang dỡ hàng';
+      } else {
+        parentCargo.status = 'Đã lên tàu';
+      }
+      await parentCargo.save();
     }
 
     res.json({ message: 'Cập nhật trạng thái dỡ hàng thành công', cargoItem });

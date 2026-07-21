@@ -79,8 +79,9 @@ export const voyageService = {
 };
 
 export const cargoService = {
-  getAllCargos: async () => {
-    const response = await api.get('/cargos');
+  getAllCargos: async (voyageId) => {
+    const url = voyageId ? `/cargos?voyageId=${voyageId}` : '/cargos';
+    const response = await api.get(url);
     return response.data;
   },
   getById: async (id) => {

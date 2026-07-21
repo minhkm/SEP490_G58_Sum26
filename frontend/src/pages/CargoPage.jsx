@@ -31,7 +31,8 @@ export default function CargoPage() {
   const fetchData = async () => {
     try {
       setLoading(true);
-      const cargoRes = await cargoService.getAllCargos();
+      const activeVoyageId = localStorage.getItem('activeVoyageId');
+      const cargoRes = await cargoService.getAllCargos(activeVoyageId);
       if (cargoRes.success) {
         setCargos(cargoRes.data);
       }

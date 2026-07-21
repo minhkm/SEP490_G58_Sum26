@@ -6,6 +6,8 @@ exports.getAllCargos = async (req, res) => {
     let whereClause = {};
     let shipIds = [];
 
+    const { Op } = require("sequelize");
+
     if (userRole !== 'Admin' && userRole !== 'Agency') {
       const profileId = req.user.profileId;
       if (!profileId) {
@@ -17,10 +19,32 @@ exports.getAllCargos = async (req, res) => {
         attributes: ['voyageId']
       });
       const voyageIds = userVoyages.map(vc => vc.voyageId);
-      whereClause = { voyageId: voyageIds };
+      
+      const requestedVoyageId = req.query.voyageId ? parseInt(req.query.voyageId) : null;
+      let targetVoyageIds = [];
 
-      const voyagesInfo = await Voyage.findAll({ where: { id: voyageIds }, attributes: ['shipId'] });
-      shipIds = voyagesInfo.map(v => v.shipId);
+      if (requestedVoyageId && voyageIds.includes(requestedVoyageId)) {
+        // Explicitly request a voyage (even if Completed/Cancelled)
+        targetVoyageIds = [requestedVoyageId];
+      } else {
+        // Fallback: only show active voyages
+        const activeVoyages = await Voyage.findAll({
+          where: { 
+            id: voyageIds,
+            status: { [Op.notIn]: ['Completed', 'Cancelled'] }
+          },
+          attributes: ['id']
+        });
+        targetVoyageIds = activeVoyages.map(v => v.id);
+      }
+
+      whereClause = { voyageId: targetVoyageIds };
+      
+      const targetVoyagesData = await Voyage.findAll({
+        where: { id: targetVoyageIds },
+        attributes: ['shipId']
+      });
+      shipIds = targetVoyagesData.map(v => v.shipId);
     }
 
     // Fetch all cargos with related data
