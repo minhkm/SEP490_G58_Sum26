@@ -6,6 +6,7 @@ import MasterLayout from '../components/MasterLayout';
 import { deckLogService, voyageService } from '../services/api';
 import { PageHeader, notifyWarning, notifySuccess, notifyError } from '../components/common';
 import dayjs from 'dayjs';
+import { SHIFT_SLOTS, slotFromStart } from '../config/shifts';
 
 const { Title, Text } = Typography;
 const { TextArea } = Input;
@@ -35,7 +36,7 @@ const ENTRY_FIELDS = [
 const HELMSMAN_FIELDS = ['courseTrue', 'courseGyro', 'courseSteer', 'gyroError', 'courseMagnetic', 'speed', 'rpm'];
 const LOOKOUT_FIELDS = ['windDirection', 'windForce', 'weather', 'barometer', 'seaState', 'visibility', 'airTemp', 'seaTemp'];
 
-// Tính các giờ thuộc ca trực (VD: ca 00:00-04:00 → giờ 1,2,3,4)
+// Tính các giờ thuộc ca trực (VD: ca 08:00-12:00 → giờ 8,9,10,11)
 const getShiftHours = (shift) => {
   if (!shift) return [];
   const st = new Date(shift.startTime);
@@ -43,7 +44,7 @@ const getShiftHours = (shift) => {
   const startH = st.getHours();
   const endH = et.getHours() === 0 ? 24 : et.getHours();
   const hours = [];
-  for (let h = startH + 1; h <= endH; h++) {
+  for (let h = startH; h < endH; h++) {
     hours.push(h);
   }
   return hours;
@@ -77,14 +78,6 @@ export default function DeckLogPage() {
   const [historyModalOpen, setHistoryModalOpen] = useState(false);
   const [editHistoryData, setEditHistoryData] = useState([]);
 
-  // Equipment selection state
-  const [allVoyageEquipments, setAllVoyageEquipments] = useState([]);
-  const [selectedEqType, setSelectedEqType] = useState('Tất cả');
-  const [selectedEquipments, setSelectedEquipments] = useState([]);
-  // Edit equipment state for modal
-  const [editEqType, setEditEqType] = useState('Tất cả');
-  const [editSelectedEquipments, setEditSelectedEquipments] = useState([]);
-
   // ===== Tính toán ngày =====
   const today = dayjs().startOf('day');
   const isToday = selectedDate && selectedDate.startOf('day').isSame(today);
@@ -108,11 +101,6 @@ export default function DeckLogPage() {
         const voyage = (initVoyageId && data.find(v => v.id === Number(initVoyageId)))
           || data.find(v => v.status !== 'Completed') || data[0];
         setSelectedVoyage(voyage);
-        
-        try {
-          const eqs = await voyageService.getVoyageEquipments(voyage.id);
-          setAllVoyageEquipments(eqs || []);
-        } catch (e) { console.error(e); }
 
         const date = initDate ? dayjs(initDate) : dayjs();
         setSelectedDate(date);
@@ -145,13 +133,7 @@ export default function DeckLogPage() {
     setNote('');
     setFileList([]);
     setEntries([]);
-    setSelectedEquipments([]);
-    setSelectedEqType('Tất cả');
     if (v) {
-      try {
-        const eqs = await voyageService.getVoyageEquipments(v.id);
-        setAllVoyageEquipments(eqs || []);
-      } catch (e) { console.error(e); }
       const shiftsData = await deckLogService.getShifts(v.id, selectedDate.format('YYYY-MM-DD'));
       setShifts(shiftsData);
     }
@@ -201,6 +183,13 @@ export default function DeckLogPage() {
   const handleSubmit = async () => {
     if (!selectedShift) { notifyWarning('Vui lòng chọn ca trực'); return; }
 
+    // Kiểm tra ca trực đã bắt đầu chưa
+    const shiftStart = new Date(selectedShift.startTime);
+    if (new Date() < shiftStart) {
+      notifyWarning('Ca trực chưa bắt đầu, chưa thể ghi nhật ký');
+      return;
+    }
+
     // Check có ít nhất 1 dòng có dữ liệu
     const filledEntries = entries.filter(e => 
       ENTRY_FIELDS.some(f => e[f.key] !== null && e[f.key] !== '' && e[f.key] !== undefined)
@@ -214,8 +203,7 @@ export default function DeckLogPage() {
       const result = await deckLogService.create({ 
         shiftId: selectedShift.id, 
         note, 
-        entries: filledEntries,
-        equipmentIds: selectedEquipments
+        entries: filledEntries
       });
 
       if (fileList.length > 0 && result.shiftLog?.id) {
@@ -228,8 +216,6 @@ export default function DeckLogPage() {
       setHistory(logs);
       setNote('');
       setFileList([]);
-      setSelectedEquipments([]);
-      setSelectedEqType('Tất cả');
       const hours = getShiftHours(selectedShift);
       setEntries(hours.map(h => createEmptyRow(h)));
     } catch (error) {
@@ -244,11 +230,6 @@ export default function DeckLogPage() {
     setEditNote(log.DeckLog?.note || log.content || '');
     setEditReason('');
     
-    // Load equipments associated
-    const savedEquipIds = log.Equipments?.map(eq => eq.id) || [];
-    setEditSelectedEquipments(savedEquipIds);
-    setEditEqType('Tất cả');
-
     // Load entries hiện tại hoặc tạo dòng trống
     const existingEntries = log.DeckLog?.DeckLogEntries || [];
     if (existingEntries.length > 0) {
@@ -276,8 +257,7 @@ export default function DeckLogPage() {
       await deckLogService.update(editingLog.id, {
         note: editNote,
         entries: filledEntries,
-        editReason: editReason.trim(),
-        equipmentIds: editSelectedEquipments
+        editReason: editReason.trim()
       });
       notifySuccess('Cập nhật nhật ký thành công');
       setEditModalOpen(false);
@@ -294,8 +274,8 @@ export default function DeckLogPage() {
     setHistoryModalOpen(true);
   };
 
-  const formatTime = (d) => d ? new Date(d).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }) : '';
-  const formatDateTime = (d) => d ? new Date(d).toLocaleString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '';
+  const formatTime = (d) => d ? dayjs(d).format('HH:mm') : '';
+  const formatDateTime = (d) => d ? dayjs(d).format('DD/MM/YYYY HH:mm') : '';
 
   // ===== Kiểm tra giờ đã qua chưa (chỉ cho nhập giờ đã qua) =====
   const isHourAllowed = (hour) => {
@@ -304,8 +284,20 @@ export default function DeckLogPage() {
     const shiftDate = new Date(selectedShift.startTime);
     // Nếu không phải hôm nay → cho phép hết (xem lại)
     if (now.toDateString() !== shiftDate.toDateString()) return true;
+    // Giờ 24 (ca đêm 20-24) = 00:00 ngày hôm sau → chỉ cho phép sau nửa đêm
+    if (hour === 24) {
+      const nextDay = new Date(shiftDate);
+      nextDay.setDate(nextDay.getDate() + 1);
+      nextDay.setHours(0, 0, 0, 0);
+      return now >= nextDay;
+    }
     return hour <= now.getHours();
   };
+
+  // Kiểm tra ca trực đã bắt đầu chưa (dể hiển thị cảnh báo)
+  const isShiftStarted = selectedShift ? new Date() >= new Date(selectedShift.startTime) : false;
+  // Kiểm tra ca trực đã kết thúc chưa
+  const isShiftEnded = selectedShift ? new Date() > new Date(selectedShift.endTime) : false;
 
   // ===== Kiểm tra field có được phép điền theo vị trí =====
   const isFieldAllowed = (fieldKey) => {
@@ -400,22 +392,6 @@ export default function DeckLogPage() {
       render: (_, log) => log.DeckLog?.note || <Text type="secondary">—</Text>
     },
     {
-      title: 'Thiết bị sử dụng', key: 'equipments', width: 150,
-      render: (_, log) => {
-        const eqList = log.Equipments || [];
-        if (eqList.length === 0) return <Text type="secondary">—</Text>;
-        return (
-          <Space wrap>
-            {eqList.map(eq => (
-              <Tag color="cyan" key={eq.id} title={`${eq.equipmentType} - ${eq.location}`}>
-                {eq.equipmentName}
-              </Tag>
-            ))}
-          </Space>
-        );
-      }
-    },
-    {
       title: 'Ảnh', key: 'images', width: 100,
       render: (_, log) => log.LogImages?.length > 0 ? (
         <Image.PreviewGroup>
@@ -463,7 +439,11 @@ export default function DeckLogPage() {
             <div style={{ minWidth: 320 }}>
               <div style={{ marginBottom: 6 }}><Text type="secondary"><ClockCircleOutlined /> Chọn Ca trực</Text></div>
               <Select style={{ width: '100%' }} placeholder="-- Chọn ca trực --" allowClear value={selectedShift?.id || undefined} onChange={handleShiftChange}
-                options={shifts.map(s => ({ value: s.id, label: `${s.CrewProfile?.fullName} | ${formatTime(s.startTime)} - ${formatTime(s.endTime)}${s.position ? ` — ${s.position}` : ''} (${s.status})` }))} />
+                options={shifts.map(s => {
+                  const slot = SHIFT_SLOTS.find(sl => sl.slot === slotFromStart(s.startTime));
+                  const timeLabel = slot ? slot.label : `${formatTime(s.startTime)} - ${formatTime(s.endTime)}`;
+                  return { value: s.id, label: `${s.CrewProfile?.fullName} | ${timeLabel}${s.position ? ` — ${s.position}` : ''} (${s.status})` };
+                })} />
             </div>
           </Space>
         </Card>
@@ -478,10 +458,24 @@ export default function DeckLogPage() {
             type={canEdit ? 'info' : 'warning'} showIcon style={{ marginBottom: 16 }} />
         )}
 
+        {/* Cảnh báo ca đã kết thúc */}
+        {selectedShift && !isCompleted && isToday && isShiftEnded && (
+          <Alert
+            message="Ca trực đã kết thúc"
+            description={history.length > 0
+              ? 'Giờ trực đã qua, không thể ghi nhật ký mới. Bạn có thể xem và chỉnh sửa lịch sử ghi chép bên dưới.'
+              : 'Giờ trực đã qua, không thể ghi nhật ký mới cho ca này.'}
+            type="warning" showIcon style={{ marginBottom: 16 }} />
+        )}
+
         {/* ===== BẢNG NHẬP LIỆU THEO GIỜ ===== */}
-        {selectedShift && !isCompleted && isToday && entries.length > 0 && (
+        {selectedShift && !isCompleted && isToday && !isShiftEnded && entries.length > 0 && (
           <Card style={{ marginBottom: 16 }}
-            title={<span>📋 Nhật ký Boong — Ca: {formatTime(selectedShift.startTime)} - {formatTime(selectedShift.endTime)} {selectedShift.position && <Tag color={selectedShift.position === 'Lái tàu' ? 'blue' : 'green'}>{selectedShift.position}</Tag>}</span>}>
+            title={(() => {
+              const slot = SHIFT_SLOTS.find(sl => sl.slot === slotFromStart(selectedShift.startTime));
+              const timeLabel = slot ? slot.label : `${formatTime(selectedShift.startTime)} - ${formatTime(selectedShift.endTime)}`;
+              return <span>📋 Nhật ký Boong — Ca: {timeLabel} {selectedShift.position && <Tag color={selectedShift.position === 'Lái tàu' ? 'blue' : 'green'}>{selectedShift.position}</Tag>}</span>;
+            })()}>
 
             <div style={{ overflowX: 'auto', marginBottom: 16 }}>
               <table style={{ borderCollapse: 'collapse', width: '100%', minWidth: 1200 }}>
@@ -517,29 +511,6 @@ export default function DeckLogPage() {
                   })}
                 </tbody>
               </table>
-            </div>
-
-            {/* Thiết bị sử dụng */}
-            <div style={{ marginBottom: 16 }}>
-              <label style={{ fontSize: 14, fontWeight: 500, color: '#475569', marginBottom: 8, display: 'block' }}>
-                Thiết bị sử dụng trong ca
-              </label>
-              <Row gutter={8}>
-                <Col span={6}>
-                  <Select style={{ width: '100%' }} value={selectedEqType} onChange={setSelectedEqType}
-                    options={[
-                      { value: 'Tất cả', label: 'Tất cả các loại' },
-                      ...Array.from(new Set(allVoyageEquipments.map(e => e.equipmentType))).map(t => ({ value: t, label: t }))
-                    ]} />
-                </Col>
-                <Col span={18}>
-                  <Select mode="multiple" style={{ width: '100%' }} placeholder="Chọn thiết bị..." value={selectedEquipments} onChange={setSelectedEquipments}
-                    options={allVoyageEquipments
-                      .filter(e => selectedEqType === 'Tất cả' || e.equipmentType === selectedEqType)
-                      .map(e => ({ value: e.id, label: `${e.equipmentName} (${e.equipmentType} - ${e.location})` }))
-                    } />
-                </Col>
-              </Row>
             </div>
 
             {/* Ghi chú */}
@@ -599,26 +570,6 @@ export default function DeckLogPage() {
           <TextArea rows={2} placeholder="Nhập ghi chú..." value={editNote} onChange={e => setEditNote(e.target.value)} />
         </div>
 
-        <div style={{ marginBottom: 16 }}>
-          <label style={{ fontWeight: 500, display: 'block', marginBottom: 4 }}>Thiết bị sử dụng trong ca</label>
-          <Row gutter={8}>
-            <Col span={6}>
-              <Select style={{ width: '100%' }} value={editEqType} onChange={setEditEqType}
-                options={[
-                  { value: 'Tất cả', label: 'Tất cả các loại' },
-                  ...Array.from(new Set(allVoyageEquipments.map(e => e.equipmentType))).map(t => ({ value: t, label: t }))
-                ]} />
-            </Col>
-            <Col span={18}>
-              <Select mode="multiple" style={{ width: '100%' }} placeholder="Chọn thiết bị..." value={editSelectedEquipments} onChange={setEditSelectedEquipments}
-                options={allVoyageEquipments
-                  .filter(e => editEqType === 'Tất cả' || e.equipmentType === editEqType)
-                  .map(e => ({ value: e.id, label: `${e.equipmentName} (${e.equipmentType} - ${e.location})` }))
-                } />
-            </Col>
-          </Row>
-        </div>
-
         {/* Bảng chỉnh sửa entries */}
         {editEntries.length > 0 && (
           <div style={{ overflowX: 'auto', marginBottom: 16 }}>
@@ -672,21 +623,6 @@ export default function DeckLogPage() {
                   <div style={{ marginTop: 4, background: '#f8fafc', padding: 8, borderRadius: 4, fontSize: 13 }}>
                     <div><strong>Nội dung trước khi sửa:</strong></div>
                     {prev.note && <div>Ghi chú: {prev.note}</div>}
-                    {prev.equipmentIds?.length > 0 && (
-                      <div style={{ marginTop: 4 }}>
-                        <span style={{ marginRight: 4 }}>Thiết bị trước đó:</span>
-                        <Space wrap>
-                          {prev.equipmentIds.map(eqId => {
-                            const eq = allVoyageEquipments.find(e => e.id === Number(eqId));
-                            return (
-                              <Tag color="default" key={eqId}>
-                                {eq ? eq.equipmentName : `#${eqId}`}
-                              </Tag>
-                            );
-                          })}
-                        </Space>
-                      </div>
-                    )}
                     {prev.entries?.length > 0 && (
                       <div style={{ overflowX: 'auto', marginTop: 4 }}>
                         <table style={{ fontSize: 11, borderCollapse: 'collapse' }}>

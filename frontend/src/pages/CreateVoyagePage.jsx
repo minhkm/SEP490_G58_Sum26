@@ -7,6 +7,7 @@ import {
   Col,
   Form,
   Input,
+  InputNumber,
   Select,
   DatePicker,
   Button,
@@ -43,15 +44,8 @@ const CREW_ROLE_OPTIONS = [
   { value: 'Thủy thủ (Crew)', label: 'Thủy thủ (Crew)' },
 ];
 
-const EQUIPMENT_TYPE_OPTIONS = [
-  { label: 'Thiết bị cứu sinh', value: 'Thiết bị cứu sinh' },
-  { label: 'Thiết bị chữa cháy', value: 'Thiết bị chữa cháy' },
-  { label: 'Dụng cụ sửa chữa', value: 'Dụng cụ sửa chữa' },
-  { label: 'Thiết bị hàng hải', value: 'Thiết bị hàng hải' },
-  { label: 'Thiết bị liên lạc', value: 'Thiết bị liên lạc' },
-  { label: 'Thiết bị y tế', value: 'Thiết bị y tế' },
-  { label: 'Khác', value: 'Khác' },
-];
+// Trong hải trình chỉ có 1 loại: Vật tư y tế
+const VOYAGE_EQ_TYPE = 'Vật tư y tế';
 
 const EQUIPMENT_LOCATION_OPTIONS = [
   { label: 'Boong', value: 'Boong' },
@@ -207,7 +201,7 @@ export default function CreateVoyagePage() {
   // Equipment handlers
   const addEquipment = () => {
     const newId = equipmentList.length > 0 ? Math.max(...equipmentList.map((e) => e.id)) + 1 : 1;
-    setEquipmentList([...equipmentList, { id: newId, name: '', type: '', location: '' }]);
+    setEquipmentList([...equipmentList, { id: newId, name: '', type: VOYAGE_EQ_TYPE, location: '', quantity: 1, expiryNote: '' }]);
   };
 
   const removeEquipment = (eqId) => {
@@ -220,26 +214,24 @@ export default function CreateVoyagePage() {
 
   const equipmentColumns = [
     {
-      title: 'Tên thiết bị', dataIndex: 'name',
+      title: <span>Tên thuốc / vật tư <span style={{ color: 'red' }}>*</span></span>, dataIndex: 'name',
       render: (value, record) => (
-        <Input placeholder="VD: La bàn, Radar,..." value={value}
+        <Input placeholder="VD: Thuốc paracetamol, băng găc, ..." value={value}
           onChange={(e) => handleEquipmentChange(record.id, 'name', e.target.value)} />
       ),
     },
     {
-      title: 'Loại', dataIndex: 'type', width: 200,
+      title: <span>Số lượng <span style={{ color: 'red' }}>*</span></span>, dataIndex: 'quantity', width: 120,
       render: (value, record) => (
-        <Select style={{ width: '100%' }} value={value || undefined} placeholder="Chọn loại"
-          onChange={(v) => handleEquipmentChange(record.id, 'type', v)}
-          options={EQUIPMENT_TYPE_OPTIONS} />
+        <InputNumber min={1} style={{ width: '100%' }} placeholder="VD: 50" value={value || 1}
+          onChange={(v) => handleEquipmentChange(record.id, 'quantity', v)} />
       ),
     },
     {
-      title: 'Vị trí', dataIndex: 'location', width: 150,
+      title: 'Ghi chú hạn sử dụng', dataIndex: 'expiryNote', width: 200,
       render: (value, record) => (
-        <Select style={{ width: '100%' }} value={value || undefined} placeholder="Chọn vị trí"
-          onChange={(v) => handleEquipmentChange(record.id, 'location', v)}
-          options={EQUIPMENT_LOCATION_OPTIONS} />
+        <Input placeholder="VD: 12/2027 hoặc Hết hạn tháng 6/2025" value={value || ''}
+          onChange={(e) => handleEquipmentChange(record.id, 'expiryNote', e.target.value)} />
       ),
     },
     {
@@ -300,6 +292,12 @@ export default function CreateVoyagePage() {
       return notifyWarning(
         `Không thể tạo hải trình! Chuyến đi bắt buộc phải có đầy đủ Thuyền trưởng và các sĩ quan. Hiện đang thiếu: ${missingText}.`
       );
+    }
+
+    // Validate equipment: tất cả phải có tên và số lượng
+    const invalidEq = equipmentList.filter(e => !e.name || !e.name.trim() || !e.quantity || e.quantity < 1);
+    if (invalidEq.length > 0) {
+      return notifyWarning('Vật tư y tế bắt buộc phải có tên và số lượng hợp lệ!');
     }
 
     try {
@@ -588,13 +586,13 @@ export default function CreateVoyagePage() {
                 )}
               </Card>
 
-              {/* Card: Equipment */}
+              {/* Card: Vật tư y tế */}
               <Card
-                title={<span><ToolOutlined /> Thiết bị được cấp (Equipment)</span>}
+                title={<span><ToolOutlined /> Vật tư y tế (Medical Supplies)</span>}
                 style={{ marginBottom: 24 }}
                 extra={
                   <Button type="link" icon={<PlusOutlined />} onClick={addEquipment}>
-                    Thêm thiết bị
+                    Thêm
                   </Button>
                 }
               >
@@ -603,8 +601,8 @@ export default function CreateVoyagePage() {
                     image={<ToolOutlined style={{ fontSize: 32, color: '#94a3b8' }} />}
                     description={
                       <div>
-                        <p style={{ margin: 0 }}>Chưa có thiết bị nào được cấp cho hải trình.</p>
-                        <Text type="secondary">Thêm thiết bị cứu sinh, hàng hải, liên lạc,...</Text>
+                        <p style={{ margin: 0 }}>Chưa có vật tư y tế nào.</p>
+                        <Text type="secondary">Thêm thuốc, băng găc, dụng cụ sơ cấp cứu...</Text>
                       </div>
                     }
                   />
