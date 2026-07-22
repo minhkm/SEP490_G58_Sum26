@@ -52,7 +52,7 @@ function slotTimes(dateStr, slotIndex) {
   return { start, end };
 }
 
-// Tìm hải trình InProgress mà người dùng đang tham gia + thông tin liên quan
+// Tìm hải trình đang hoạt động (chưa Completed/Cancelled) mà người dùng đang tham gia
 async function resolveContext(req) {
   const profile = await CrewProfile.findOne({ where: { userId: req.user.id } });
   if (!profile) return { error: 'Chưa có hồ sơ thuyền viên.' };
