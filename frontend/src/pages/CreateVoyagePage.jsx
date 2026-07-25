@@ -16,6 +16,9 @@ import {
   Empty,
   Alert,
   Table,
+  Tooltip,
+  Upload,
+  message,
 } from 'antd';
 import {
   PlusOutlined,
@@ -25,12 +28,15 @@ import {
   TeamOutlined,
   ArrowRightOutlined,
   ToolOutlined,
+  DownloadOutlined,
+  UploadOutlined,
 } from '@ant-design/icons';
 import MasterLayout from '../components/MasterLayout';
 import AgencyLayout from '../components/AgencyLayout';
 import { voyageService, vesselService, crewService, cargoService } from '../services/api';
 import { PageHeader, notifySuccess, notifyError, notifyWarning } from '../components/common';
 import { SEAPORTS } from '../data/ports';
+import * as XLSX from 'xlsx';
 
 const { Title, Text } = Typography;
 const DATE_FORMAT = 'YYYY-MM-DD';
@@ -197,6 +203,52 @@ export default function CreateVoyagePage() {
     } else {
       setCrewList(crewList.map((c) => (c.id === id ? { ...c, [name]: value } : c)));
     }
+  };
+
+  // ===== Excel Import helpers =====
+  const downloadTemplate = () => {
+    const ws = XLSX.utils.aoa_to_sheet([
+      ['Tên thuốc / vật tư', 'Số lượng', 'Hạn sử dụng (ghi chú)'],
+      ['Paracetamol 500mg', 100, '12/2027'],
+      ['Băng găc vô trùng', 50, ''],
+      ['Dụng cụ sơ cấp cứu', 2, ''],
+    ]);
+    ws['!cols'] = [{ wch: 35 }, { wch: 15 }, { wch: 25 }];
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'VatTuYTe');
+    XLSX.writeFile(wb, 'mau-vat-tu-y-te.xlsx');
+  };
+
+  const handleImportExcel = (file) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const wb = XLSX.read(e.target.result, { type: 'array' });
+        const ws = wb.Sheets[wb.SheetNames[0]];
+        const rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
+        // Bỏ dòng tiêu đề (dòng 0)
+        const dataRows = rows.slice(1).filter(r => r[0] && String(r[0]).trim());
+        if (dataRows.length === 0) {
+          message.warning('File không có dữ liỪu hoặc sai định dạng!');
+          return;
+        }
+        const startId = equipmentList.length > 0 ? Math.max(...equipmentList.map(e => e.id)) + 1 : 1;
+        const imported = dataRows.map((r, i) => ({
+          id: startId + i,
+          name: String(r[0] || '').trim(),
+          type: VOYAGE_EQ_TYPE,
+          location: '',
+          quantity: Number(r[1]) > 0 ? Number(r[1]) : 1,
+          expiryNote: String(r[2] || '').trim(),
+        }));
+        setEquipmentList(prev => [...prev, ...imported]);
+        message.success(`Đã import ${imported.length} mặt hàng từ Excel!`);
+      } catch {
+        message.error('Không đọc được file. Hãy kiểm tra đúng định dạng xlsx/xls.');
+      }
+    };
+    reader.readAsArrayBuffer(file);
+    return false; // ngăn antd upload tự post
   };
 
   // Equipment handlers
@@ -592,9 +644,25 @@ export default function CreateVoyagePage() {
                 title={<span><ToolOutlined /> Vật tư y tế (Medical Supplies)</span>}
                 style={{ marginBottom: 24 }}
                 extra={
-                  <Button type="link" icon={<PlusOutlined />} onClick={addEquipment}>
-                    Thêm
-                  </Button>
+                  <Space size="small">
+                    <Tooltip title="Tải file Excel mẫu về, điền rồi import lên">
+                      <Button size="small" icon={<DownloadOutlined />} onClick={downloadTemplate}>
+                        Tải mẫu
+                      </Button>
+                    </Tooltip>
+                    <Upload
+                      accept=".xlsx,.xls"
+                      showUploadList={false}
+                      beforeUpload={handleImportExcel}
+                    >
+                      <Button size="small" icon={<UploadOutlined />} type="default">
+                        Import Excel
+                      </Button>
+                    </Upload>
+                    <Button type="link" icon={<PlusOutlined />} onClick={addEquipment}>
+                      Thêm
+                    </Button>
+                  </Space>
                 }
               >
                 {equipmentList.length === 0 ? (
