@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button, Switch, DatePicker, Spin, Result, Modal, Descriptions, Tag, Typography, Space, Tooltip, Input, Checkbox } from 'antd';
-import { ClockCircleOutlined, LeftOutlined, RightOutlined, EditOutlined, SwapOutlined, StopOutlined, FileTextOutlined, CheckOutlined } from '@ant-design/icons';
+import { ClockCircleOutlined, LeftOutlined, RightOutlined, EditOutlined, SwapOutlined, StopOutlined, FileTextOutlined, CheckOutlined, DownloadOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import MasterLayout from '../components/MasterLayout';
 import { PageHeader, StatusTag, notifySuccess, notifyError } from '../components/common';
@@ -26,11 +26,14 @@ export default function ShiftViewPage() {
   const [handoverNote, setHandoverNote] = useState('');
   const [handoverLateTest, setHandoverLateTest] = useState(false); // chỉ dùng khi dev để giả lập muộn
   const [busy, setBusy] = useState(false);
+  const [exporting, setExporting] = useState(false);
 
   const myCrewId = ctx?.me?.crewId;
   const isMine = (s) => s.crewId === myCrewId;
   // Chỉ thủy thủ/thợ máy mới thực sự có ca của mình → sĩ quan không thấy toggle "Chỉ ca của tôi"
   const canHaveShift = ['Sailor', 'EngineCrew'].includes(ctx?.me?.role);
+  // Lãnh đạo bộ phận boong được xuất báo cáo trực boong
+  const canExportDeck = ['DeckOfficer', 'ChiefOfficer', 'Master'].includes(ctx?.me?.role);
 
   const loadShifts = useCallback(async (date) => {
     try { setShifts(await shiftService.getShifts(date)); } catch { setShifts([]); }
@@ -56,6 +59,25 @@ export default function ShiftViewPage() {
   }, [selectedDate, ctx, loadShifts]);
 
   const shiftDay = (delta) => setSelectedDate(dayjs(selectedDate).add(delta, 'day').format('YYYY-MM-DD'));
+
+  // Xuất Excel báo cáo trực boong
+  const handleExportDeck = async () => {
+    setExporting(true);
+    try {
+      const response = await shiftService.exportDeckReport(ctx.voyage.id);
+      const disposition = response.headers?.['content-disposition'] || '';
+      const m = disposition.match(/filename="?([^";]+)"?/i);
+      const filename = m?.[1] || `Nhat_Ky_Truc_Boong_Voyage-${ctx.voyage.id}.xlsx`;
+      const url = window.URL.createObjectURL(new Blob([response.data], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }));
+      const link = document.createElement('a');
+      link.href = url; link.download = filename;
+      document.body.appendChild(link); link.click(); link.remove();
+      window.URL.revokeObjectURL(url);
+      notifySuccess('Đã xuất báo cáo Excel.');
+    } catch {
+      notifyError('Không thể xuất báo cáo Excel.');
+    } finally { setExporting(false); }
+  };
 
   // Mở đúng trang ghi nhật ký (boong/máy) với ca đã chọn sẵn
   const goToLog = (s) => {
@@ -115,11 +137,20 @@ export default function ShiftViewPage() {
           icon={<ClockCircleOutlined />}
           breadcrumb={`${ctx.ship?.shipName || ''} · ${ctx.voyage?.departurePort} → ${ctx.voyage?.destinationPort}`}
           title="Lịch trực toàn tàu"
-          extra={ctx.canCreate && (
-            <Button type="primary" icon={<EditOutlined />} onClick={() => navigate(`/shifts/manage?date=${selectedDate}`)}>
-              Cập nhật ca trực
-            </Button>
-          )}
+          extra={
+            <Space>
+              {canExportDeck && (
+                <Button icon={<DownloadOutlined />} loading={exporting} onClick={handleExportDeck}>
+                  Xuất báo cáo boong
+                </Button>
+              )}
+              {ctx.canCreate && (
+                <Button type="primary" icon={<EditOutlined />} onClick={() => navigate(`/shifts/manage?date=${selectedDate}`)}>
+                  Cập nhật ca trực
+                </Button>
+              )}
+            </Space>
+          }
         />
 
         {/* Điều khiển: ngày, lọc, chú thích */}
