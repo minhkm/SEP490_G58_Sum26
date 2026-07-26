@@ -18,9 +18,13 @@ const ENGINE_STATUSES = [
 
 const getEngineStatusCfg = (s) => ENGINE_STATUSES.find(x => x.value === s) || { label: s, color: 'default' };
 
-// Loại máy
-const isMainEngine = (engine) =>
-  engine.engineType?.toLowerCase().includes('main') || engine.engineType?.toLowerCase().includes('chính');
+// Loại máy — kiểm tra cả tên máy lẫn loại máy
+const isMainEngine = (engine) => {
+  const name = (engine.engineName || '').toLowerCase();
+  const type = (engine.engineType || '').toLowerCase();
+  return name.includes('main') || name.includes('chính') ||
+         type.includes('main') || type.includes('chính');
+};
 
 // Trạng thái hợp lệ theo loại máy
 const validStatusesForEngine = (engine) => {
@@ -92,11 +96,53 @@ export default function EngineManagePage() {
   // Đổi trạng thái Engine
   const confirmEngineStatus = async () => {
     const { engine, newStatus } = engineModal;
-    try {
-      await vesselService.updateEngineStatus(engine.id, newStatus);
+    // Guard: chỉ được đổi khi hải trình đang Underway hoặc Anchored
+    if (!['Underway', 'Anchored'].includes(selectedVoyage?.status)) {
+      notifyError('Chỉ được phép đổi trạng thái máy khi hải trình đang Underway hoặc Anchored!');
+      setEngineModal({ open: false, engine: null, newStatus: null });
+      return;
+    }
+    const isMain = isMainEngine(engine);
+    const goingToMaintenance = newStatus === 'Under Maintenance';
+
+    const doUpdate = async (updateVoyage = false) => {
+      // Truyền voyageId để backend tự xử lý đổi trạng thái hải trình nếu cần
+      const voyageId = (isMain && updateVoyage && selectedVoyage) ? selectedVoyage.id : null;
+      const result = await vesselService.updateEngineStatus(engine.id, newStatus, voyageId);
       setEngines(prev => prev.map(e => e.id === engine.id ? { ...e, status: newStatus } : e));
       notifySuccess(`Đã cập nhật "${engine.engineName}" → ${getEngineStatusCfg(newStatus).label}`);
+      if (result.voyageUpdated && result.newVoyageStatus) {
+        setSelectedVoyage(prev => ({ ...prev, status: result.newVoyageStatus }));
+        const voyageLabel = result.newVoyageStatus === 'Anchored' ? 'Neo đậu' : 'Underway';
+        notifySuccess(`Hải trình đã chuyển sang trạng thái ${voyageLabel}`);
+      }
       setEngineModal({ open: false, engine: null, newStatus: null });
+    };
+
+
+    try {
+      // Máy chính → sửa chữa: hỏi có muốn neo đậu hải trình không
+      if (isMain && goingToMaintenance && selectedVoyage) {
+        setEngineModal({ open: false, engine: null, newStatus: null }); // đóng modal select trước
+        Modal.confirm({
+          title: 'Máy chính đang vào sửa chữa',
+          icon: <ExclamationCircleOutlined style={{ color: '#f59e0b' }} />,
+          content: (
+            <div>
+              <p>Máy chính chuyển sang <strong>Đang bảo dưỡng / Sửa chữa</strong>.</p>
+              <p>Tàu sẽ không thể vận hành. Bạn có muốn đổi hải trình sang trạng thái <strong>Neo đậu (Anchored)</strong> không?</p>
+            </div>
+          ),
+          okText: 'Đổi sang Neo đậu',
+          cancelText: 'Chỉ cập nhật máy',
+          onOk: () => doUpdate(true),
+          onCancel: () => doUpdate(false),
+        });
+      } else {
+        // Máy chính đổi sang Operational: backend tự đổi hải trình về Underway nếu đang Anchored
+        await doUpdate(isMain);
+      }
+
     } catch (err) {
       notifyError('Cập nhật thất bại: ' + (err.response?.data?.message || err.message));
     }
@@ -135,18 +181,26 @@ export default function EngineManagePage() {
         {engines.map(engine => {
           const statusCfg = getEngineStatusCfg(engine.status);
           const isMain    = isMainEngine(engine);
+          // Được đổi trạng thái khi hải trình đang Underway hoặc Anchored
+          const canChangeStatus = ['Underway', 'Anchored'].includes(selectedVoyage?.status);
           return (
             <Col xs={24} sm={12} lg={8} key={engine.id}>
               <Card
                 style={{ borderTop: `3px solid ${cardBorderColor(engine.status)}` }}
                 actions={[
-                  <Button
-                    type="link"
-                    icon={<SettingOutlined />}
-                    onClick={() => setEngineModal({ open: true, engine, newStatus: engine.status })}
+                  <Tooltip
+                    key="change-status"
+                    title={!canChangeStatus ? `Hải trình đang "${selectedVoyage?.status || '—'}" — chỉ được đổi khi Underway hoặc Anchored` : ''}
                   >
-                    Đổi trạng thái
-                  </Button>
+                    <Button
+                      type="link"
+                      icon={<SettingOutlined />}
+                      disabled={!canChangeStatus}
+                      onClick={() => canChangeStatus && setEngineModal({ open: true, engine, newStatus: engine.status })}
+                    >
+                      Đổi trạng thái
+                    </Button>
+                  </Tooltip>
                 ]}
               >
                 <Space direction="vertical" style={{ width: '100%' }}>
@@ -433,6 +487,15 @@ export default function EngineManagePage() {
               onChange={(val) => setEngineModal(prev => ({ ...prev, newStatus: val }))}
               options={validStatusesForEngine(engineModal.engine).map(s => ({ value: s.value, label: s.label }))}
             />
+            {/* Cảnh báo khi máy chính vào sửa chữa */}
+            {isMainEngine(engineModal.engine) && engineModal.newStatus === 'Under Maintenance' && (
+              <Alert
+                type="warning"
+                showIcon
+                message="Máy chính vào sửa chữa"
+                description="Tàu sẽ không thể vận hành. Bạn sẽ được hỏi có muốn chuyển hải trình sang trạng thái Neo đậu hay không."
+              />
+            )}
           </Space>
         )}
       </Modal>

@@ -17,6 +17,9 @@ import {
   Divider,
   Empty,
   Alert,
+  Tooltip,
+  Upload,
+  message,
 } from 'antd';
 import {
   PlusOutlined,
@@ -29,10 +32,13 @@ import {
   FireOutlined,
   CloudOutlined,
   ToolOutlined,
+  DownloadOutlined,
+  UploadOutlined,
 } from '@ant-design/icons';
 import AgencyLayout from '../components/AgencyLayout';
 import { vesselService } from '../services/api';
 import { notifyError, notifySuccess, notifyWarning } from '../utils/feedback';
+import * as XLSX from 'xlsx';
 
 const { Title, Text } = Typography;
 
@@ -310,6 +316,79 @@ export default function AddVesselPage() {
   };
 
   // ===== Ship Equipment Handlers =====
+  // ===== Excel Import cho Thiết bị tàu =====
+  const downloadVesselEqTemplate = () => {
+    const rows = [
+      ['Tên thiết bị', 'Loại thiết bị', 'Vị trí', 'Số lượng', 'Hạn sử dụng (ghi chú)'],
+      // Thiết bị cứu sinh
+      ['Áo phao cá nhân', 'Thiết bị cứu sinh', 'Boong', 20, '12/2028'],
+      ['Phao tròn cứu sinh', 'Thiết bị cứu sinh', 'Boong', 6, '12/2028'],
+      ['Bè cứu sinh tự bơm', 'Thiết bị cứu sinh', 'Boong', 2, '06/2027'],
+      ['Pháo hiệu tín hiệu', 'Thiết bị cứu sinh', 'Buồng lái', 12, '06/2026'],
+      ['Đèn cứu sinh cá nhân', 'Thiết bị cứu sinh', 'Boong', 20, '12/2028'],
+      // Thiết bị chữa cháy
+      ['Bình chữa cháy CO2', 'Thiết bị chữa cháy', 'Buồng máy', 4, '06/2026'],
+      ['Bình chữa cháy bột BC', 'Thiết bị chữa cháy', 'Boong', 6, '06/2026'],
+      ['Bình chữa cháy bột AFFF', 'Thiết bị chữa cháy', 'Buồng máy', 2, '06/2026'],
+      ['Vòi rồng chữa cháy 15m', 'Thiết bị chữa cháy', 'Boong', 4, 'Không có hạn'],
+      ['Bộ đồ phòng cháy chữa cháy', 'Thiết bị chữa cháy', 'Buồng lái', 2, 'Không có hạn'],
+      // Thiết bị hàng hải
+      ['La bàn từ', 'Thiết bị hàng hải', 'Buồng lái', 1, 'Kiểm định 5 năm'],
+      ['Radar hàng hải ARPA', 'Thiết bị hàng hải', 'Buồng lái', 1, 'Kiểm định 5 năm'],
+      ['Hệ thống AIS', 'Thiết bị hàng hải', 'Buồng lái', 1, 'Kiểm định 5 năm'],
+      ['GPS định vị', 'Thiết bị hàng hải', 'Buồng lái', 2, 'Không có hạn'],
+      // Thiết bị liên lạc
+      ['Máy thu phát VHF cầm tay', 'Thiết bị liên lạc', 'Buồng lái', 4, '12/2029'],
+      ['Hệ thống GMDSS', 'Thiết bị liên lạc', 'Buồng lái', 1, 'Kiểm định 5 năm'],
+      ['Còi tín hiệu điện', 'Thiết bị liên lạc', 'Buồng lái', 1, 'Không có hạn'],
+      // Dụng cụ sửa chữa
+      ['Bộ dụng cụ cơ khí (búa, cờ lê, tua vít...)', 'Dụng cụ sửa chữa', 'Buồng máy', 2, 'Không có hạn'],
+      ['Máy hàn điện', 'Dụng cụ sửa chữa', 'Buồng máy', 1, 'Không có hạn'],
+      ['Bơm tay chống đắm', 'Dụng cụ sửa chữa', 'Buồng máy', 2, 'Không có hạn'],
+      ['Bộ vá lỗ khẩn cấp', 'Dụng cụ sửa chữa', 'Buồng máy', 1, 'Không có hạn'],
+      // Ghi chú các loại/vị trí hợp lệ
+      ['', `Loại: ${SHIP_EQ_TYPES.join(' / ')}`, `Vị trí: ${SHIP_EQ_LOCATIONS.join(' / ')}`, '', ''],
+    ];
+    const ws = XLSX.utils.aoa_to_sheet(rows);
+    ws['!cols'] = [{ wch: 38 }, { wch: 25 }, { wch: 15 }, { wch: 12 }, { wch: 28 }];
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'ThietBiTau');
+    XLSX.writeFile(wb, 'mau-thiet-bi-tau.xlsx');
+  };
+
+  const handleImportVesselEq = (file) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const wb = XLSX.read(e.target.result, { type: 'array' });
+        const ws = wb.Sheets[wb.SheetNames[0]];
+        const rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
+        // Bỏ dòng tiêu đề + dòng ghi chú loại/vị trí
+        const dataRows = rows.slice(1).filter(r => r[0] && String(r[0]).trim());
+        if (dataRows.length === 0) {
+          message.warning('File không có dữ liệu hoặc sai định dạng!');
+          return;
+        }
+        const startUid = shipEquipments.length > 0
+          ? Math.max(...shipEquipments.map(e => e._uid)) + 1 : 1;
+        const imported = dataRows.map((r, i) => ({
+          _uid: startUid + i,
+          equipmentName: String(r[0] || '').trim(),
+          equipmentType: SHIP_EQ_TYPES.includes(String(r[1]).trim()) ? String(r[1]).trim() : '',
+          location: SHIP_EQ_LOCATIONS.includes(String(r[2]).trim()) ? String(r[2]).trim() : 'Boong',
+          quantity: Number(r[3]) > 0 ? Number(r[3]) : 1,
+          expiryNote: String(r[4] || '').trim(),
+        }));
+        setShipEquipments(prev => [...prev, ...imported]);
+        message.success(`Đã import ${imported.length} thiết bị từ Excel!`);
+      } catch {
+        message.error('Không đọc được file. Kiểm tra đúng định dạng xlsx/xls.');
+      }
+    };
+    reader.readAsArrayBuffer(file);
+    return false;
+  };
+
   const addShipEquipment = () => {
     const newUid = shipEquipments.length > 0 ? Math.max(...shipEquipments.map(e => e._uid)) + 1 : 1;
     setShipEquipments([...shipEquipments, { _uid: newUid, equipmentName: '', equipmentType: '', location: 'Boong', quantity: 1, expiryNote: '' }]);
@@ -807,7 +886,19 @@ export default function AddVesselPage() {
         {/* Card: Thiết bị của tàu */}
         <Card
           title={<Space><ToolOutlined /><span>Thiết bị của tàu</span></Space>}
-          extra={<Button type="link" icon={<PlusOutlined />} onClick={addShipEquipment}>Thêm thiết bị</Button>}
+          extra={
+            <Space size="small">
+              <Tooltip title="Tải file Excel mẫu về, điền rồi import lên">
+                <Button size="small" icon={<DownloadOutlined />} onClick={downloadVesselEqTemplate}>
+                  Tải mẫu
+                </Button>
+              </Tooltip>
+              <Upload accept=".xlsx,.xls" showUploadList={false} beforeUpload={handleImportVesselEq}>
+                <Button size="small" icon={<UploadOutlined />}>Import Excel</Button>
+              </Upload>
+              <Button type="link" icon={<PlusOutlined />} onClick={addShipEquipment}>Thêm thiết bị</Button>
+            </Space>
+          }
           style={{ marginTop: 24 }}
         >
           {shipEquipments.length === 0 ? (

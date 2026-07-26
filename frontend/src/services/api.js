@@ -214,10 +214,11 @@ export const vesselService = {
     const response = await api.delete(`/vessels/${id}`);
     return response.data;
   },
-  updateEngineStatus: async (engineId, status) => {
-    const response = await api.patch(`/vessels/engines/${engineId}/status`, { status });
+  updateEngineStatus: async (engineId, status, voyageId = null) => {
+    const response = await api.patch(`/vessels/engines/${engineId}/status`, { status, voyageId });
     return response.data;
   },
+
   getShipEquipments: async (shipId) => {
     const response = await api.get(`/vessels/${shipId}/equipments`);
     return response.data;

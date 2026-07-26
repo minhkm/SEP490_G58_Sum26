@@ -16,6 +16,9 @@ import {
   Empty,
   Alert,
   Table,
+  Tooltip,
+  Upload,
+  message,
 } from 'antd';
 import {
   PlusOutlined,
@@ -25,12 +28,15 @@ import {
   TeamOutlined,
   ArrowRightOutlined,
   ToolOutlined,
+  DownloadOutlined,
+  UploadOutlined,
 } from '@ant-design/icons';
 import MasterLayout from '../components/MasterLayout';
 import AgencyLayout from '../components/AgencyLayout';
 import { voyageService, vesselService, crewService, cargoService } from '../services/api';
 import { PageHeader, notifySuccess, notifyError, notifyWarning } from '../components/common';
 import { SEAPORTS } from '../data/ports';
+import * as XLSX from 'xlsx';
 
 const { Title, Text } = Typography;
 const DATE_FORMAT = 'YYYY-MM-DD';
@@ -197,6 +203,78 @@ export default function CreateVoyagePage() {
     } else {
       setCrewList(crewList.map((c) => (c.id === id ? { ...c, [name]: value } : c)));
     }
+  };
+
+  // ===== Excel Import helpers =====
+  const downloadTemplate = () => {
+    const rows = [
+      ['Tên thuốc / vật tư', 'Số lượng', 'Hạn sử dụng (ghi chú)'],
+      // Thuốc thông thường
+      ['Paracetamol 500mg (viên)', 100, '06/2027'],
+      ['Ibuprofen 400mg (viên)', 50, '12/2027'],
+      ['Amoxicillin 500mg (viên)', 60, '06/2027'],
+      ['Metronidazole 250mg (viên)', 40, '12/2027'],
+      ['Omeprazole 20mg (viên)', 30, '12/2027'],
+      ['Loperamide - viên tiêu chảy', 30, '12/2027'],
+      ['Vitamin C 1000mg (viên)', 100, '12/2028'],
+      ['Thuốc say sóng Dimenhydrinate', 50, '06/2028'],
+      ['Dung dịch nhỏ mắt', 5, '06/2027'],
+      // Vật tư băng bó
+      ['Băng gạc vô trùng 10x10cm', 50, 'Không có hạn'],
+      ['Băng cuộn y tế 5cm', 20, 'Không có hạn'],
+      ['Băng dán cá nhân (hộp 100 cái)', 3, 'Không có hạn'],
+      ['Bông y tế (gói 100g)', 5, 'Không có hạn'],
+      ['Cồn 70° (chai 500ml)', 5, '12/2027'],
+      ['Povidone Iodine (chai 60ml)', 5, '12/2027'],
+      ['Oxy già (chai 100ml)', 5, '12/2027'],
+      ['Nước muối sinh lý (gói 10ml)', 30, '06/2027'],
+      // Dụng cụ sơ cứu
+      ['Kéo y tế', 2, 'Không có hạn'],
+      ['Nhíp y tế', 2, 'Không có hạn'],
+      ['Nhiệt kế điện tử', 2, 'Không có hạn'],
+      ['Băng ép cầm máu khẩn cấp', 3, 'Không có hạn'],
+      ['Găng tay y tế (hộp 100 cái)', 2, '12/2027'],
+      ['Khẩu trang y tế (hộp 50 cái)', 2, '12/2027'],
+      ['Mặt nạ hô hấp nhân tạo', 2, '12/2027'],
+      ['Túi chườm lạnh khẩn cấp', 5, '12/2027'],
+    ];
+    const ws = XLSX.utils.aoa_to_sheet(rows);
+    ws['!cols'] = [{ wch: 38 }, { wch: 12 }, { wch: 28 }];
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'VatTuYTe');
+    XLSX.writeFile(wb, 'mau-vat-tu-y-te.xlsx');
+  };
+
+  const handleImportExcel = (file) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const wb = XLSX.read(e.target.result, { type: 'array' });
+        const ws = wb.Sheets[wb.SheetNames[0]];
+        const rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
+        // Bỏ dòng tiêu đề (dòng 0)
+        const dataRows = rows.slice(1).filter(r => r[0] && String(r[0]).trim());
+        if (dataRows.length === 0) {
+          message.warning('File không có dữ liỪu hoặc sai định dạng!');
+          return;
+        }
+        const startId = equipmentList.length > 0 ? Math.max(...equipmentList.map(e => e.id)) + 1 : 1;
+        const imported = dataRows.map((r, i) => ({
+          id: startId + i,
+          name: String(r[0] || '').trim(),
+          type: VOYAGE_EQ_TYPE,
+          location: '',
+          quantity: Number(r[1]) > 0 ? Number(r[1]) : 1,
+          expiryNote: String(r[2] || '').trim(),
+        }));
+        setEquipmentList(prev => [...prev, ...imported]);
+        message.success(`Đã import ${imported.length} mặt hàng từ Excel!`);
+      } catch {
+        message.error('Không đọc được file. Hãy kiểm tra đúng định dạng xlsx/xls.');
+      }
+    };
+    reader.readAsArrayBuffer(file);
+    return false; // ngăn antd upload tự post
   };
 
   // Equipment handlers
@@ -592,9 +670,25 @@ export default function CreateVoyagePage() {
                 title={<span><ToolOutlined /> Vật tư y tế (Medical Supplies)</span>}
                 style={{ marginBottom: 24 }}
                 extra={
-                  <Button type="link" icon={<PlusOutlined />} onClick={addEquipment}>
-                    Thêm
-                  </Button>
+                  <Space size="small">
+                    <Tooltip title="Tải file Excel mẫu về, điền rồi import lên">
+                      <Button size="small" icon={<DownloadOutlined />} onClick={downloadTemplate}>
+                        Tải mẫu
+                      </Button>
+                    </Tooltip>
+                    <Upload
+                      accept=".xlsx,.xls"
+                      showUploadList={false}
+                      beforeUpload={handleImportExcel}
+                    >
+                      <Button size="small" icon={<UploadOutlined />} type="default">
+                        Import Excel
+                      </Button>
+                    </Upload>
+                    <Button type="link" icon={<PlusOutlined />} onClick={addEquipment}>
+                      Thêm
+                    </Button>
+                  </Space>
                 }
               >
                 {equipmentList.length === 0 ? (

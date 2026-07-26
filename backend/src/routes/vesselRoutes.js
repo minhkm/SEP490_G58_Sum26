@@ -1,5 +1,5 @@
 const express = require('express');
-const { Ship, ShipCapacity, Engine, EngineParameter, CargoHold, Equipment } = require('../models');
+const { Ship, ShipCapacity, Engine, EngineParameter, CargoHold, Equipment, Voyage } = require('../models');
 const authMiddleware = require('../middlewares/authMiddleware');
 
 const router = express.Router();
@@ -278,12 +278,14 @@ router.patch('/engines/:engineId/status', async (req, res) => {
   let decoded;
   try { decoded = jwt.verify(authHeader.split(' ')[1], process.env.JWT_SECRET || 'super_secret_key'); }
   catch { return res.status(403).json({ message: 'Token không hợp lệ' }); }
-  if (decoded.role !== 'EngineOfficer') {
-    return res.status(403).json({ message: 'Chỉ Sĩ quan máy mới được đổi trạng thái máy' });
+
+  const allowedRoles = ['EngineOfficer', 'ChiefEngineer'];
+  if (!allowedRoles.includes(decoded.role)) {
+    return res.status(403).json({ message: 'Chỉ Sĩ quan máy / Máy trưởng mới được đổi trạng thái máy' });
   }
 
   const VALID_ENGINE_STATUSES = ['Operational', 'Standby', 'Under Maintenance'];
-  const { status } = req.body;
+  const { status, voyageId } = req.body;
   if (!VALID_ENGINE_STATUSES.includes(status)) {
     return res.status(400).json({ message: `Trạng thái không hợp lệ. Chỉ chấp nhận: ${VALID_ENGINE_STATUSES.join(', ')}` });
   }
@@ -292,7 +294,34 @@ router.patch('/engines/:engineId/status', async (req, res) => {
     const engine = await Engine.findByPk(req.params.engineId);
     if (!engine) return res.status(404).json({ message: 'Không tìm thấy máy' });
     await engine.update({ status });
-    res.json({ message: 'Cập nhật trạng thái máy thành công', engine });
+
+    let voyageUpdated = false;
+    let newVoyageStatus = null;
+    const engineName = (engine.engineName || '').toLowerCase();
+    const engineType = (engine.engineType || '').toLowerCase();
+    const isMainEngine = engineName.includes('main') || engineName.includes('chính') ||
+                         engineType.includes('main') || engineType.includes('chính');
+
+    if (isMainEngine && voyageId) {
+      const voyage = await Voyage.findByPk(voyageId);
+      if (voyage && !['Completed', 'Cancelled'].includes(voyage.status)) {
+        // Máy chính → bảo dưỡng: hải trình sang Anchored
+        if (status === 'Under Maintenance' && voyage.status !== 'Anchored') {
+          await voyage.update({ status: 'Anchored' });
+          newVoyageStatus = 'Anchored';
+          voyageUpdated = true;
+        }
+        // Máy chính → hoạt động trở lại: hải trình sang Underway
+        if (status === 'Operational' && voyage.status === 'Anchored') {
+          await voyage.update({ status: 'Underway' });
+          newVoyageStatus = 'Underway';
+          voyageUpdated = true;
+        }
+      }
+    }
+
+    res.json({ message: 'Cập nhật trạng thái máy thành công', engine, voyageUpdated, newVoyageStatus });
+
   } catch (error) {
     console.error('Lỗi cập nhật trạng thái máy:', error);
     res.status(500).json({ message: 'Lỗi server', error: error.message });

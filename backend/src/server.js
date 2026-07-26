@@ -38,8 +38,9 @@ async function start() {
     console.log("✅ Kết nối MySQL thành công");
 
     await sequelize.query("SET SESSION sql_mode=''");
-    await sequelize.sync({ alter: true }); // Dùng lại alter để giữ data
+    await sequelize.sync(); // Không dùng alter để tránh deadlock khi nodemon restart
     console.log("✅ Đồng bộ models xong");
+
 
     app.listen(PORT, () => console.log(`🚀 Server: http://localhost:${PORT}`));
   } catch (err) {

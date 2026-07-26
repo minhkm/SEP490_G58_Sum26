@@ -11,7 +11,7 @@ const GROUPS = [
   { color: 'gold', keys: ['maintenance', 'sửa chữa', 'bảo trì', 'loading', 'đang xếp', 'expiring', 'sắp hết'] },
   { color: 'blue', keys: ['completed', 'hoàn thành', 'transit', 'resolved', 'đã xử lý'] },
   { color: 'geekblue', keys: ['loaded', 'đã xếp'] },
-  { color: 'cyan', keys: ['arrived', 'at anchor', 'registered', 'đăng ký', 'cập cảng', 'open', 'chờ xử lý'] },
+  { color: 'cyan', keys: ['arrived', 'at anchor', 'anchored', 'neo đậu', 'registered', 'đăng ký', 'cập cảng', 'open', 'chờ xử lý'] },
   {
     color: 'green',
     keys: ['hoạt động', 'active', 'underway', 'homeward', 'in progress', 'progress', 'đang di chuyển',
