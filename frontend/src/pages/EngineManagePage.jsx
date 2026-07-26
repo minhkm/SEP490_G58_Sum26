@@ -92,6 +92,12 @@ export default function EngineManagePage() {
   // Đổi trạng thái Engine
   const confirmEngineStatus = async () => {
     const { engine, newStatus } = engineModal;
+    // Guard: chỉ được đổi khi hải trình đang Underway
+    if (selectedVoyage?.status !== 'Underway') {
+      notifyError('Chỉ được phép đổi trạng thái máy khi hải trình đang Underway!');
+      setEngineModal({ open: false, engine: null, newStatus: null });
+      return;
+    }
     const isMain = isMainEngine(engine);
     const goingToMaintenance = newStatus === 'Under Maintenance';
 
@@ -168,18 +174,26 @@ export default function EngineManagePage() {
         {engines.map(engine => {
           const statusCfg = getEngineStatusCfg(engine.status);
           const isMain    = isMainEngine(engine);
+          // Chỉ được đổi trạng thái khi hải trình đang Underway
+          const canChangeStatus = selectedVoyage?.status === 'Underway';
           return (
             <Col xs={24} sm={12} lg={8} key={engine.id}>
               <Card
                 style={{ borderTop: `3px solid ${cardBorderColor(engine.status)}` }}
                 actions={[
-                  <Button
-                    type="link"
-                    icon={<SettingOutlined />}
-                    onClick={() => setEngineModal({ open: true, engine, newStatus: engine.status })}
+                  <Tooltip
+                    key="change-status"
+                    title={!canChangeStatus ? `Hải trình đang "${selectedVoyage?.status || '—'}" — chỉ được đổi khi đang Underway` : ''}
                   >
-                    Đổi trạng thái
-                  </Button>
+                    <Button
+                      type="link"
+                      icon={<SettingOutlined />}
+                      disabled={!canChangeStatus}
+                      onClick={() => canChangeStatus && setEngineModal({ open: true, engine, newStatus: engine.status })}
+                    >
+                      Đổi trạng thái
+                    </Button>
+                  </Tooltip>
                 ]}
               >
                 <Space direction="vertical" style={{ width: '100%' }}>
