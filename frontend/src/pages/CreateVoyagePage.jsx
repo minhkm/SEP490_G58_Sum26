@@ -207,13 +207,39 @@ export default function CreateVoyagePage() {
 
   // ===== Excel Import helpers =====
   const downloadTemplate = () => {
-    const ws = XLSX.utils.aoa_to_sheet([
+    const rows = [
       ['Tên thuốc / vật tư', 'Số lượng', 'Hạn sử dụng (ghi chú)'],
-      ['Paracetamol 500mg', 100, '12/2027'],
-      ['Băng găc vô trùng', 50, ''],
-      ['Dụng cụ sơ cấp cứu', 2, ''],
-    ]);
-    ws['!cols'] = [{ wch: 35 }, { wch: 15 }, { wch: 25 }];
+      // Thuốc thông thường
+      ['Paracetamol 500mg (viên)', 100, '06/2027'],
+      ['Ibuprofen 400mg (viên)', 50, '12/2027'],
+      ['Amoxicillin 500mg (viên)', 60, '06/2027'],
+      ['Metronidazole 250mg (viên)', 40, '12/2027'],
+      ['Omeprazole 20mg (viên)', 30, '12/2027'],
+      ['Loperamide - viên tiêu chảy', 30, '12/2027'],
+      ['Vitamin C 1000mg (viên)', 100, '12/2028'],
+      ['Thuốc say sóng Dimenhydrinate', 50, '06/2028'],
+      ['Dung dịch nhỏ mắt', 5, '06/2027'],
+      // Vật tư băng bó
+      ['Băng gạc vô trùng 10x10cm', 50, 'Không có hạn'],
+      ['Băng cuộn y tế 5cm', 20, 'Không có hạn'],
+      ['Băng dán cá nhân (hộp 100 cái)', 3, 'Không có hạn'],
+      ['Bông y tế (gói 100g)', 5, 'Không có hạn'],
+      ['Cồn 70° (chai 500ml)', 5, '12/2027'],
+      ['Povidone Iodine (chai 60ml)', 5, '12/2027'],
+      ['Oxy già (chai 100ml)', 5, '12/2027'],
+      ['Nước muối sinh lý (gói 10ml)', 30, '06/2027'],
+      // Dụng cụ sơ cứu
+      ['Kéo y tế', 2, 'Không có hạn'],
+      ['Nhíp y tế', 2, 'Không có hạn'],
+      ['Nhiệt kế điện tử', 2, 'Không có hạn'],
+      ['Băng ép cầm máu khẩn cấp', 3, 'Không có hạn'],
+      ['Găng tay y tế (hộp 100 cái)', 2, '12/2027'],
+      ['Khẩu trang y tế (hộp 50 cái)', 2, '12/2027'],
+      ['Mặt nạ hô hấp nhân tạo', 2, '12/2027'],
+      ['Túi chườm lạnh khẩn cấp', 5, '12/2027'],
+    ];
+    const ws = XLSX.utils.aoa_to_sheet(rows);
+    ws['!cols'] = [{ wch: 38 }, { wch: 12 }, { wch: 28 }];
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'VatTuYTe');
     XLSX.writeFile(wb, 'mau-vat-tu-y-te.xlsx');

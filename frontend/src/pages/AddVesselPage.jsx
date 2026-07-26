@@ -318,15 +318,39 @@ export default function AddVesselPage() {
   // ===== Ship Equipment Handlers =====
   // ===== Excel Import cho Thiết bị tàu =====
   const downloadVesselEqTemplate = () => {
-    const types = SHIP_EQ_TYPES.join(' / ');
-    const locs  = SHIP_EQ_LOCATIONS.join(' / ');
-    const ws = XLSX.utils.aoa_to_sheet([
+    const rows = [
       ['Tên thiết bị', 'Loại thiết bị', 'Vị trí', 'Số lượng', 'Hạn sử dụng (ghi chú)'],
-      ['Áo phao cá nhân', 'Thiết bị cứu sinh', 'Boong', 10, '12/2027'],
+      // Thiết bị cứu sinh
+      ['Áo phao cá nhân', 'Thiết bị cứu sinh', 'Boong', 20, '12/2028'],
+      ['Phao tròn cứu sinh', 'Thiết bị cứu sinh', 'Boong', 6, '12/2028'],
+      ['Bè cứu sinh tự bơm', 'Thiết bị cứu sinh', 'Boong', 2, '06/2027'],
+      ['Pháo hiệu tín hiệu', 'Thiết bị cứu sinh', 'Buồng lái', 12, '06/2026'],
+      ['Đèn cứu sinh cá nhân', 'Thiết bị cứu sinh', 'Boong', 20, '12/2028'],
+      // Thiết bị chữa cháy
       ['Bình chữa cháy CO2', 'Thiết bị chữa cháy', 'Buồng máy', 4, '06/2026'],
-      ['', `Loại: ${types}`, `Vị trí: ${locs}`, '', ''],
-    ]);
-    ws['!cols'] = [{ wch: 30 }, { wch: 25 }, { wch: 15 }, { wch: 12 }, { wch: 25 }];
+      ['Bình chữa cháy bột BC', 'Thiết bị chữa cháy', 'Boong', 6, '06/2026'],
+      ['Bình chữa cháy bột AFFF', 'Thiết bị chữa cháy', 'Buồng máy', 2, '06/2026'],
+      ['Vòi rồng chữa cháy 15m', 'Thiết bị chữa cháy', 'Boong', 4, 'Không có hạn'],
+      ['Bộ đồ phòng cháy chữa cháy', 'Thiết bị chữa cháy', 'Buồng lái', 2, 'Không có hạn'],
+      // Thiết bị hàng hải
+      ['La bàn từ', 'Thiết bị hàng hải', 'Buồng lái', 1, 'Kiểm định 5 năm'],
+      ['Radar hàng hải ARPA', 'Thiết bị hàng hải', 'Buồng lái', 1, 'Kiểm định 5 năm'],
+      ['Hệ thống AIS', 'Thiết bị hàng hải', 'Buồng lái', 1, 'Kiểm định 5 năm'],
+      ['GPS định vị', 'Thiết bị hàng hải', 'Buồng lái', 2, 'Không có hạn'],
+      // Thiết bị liên lạc
+      ['Máy thu phát VHF cầm tay', 'Thiết bị liên lạc', 'Buồng lái', 4, '12/2029'],
+      ['Hệ thống GMDSS', 'Thiết bị liên lạc', 'Buồng lái', 1, 'Kiểm định 5 năm'],
+      ['Còi tín hiệu điện', 'Thiết bị liên lạc', 'Buồng lái', 1, 'Không có hạn'],
+      // Dụng cụ sửa chữa
+      ['Bộ dụng cụ cơ khí (búa, cờ lê, tua vít...)', 'Dụng cụ sửa chữa', 'Buồng máy', 2, 'Không có hạn'],
+      ['Máy hàn điện', 'Dụng cụ sửa chữa', 'Buồng máy', 1, 'Không có hạn'],
+      ['Bơm tay chống đắm', 'Dụng cụ sửa chữa', 'Buồng máy', 2, 'Không có hạn'],
+      ['Bộ vá lỗ khẩn cấp', 'Dụng cụ sửa chữa', 'Buồng máy', 1, 'Không có hạn'],
+      // Ghi chú các loại/vị trí hợp lệ
+      ['', `Loại: ${SHIP_EQ_TYPES.join(' / ')}`, `Vị trí: ${SHIP_EQ_LOCATIONS.join(' / ')}`, '', ''],
+    ];
+    const ws = XLSX.utils.aoa_to_sheet(rows);
+    ws['!cols'] = [{ wch: 38 }, { wch: 25 }, { wch: 15 }, { wch: 12 }, { wch: 28 }];
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'ThietBiTau');
     XLSX.writeFile(wb, 'mau-thiet-bi-tau.xlsx');
