@@ -296,17 +296,32 @@ router.patch('/engines/:engineId/status', async (req, res) => {
     await engine.update({ status });
 
     let voyageUpdated = false;
-    // Nếu máy chính → bảo dưỡng, đổi hải trình sang Neo đậu (nếu có voyageId)
-    const isMainEngine = engine.engineType?.toLowerCase().includes('main') || engine.engineType?.toLowerCase().includes('chính');
-    if (isMainEngine && status === 'Under Maintenance' && voyageId) {
+    let newVoyageStatus = null;
+    const engineName = (engine.engineName || '').toLowerCase();
+    const engineType = (engine.engineType || '').toLowerCase();
+    const isMainEngine = engineName.includes('main') || engineName.includes('chính') ||
+                         engineType.includes('main') || engineType.includes('chính');
+
+    if (isMainEngine && voyageId) {
       const voyage = await Voyage.findByPk(voyageId);
-      if (voyage && voyage.status !== 'Completed' && voyage.status !== 'Cancelled') {
-        await voyage.update({ status: 'Anchored' });
-        voyageUpdated = true;
+      if (voyage && !['Completed', 'Cancelled'].includes(voyage.status)) {
+        // Máy chính → bảo dưỡng: hải trình sang Anchored
+        if (status === 'Under Maintenance' && voyage.status !== 'Anchored') {
+          await voyage.update({ status: 'Anchored' });
+          newVoyageStatus = 'Anchored';
+          voyageUpdated = true;
+        }
+        // Máy chính → hoạt động trở lại: hải trình sang Underway
+        if (status === 'Operational' && voyage.status === 'Anchored') {
+          await voyage.update({ status: 'Underway' });
+          newVoyageStatus = 'Underway';
+          voyageUpdated = true;
+        }
       }
     }
 
-    res.json({ message: 'Cập nhật trạng thái máy thành công', engine, voyageUpdated });
+    res.json({ message: 'Cập nhật trạng thái máy thành công', engine, voyageUpdated, newVoyageStatus });
+
   } catch (error) {
     console.error('Lỗi cập nhật trạng thái máy:', error);
     res.status(500).json({ message: 'Lỗi server', error: error.message });
