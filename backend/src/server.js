@@ -29,6 +29,7 @@ app.use("/api/shift-reports", require("./routes/shiftReportRoutes"));
 app.use("/api/deck-logs", require("./routes/deckLogRoutes"));
 app.use("/api/notifications", require("./routes/notificationRoutes"));
 app.use("/api/reports", require("./routes/reportRoutes"));
+app.use("/api/sewage-logs", require("./routes/sewageRoutes"));
 
 const PORT = process.env.PORT || 5000;
 

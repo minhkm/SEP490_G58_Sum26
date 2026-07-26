@@ -33,6 +33,8 @@ export default function LoginPage() {
         return;
       }
 
+      localStorage.removeItem("activeVoyageId");
+      localStorage.removeItem("activeVoyageRole");
       localStorage.setItem("token", response.token);
       localStorage.setItem("user", JSON.stringify(response.user));
 
@@ -70,6 +72,8 @@ export default function LoginPage() {
       await authService.changeFirstPassword(loginEmail, newPassword);
 
       // Thành công -> Lưu token và chuyển hướng
+      localStorage.removeItem("activeVoyageId");
+      localStorage.removeItem("activeVoyageRole");
       localStorage.setItem("token", tempUser.token);
       localStorage.setItem("user", JSON.stringify(tempUser.user));
 

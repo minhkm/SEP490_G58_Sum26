@@ -65,7 +65,33 @@ const sendRouteApprovalEmail = async (email, voyageId, departurePort, destinatio
   }
 };
 
+const sendSewageApprovalEmail = async (email, applicantName, voyageId) => {
+  try {
+    const mailOptions = {
+      from: `"CargoOps System" <${process.env.EMAIL_USER}>`,
+      to: email,
+      subject: `Yêu cầu phê duyệt Xả nước thải MARPOL chuyến đi VY-${String(voyageId).padStart(4, '0')}`,
+      html: `
+        <h2>Yêu cầu phê duyệt Xả nước thải</h2>
+        <p>Đại phó <strong>${applicantName || 'trên tàu'}</strong> đã tạo yêu cầu xả nước thải cho chuyến đi <strong>VY-${String(voyageId).padStart(4, '0')}</strong>.</p>
+        <p>Vui lòng đăng nhập vào hệ thống CargoOps, kiểm tra các điều kiện xả thải (khoảng cách bờ, tốc độ tàu) và tiến hành phê duyệt trước khi cho phép xả.</p>
+        <br/>
+        <p>Trân trọng,</p>
+        <p>CargoOps Team</p>
+      `
+    };
+
+    const info = await transporter.sendMail(mailOptions);
+    console.log(`Email sent to ${email}: ${info.messageId}`);
+    return true;
+  } catch (error) {
+    console.error(`Error sending email to ${email}:`, error);
+    return false;
+  }
+};
+
 module.exports = {
   sendCrewCredentialsEmail,
-  sendRouteApprovalEmail
+  sendRouteApprovalEmail,
+  sendSewageApprovalEmail
 };

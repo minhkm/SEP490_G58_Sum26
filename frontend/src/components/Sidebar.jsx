@@ -67,6 +67,7 @@ export default function Sidebar() {
     isDeck && { key: '/deck-logs', icon: <FileTextOutlined />, label: 'Nhật ký Trực boong' },
     isEngine && { key: '/engine-logs', icon: <ToolOutlined />, label: 'Nhật ký Kiểm tra Máy' },
     isEngineOfficer && { key: '/engine-management', icon: <SettingOutlined />, label: 'Quản lý Máy & Thiết bị' },
+    isMasterOrChief && { key: '/sewage-logs', icon: <FileTextOutlined />, label: 'Xả thải (MARPOL)' },
     { key: '/reports', icon: <BarChartOutlined />, label: 'Báo cáo' },
     { key: '/crew-profile', icon: <UserOutlined />, label: 'Hồ sơ của tôi' },
     isMasterOrChief && { key: 'cai-dat', icon: <SettingOutlined />, label: 'Cài đặt', disabled: true },

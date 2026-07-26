@@ -21,6 +21,10 @@ export default function RequireRole({ allow = [], children }) {
     return <Navigate to="/login" replace />;
   }
 
+  if (allow === 'any') {
+    return children;
+  }
+
   if (!allow.includes(role)) {
     // Không đủ quyền: đưa về dashboard tương ứng với role của họ
     if (!activeVoyageRole && role !== 'Admin' && role !== 'Agency') {
