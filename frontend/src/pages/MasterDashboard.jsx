@@ -92,6 +92,8 @@ export default function MasterDashboard() {
   const handleLogout = () => {
     localStorage.removeItem('token');
     localStorage.removeItem('user');
+    localStorage.removeItem('activeVoyageId');
+    localStorage.removeItem('activeVoyageRole');
     navigate('/login');
   };
 

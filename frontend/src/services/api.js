@@ -10,8 +10,12 @@ const api = axios.create({
 api.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem('token');
+    const activeVoyageRole = localStorage.getItem('activeVoyageRole');
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
+    }
+    if (activeVoyageRole) {
+      config.headers['x-active-voyage-role'] = activeVoyageRole;
     }
     return config;
   },

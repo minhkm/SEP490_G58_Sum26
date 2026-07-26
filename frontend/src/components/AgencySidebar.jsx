@@ -42,6 +42,8 @@ export default function AgencySidebar() {
   const handleLogout = () => {
     localStorage.removeItem('token');
     localStorage.removeItem('user');
+    localStorage.removeItem('activeVoyageId');
+    localStorage.removeItem('activeVoyageRole');
     navigate('/login');
   };
 

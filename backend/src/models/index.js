@@ -33,6 +33,7 @@ const LogEditHistory = require("./LogEditHistory");
 const LogImage = require("./LogImage");
 const DeckLogEntry = require("./DeckLogEntry");
 const Notification = require("./Notification");
+const SewageLog = require("./SewageLog");
 
 // ============ QUAN HỆ ============
 
@@ -128,6 +129,12 @@ Attendance.belongsTo(Voyage, { foreignKey: "voyageId" });
 
 Voyage.hasMany(Shift, { foreignKey: "voyageId" });
 Shift.belongsTo(Voyage, { foreignKey: "voyageId" });
+
+Voyage.hasMany(SewageLog, { foreignKey: "voyageId" });
+SewageLog.belongsTo(Voyage, { foreignKey: "voyageId" });
+
+SewageLog.belongsTo(User, { foreignKey: "requestedBy", as: "Requester" });
+SewageLog.belongsTo(User, { foreignKey: "approvedBy", as: "Approver" });
 
 // CrewProfile liên kết qua các bảng vận hành (crewId)
 CrewProfile.hasMany(VoyageCrew, { foreignKey: "crewId" });
@@ -235,4 +242,5 @@ module.exports = {
   LogImage,
   DeckLogEntry,
   Notification,
+  SewageLog,
 };
