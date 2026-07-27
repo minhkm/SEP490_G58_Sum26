@@ -1,5 +1,5 @@
 import { Navigate } from 'react-router-dom';
-import { getDashboardPath } from '../config/roles';
+import { getDashboardPath, getEffectiveRole } from '../config/roles';
 
 /**
  * Bảo vệ route theo role.
@@ -13,9 +13,8 @@ import { getDashboardPath } from '../config/roles';
  */
 export default function RequireRole({ allow = [], children }) {
   const token = localStorage.getItem('token');
-  const user = JSON.parse(localStorage.getItem('user') || '{}');
   const activeVoyageRole = localStorage.getItem('activeVoyageRole');
-  const role = activeVoyageRole || user.role || '';
+  const role = getEffectiveRole();
 
   if (!token) {
     return <Navigate to="/login" replace />;

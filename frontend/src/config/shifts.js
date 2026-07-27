@@ -23,7 +23,7 @@ export const DEPARTMENT_STYLE = {
 };
 
 // Role được phép tạo/sửa ca trực.
-export const SHIFT_OFFICER_ROLES = ['DeckOfficer', 'EngineOfficer', 'ChiefEngineer'];
+export const SHIFT_OFFICER_ROLES = ['DeckOfficer', 'EngineOfficer'];
 
 // Nhãn + màu trạng thái ca.
 export const SHIFT_STATUS = {

@@ -199,8 +199,9 @@ export default function AddCrewPage() {
                         <Select.Option value="Master">Thuyền trưởng (Master)</Select.Option>
                         <Select.Option value="ChiefOfficer">Đại phó (Chief Officer)</Select.Option>
                         <Select.Option value="DeckOfficer">Sĩ quan boong (Deck Officer)</Select.Option>
-                        <Select.Option value="EngineOfficer">Sĩ quan máy (Engine Officer)</Select.Option>
                         <Select.Option value="Sailor">Thủy thủ (Sailor)</Select.Option>
+                        <Select.Option value="EngineOfficer">Sĩ quan máy / Máy trưởng (Engine Officer)</Select.Option>
+                        <Select.Option value="EngineCrew">Thợ máy (Engine Crew)</Select.Option>
                       </Select>
                     </Form.Item>
                   </Col>

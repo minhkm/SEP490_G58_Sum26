@@ -9,6 +9,30 @@ export const DECK_LOG_ROLES = ['Sailor'];
 // Thợ máy (EngineCrew) mới được ghi Nhật ký trực máy.
 export const ENGINE_LOG_ROLES = ['EngineCrew'];
 
+// ===== Nhóm role chuẩn (nguồn duy nhất) =====
+// Bộ phận: Boong = DeckOfficer + Sailor; Máy = EngineOfficer (máy trưởng) + EngineCrew.
+// KHÔNG có role ChiefEngineer riêng (máy trưởng chính là EngineOfficer).
+export const SHORE_ROLES = ['Admin', 'Agency'];
+export const COMMAND_ROLES = ['Master', 'ChiefOfficer'];
+export const DECK_CREW_ROLES = ['DeckOfficer', 'Sailor'];
+export const ENGINE_CREW_ROLES = ['EngineOfficer', 'EngineCrew'];
+// Toàn bộ người trên tàu (chỉ huy + boong + máy)
+export const ONBOARD_ROLES = ['Master', 'ChiefOfficer', 'DeckOfficer', 'Sailor', 'EngineOfficer', 'EngineCrew'];
+// Thuyền viên có dashboard "crew" (không phải chỉ huy)
+export const CREW_DASHBOARD_ROLES = ['DeckOfficer', 'Sailor', 'EngineOfficer', 'EngineCrew'];
+
+// Role hiệu lực hiện tại: ưu tiên role theo hải trình, fallback role tài khoản.
+// Dùng CHUNG cho mọi nơi (RequireRole, Sidebar, layout, dashboard) để tránh lệch nguồn.
+export function getEffectiveRole() {
+  const voyageRole = localStorage.getItem('activeVoyageRole');
+  if (voyageRole) return voyageRole;
+  try {
+    return JSON.parse(localStorage.getItem('user') || '{}').role || '';
+  } catch {
+    return '';
+  }
+}
+
 // Trả về dashboard tương ứng với role hiện tại.
 export function getDashboardPath(role) {
   if (role === 'Master' || role === 'ChiefOfficer') return '/master-dashboard';

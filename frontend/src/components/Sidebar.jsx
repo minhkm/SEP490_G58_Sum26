@@ -13,7 +13,7 @@ import {
   SendOutlined,
   FileTextOutlined,
 } from '@ant-design/icons';
-import { CARGO_ROLES } from '../config/roles';
+import { CARGO_ROLES, getEffectiveRole } from '../config/roles';
 import { voyageService } from '../services/api';
 import { useState, useEffect } from 'react';
 
@@ -23,12 +23,11 @@ export default function Sidebar() {
   const navigate = useNavigate();
   const location = useLocation();
   const user = JSON.parse(localStorage.getItem('user') || '{}');
-  const activeVoyageRole = localStorage.getItem('activeVoyageRole');
-  const role = activeVoyageRole || user.role || '';
+  const role = getEffectiveRole();
 
   const isMasterOrChief = role === 'Master' || role === 'ChiefOfficer';
   const isCrewRole = !isMasterOrChief && role !== 'Admin' && role !== 'Agency';
-  const isEngineOfficer = role === 'EngineOfficer' || role === 'ChiefEngineer';
+  const isEngineOfficer = role === 'EngineOfficer';
   const isEngine = role === 'EngineCrew';
   const isDeck = role === 'Sailor';
   
