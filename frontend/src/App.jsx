@@ -24,7 +24,7 @@ import AttendancePage from "./pages/AttendancePage";
 import RoutePlannerPage from "./pages/RoutePlannerPage";
 import RequireRole from "./components/RequireRole";
 import SewageLogPage from "./pages/SewageLogPage";
-import { CARGO_ROLES, REPORT_ROLES, DECK_LOG_ROLES, ENGINE_LOG_ROLES } from "./config/roles";
+import { CARGO_ROLES, REPORT_ROLES, DECK_LOG_ROLES, ENGINE_LOG_ROLES, ONBOARD_ROLES, CREW_DASHBOARD_ROLES } from "./config/roles";
 import { SHIFT_OFFICER_ROLES } from "./config/shifts";
 
 import DeckLogPage from "./pages/DeckLogPage";
@@ -39,7 +39,7 @@ function App() {
       <Routes>
         <Route path="/" element={<LandingPageWrapper />} />
         <Route path="/login" element={<LoginPage />} />
-        <Route path="/my-voyages" element={<RequireRole allow="any"><MyVoyagesPage /></RequireRole>} />
+        <Route path="/my-voyages" element={<RequireRole allow={ONBOARD_ROLES}><MyVoyagesPage /></RequireRole>} />
         <Route path="/master-dashboard" element={<RequireRole allow={['Master', 'ChiefOfficer']}><MasterDashboard /></RequireRole>} />
         <Route path="/agency-dashboard" element={<RequireRole allow={['Admin', 'Agency']}><AgencyDashboard /></RequireRole>} />
         <Route path="/vessels" element={<RequireRole allow={['Admin', 'Agency']}><VesselListPage /></RequireRole>} />
@@ -101,14 +101,14 @@ function App() {
         <Route path="/crews" element={<RequireRole allow={['Admin', 'Agency']}><CrewListPage /></RequireRole>} />
         <Route path="/crews/new" element={<RequireRole allow={['Admin', 'Agency']}><AddCrewPage /></RequireRole>} />
         <Route path="/crews/edit/:id" element={<RequireRole allow={['Admin', 'Agency']}><AddCrewPage /></RequireRole>} />
-        <Route path="/crew-dashboard" element={<RequireRole allow="any"><CrewDashboard /></RequireRole>} />
-        <Route path="/crew-profile" element={<RequireRole allow="any"><CrewProfilePage /></RequireRole>} />
+        <Route path="/crew-dashboard" element={<RequireRole allow={CREW_DASHBOARD_ROLES}><CrewDashboard /></RequireRole>} />
+        <Route path="/crew-profile" element={<RequireRole allow={ONBOARD_ROLES}><CrewProfilePage /></RequireRole>} />
         <Route path="/engine-logs" element={
           <RequireRole allow={ENGINE_LOG_ROLES}>
             <EngineLogPage />
           </RequireRole>
         } />
-        <Route path="/shifts" element={<RequireRole allow="any"><ShiftViewPage /></RequireRole>} />
+        <Route path="/shifts" element={<RequireRole allow={ONBOARD_ROLES}><ShiftViewPage /></RequireRole>} />
         <Route
           path="/shifts/manage"
           element={
@@ -124,7 +124,7 @@ function App() {
           </RequireRole>
         } />
         <Route path="/engine-management" element={
-          <RequireRole allow={['EngineOfficer', 'ChiefEngineer']}>
+          <RequireRole allow={['EngineOfficer']}>
             <EngineManagePage />
           </RequireRole>
         } />
