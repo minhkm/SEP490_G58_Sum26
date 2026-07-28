@@ -1,7 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  QuestionCircleOutlined,
   SearchOutlined,
   ProfileOutlined,
   ThunderboltOutlined,
@@ -30,6 +29,7 @@ import { Spin } from 'antd';
 import './MasterDashboard.css';
 import MasterLayout from '../components/MasterLayout';
 import NotificationBell from '../components/NotificationBell';
+import HelpButton from '../components/HelpButton';
 import { notifyInfo, notifyError } from '../utils/feedback';
 import { dashboardService } from '../services/api';
 
@@ -115,7 +115,7 @@ export default function MasterDashboard() {
 
         <div className="header-actions">
           <NotificationBell />
-          <QuestionCircleOutlined className="action-icon" />
+          <HelpButton className="action-icon" />
 
           <div className="user-profile-wrapper" ref={dropdownRef}>
             <div className="user-profile" onClick={() => setShowDropdown(!showDropdown)}>
