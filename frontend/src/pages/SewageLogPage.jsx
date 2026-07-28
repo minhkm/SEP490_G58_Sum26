@@ -4,6 +4,7 @@ import MasterLayout from '../components/MasterLayout';
 import { PlusOutlined, CheckCircleOutlined, CloseCircleOutlined, EnvironmentOutlined, WarningOutlined } from '@ant-design/icons';
 import api from '../services/api';
 import dayjs from 'dayjs';
+import { isWaterArea } from '../utils/geoUtils';
 
 import { MapContainer, TileLayer, Marker, Popup, useMapEvents, useMap } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
@@ -20,9 +21,18 @@ L.Marker.prototype.options.icon = DefaultIcon;
 
 function LocationMapPicker({ setLat, setLng }) {
   useMapEvents({
-    click(e) {
-      setLat(e.latlng.lat);
-      setLng(e.latlng.lng);
+    async click(e) {
+      const lat = e.latlng.lat;
+      const lng = e.latlng.lng;
+      const hide = message.loading('Đang kiểm tra vị trí...', 0);
+      const isWater = await isWaterArea(lat, lng);
+      hide();
+      if (!isWater) {
+        message.warning('Vị trí xả thải phải nằm trên biển/mặt nước!');
+        return;
+      }
+      setLat(lat);
+      setLng(lng);
     },
   });
   return null;
@@ -132,6 +142,12 @@ export default function SewageLogPage() {
   const handleCreateRequest = async (values) => {
     setSubmitting(true);
     try {
+      const isWater = await isWaterArea(selectedLat, selectedLng);
+      if (!isWater) {
+        setSubmitting(false);
+        return message.error('Vị trí xả thải không hợp lệ! Vị trí này nằm trên đất liền.');
+      }
+      
       const payloadData = {
         ...values,
         startLat: selectedLat,
