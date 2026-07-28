@@ -42,8 +42,9 @@ exports.createRequest = async (req, res) => {
       if (distanceFromLand < 3 || shipSpeed < 4) isCompliant = false;
     }
 
-    // Process images
-    const images = req.files ? req.files.map(f => `/uploads/logs/${f.filename}`) : [];
+    // Process images — dùng Cloudinary URL (file.path)
+    const images = req.files ? req.files.map(f => f.path) : [];
+
 
     const newLog = await SewageLog.create({
       voyageId,
