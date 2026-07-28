@@ -6,6 +6,7 @@ import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
 import { voyageService } from '../services/api';
 import MasterLayout from '../components/MasterLayout';
+import { isWaterArea } from '../utils/geoUtils';
 
 import { SEAPORTS } from '../data/ports';
 
@@ -21,18 +22,24 @@ L.Marker.prototype.options.icon = DefaultIcon;
 
 const { Title, Text } = Typography;
 
-// Component to handle map clicks
 function LocationMarkers({ waypoints, setWaypoints, isReadOnly }) {
   useMapEvents({
-    click(e) {
+    async click(e) {
       if (isReadOnly) return;
+      const lat = e.latlng.lat;
+      const lng = e.latlng.lng;
+      const isWater = await isWaterArea(lat, lng);
+      if (!isWater) {
+        message.warning('Không thể chọn vị trí trên đất liền!');
+        return;
+      }
       setWaypoints((prev) => {
         if (prev.length >= 2) {
           const newPts = [...prev];
-          newPts.splice(newPts.length - 1, 0, { lat: e.latlng.lat, lng: e.latlng.lng });
+          newPts.splice(newPts.length - 1, 0, { lat, lng });
           return newPts;
         }
-        return [...prev, { lat: e.latlng.lat, lng: e.latlng.lng }];
+        return [...prev, { lat, lng }];
       });
     },
   });
@@ -123,7 +130,7 @@ export default function RoutePlannerPage() {
     });
   };
 
-  const handleAddWaypoint = () => {
+  const handleAddWaypoint = async () => {
     const lat = parseFloat(inputLat);
     const lng = parseFloat(inputLng);
     if (isNaN(lat) || isNaN(lng)) {
@@ -136,6 +143,14 @@ export default function RoutePlannerPage() {
       return message.error('Kinh độ (Longitude) phải từ -180 đến 180');
     }
     
+    setSaving(true);
+    const isWater = await isWaterArea(lat, lng);
+    setSaving(false);
+    
+    if (!isWater) {
+      return message.warning('Không thể chọn vị trí trên đất liền!');
+    }
+
     setWaypoints((prev) => {
       if (prev.length >= 2) {
         const newPts = [...prev];
