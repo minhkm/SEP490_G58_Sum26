@@ -319,7 +319,7 @@ const uploadLogImages = async (req, res) => {
       req.files.map(file => LogImage.create({
         logType: 'Engine',
         shiftLogId: parseInt(shiftLogId),
-        imageUrl: `/uploads/logs/${file.filename}`,
+        imageUrl: file.path, // Cloudinary URL
         caption: '',
         uploadedBy: crewId
       }))
