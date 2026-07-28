@@ -26,7 +26,7 @@ exports.createRequest = async (req, res) => {
       return res.status(403).json({ message: `Chỉ Đại phó (ChiefOfficer) mới được tạo yêu cầu xả thải. Vai trò hiện tại của bạn: ${activeVoyageRole} / ${req.user.role}` });
     }
 
-    const { voyageId, dischargeType, distanceFromLand, shipSpeed, volume, plannedDischargeDate, startPosition, remarks } = req.body;
+    const { voyageId, dischargeType, distanceFromLand, shipSpeed, volume, plannedDischargeDate, startLat, startLng, remarks } = req.body;
 
     const voyage = await Voyage.findByPk(voyageId);
     if (!voyage) return res.status(404).json({ message: 'Không tìm thấy chuyến đi.' });
@@ -35,12 +35,11 @@ exports.createRequest = async (req, res) => {
       return res.status(400).json({ message: 'Tàu chưa chạy (Status không phải Underway). Không được phép xả nước thải.' });
     }
 
+    let isCompliant = true;
     if (dischargeType === 'Untreated') {
-      if (distanceFromLand < 12) return res.status(400).json({ message: 'Nước thải chưa xử lý phải cách bờ ít nhất 12 hải lý.' });
-      if (shipSpeed < 4) return res.status(400).json({ message: 'Tốc độ tàu phải đạt tối thiểu 4 knots khi xả nước thải chưa xử lý.' });
+      if (distanceFromLand < 12 || shipSpeed < 4) isCompliant = false;
     } else if (dischargeType === 'Comminuted') {
-      if (distanceFromLand < 3) return res.status(400).json({ message: 'Nước thải đã nghiền/khử trùng phải cách bờ ít nhất 3 hải lý.' });
-      if (shipSpeed < 4) return res.status(400).json({ message: 'Tốc độ tàu phải đạt tối thiểu 4 knots.' });
+      if (distanceFromLand < 3 || shipSpeed < 4) isCompliant = false;
     }
 
     // Process images
@@ -54,7 +53,9 @@ exports.createRequest = async (req, res) => {
       shipSpeed,
       volume,
       plannedDischargeDate,
-      startPosition,
+      startLat,
+      startLng,
+      isCompliant,
       remarks,
       images
     });
