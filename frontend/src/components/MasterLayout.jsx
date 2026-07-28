@@ -1,6 +1,7 @@
 import { Layout } from 'antd';
 import Sidebar from './Sidebar';
 import NotificationBell from './NotificationBell';
+import HelpButton from './HelpButton';
 import './AppTopbar.css';
 
 const { Content } = Layout;
@@ -16,6 +17,7 @@ export default function MasterLayout({ children, hideTopbar = false }) {
         {!hideTopbar && (
           <div className="app-topbar">
             <NotificationBell />
+            <HelpButton />
             <div className="app-topbar-user">
               <div className="app-topbar-user-info">
                 <span className="app-topbar-user-name">{displayName}</span>
