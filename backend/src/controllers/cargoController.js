@@ -184,6 +184,11 @@ exports.updateCargo = async (req, res) => {
       return res.status(404).json({ success: false, message: "Không tìm thấy lô hàng" });
     }
 
+    // Lô hàng đã thuộc hải trình thì bị khoá — không cho chỉnh sửa
+    if (cargo.voyageId) {
+      return res.status(400).json({ success: false, message: "Lô hàng đã thuộc hải trình nên không thể chỉnh sửa." });
+    }
+
     await cargo.update({
       voyageId: voyageId || cargo.voyageId,
       cargoName: cargoName || cargo.cargoName,
@@ -207,6 +212,11 @@ exports.deleteCargo = async (req, res) => {
     const cargo = await Cargo.findByPk(cargoId);
     if (!cargo) {
       return res.status(404).json({ success: false, message: "Không tìm thấy lô hàng" });
+    }
+
+    // Lô hàng đã thuộc hải trình thì bị khoá — không cho xoá
+    if (cargo.voyageId) {
+      return res.status(400).json({ success: false, message: "Lô hàng đã thuộc hải trình nên không thể xoá." });
     }
 
     // Delete related allocations and items first to avoid foreign key constraints

@@ -10,6 +10,7 @@ import {
   Empty,
   Typography,
   Space,
+  Tooltip,
 } from 'antd';
 import {
   AppstoreOutlined,
@@ -18,6 +19,7 @@ import {
   InboxOutlined,
   ExclamationCircleOutlined,
   EditOutlined,
+  LockOutlined,
 } from '@ant-design/icons';
 import AgencyLayout from '../components/AgencyLayout';
 import MasterLayout from '../components/MasterLayout';
@@ -36,6 +38,8 @@ export default function CargoDetailPage() {
 
   const user = JSON.parse(localStorage.getItem('user')) || {};
   const Layout = (user.role === 'Admin' || user.role === 'Agency') ? AgencyLayout : MasterLayout;
+  // Chỉ Admin/Agency được sửa; lô hàng đã thuộc hải trình sẽ bị khoá (không cho sửa)
+  const canEdit = ['Admin', 'Agency'].includes(user.role);
 
   useEffect(() => {
     cargoService.getById(id).then(res => {
@@ -88,9 +92,19 @@ export default function CargoDetailPage() {
                 text={cargo.status || 'Chờ xử lý'}
                 style={{ padding: '4px 14px', borderRadius: 999, margin: 0 }}
               />
-              <Button icon={<EditOutlined />} onClick={() => navigate(`/cargos/edit/${cargo.id}`)}>
-                Chỉnh sửa
-              </Button>
+              {canEdit && (
+                cargo.Voyage ? (
+                  <Tooltip title="Lô hàng đã thuộc hải trình nên không thể sửa/xoá">
+                    <Button icon={<LockOutlined />} disabled>
+                      Đã khoá
+                    </Button>
+                  </Tooltip>
+                ) : (
+                  <Button icon={<EditOutlined />} onClick={() => navigate(`/cargos/edit/${cargo.id}`)}>
+                    Chỉnh sửa
+                  </Button>
+                )
+              )}
             </Space>
           }
         />
