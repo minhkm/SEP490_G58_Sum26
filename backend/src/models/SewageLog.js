@@ -12,8 +12,9 @@ const SewageLog = sequelize.define("SewageLog", {
   shipSpeed: { type: DataTypes.FLOAT, allowNull: false },
   volume: { type: DataTypes.FLOAT, allowNull: false },
   plannedDischargeDate: { type: DataTypes.DATE, allowNull: false },
-  startPosition: { type: DataTypes.STRING, allowNull: false },
-  endPosition: { type: DataTypes.STRING, allowNull: true },
+  startLat: { type: DataTypes.FLOAT, allowNull: false },
+  startLng: { type: DataTypes.FLOAT, allowNull: false },
+  isCompliant: { type: DataTypes.BOOLEAN, defaultValue: true },
   remarks: { type: DataTypes.TEXT, allowNull: true },
   images: { type: DataTypes.JSON, allowNull: true, defaultValue: [] },
   requestDate: { type: DataTypes.DATE, defaultValue: DataTypes.NOW }
