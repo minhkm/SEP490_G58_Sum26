@@ -113,3 +113,17 @@ code {
   padding: 4px 8px;
   background: var(--code-bg);
 }
+
+/* ===== Antd Image Preview — kích thước lớn hơn ===== */
+.ant-image-preview-img {
+  max-width: 85vw !important;
+  max-height: 85vh !important;
+  min-width: 400px;
+  object-fit: contain;
+}
+
+.ant-image-preview-img-wrapper {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}

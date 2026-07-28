@@ -193,10 +193,15 @@ export default function EngineLogPage() {
         note, values
       });
 
-      // Upload ảnh nếu có
+      // Upload ảnh nếu có — lỗi upload không làm mất nhật ký
       if (fileList.length > 0 && result.shiftLog?.id) {
         const files = fileList.map(f => f.originFileObj);
-        await engineLogService.uploadImages(result.shiftLog.id, files);
+        try {
+          await engineLogService.uploadImages(result.shiftLog.id, files);
+        } catch (uploadErr) {
+          console.error('Lỗi upload ảnh:', uploadErr);
+          notifyWarning('Nhật ký đã lưu nhưng upload ảnh thất bại. Kiểm tra kết nối Cloudinary.');
+        }
       }
 
       notifySuccess(`Ghi nhận kiểm tra "${selectedEngine.engineName}" thành công!`);
@@ -210,6 +215,7 @@ export default function EngineLogPage() {
       console.error('Lỗi:', error);
       notifyError('Có lỗi xảy ra khi lưu nhật ký');
     }
+
   };
 
   // ===== Mở modal chỉnh sửa =====
@@ -315,12 +321,12 @@ export default function EngineLogPage() {
     },
     { title: 'Ghi chú', key: 'note', render: (_, log) => log.EngineLog?.note || log.content },
     {
-      title: 'Ảnh', key: 'images', width: 100,
+      title: 'Ảnh', key: 'images', width: 140,
       render: (_, log) => log.LogImages?.length > 0 ? (
         <Image.PreviewGroup>
           {log.LogImages.map(img => (
-            <Image key={img.id} width={40} height={40} style={{ objectFit: 'cover', borderRadius: 4, marginRight: 4 }}
-              src={`${API_URL}${img.imageUrl}`} />
+            <Image key={img.id} width={60} height={60} style={{ objectFit: 'cover', borderRadius: 6, marginRight: 4 }}
+              src={img.imageUrl?.startsWith('http') ? img.imageUrl : `${API_URL}${img.imageUrl}`} />
           ))}
         </Image.PreviewGroup>
       ) : <Text type="secondary">—</Text>

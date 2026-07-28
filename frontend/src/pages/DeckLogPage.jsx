@@ -208,7 +208,12 @@ export default function DeckLogPage() {
 
       if (fileList.length > 0 && result.shiftLog?.id) {
         const files = fileList.map(f => f.originFileObj);
-        await deckLogService.uploadImages(result.shiftLog.id, files);
+        try {
+          await deckLogService.uploadImages(result.shiftLog.id, files);
+        } catch (uploadErr) {
+          console.error('Lỗi upload ảnh:', uploadErr);
+          notifyWarning('Nhật ký đã lưu nhưng upload ảnh thất bại. Kiểm tra kết nối Cloudinary.');
+        }
       }
 
       notifySuccess('Ghi nhận nhật ký boong thành công!');
@@ -222,6 +227,7 @@ export default function DeckLogPage() {
       console.error('Lỗi:', error);
       notifyError('Có lỗi xảy ra khi lưu nhật ký');
     }
+
   };
 
   // ===== Chỉnh sửa =====
@@ -392,12 +398,12 @@ export default function DeckLogPage() {
       render: (_, log) => log.DeckLog?.note || <Text type="secondary">—</Text>
     },
     {
-      title: 'Ảnh', key: 'images', width: 100,
+      title: 'Ảnh', key: 'images', width: 140,
       render: (_, log) => log.LogImages?.length > 0 ? (
         <Image.PreviewGroup>
           {log.LogImages.map(img => (
-            <Image key={img.id} width={36} height={36} style={{ objectFit: 'cover', borderRadius: 4, marginRight: 4 }}
-              src={`${API_URL}${img.imageUrl}`} />
+            <Image key={img.id} width={60} height={60} style={{ objectFit: 'cover', borderRadius: 6, marginRight: 4 }}
+              src={img.imageUrl?.startsWith('http') ? img.imageUrl : `${API_URL}${img.imageUrl}`} />
           ))}
         </Image.PreviewGroup>
       ) : <Text type="secondary">—</Text>
