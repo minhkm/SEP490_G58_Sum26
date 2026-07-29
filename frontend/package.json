@@ -14,6 +14,7 @@
     "antd": "^6.4.5",
     "axios": "^1.17.0",
     "bootstrap": "^5.3.8",
+    "country-list": "^2.4.1",
     "dayjs": "^1.11.21",
     "leaflet": "^1.9.4",
     "react": "^19.2.6",
