@@ -39,6 +39,7 @@ import AgencyLayout from '../components/AgencyLayout';
 import { vesselService } from '../services/api';
 import { notifyError, notifySuccess, notifyWarning } from '../utils/feedback';
 import * as XLSX from 'xlsx';
+import { getNames } from 'country-list';
 
 const { Title, Text } = Typography;
 
@@ -72,6 +73,9 @@ export default function AddVesselPage() {
   const SHIP_EQ_TYPES = ['Thiết bị cứu sinh', 'Thiết bị chữa cháy', 'Dụng cụ sửa chữa', 'Thiết bị hàng hải', 'Thiết bị liên lạc', 'Khác'];
   const SHIP_EQ_LOCATIONS = ['Boong', 'Buồng máy', 'Buồng lái'];
   const [shipEquipments, setShipEquipments] = useState([]);
+
+  // Countries Options
+  const countries = getNames().map(name => ({ label: name, value: name }));
 
   // 3 thông số bắt buộc (fix cứng, không xóa được)
   const REQUIRED_PARAMS = ['Fuel Oil Pressure (kg/cm²)', 'Exhaust Gas Temp XL2 (°C)', 'Cooling Water Temp (°C)'];
@@ -644,14 +648,16 @@ export default function AddVesselPage() {
                   <div style={{ marginBottom: 4 }}>Quốc tịch (Flag)</div>
                   <Select
                     style={{ width: '100%' }}
-                    placeholder="Chọn quốc gia treo cờ"
+                    placeholder="Chọn quốc gia treo cờ (có thể tìm kiếm)"
                     allowClear
+                    showSearch
+                    optionFilterProp="label"
                     value={basicInfo.flag || undefined}
                     onChange={(value) => setBasicInfo({ ...basicInfo, flag: value || '' })}
-                    options={[
-                      { label: 'Việt Nam', value: 'VN' },
-                      { label: 'Panama', value: 'PA' },
-                      { label: 'Liberia', value: 'LR' },
+                    options={countries.length > 0 ? countries : [
+                      { label: 'Vietnam', value: 'Vietnam' },
+                      { label: 'Panama', value: 'Panama' },
+                      { label: 'Liberia', value: 'Liberia' },
                     ]}
                   />
                 </Col>

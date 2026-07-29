@@ -1098,4 +1098,23 @@ router.put('/:id/cargo/:itemId/discharge', authMiddleware, async (req, res) => {
   }
 });
 
+router.get('/:id', authMiddleware, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const voyage = await Voyage.findByPk(id, {
+      include: [
+        {
+          model: Ship,
+          attributes: ["id", "shipName", "imoNumber", "flag", "status"],
+        },
+      ],
+    });
+    if (!voyage) return res.status(404).json({ message: 'Không tìm thấy chuyến đi' });
+    res.json(voyage);
+  } catch (error) {
+    console.error('Lỗi khi lấy thông tin chuyến đi:', error);
+    res.status(500).json({ message: 'Lỗi server', error: error.message });
+  }
+});
+
 module.exports = router;

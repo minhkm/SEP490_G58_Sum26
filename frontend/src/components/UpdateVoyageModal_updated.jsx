@@ -7,25 +7,34 @@ import {
   DatePicker,
   Input,
   Table,
+  Checkbox,
   Alert,
   Button,
   Spin,
-  Empty,
-  Tag,
+  Typography,
+  Card,
+  Progress,
+  Space,
+  Tabs,
   Row,
   Col,
-  Tabs
+  Empty,
+  Tag,
+  Tooltip,
+  Popconfirm,
 } from 'antd';
 import { 
-  SaveOutlined, CalendarOutlined, TeamOutlined,
+  SaveOutlined, CalendarOutlined, TeamOutlined, InboxOutlined,
   FileTextOutlined, SyncOutlined, CheckCircleOutlined, SendOutlined, 
   EnvironmentOutlined, FlagOutlined, CloseCircleOutlined, PushpinOutlined, RollbackOutlined, CompassOutlined
 } from '@ant-design/icons';
-import { voyageService } from '../services/api';
+import { voyageService, vesselService } from '../services/api';
 
 const { TextArea } = Input;
+const { Text } = Typography;
 
 const DATE_FORMAT = 'YYYY-MM-DD';
+// Chuyển string 'YYYY-MM-DD' (API) <-> dayjs (DatePicker)
 const toDayjs = (value) => (value ? dayjs(value, DATE_FORMAT) : null);
 
 const STATUS_OPTIONS = [
@@ -80,9 +89,7 @@ export default function UpdateVoyageModal({ voyage, onClose, onUpdate }) {
     issueReason: '',
   });
   const [crewList, setCrewList] = useState([]);
-  const [fetchingCrew, setFetchingCrew] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
+
 
   useEffect(() => {
     if (voyage) {
@@ -95,26 +102,22 @@ export default function UpdateVoyageModal({ voyage, onClose, onUpdate }) {
         issueReason: voyage.issueReason || '',
       });
       fetchCrew(voyage.id);
+      fetchCargo(voyage.id);
+      fetchHolds(voyage.shipId);
     }
   }, [voyage]);
 
-  const fetchCrew = async (id) => {
-    try {
-      setFetchingCrew(true);
-      const data = await voyageService.getVoyageCrew(id);
-      setCrewList(data || []);
-    } catch (err) {
-      console.error('Failed to fetch crew:', err);
-    } finally {
-      setFetchingCrew(false);
-    }
-  };
-
-  const handleSubmit = async () => {
+const handleSubmit = async () => {
     try {
       setLoading(true);
       setError('');
-      await voyageService.updateVoyage(voyage.id, formData);
+
+      const payload = {
+        ...formData,
+
+      };
+
+      await voyageService.updateVoyage(voyage.id, payload);
       onUpdate(); // refresh list
       onClose(); // close modal
     } catch (err) {
@@ -131,7 +134,11 @@ export default function UpdateVoyageModal({ voyage, onClose, onUpdate }) {
   const activeVoyageRole = localStorage.getItem('activeVoyageRole');
   const userRole = (activeVoyageRole || user.role || '').replace(/\s+/g, '').toLowerCase();
 
+  const isShipStaff = userRole === 'chiefofficer' || userRole === 'master';
   const isChiefOfficer = userRole === 'chiefofficer';
+  const isAttendanceAllowed =
+    (formData.status === 'Loaded' || formData.status === 'Discharged') && isShipStaff;
+  const isCargoLoadAllowed = formData.status === 'Loading' && isChiefOfficer;
 
   let allowedStatusOptions = STATUS_OPTIONS.filter(
     (opt) => opt.roles.includes(userRole) || opt.value === voyage.status
@@ -164,7 +171,9 @@ export default function UpdateVoyageModal({ voyage, onClose, onUpdate }) {
     { title: 'Chức vụ', dataIndex: 'position', key: 'position' },
   ];
 
-  const showIssueReason = !formData.isCrewSufficient || !formData.isCargoLoaded;
+  // Removed the "Có mặt" column block as attendance is managed on a separate page
+
+const showIssueReason = !formData.isCrewSufficient || !formData.isCargoLoaded;
 
   const tabItems = [
     {
@@ -297,6 +306,101 @@ export default function UpdateVoyageModal({ voyage, onClose, onUpdate }) {
         </div>
       ),
     }] : []),
+    {
+      key: '3',
+      label: (
+        <span>
+          <InboxOutlined /> Hàng hóa & Hầm hàng
+        </span>
+      ),
+      children: (
+        <div style={{ paddingTop: 24 }}>
+          <Typography.Title level={5} style={{ marginTop: 0, color: '#334155' }}>Danh sách hàng hóa</Typography.Title>
+          {fetchingCargo ? (
+            <div style={{ textAlign: 'center', padding: '40px' }}><Spin size="large" /></div>
+          ) : cargoList.length === 0 ? (
+            <Empty description="Chưa có hàng hóa nào được đăng ký." />
+          ) : (
+            <Table
+              rowKey={(record) => record.itemId || record.cargoName}
+              size="small"
+              columns={cargoColumns}
+              dataSource={cargoList}
+              pagination={false}
+              scroll={{ x: 'max-content' }}
+              bordered
+              style={{ marginBottom: 32, boxShadow: '0 2px 8px rgba(0,0,0,0.05)', borderRadius: 8, overflow: 'hidden' }}
+            />
+          )}
+          {userRole !== 'admin' && (
+            <>
+              <Typography.Title level={5} style={{ color: '#334155' }}>Bản đồ Hầm hàng (Stowage Plan)</Typography.Title>
+              {fetchingHolds ? (
+                <div style={{ textAlign: 'center', padding: '40px' }}><Spin size="large" /></div>
+              ) : holds.length === 0 ? (
+                <Empty description="Tàu chưa được cấu hình hầm hàng." />
+              ) : (
+                <Row gutter={[20, 20]}>
+                  {holds.map((hold) => {
+                    const maxCap = hold.maxCapacity || 0;
+                    let simulatedUsage = hold.currentUsage || 0;
+                    cargoList.forEach((c) => {
+                      const orig = originalCargoList.find((o) => o.itemId === c.itemId);
+                      const origWeight = orig?.isLoaded && !orig?.isDischarged
+                        ? (orig.allocations || [])
+                            .filter((a) => String(a.holdId) === String(hold.id))
+                            .reduce((s, a) => s + Number(a.weight), 0)
+                        : 0;
+                      const newWeight = c.isLoaded && !c.isDischarged
+                        ? (c.allocations || [])
+                            .filter((a) => String(a.holdId) === String(hold.id))
+                            .reduce((s, a) => s + Number(a.weight), 0)
+                        : 0;
+                      simulatedUsage += (newWeight - origWeight);
+                    });
+                    if (simulatedUsage < 0) simulatedUsage = 0;
+
+                    const percentage = maxCap > 0 ? (simulatedUsage / maxCap) * 100 : 0;
+                    let strokeColor = '#10b981'; // green
+                    if (percentage > 90) strokeColor = '#ef4444'; // red
+                    else if (percentage > 70) strokeColor = '#f59e0b'; // yellow
+
+                    return (
+                      <Col xs={24} sm={12} md={8} key={hold.id}>
+                        <Card 
+                          size="small" 
+                          bordered={false}
+                          style={{ 
+                            boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -1px rgba(0,0,0,0.06)',
+                            background: 'linear-gradient(135deg, #ffffff 0%, #f8fafc 100%)',
+                            borderRadius: 16,
+                            border: '1px solid #e2e8f0'
+                          }}
+                        >
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+                            <Text strong style={{ fontSize: 16, color: '#1e293b' }}>{hold.holdName}</Text>
+                            <Text type="secondary" style={{ fontSize: 13, background: '#f1f5f9', padding: '4px 10px', borderRadius: 16, fontWeight: 500, color: '#64748b' }}>
+                              {simulatedUsage.toLocaleString('en-US')} / {maxCap.toLocaleString('en-US')} MT
+                            </Text>
+                          </div>
+                          <Progress
+                            percent={Math.min(percentage, 100)}
+                            strokeColor={strokeColor}
+                            trailColor="#f1f5f9"
+                            strokeWidth={10}
+                            format={() => <Text strong style={{ color: strokeColor }}>{percentage.toFixed(1)}%</Text>}
+                          />
+                        </Card>
+                      </Col>
+                    );
+                  })}
+                </Row>
+              )}
+            </>
+          )}
+        </div>
+      ),
+    },
   ];
 
   return (
@@ -331,6 +435,14 @@ export default function UpdateVoyageModal({ voyage, onClose, onUpdate }) {
       <Form layout="vertical">
         <Tabs defaultActiveKey="1" items={tabItems} size="large" animated />
       </Form>
+      
+      <AllocationModal
+        open={!!allocatingCargoItem}
+        cargo={allocatingCargoItem}
+        holds={holds}
+        onClose={() => setAllocatingCargoItem(null)}
+        onSave={handleSaveAllocations}
+      />
     </Modal>
   );
 }
