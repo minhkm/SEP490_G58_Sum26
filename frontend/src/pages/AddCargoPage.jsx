@@ -52,6 +52,12 @@ export default function AddCargoPage() {
       cargoService.getById(id).then(res => {
         if (res.success && res.data) {
           const c = res.data;
+          // Lô hàng đã thuộc hải trình bị khoá — chặn cả khi truy cập trực tiếp URL edit
+          if (c.Voyage || c.voyageId) {
+            notifyError('Lô hàng đã thuộc hải trình nên không thể chỉnh sửa.');
+            navigate(`/cargos/view/${id}`, { replace: true });
+            return;
+          }
           form.setFieldsValue({
             voyageId: c.voyageId || '',
             cargoName: c.cargoName || '',
@@ -66,7 +72,7 @@ export default function AddCargoPage() {
         setError('Không thể tải thông tin lô hàng.');
       });
     }
-  }, [id, isEditMode, form]);
+  }, [id, isEditMode, form, navigate]);
 
   const handleCargoTypeChange = (value) => {
     if (value === ADD_CARGO_TYPE) {

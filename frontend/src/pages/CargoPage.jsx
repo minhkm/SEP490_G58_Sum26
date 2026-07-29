@@ -178,7 +178,12 @@ export default function CargoPage() {
               onClick: () => navigate(`/cargos/view/${cargo.id}`),
               style: { cursor: 'pointer' },
             })}
-            pagination={{ pageSize: 10, hideOnSinglePage: true, showTotal: (total, range) => `Hiển thị ${range[0]}-${range[1]} trong số ${total} lô hàng` }}
+            pagination={{
+              defaultPageSize: 10,
+              showSizeChanger: true,
+              pageSizeOptions: ['10', '20', '50'],
+              showTotal: (total, range) => `Hiển thị ${range[0]}-${range[1]} trong số ${total} lô hàng`,
+            }}
             locale={{ emptyText: searchTerm ? 'Không tìm thấy lô hàng phù hợp' : 'Chưa có lô hàng nào' }}
           />
         </Card>
