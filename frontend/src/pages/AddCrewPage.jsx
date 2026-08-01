@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { Form, Input, Select, Button, Card, Row, Col, Space, Spin, Alert } from 'antd';
+import { Form, Input, Select, Button, Card, Row, Col, Space, Spin, Alert, Tabs } from 'antd';
 import { SaveOutlined, TeamOutlined, WarningOutlined } from '@ant-design/icons';
 import AgencyLayout from '../components/AgencyLayout';
 import { crewService } from '../services/api';
@@ -16,6 +16,8 @@ export default function AddCrewPage() {
   const [submitting, setSubmitting] = useState(false);
   // Theo dõi role để khóa/mở các trường phụ thuộc
   const [role, setRole] = useState('Sailor');
+  // Tab đang mở
+  const [activeTab, setActiveTab] = useState('personal');
 
   useEffect(() => {
     if (isEditMode) {
@@ -68,6 +70,7 @@ export default function AddCrewPage() {
   const handleSubmit = async (values) => {
     if (values.cccd) {
       if (!values.cccd.startsWith('0') || values.cccd.length !== 12 || !/^\d+$/.test(values.cccd)) {
+        setActiveTab('personal');
         notifyError('CCCD phải bắt đầu bằng số 0 và bao gồm đúng 12 chữ số.');
         return;
       }
@@ -75,6 +78,7 @@ export default function AddCrewPage() {
 
     if (values.phone) {
       if (!values.phone.startsWith('0') || values.phone.length !== 10 || !/^\d+$/.test(values.phone)) {
+        setActiveTab('personal');
         notifyError('Số điện thoại phải bắt đầu bằng số 0 và bao gồm đúng 10 chữ số.');
         return;
       }
@@ -96,6 +100,15 @@ export default function AddCrewPage() {
     } finally {
       setSubmitting(false);
     }
+  };
+
+  // Khi validation của Form fail → nhảy tới tab chứa field lỗi đầu tiên
+  const FIELD_TO_TAB = { fullName: 'personal', email: 'account' };
+  const handleFinishFailed = ({ errorFields }) => {
+    if (!errorFields || !errorFields.length) return;
+    const firstField = errorFields[0].name[0];
+    const tab = FIELD_TO_TAB[firstField];
+    if (tab) setActiveTab(tab);
   };
 
   if (loading) {
@@ -121,6 +134,7 @@ export default function AddCrewPage() {
           form={form}
           layout="vertical"
           onFinish={handleSubmit}
+          onFinishFailed={handleFinishFailed}
           initialValues={{
             fullName: '',
             email: '',
@@ -133,8 +147,17 @@ export default function AddCrewPage() {
             password: '',
           }}
         >
-          <Row gutter={16}>
-            <Col xs={24} lg={12}>
+          <Tabs
+            type="card"
+            size="large"
+            activeKey={activeTab}
+            onChange={setActiveTab}
+            items={[
+              {
+                key: 'personal',
+                forceRender: true,
+                label: 'Thông tin cá nhân',
+                children: (
               <Card
                 title={
                   <Space>
@@ -142,7 +165,6 @@ export default function AddCrewPage() {
                     Thông tin Cá nhân
                   </Space>
                 }
-                style={{ marginBottom: 16 }}
               >
                 <Form.Item
                   label="Họ và Tên"
@@ -164,9 +186,13 @@ export default function AddCrewPage() {
                   </Col>
                 </Row>
               </Card>
-            </Col>
-
-            <Col xs={24} lg={12}>
+                ),
+              },
+              {
+                key: 'assignment',
+                forceRender: true,
+                label: 'Phân công công tác',
+                children: (
               <Card
                 title={
                   <Space>
@@ -174,7 +200,6 @@ export default function AddCrewPage() {
                     Phân công Công tác
                   </Space>
                 }
-                style={{ marginBottom: 16 }}
               >
                 <Row gutter={16}>
                   <Col span={12}>
@@ -215,9 +240,13 @@ export default function AddCrewPage() {
                   </Col>
                 </Row>
               </Card>
-            </Col>
-
-            <Col span={24}>
+                ),
+              },
+              {
+                key: 'account',
+                forceRender: true,
+                label: 'Tài khoản đăng nhập',
+                children: (
               <Card
                 title={
                   <Space>
@@ -225,7 +254,6 @@ export default function AddCrewPage() {
                     <span style={{ color: '#991b1b' }}>Tài khoản Đăng nhập</span>
                   </Space>
                 }
-                style={{ marginBottom: 16 }}
               >
                 <Form.Item
                   label="Email (Tên đăng nhập)"
@@ -257,10 +285,12 @@ export default function AddCrewPage() {
                   />
                 )}
               </Card>
-            </Col>
-          </Row>
+                ),
+              },
+            ]}
+          />
 
-          <Space style={{ justifyContent: 'flex-end', width: '100%' }}>
+          <Space style={{ justifyContent: 'flex-end', width: '100%', marginTop: 16 }}>
             <Button onClick={() => navigate('/crews')}>Hủy bỏ</Button>
             <Button type="primary" htmlType="submit" icon={<SaveOutlined />} loading={submitting}>
               {isEditMode ? 'Lưu thay đổi' : 'Khởi tạo Thủy thủ'}
