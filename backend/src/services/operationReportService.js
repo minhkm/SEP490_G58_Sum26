@@ -8,6 +8,34 @@ const {
 const PERIOD_TYPES = new Set(["day", "week", "month", "voyage"]);
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
+function normalizeImageUrls(images) {
+  if (Array.isArray(images)) return images.filter(Boolean);
+  if (typeof images === "string") return images.split(/\r?\n/).map((url) => url.trim()).filter(Boolean);
+  return [];
+}
+
+function excelCompatibleImageUrl(url) {
+  // Cloudinary may return WebP because uploads use fetch_format:auto, while ExcelJS
+  // only embeds JPEG/PNG/GIF. Force PNG for a predictable workbook format.
+  return String(url).includes("/upload/")
+    ? String(url).replace("/upload/", "/upload/f_png/")
+    : String(url);
+}
+
+async function downloadExcelImage(url) {
+  const response = await fetch(excelCompatibleImageUrl(url), { signal: AbortSignal.timeout(10000) });
+  if (!response.ok) throw new Error(`Không tải được ảnh (${response.status})`);
+
+  const contentType = String(response.headers.get("content-type") || "").toLowerCase();
+  const extension = contentType.includes("png") ? "png"
+    : contentType.includes("gif") ? "gif"
+      : contentType.includes("jpeg") || contentType.includes("jpg") ? "jpeg"
+        : null;
+  if (!extension) throw new Error(`Định dạng ảnh không hỗ trợ: ${contentType || "không xác định"}`);
+
+  return { buffer: Buffer.from(await response.arrayBuffer()), extension };
+}
+
 function isoDate(date) {
   const y = date.getFullYear();
   const m = String(date.getMonth() + 1).padStart(2, "0");
@@ -306,7 +334,7 @@ async function buildOperationReport(voyageId, options = {}) {
     approverRole: log.Approver ? log.Approver.role : "N/A",
     requestDate: log.requestDate,
     remarks: log.remarks || "",
-    images: Array.isArray(log.images) ? log.images.join("\n") : "",
+    images: normalizeImageUrls(log.images),
   }));
   const summary = {
     totalCargoLots: new Set(cargoRows.map((row) => row.cargoId)).size,
@@ -391,6 +419,20 @@ function attendanceTypeLabel(value) {
   return ({ PreDeparture: "Trước khởi hành", Daily: "Hằng ngày", PostDischarge: "Sau dỡ hàng", Unspecified: "Chưa phân loại" })[value] || value;
 }
 
+function roleLabel(value) {
+  return ({
+    Admin: "Quản trị viên",
+    Agency: "Đại lý",
+    Master: "Thuyền trưởng",
+    ChiefOfficer: "Đại phó",
+    DeckOfficer: "Sĩ quan boong",
+    EngineOfficer: "Máy trưởng",
+    ChiefEngineer: "Máy trưởng",
+    EngineCrew: "Thợ máy",
+    Sailor: "Thủy thủ",
+  })[value] || value || "N/A";
+}
+
 async function createWorkbook(data) {
   const workbook = new ExcelJS.Workbook();
   workbook.creator = "CargoOps";
@@ -471,13 +513,52 @@ async function createWorkbook(data) {
     { header: "Ghi chú", key: "remarks", width: 35 },
     { header: "Ảnh minh chứng", key: "images", width: 45 },
   ]);
-  (data.sewage || []).forEach((row, index) => sewage.addRow({
-    ...row,
-    index: index + 1,
-    dischargeType: ({ Treated_STP: "Đã xử lý qua STP", Comminuted: "Đã nghiền/khử trùng", Untreated: "Chưa xử lý" })[row.dischargeType] || row.dischargeType,
-    isCompliant: row.isCompliant ? "Đạt" : "Không đạt",
-    status: ({ Pending: "Chờ duyệt", Approved: "Đã duyệt", Rejected: "Từ chối" })[row.status] || row.status,
-  }));
+  for (const [index, row] of (data.sewage || []).entries()) {
+    const imageUrls = normalizeImageUrls(row.images).slice(0, 5);
+    const addedRow = sewage.addRow({
+      ...row,
+      images: "",
+      remarks: row.remarks ?? "",
+      index: index + 1,
+      dischargeType: ({ Treated_STP: "Đã xử lý qua STP", Comminuted: "Đã nghiền/khử trùng", Untreated: "Chưa xử lý" })[row.dischargeType] || row.dischargeType,
+      isCompliant: row.isCompliant ? "Đạt" : "Không đạt",
+      status: ({ Pending: "Chờ duyệt", Approved: "Đã duyệt", Rejected: "Từ chối" })[row.status] || row.status,
+      requesterRole: roleLabel(row.requesterRole),
+      approverRole: roleLabel(row.approverRole),
+    });
+
+    if (imageUrls.length > 0) {
+      const downloadedImages = await Promise.all(imageUrls.map(async (url) => {
+        try {
+          return { url, image: await downloadExcelImage(url) };
+        } catch (error) {
+          console.error(`Không thể nhúng ảnh xả thải ${url}:`, error.message);
+          return { url, image: null };
+        }
+      }));
+
+      const embeddedImages = downloadedImages.filter((item) => item.image);
+      const failedUrls = downloadedImages.filter((item) => !item.image).map((item) => item.url);
+      const imageHeight = 72;
+      const imageGap = 8;
+      const rowHeightInPixels = embeddedImages.length * (imageHeight + imageGap);
+      addedRow.height = rowHeightInPixels * 0.75;
+
+      embeddedImages.forEach((item, imageIndex) => {
+        const imageId = workbook.addImage(item.image);
+        sewage.addImage(imageId, {
+          tl: {
+            col: 17,
+            row: addedRow.number - 1 + (imageIndex * (imageHeight + imageGap)) / rowHeightInPixels,
+          },
+          ext: { width: 110, height: imageHeight },
+          editAs: "oneCell",
+        });
+      });
+
+      if (failedUrls.length > 0) addedRow.getCell("images").value = failedUrls.join("\n");
+    }
+  }
 
   // Bảng chấm công ngang ngay trong CHI_TIET_DIEM_DANH: mỗi người một dòng, mỗi ngày một cột.
   const attendance = workbook.addWorksheet("CHI_TIET_DIEM_DANH", { properties: { tabColor: { argb: "FF70AD47" } } });
