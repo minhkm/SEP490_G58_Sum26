@@ -4,6 +4,48 @@ const {
   Shift, ShiftLog, EngineLog, EngineLogValue, 
   CrewProfile, LogEditHistory, LogImage, Equipment, ShiftLogEquipment
 } = require('../models');
+const notificationService = require('../services/notificationService');
+
+async function notifyExceededEngineValues({ shiftId, shiftLogId, engineLogId, engineId, values, actorUserId }) {
+  if (!Array.isArray(values) || values.length === 0) return;
+
+  const parameterIds = values.map((item) => item.parameterId).filter(Boolean);
+  const [shift, engine, parameters] = await Promise.all([
+    Shift.findByPk(shiftId, { attributes: ['voyageId'] }),
+    Engine.findByPk(engineId, { attributes: ['id', 'engineName'] }),
+    EngineParameter.findAll({
+      where: { id: { [Op.in]: parameterIds }, engineId },
+      attributes: ['id', 'name', 'maxValue'],
+    }),
+  ]);
+
+  if (!shift || !engine) return;
+
+  const valueByParameterId = new Map(values.map((item) => [Number(item.parameterId), item.value]));
+  const exceededValues = parameters.flatMap((parameter) => {
+    const value = Number(valueByParameterId.get(Number(parameter.id)));
+    const maxValue = Number(parameter.maxValue);
+    if (parameter.maxValue == null || !Number.isFinite(value) || value <= maxValue) return [];
+    return [{ parameterId: parameter.id, parameterName: parameter.name, value, maxValue }];
+  });
+
+  await notificationService.notifyEngineParameterExceeded({
+    voyageId: shift.voyageId,
+    engineLogId,
+    shiftLogId,
+    engine,
+    exceededValues,
+    actorUserId,
+  });
+}
+
+async function safeNotifyExceededEngineValues(payload) {
+  try {
+    await notifyExceededEngineValues(payload);
+  } catch (error) {
+    console.error('Lỗi gửi cảnh báo thông số máy vượt ngưỡng:', error);
+  }
+}
 
 // ============================================================
 // 1. Lấy danh sách Hải trình mà MÌNH đang tham gia
@@ -130,6 +172,15 @@ const createEngineLog = async (req, res) => {
       await ShiftLogEquipment.bulkCreate(mappings);
     }
 
+    await safeNotifyExceededEngineValues({
+      shiftId,
+      shiftLogId: shiftLog.id,
+      engineLogId: engineLog.id,
+      engineId,
+      values,
+      actorUserId: req.user?.id,
+    });
+
     res.status(201).json({ 
       message: 'Ghi nhận kiểm tra máy thành công', 
       engineLog,
@@ -216,6 +267,17 @@ const updateEngineLog = async (req, res) => {
         }));
         await ShiftLogEquipment.bulkCreate(mappings);
       }
+    }
+
+    if (values && values.length > 0) {
+      await safeNotifyExceededEngineValues({
+        shiftId: shiftLog.shiftId,
+        shiftLogId: shiftLog.id,
+        engineLogId: shiftLog.EngineLog.id,
+        engineId: shiftLog.EngineLog.engineId,
+        values,
+        actorUserId: req.user?.id,
+      });
     }
 
     res.json({ message: 'Cập nhật nhật ký thành công' });
