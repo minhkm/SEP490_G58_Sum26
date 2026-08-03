@@ -18,6 +18,7 @@ import {
   Table,
   Tooltip,
   Upload,
+  Tabs,
   Modal,
   message,
 } from 'antd';
@@ -39,7 +40,7 @@ import { PageHeader, notifySuccess, notifyError, notifyWarning } from '../compon
 import { SEAPORTS } from '../data/ports';
 import * as XLSX from 'xlsx';
 
-const { Title, Text } = Typography;
+const { Text } = Typography;
 const DATE_FORMAT = 'YYYY-MM-DD';
 const toDayjs = (value) => (value ? dayjs(value, DATE_FORMAT) : null);
 
@@ -79,6 +80,8 @@ export default function CreateVoyagePage() {
   // Basic Info State
   const [voyageId] = useState('');
   const [shipId, setShipId] = useState('');
+  // Tab đang mở
+  const [activeTab, setActiveTab] = useState('route');
 
   // Route State
   const [routeInfo, setRouteInfo] = useState({
@@ -381,26 +384,31 @@ export default function CreateVoyagePage() {
   ];
 
   const handleSubmit = async () => {
-    if (!shipId) return notifyWarning('Vui lòng chọn tàu vận chuyển!');
+    if (!shipId) { setActiveTab('route'); return notifyWarning('Vui lòng chọn tàu vận chuyển!'); }
 
     if (routeInfo.departurePort && routeInfo.destinationPort && routeInfo.departurePort === routeInfo.destinationPort) {
+      setActiveTab('route');
       return notifyWarning('Cảng đi và Cảng đến không được trùng nhau!');
     }
 
     if (!routeInfo.departurePort || !routeInfo.destinationPort) {
+      setActiveTab('route');
       return notifyWarning('Vui lòng chọn cảng đi và cảng đến!');
     }
 
     if (!routeInfo.departureDate || !routeInfo.arrivalDate) {
+      setActiveTab('route');
       return notifyWarning('Vui lòng chọn Ngày khởi hành và Ngày đến!');
     }
 
     if (currentCargoTotal.weight > selectedShipCapacity.maxWeight) {
+      setActiveTab('cargo');
       return notifyWarning(
         `Tổng trọng lượng hàng (${currentCargoTotal.weight} MT) vượt quá tải trọng của tàu (${selectedShipCapacity.maxWeight} MT)! Vui lòng điều chỉnh.`
       );
     }
     if (currentCargoTotal.volume > selectedShipCapacity.maxVolume) {
+      setActiveTab('cargo');
       return notifyWarning(
         `Tổng thể tích hàng (${currentCargoTotal.volume} CBM) vượt quá dung tích của tàu (${selectedShipCapacity.maxVolume} CBM)! Vui lòng điều chỉnh.`
       );
@@ -408,11 +416,13 @@ export default function CreateVoyagePage() {
 
     const validCargos = cargoList.filter(c => c.cargoId);
     if (validCargos.length === 0) {
+      setActiveTab('cargo');
       return notifyWarning('Hải trình bắt buộc phải có ít nhất một lô hàng được gán!');
     }
 
     const validCrews = crewList.filter(c => c.crewId && c.role);
     if (selectedShipCapacity.minCrew > 0 && (validCrews.length < selectedShipCapacity.minCrew || validCrews.length > selectedShipCapacity.maxCrew)) {
+      setActiveTab('crew');
       return notifyWarning(`Số lượng nhân sự (${validCrews.length} người) không phù hợp với quy định của tàu này (Tối thiểu: ${selectedShipCapacity.minCrew}, Tối đa: ${selectedShipCapacity.maxCrew} người)!`);
     }
 
@@ -427,6 +437,7 @@ export default function CreateVoyagePage() {
     const missingRoles = requiredRoles.filter((r) => !selectedRoles.includes(r.id));
     if (missingRoles.length > 0) {
       const missingText = missingRoles.map((r) => r.name).join(', ');
+      setActiveTab('crew');
       return notifyWarning(
         `Không thể tạo hải trình! Chuyến đi bắt buộc phải có đầy đủ Thuyền trưởng và các sĩ quan. Hiện đang thiếu: ${missingText}.`
       );
@@ -435,6 +446,7 @@ export default function CreateVoyagePage() {
     // Validate equipment: tất cả phải có tên và số lượng
     const invalidEq = equipmentList.filter(e => !e.name || !e.name.trim() || !e.quantity || e.quantity < 1);
     if (invalidEq.length > 0) {
+      setActiveTab('supplies');
       return notifyWarning('Vật tư y tế bắt buộc phải có tên và số lượng hợp lệ!');
     }
 
@@ -476,10 +488,25 @@ export default function CreateVoyagePage() {
           }
         />
 
-        <Row gutter={24}>
-          {/* LEFT COLUMN */}
-          <Col xs={24} lg={16}>
-            <Form layout="vertical">
+        <Alert
+          type="info"
+          showIcon
+          style={{ marginBottom: 16 }}
+          message='Trạng thái: Bản nháp (Draft) — hải trình sẽ chuyển "Đang lên kế hoạch" (Planning) sau khi khởi tạo.'
+        />
+
+        <Form layout="vertical">
+          <Tabs
+            type="card"
+            size="large"
+            activeKey={activeTab}
+            onChange={setActiveTab}
+            items={[
+              {
+                key: 'route',
+                label: 'Định danh & Tuyến đường',
+                children: (
+                  <>
               {/* Card: Identity */}
               <Card title="Thông tin Định danh" style={{ marginBottom: 24 }}>
                 <Row gutter={16}>
@@ -576,10 +603,25 @@ export default function CreateVoyagePage() {
                 </Row>
               </Card>
 
-              {/* Card: Cargo */}
+              {/* Card: Map (đưa vào tab Tuyến đường) */}
+              <Card
+                title={<span><NodeIndexOutlined /> Bản đồ Tuyến đường Dự kiến</span>}
+                style={{ marginBottom: 24 }}
+              >
+                <Empty
+                  image={<NodeIndexOutlined style={{ fontSize: 32, color: '#cbd5e1' }} />}
+                  description="Bản đồ sẽ hiển thị sau khi chọn Cảng đi và Cảng đến."
+                />
+              </Card>
+                  </>
+                ),
+              },
+              {
+                key: 'cargo',
+                label: 'Lô hàng',
+                children: (
               <Card
                 title="Lô hàng Dự kiến (Tùy chọn)"
-                style={{ marginBottom: 24 }}
                 extra={
                   <Button type="link" icon={<PlusOutlined />} onClick={addCargo}>
                     Thêm Lô hàng
@@ -655,10 +697,14 @@ export default function CreateVoyagePage() {
                 )}
               </Card>
 
-              {/* Card: Crew */}
+                ),
+              },
+              {
+                key: 'crew',
+                label: 'Nhân sự',
+                children: (
               <Card
                 title="Nhân sự Dự kiến (Voyage Crew)"
-                style={{ marginBottom: 24 }}
                 extra={
                   <Button type="link" icon={<PlusOutlined />} onClick={addCrew}>
                     Thêm Nhân sự
@@ -724,10 +770,14 @@ export default function CreateVoyagePage() {
                 )}
               </Card>
 
-              {/* Card: Vật tư y tế */}
+                ),
+              },
+              {
+                key: 'supplies',
+                label: 'Vật tư y tế',
+                children: (
               <Card
                 title={<span><ToolOutlined /> Vật tư y tế (Medical Supplies)</span>}
-                style={{ marginBottom: 24 }}
                 extra={
                   <Space size="small">
                     <Tooltip title="Tải file Excel mẫu về, điền rồi import lên">
@@ -770,52 +820,11 @@ export default function CreateVoyagePage() {
                   />
                 )}
               </Card>
-            </Form>
-          </Col>
-
-          {/* RIGHT COLUMN */}
-          <Col xs={24} lg={8}>
-            {/* Card: Status */}
-            <Card title="Trạng thái" style={{ marginBottom: 24 }}>
-              <Space align="start">
-                <span
-                  style={{
-                    display: 'inline-block',
-                    width: 12,
-                    height: 12,
-                    borderRadius: '50%',
-                    background: '#94a3b8',
-                    marginTop: 6,
-                  }}
-                />
-                <div>
-                  <Title level={5} style={{ margin: 0 }}>
-                    Bản nháp (Draft)
-                  </Title>
-                  <Text type="secondary">
-                    Hải trình sẽ chuyển sang trạng thái "Đang lên kế hoạch" (Planning) sau khi được
-                    khởi tạo.
-                  </Text>
-                </div>
-              </Space>
-            </Card>
-
-            {/* Card: Map */}
-            <Card
-              title={
-                <span>
-                  <NodeIndexOutlined /> Bản đồ Tuyến đường Dự kiến
-                </span>
-              }
-              style={{ marginBottom: 24 }}
-            >
-              <Empty
-                image={<NodeIndexOutlined style={{ fontSize: 32, color: '#cbd5e1' }} />}
-                description="Bản đồ sẽ hiển thị sau khi chọn Cảng đi và Cảng đến."
-              />
-            </Card>
-          </Col>
-        </Row>
+                ),
+              },
+            ]}
+          />
+        </Form>
       </div>
     </Layout>
   );

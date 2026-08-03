@@ -19,6 +19,7 @@ import {
   Alert,
   Tooltip,
   Upload,
+  Tabs,
   Modal,
   message,
 } from 'antd';
@@ -48,6 +49,9 @@ export default function AddVesselPage() {
   const navigate = useNavigate();
   const { id } = useParams();
   const isEditMode = Boolean(id);
+
+  // Tab đang mở
+  const [activeTab, setActiveTab] = useState('basic');
 
   const requiredTag = <span style={{ marginLeft: 6, fontSize: 11, color: '#ea580c', fontWeight: 500, fontStyle: 'italic' }}>(Bắt buộc)</span>;
 
@@ -485,21 +489,25 @@ export default function AddVesselPage() {
   const handleSubmit = async () => {
     // Validation: Các trường bắt buộc
     if (!basicInfo.shipName || !basicInfo.imoNumber) {
+      setActiveTab('basic');
       notifyWarning('Vui lòng nhập đầy đủ Tên tàu và Mã số IMO.');
       return;
     }
 
     if (!/^\d{7}$/.test(basicInfo.imoNumber)) {
+      setActiveTab('basic');
       notifyWarning('Mã số IMO phải bao gồm chính xác 7 chữ số.');
       return;
     }
 
     if (!capacity.maxWeight || !capacity.maxVolume) {
+      setActiveTab('capacity');
       notifyWarning('Vui lòng nhập đầy đủ Tải trọng Max và Thể tích Max.');
       return;
     }
 
     if (!mainEngine.engineName) {
+      setActiveTab('engine');
       notifyWarning('Vui lòng nhập Tên động cơ cho Máy chính.');
       return;
     }
@@ -507,6 +515,7 @@ export default function AddVesselPage() {
     // Validation: Thông số an toàn bắt buộc cho máy chính
     const missingMainParams = mainEngine.parameters.filter(p => p.fixed && (p.maxValue === '' || p.maxValue === null));
     if (missingMainParams.length > 0) {
+      setActiveTab('engine');
       notifyWarning(`Vui lòng nhập đủ các hạn mức chỉ số an toàn bắt buộc cho Máy chính.`);
       return;
     }
@@ -514,11 +523,13 @@ export default function AddVesselPage() {
     // Validation: Thông số an toàn bắt buộc cho máy đèn
     for (const gen of generatorEngines) {
       if (!gen.engineName) {
+        setActiveTab('engine');
         notifyWarning(`Vui lòng nhập Tên máy cho các máy đèn.`);
         return;
       }
       const missingGenParams = gen.parameters.filter(p => p.fixed && (p.maxValue === '' || p.maxValue === null));
       if (missingGenParams.length > 0) {
+        setActiveTab('engine');
         notifyWarning(`Vui lòng nhập đủ các hạn mức chỉ số an toàn bắt buộc cho Máy đèn (${gen.engineName || 'chưa có tên'}).`);
         return;
       }
@@ -530,6 +541,7 @@ export default function AddVesselPage() {
       const shipMaxVolume = parseFloat(capacity.maxVolume) || 0;
 
       if (totalHoldsVolume > shipMaxVolume) {
+        setActiveTab('capacity');
         notifyWarning(
           `Tổng thể tích các khoang (${totalHoldsVolume.toLocaleString()} m³) đang vượt quá Thể tích Max của tàu (${shipMaxVolume.toLocaleString()} m³). Vui lòng phân bổ lại sức chứa khoang hàng cho hợp lý!`,
           5
@@ -683,17 +695,22 @@ export default function AddVesselPage() {
           {isEditMode ? 'Cập nhật Thông tin Tàu' : 'Thêm Tàu Mới'}
         </Title>
 
-        <Row gutter={24}>
-          {/* LEFT COLUMN */}
-          <Col xs={24} lg={14}>
-            {/* Card: Basic Info */}
+        <Tabs
+          type="card"
+          size="large"
+          activeKey={activeTab}
+          onChange={setActiveTab}
+          items={[
+            {
+              key: 'basic',
+              label: 'Thông tin cơ bản',
+              children: (
             <Card
               title={
                 <Space>
                   <InfoCircleOutlined /> THÔNG TIN CƠ BẢN (SHIP)
                 </Space>
               }
-              style={{ marginBottom: 20 }}
             >
               <Row gutter={16}>
                 <Col xs={24} sm={12} style={{ marginBottom: 16 }}>
@@ -754,8 +771,12 @@ export default function AddVesselPage() {
                 </Col>
               </Row>
             </Card>
-
-            {/* Card: Tech Specs & Equipment */}
+              ),
+            },
+            {
+              key: 'engine',
+              label: 'Động cơ & Thông số',
+              children: (
             <Card
               title={
                 <Space>
@@ -865,18 +886,18 @@ export default function AddVesselPage() {
 
 
             </Card>
-          </Col>
-
-          {/* RIGHT COLUMN */}
-          <Col xs={24} lg={10}>
-            {/* Card: Capacity */}
+              ),
+            },
+            {
+              key: 'capacity',
+              label: 'Sức chứa & Khoang hàng',
+              children: (
             <Card
               title={
                 <Space>
                   <InboxOutlined /> SỨC CHỨA & TẢI TRỌNG
                 </Space>
               }
-              style={{ marginBottom: 20 }}
             >
               <Row gutter={16}>
                 <Col xs={24} sm={12} style={{ marginBottom: 16 }}>
@@ -964,10 +985,12 @@ export default function AddVesselPage() {
                 </Space>
               </div>
             </Card>
-          </Col>
-        </Row>
-
-        {/* Card: Thiết bị của tàu */}
+              ),
+            },
+            {
+              key: 'equipment',
+              label: 'Thiết bị của tàu',
+              children: (
         <Card
           title={<Space><ToolOutlined /><span>Thiết bị của tàu</span></Space>}
           extra={
@@ -983,7 +1006,6 @@ export default function AddVesselPage() {
               <Button type="link" icon={<PlusOutlined />} onClick={addShipEquipment}>Thêm thiết bị</Button>
             </Space>
           }
-          style={{ marginTop: 24 }}
         >
           {shipEquipments.length === 0 ? (
             <Empty description="Chưa có thiết bị nào. Nhấn &lsquo;Thêm thiết bị&rsquo; để bắt đầu." />
@@ -1026,6 +1048,10 @@ export default function AddVesselPage() {
             </Space>
           )}
         </Card>
+              ),
+            },
+          ]}
+        />
 
         {/* Footer actions */}
         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 12, marginTop: 24 }}>
