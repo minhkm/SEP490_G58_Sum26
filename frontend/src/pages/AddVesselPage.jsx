@@ -20,6 +20,7 @@ import {
   Tooltip,
   Upload,
   Tabs,
+  Modal,
   message,
 } from 'antd';
 import {
@@ -370,25 +371,102 @@ export default function AddVesselPage() {
       try {
         const wb = XLSX.read(e.target.result, { type: 'array' });
         const ws = wb.Sheets[wb.SheetNames[0]];
+        // header:1 → mảng thô, defval:'' → ô trống thành chuỗi rỗng
         const rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
-        // Bỏ dòng tiêu đề + dòng ghi chú loại/vị trí
-        const dataRows = rows.slice(1).filter(r => r[0] && String(r[0]).trim());
-        if (dataRows.length === 0) {
+
+        // Bỏ dòng tiêu đề (dòng 0); các cột thừa (> cột E) tự bị bỏ qua vì chỉ đọc index 0-4
+        const dataRows = rows.slice(1);
+        const nonEmptyRows = dataRows.filter(r => String(r[0] || '').trim());
+
+        if (nonEmptyRows.length === 0) {
           message.warning('File không có dữ liệu hoặc sai định dạng!');
           return;
         }
+
+        const errors = [];   // thu thập lỗi theo dòng
+        const imported = [];
         const startUid = shipEquipments.length > 0
-          ? Math.max(...shipEquipments.map(e => e._uid)) + 1 : 1;
-        const imported = dataRows.map((r, i) => ({
-          _uid: startUid + i,
-          equipmentName: String(r[0] || '').trim(),
-          equipmentType: SHIP_EQ_TYPES.includes(String(r[1]).trim()) ? String(r[1]).trim() : '',
-          location: SHIP_EQ_LOCATIONS.includes(String(r[2]).trim()) ? String(r[2]).trim() : 'Boong',
-          quantity: Number(r[3]) > 0 ? Number(r[3]) : 1,
-          expiryNote: String(r[4] || '').trim(),
-        }));
-        setShipEquipments(prev => [...prev, ...imported]);
-        message.success(`Đã import ${imported.length} thiết bị từ Excel!`);
+          ? Math.max(...shipEquipments.map(eq => eq._uid)) + 1 : 1;
+
+        nonEmptyRows.forEach((r, i) => {
+          const rowNum = i + 2; // +2 vì dòng 1 là header
+          const rowErrors = [];
+
+          // --- Cột A: Tên thiết bị (bắt buộc, tối đa 255 ký tự) ---
+          const equipmentName = String(r[0] || '').trim();
+          if (!equipmentName) {
+            rowErrors.push('Tên thiết bị không được để trống');
+          } else if (equipmentName.length > 255) {
+            rowErrors.push('Tên thiết bị quá dài (tối đa 255 ký tự)');
+          }
+
+          // --- Cột B: Loại thiết bị (phải thuộc danh sách cho phép) ---
+          const rawType = String(r[1] || '').trim();
+          let equipmentType = '';
+          if (rawType && !SHIP_EQ_TYPES.includes(rawType)) {
+            rowErrors.push(`Loại thiết bị "${rawType}" không hợp lệ (cho phép: ${SHIP_EQ_TYPES.join(', ')})`);
+          } else {
+            equipmentType = rawType;
+          }
+
+          // --- Cột C: Vị trí (phải thuộc danh sách cho phép, mặc định 'Boong') ---
+          const rawLocation = String(r[2] || '').trim();
+          let location = 'Boong';
+          if (rawLocation && !SHIP_EQ_LOCATIONS.includes(rawLocation)) {
+            rowErrors.push(`Vị trí "${rawLocation}" không hợp lệ (cho phép: ${SHIP_EQ_LOCATIONS.join(', ')})`);
+          } else if (rawLocation) {
+            location = rawLocation;
+          }
+
+          // --- Cột D: Số lượng (số nguyên dương) ---
+          const rawQty = r[3];
+          const qty = Number(rawQty);
+          let quantity = 1;
+          if (rawQty !== '' && rawQty !== null) {
+            if (!Number.isFinite(qty) || qty <= 0 || !Number.isInteger(qty)) {
+              rowErrors.push(`Số lượng "${rawQty}" không hợp lệ (phải là số nguyên dương)`);
+            } else {
+              quantity = qty;
+            }
+          }
+
+          // --- Cột E: Ghi chú hạn sử dụng (tùy chọn, tối đa 500 ký tự) ---
+          const expiryNote = String(r[4] || '').trim();
+          if (expiryNote.length > 500) {
+            rowErrors.push('Ghi chú hạn sử dụng quá dài (tối đa 500 ký tự)');
+          }
+
+          if (rowErrors.length > 0) {
+            errors.push({ rowNum, rowErrors });
+          } else {
+            imported.push({ _uid: startUid + imported.length, equipmentName, equipmentType, location, quantity, expiryNote });
+          }
+        });
+
+        // Hiển thị lỗi nếu có
+        if (errors.length > 0) {
+          const errorMessages = errors.map(({ rowNum, rowErrors }) =>
+            `Dòng ${rowNum}: ${rowErrors.join('; ')}`
+          );
+          Modal.warning({
+            title: `Import có ${errors.length} dòng lỗi — bị bỏ qua`,
+            width: 600,
+            content: (
+              <div style={{ maxHeight: 300, overflowY: 'auto' }}>
+                {errorMessages.map((msg, idx) => (
+                  <div key={idx} style={{ marginBottom: 4, fontSize: 13 }}>⚠️ {msg}</div>
+                ))}
+              </div>
+            ),
+          });
+        }
+
+        if (imported.length > 0) {
+          setShipEquipments(prev => [...prev, ...imported]);
+          message.success(`Đã import ${imported.length} thiết bị hợp lệ${errors.length > 0 ? `, bỏ qua ${errors.length} dòng lỗi` : ''}!`);
+        } else {
+          message.error('Không có dòng nào hợp lệ để import. Kiểm tra lại file!');
+        }
       } catch {
         message.error('Không đọc được file. Kiểm tra đúng định dạng xlsx/xls.');
       }

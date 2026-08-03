@@ -2,11 +2,39 @@ const ExcelJS = require("exceljs");
 const { Op } = require("sequelize");
 const {
   Voyage, Ship, Cargo, CargoItem, CargoOperation,
-  Attendance, VoyageCrew, CrewProfile,
+  Attendance, VoyageCrew, CrewProfile, SewageLog, User,
 } = require("../models");
 
 const PERIOD_TYPES = new Set(["day", "week", "month", "voyage"]);
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+
+function normalizeImageUrls(images) {
+  if (Array.isArray(images)) return images.filter(Boolean);
+  if (typeof images === "string") return images.split(/\r?\n/).map((url) => url.trim()).filter(Boolean);
+  return [];
+}
+
+function excelCompatibleImageUrl(url) {
+  // Cloudinary may return WebP because uploads use fetch_format:auto, while ExcelJS
+  // only embeds JPEG/PNG/GIF. Force PNG for a predictable workbook format.
+  return String(url).includes("/upload/")
+    ? String(url).replace("/upload/", "/upload/f_png/")
+    : String(url);
+}
+
+async function downloadExcelImage(url) {
+  const response = await fetch(excelCompatibleImageUrl(url), { signal: AbortSignal.timeout(10000) });
+  if (!response.ok) throw new Error(`Không tải được ảnh (${response.status})`);
+
+  const contentType = String(response.headers.get("content-type") || "").toLowerCase();
+  const extension = contentType.includes("png") ? "png"
+    : contentType.includes("gif") ? "gif"
+      : contentType.includes("jpeg") || contentType.includes("jpg") ? "jpeg"
+        : null;
+  if (!extension) throw new Error(`Định dạng ảnh không hỗ trợ: ${contentType || "không xác định"}`);
+
+  return { buffer: Buffer.from(await response.arrayBuffer()), extension };
+}
 
 function isoDate(date) {
   const y = date.getFullYear();
@@ -85,7 +113,10 @@ async function buildOperationReport(voyageId, options = {}) {
     ];
   }
 
-  const [operations, attendances, voyageCrews, cargos] = await Promise.all([
+  const sewageWhere = { voyageId: voyage.id };
+  if (dateRange) sewageWhere.plannedDischargeDate = dateRange;
+
+  const [operations, attendances, voyageCrews, cargos, sewageLogs] = await Promise.all([
     CargoOperation.findAll({
       where: operationWhere,
       include: [
@@ -112,6 +143,14 @@ async function buildOperationReport(voyageId, options = {}) {
       where: { voyageId: voyage.id },
       include: [{ model: CargoItem }],
       order: [["id", "ASC"]],
+    }),
+    SewageLog.findAll({
+      where: sewageWhere,
+      include: [
+        { model: User, as: "Requester", attributes: ["id", "username", "role"] },
+        { model: User, as: "Approver", attributes: ["id", "username", "role"] },
+      ],
+      order: [["plannedDischargeDate", "ASC"], ["id", "ASC"]],
     }),
   ]);
 
@@ -278,6 +317,25 @@ async function buildOperationReport(voyageId, options = {}) {
   const unloadRows = cargoRows.filter((row) => row.operationType === "UNLOAD");
   const presentCount = attendanceRows.filter((row) => row.status === "Present").length;
   const absentCount = attendanceRows.length - presentCount;
+  const sewageRows = sewageLogs.map((log) => ({
+    id: log.id,
+    dischargeType: log.dischargeType,
+    distanceFromLand: asNumber(log.distanceFromLand),
+    shipSpeed: asNumber(log.shipSpeed),
+    volume: asNumber(log.volume),
+    plannedDischargeDate: log.plannedDischargeDate,
+    startLat: log.startLat,
+    startLng: log.startLng,
+    isCompliant: Boolean(log.isCompliant),
+    status: log.status,
+    requestedBy: log.Requester ? log.Requester.username : "N/A",
+    requesterRole: log.Requester ? log.Requester.role : "N/A",
+    approvedBy: log.Approver ? log.Approver.username : "N/A",
+    approverRole: log.Approver ? log.Approver.role : "N/A",
+    requestDate: log.requestDate,
+    remarks: log.remarks || "",
+    images: normalizeImageUrls(log.images),
+  }));
   const summary = {
     totalCargoLots: new Set(cargoRows.map((row) => row.cargoId)).size,
     plannedLoadWeight: loadRows.reduce((sum, row) => sum + row.plannedWeight, 0),
@@ -290,6 +348,11 @@ async function buildOperationReport(voyageId, options = {}) {
     attendanceSessions: attendanceSummary.length,
     presentCount,
     absentCount,
+    totalSewageRequests: sewageRows.length,
+    approvedSewageRequests: sewageRows.filter((row) => row.status === "Approved").length,
+    approvedSewageVolume: sewageRows
+      .filter((row) => row.status === "Approved")
+      .reduce((sum, row) => sum + row.volume, 0),
   };
 
   return {
@@ -313,6 +376,7 @@ async function buildOperationReport(voyageId, options = {}) {
     attendance: attendanceRows,
     attendanceSummary,
     attendanceMatrix: { dates: attendanceDates, rows: attendanceMatrix },
+    sewage: sewageRows,
   };
 }
 
@@ -325,6 +389,7 @@ function fromSnapshot(report) {
     attendance: attendanceSnapshot.rows || [],
     attendanceSummary: attendanceSnapshot.summary || [],
     attendanceMatrix: attendanceSnapshot.matrix || { dates: [], rows: [] },
+    sewage: attendanceSnapshot.sewage || [],
   };
 }
 
@@ -352,6 +417,20 @@ function operationLabel(value) {
 
 function attendanceTypeLabel(value) {
   return ({ PreDeparture: "Trước khởi hành", Daily: "Hằng ngày", PostDischarge: "Sau dỡ hàng", Unspecified: "Chưa phân loại" })[value] || value;
+}
+
+function roleLabel(value) {
+  return ({
+    Admin: "Quản trị viên",
+    Agency: "Đại lý",
+    Master: "Thuyền trưởng",
+    ChiefOfficer: "Đại phó",
+    DeckOfficer: "Sĩ quan boong",
+    EngineOfficer: "Máy trưởng",
+    ChiefEngineer: "Máy trưởng",
+    EngineCrew: "Thợ máy",
+    Sailor: "Thủy thủ",
+  })[value] || value || "N/A";
 }
 
 async function createWorkbook(data) {
@@ -391,6 +470,9 @@ async function createWorkbook(data) {
     ["Số lần điểm danh", data.summary.attendanceSessions],
     ["Tổng lượt có mặt", data.summary.presentCount],
     ["Tổng lượt vắng", data.summary.absentCount],
+    ["Tổng yêu cầu xả thải", data.summary.totalSewageRequests || 0],
+    ["Yêu cầu xả thải đã duyệt", data.summary.approvedSewageRequests || 0],
+    ["Tổng lượng xả thải đã duyệt (m³)", data.summary.approvedSewageVolume || 0],
   ].forEach((item) => overview.addRow(item));
   overview.addRow([]);
   overview.addRow(["Nhận xét chung", ""]);
@@ -409,6 +491,74 @@ async function createWorkbook(data) {
     { header: "Người xác nhận", key: "confirmedBy", width: 22 }, { header: "Ghi chú", key: "note", width: 35 },
   ]);
   data.cargo.forEach((row, index) => cargo.addRow({ ...row, index: index + 1, operationType: operationLabel(row.operationType) }));
+
+  const sewage = workbook.addWorksheet("NHAT_KY_XA_THAI", { properties: { tabColor: { argb: "FF00A6A6" } } });
+  setupTableSheet(sewage, [
+    { header: "STT", key: "index", width: 7 },
+    { header: "Mã yêu cầu", key: "id", width: 12 },
+    { header: "Loại xả thải", key: "dischargeType", width: 22 },
+    { header: "Khoảng cách bờ (hải lý)", key: "distanceFromLand", width: 23 },
+    { header: "Tốc độ tàu (hải lý/giờ)", key: "shipSpeed", width: 24 },
+    { header: "Thể tích (m³)", key: "volume", width: 15 },
+    { header: "Thời gian dự kiến xả", key: "plannedDischargeDate", width: 22 },
+    { header: "Vĩ độ", key: "startLat", width: 14 },
+    { header: "Kinh độ", key: "startLng", width: 14 },
+    { header: "Tuân thủ MARPOL", key: "isCompliant", width: 18 },
+    { header: "Trạng thái", key: "status", width: 15 },
+    { header: "Người yêu cầu", key: "requestedBy", width: 22 },
+    { header: "Vai trò người yêu cầu", key: "requesterRole", width: 22 },
+    { header: "Ngày yêu cầu", key: "requestDate", width: 22 },
+    { header: "Người phê duyệt", key: "approvedBy", width: 22 },
+    { header: "Vai trò người phê duyệt", key: "approverRole", width: 23 },
+    { header: "Ghi chú", key: "remarks", width: 35 },
+    { header: "Ảnh minh chứng", key: "images", width: 45 },
+  ]);
+  for (const [index, row] of (data.sewage || []).entries()) {
+    const imageUrls = normalizeImageUrls(row.images).slice(0, 5);
+    const addedRow = sewage.addRow({
+      ...row,
+      images: "",
+      remarks: row.remarks ?? "",
+      index: index + 1,
+      dischargeType: ({ Treated_STP: "Đã xử lý qua STP", Comminuted: "Đã nghiền/khử trùng", Untreated: "Chưa xử lý" })[row.dischargeType] || row.dischargeType,
+      isCompliant: row.isCompliant ? "Đạt" : "Không đạt",
+      status: ({ Pending: "Chờ duyệt", Approved: "Đã duyệt", Rejected: "Từ chối" })[row.status] || row.status,
+      requesterRole: roleLabel(row.requesterRole),
+      approverRole: roleLabel(row.approverRole),
+    });
+
+    if (imageUrls.length > 0) {
+      const downloadedImages = await Promise.all(imageUrls.map(async (url) => {
+        try {
+          return { url, image: await downloadExcelImage(url) };
+        } catch (error) {
+          console.error(`Không thể nhúng ảnh xả thải ${url}:`, error.message);
+          return { url, image: null };
+        }
+      }));
+
+      const embeddedImages = downloadedImages.filter((item) => item.image);
+      const failedUrls = downloadedImages.filter((item) => !item.image).map((item) => item.url);
+      const imageHeight = 72;
+      const imageGap = 8;
+      const rowHeightInPixels = embeddedImages.length * (imageHeight + imageGap);
+      addedRow.height = rowHeightInPixels * 0.75;
+
+      embeddedImages.forEach((item, imageIndex) => {
+        const imageId = workbook.addImage(item.image);
+        sewage.addImage(imageId, {
+          tl: {
+            col: 17,
+            row: addedRow.number - 1 + (imageIndex * (imageHeight + imageGap)) / rowHeightInPixels,
+          },
+          ext: { width: 110, height: imageHeight },
+          editAs: "oneCell",
+        });
+      });
+
+      if (failedUrls.length > 0) addedRow.getCell("images").value = failedUrls.join("\n");
+    }
+  }
 
   // Bảng chấm công ngang ngay trong CHI_TIET_DIEM_DANH: mỗi người một dòng, mỗi ngày một cột.
   const attendance = workbook.addWorksheet("CHI_TIET_DIEM_DANH", { properties: { tabColor: { argb: "FF70AD47" } } });
@@ -473,7 +623,7 @@ async function createWorkbook(data) {
   ]);
   data.attendanceSummary.forEach((row) => attendanceSummary.addRow({ ...row, attendanceType: attendanceTypeLabel(row.attendanceType) }));
 
-  [cargo, attendance, attendanceSummary].forEach((sheet) => {
+  [cargo, sewage, attendance, attendanceSummary].forEach((sheet) => {
     sheet.eachRow((row, rowNumber) => {
       if (rowNumber > 1) row.alignment = { vertical: "top", wrapText: true };
     });

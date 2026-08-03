@@ -151,6 +151,55 @@ async function notifyVoyageUpdated({ voyage, changes, actorUserId }, options = {
   return Notification.bulkCreate(payloads, options);
 }
 
+async function notifyEngineParameterExceeded({
+  voyageId, engineLogId, shiftLogId, engine, exceededValues, actorUserId,
+}, options = {}) {
+  if (!voyageId || !engine || !Array.isArray(exceededValues) || exceededValues.length === 0) return [];
+
+  const voyageCrews = await VoyageCrew.findAll({
+    where: { voyageId },
+    include: [{
+      model: CrewProfile,
+      attributes: ["id", "userId", "position"],
+      include: [{ model: User, attributes: ["id", "role"] }],
+    }],
+    transaction: options.transaction,
+  });
+
+  const recipientUserIds = [...new Set(voyageCrews
+    .filter((voyageCrew) => {
+      const assignedRole = String(voyageCrew.role || "").toLowerCase();
+      const profile = voyageCrew.CrewProfile;
+      const position = String(profile?.position || "").toLowerCase();
+      const accountRole = String(profile?.User?.role || "").toLowerCase();
+      return accountRole === "engineofficer"
+        || accountRole === "chiefengineer"
+        || assignedRole.includes("chief engineer")
+        || assignedRole.includes("máy trưởng")
+        || position.includes("chief engineer")
+        || position.includes("máy trưởng");
+    })
+    .map((voyageCrew) => voyageCrew.CrewProfile?.userId)
+    .filter(Boolean))];
+
+  if (recipientUserIds.length === 0) return [];
+
+  const engineName = engine.engineName || `máy #${engine.id}`;
+  const detailText = exceededValues
+    .map((item) => `${item.parameterName}: ${item.value} (max ${item.maxValue})`)
+    .join("; ");
+
+  return Notification.bulkCreate(recipientUserIds.map((recipientUserId) => ({
+    recipientUserId,
+    actorUserId: actorUserId || null,
+    voyageId,
+    type: "ENGINE_PARAMETER_EXCEEDED",
+    title: "Cảnh báo thông số máy vượt ngưỡng",
+    message: `${engineName} có thông số vượt giá trị tối đa: ${detailText}.`,
+    metadata: { engineId: engine.id, engineName, engineLogId, shiftLogId, exceededValues },
+  })), options);
+}
+
 // ============ REPORT (FT-10) ============
 
 const REPORT_ROLE_LABELS = {
@@ -313,6 +362,7 @@ module.exports = {
   notifyCrewAssignedToVoyage,
   notifyAttendanceUpdated,
   notifyVoyageUpdated,
+  notifyEngineParameterExceeded,
   notifyReportSubmitted,
   notifyReportEscalated,
   notifyReportReplied,

@@ -19,6 +19,31 @@ let DefaultIcon = L.icon({
 });
 L.Marker.prototype.options.icon = DefaultIcon;
 
+const API_ORIGIN = (import.meta.env.VITE_API_URL || 'https://sep490g58sum26-production.up.railway.app/api')
+  .replace(/\/api\/?$/, '')
+  .replace(/\/$/, '');
+
+function normalizeImageList(images) {
+  if (Array.isArray(images)) return images.filter(Boolean);
+  if (!images) return [];
+  if (typeof images === 'string') {
+    try {
+      const parsed = JSON.parse(images);
+      return Array.isArray(parsed) ? parsed.filter(Boolean) : [images];
+    } catch {
+      return [images];
+    }
+  }
+  return [];
+}
+
+function resolveImageUrl(image) {
+  const value = String(image || '').trim();
+  if (!value) return '';
+  if (/^(https?:|data:|blob:)/i.test(value)) return value;
+  return `${API_ORIGIN}${value.startsWith('/') ? '' : '/'}${value}`;
+}
+
 function LocationMapPicker({ setLat, setLng }) {
   useMapEvents({
     async click(e) {
@@ -295,20 +320,24 @@ export default function SewageLogPage() {
       title: 'Đính kèm',
       key: 'images',
       render: (_, record) => {
-        if (!record.images || record.images.length === 0) return '-';
+        const images = normalizeImageList(record.images);
+        if (images.length === 0) return '-';
         return (
           <Image.PreviewGroup>
-            {record.images.map((img, i) => (
+            {images.map((img, i) => {
+              const imageUrl = resolveImageUrl(img);
+              return (
               <Image 
                 key={i} 
-                src={`http://localhost:5000${img}`} 
+                src={imageUrl}
                 width={32} 
                 height={32} 
                 style={{ objectFit: 'cover', display: i === 0 ? 'inline-block' : 'none' }}
-                preview={{ src: `http://localhost:5000${img}` }}
+                preview={{ src: imageUrl }}
               />
-            ))}
-            {record.images.length > 1 && <Text style={{ marginLeft: 8 }} type="secondary">+{record.images.length - 1}</Text>}
+              );
+            })}
+            {images.length > 1 && <Text style={{ marginLeft: 8 }} type="secondary">+{images.length - 1}</Text>}
           </Image.PreviewGroup>
         );
       }

@@ -19,6 +19,7 @@ import {
   Tooltip,
   Upload,
   Tabs,
+  Modal,
   message,
 } from 'antd';
 import {
@@ -254,24 +255,82 @@ export default function CreateVoyagePage() {
       try {
         const wb = XLSX.read(e.target.result, { type: 'array' });
         const ws = wb.Sheets[wb.SheetNames[0]];
+        // header:1 → mảng thô, defval:'' → ô trống thành chuỗi rỗng
+        // Các cột thừa (> cột C) tự bị bỏ qua vì chỉ đọc index 0-2
         const rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
-        // Bỏ dòng tiêu đề (dòng 0)
-        const dataRows = rows.slice(1).filter(r => r[0] && String(r[0]).trim());
-        if (dataRows.length === 0) {
-          message.warning('File không có dữ liỪu hoặc sai định dạng!');
+
+        // Bỏ dòng tiêu đề (dòng 0), lọc dòng có cột A không rỗng
+        const nonEmptyRows = rows.slice(1).filter(r => String(r[0] || '').trim());
+        if (nonEmptyRows.length === 0) {
+          message.warning('File không có dữ liệu hoặc sai định dạng!');
           return;
         }
+
+        const errors = [];
+        const imported = [];
         const startId = equipmentList.length > 0 ? Math.max(...equipmentList.map(e => e.id)) + 1 : 1;
-        const imported = dataRows.map((r, i) => ({
-          id: startId + i,
-          name: String(r[0] || '').trim(),
-          type: VOYAGE_EQ_TYPE,
-          location: '',
-          quantity: Number(r[1]) > 0 ? Number(r[1]) : 1,
-          expiryNote: String(r[2] || '').trim(),
-        }));
-        setEquipmentList(prev => [...prev, ...imported]);
-        message.success(`Đã import ${imported.length} mặt hàng từ Excel!`);
+
+        nonEmptyRows.forEach((r, i) => {
+          const rowNum = i + 2; // +2 vì dòng 1 là header
+          const rowErrors = [];
+
+          // --- Cột A: Tên thuốc / vật tư (bắt buộc, tối đa 255 ký tự) ---
+          const name = String(r[0] || '').trim();
+          if (!name) {
+            rowErrors.push('Tên thuốc/vật tư không được để trống');
+          } else if (name.length > 255) {
+            rowErrors.push('Tên thuốc/vật tư quá dài (tối đa 255 ký tự)');
+          }
+
+          // --- Cột B: Số lượng (số nguyên dương, tùy chọn — mặc định 1) ---
+          const rawQty = r[1];
+          const qty = Number(rawQty);
+          let quantity = 1;
+          if (rawQty !== '' && rawQty !== null) {
+            if (!Number.isFinite(qty) || qty <= 0 || !Number.isInteger(qty)) {
+              rowErrors.push(`Số lượng "${rawQty}" không hợp lệ (phải là số nguyên dương)`);
+            } else {
+              quantity = qty;
+            }
+          }
+
+          // --- Cột C: Ghi chú hạn sử dụng (tùy chọn, tối đa 500 ký tự) ---
+          const expiryNote = String(r[2] || '').trim();
+          if (expiryNote.length > 500) {
+            rowErrors.push('Ghi chú hạn sử dụng quá dài (tối đa 500 ký tự)');
+          }
+
+          if (rowErrors.length > 0) {
+            errors.push({ rowNum, rowErrors });
+          } else {
+            imported.push({ id: startId + imported.length, name, type: VOYAGE_EQ_TYPE, location: '', quantity, expiryNote });
+          }
+        });
+
+        // Hiển thị chi tiết lỗi nếu có
+        if (errors.length > 0) {
+          const errorMessages = errors.map(({ rowNum, rowErrors }) =>
+            `Dòng ${rowNum}: ${rowErrors.join('; ')}`
+          );
+          Modal.warning({
+            title: `Import có ${errors.length} dòng lỗi — bị bỏ qua`,
+            width: 600,
+            content: (
+              <div style={{ maxHeight: 300, overflowY: 'auto' }}>
+                {errorMessages.map((msg, idx) => (
+                  <div key={idx} style={{ marginBottom: 4, fontSize: 13 }}>⚠️ {msg}</div>
+                ))}
+              </div>
+            ),
+          });
+        }
+
+        if (imported.length > 0) {
+          setEquipmentList(prev => [...prev, ...imported]);
+          message.success(`Đã import ${imported.length} mặt hàng hợp lệ${errors.length > 0 ? `, bỏ qua ${errors.length} dòng lỗi` : ''}!`);
+        } else {
+          message.error('Không có dòng nào hợp lệ để import. Kiểm tra lại file!');
+        }
       } catch {
         message.error('Không đọc được file. Hãy kiểm tra đúng định dạng xlsx/xls.');
       }
