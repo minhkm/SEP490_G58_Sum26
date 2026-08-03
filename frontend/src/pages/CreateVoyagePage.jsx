@@ -401,6 +401,11 @@ export default function CreateVoyagePage() {
       return notifyWarning('Vui lòng chọn Ngày khởi hành và Ngày đến!');
     }
 
+    if (routeInfo.departureDate >= routeInfo.arrivalDate) {
+      setActiveTab('route');
+      return notifyWarning('Ngày đến dự kiến phải sau ngày khởi hành!');
+    }
+
     if (currentCargoTotal.weight > selectedShipCapacity.maxWeight) {
       setActiveTab('cargo');
       return notifyWarning(
@@ -480,7 +485,6 @@ export default function CreateVoyagePage() {
           extra={
             <Space>
               <Button onClick={() => navigate(-1)}>Hủy</Button>
-              <Button>Lưu Bản nháp</Button>
               <Button type="primary" onClick={handleSubmit}>
                 Khởi tạo Hải trình
               </Button>
@@ -591,7 +595,7 @@ export default function CreateVoyagePage() {
                         disabledDate={(current) => {
                           if (!current) return false;
                           if (current.startOf('day').isBefore(dayjs().startOf('day'))) return true;
-                          if (routeInfo.departureDate && current.startOf('day').isBefore(dayjs(routeInfo.departureDate, DATE_FORMAT).startOf('day'))) return true;
+                          if (routeInfo.departureDate && !current.startOf('day').isAfter(dayjs(routeInfo.departureDate, DATE_FORMAT).startOf('day'))) return true;
                           return false;
                         }}
                         onChange={(d) =>
@@ -603,16 +607,7 @@ export default function CreateVoyagePage() {
                 </Row>
               </Card>
 
-              {/* Card: Map (đưa vào tab Tuyến đường) */}
-              <Card
-                title={<span><NodeIndexOutlined /> Bản đồ Tuyến đường Dự kiến</span>}
-                style={{ marginBottom: 24 }}
-              >
-                <Empty
-                  image={<NodeIndexOutlined style={{ fontSize: 32, color: '#cbd5e1' }} />}
-                  description="Bản đồ sẽ hiển thị sau khi chọn Cảng đi và Cảng đến."
-                />
-              </Card>
+
                   </>
                 ),
               },

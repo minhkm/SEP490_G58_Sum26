@@ -7,10 +7,25 @@ const router = express.Router();
 // GET /api/vessels - Lấy danh sách toàn bộ tàu
 router.get('/', async (req, res) => {
   try {
-    const vessels = await Ship.findAll({
+    let vessels = await Ship.findAll({
       include: [ShipCapacity],
       order: [['id', 'DESC']]
     });
+
+    const { Op } = require('sequelize');
+    const activeVoyages = await Voyage.findAll({
+      where: { status: { [Op.notIn]: ['Completed', 'Cancelled'] } }
+    });
+    const busyShipIds = activeVoyages.map(v => v.shipId);
+
+    vessels = vessels.map(v => {
+      const plain = v.toJSON();
+      if (busyShipIds.includes(plain.id)) {
+        plain.status = 'OnVoyage';
+      }
+      return plain;
+    });
+
     res.json(vessels);
   } catch (error) {
     console.error('Lỗi lấy danh sách tàu:', error);
@@ -252,6 +267,18 @@ router.delete('/:id', async (req, res) => {
   try {
     const vessel = await Ship.findByPk(req.params.id);
     if (!vessel) return res.status(404).json({ message: 'Không tìm thấy tàu' });
+
+    const { Op } = require('sequelize');
+    const activeVoyage = await Voyage.findOne({
+      where: { 
+        shipId: req.params.id,
+        status: { [Op.notIn]: ['Completed', 'Cancelled'] }
+      }
+    });
+
+    if (activeVoyage) {
+      return res.status(400).json({ message: 'Không thể xóa tàu đang trong hải trình hoạt động' });
+    }
 
     await ShipCapacity.destroy({ where: { shipId: vessel.id } });
     const engines = await Engine.findAll({ where: { shipId: vessel.id } });

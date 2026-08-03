@@ -158,11 +158,11 @@ export default function VoyageListPage() {
       ),
     },
     { title: 'Khởi hành', dataIndex: 'departureDate', render: (d) => formatDate(d) },
-    { title: 'Dự kiến đến', dataIndex: 'arrivalDate', render: (d) => formatDate(d) },
+    { title: 'Cập bến', dataIndex: 'arrivalDate', render: (d) => formatDate(d) },
     {
       title: 'Trạng thái',
       dataIndex: 'status',
-      render: (status) => <StatusTag status={status} text={status || 'Planning'} />,
+      render: (status) => <StatusTag status={status || 'Planning'} />,
     },
     ...(canEdit || canAttendance || canExportReport
       ? [

@@ -332,9 +332,10 @@ export default function ReportListPage() {
             dataSource={filteredReports}
             loading={loading}
             pagination={{
-              pageSize: 10,
+              defaultPageSize: 10,
               showSizeChanger: true,
-              showTotal: (total, range) => `Hiển thị ${range[0]}–${range[1]} trong số ${total} báo cáo`,
+              pageSizeOptions: ['10', '20', '50'],
+              showTotal: (total, range) => `Hiển thị ${range[0]}-${range[1]} trong số ${total} báo cáo`,
             }}
             locale={{ emptyText: scope === 'inbox' ? 'Không có báo cáo nào cần bạn xử lý.' : 'Bạn chưa tạo báo cáo nào.' }}
           />

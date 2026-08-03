@@ -69,19 +69,10 @@ export default function AgencySidebar() {
         style={{ flex: 1, borderInlineEnd: 0 }}
       />
 
-      <div style={{ padding: 16, display: 'flex', alignItems: 'center', gap: 12, color: '#fff' }}>
-        <Avatar
-          src={`https://ui-avatars.com/api/?name=${encodeURIComponent(
-            user.fullName || user.username || 'Admin'
-          )}&background=0b1a2c&color=fff`}
-        />
-        <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minWidth: 0 }}>
-          <span style={{ fontSize: 13, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-            {user.fullName || user.username}
-          </span>
-          <span style={{ fontSize: 12, color: '#94a3b8' }}>Quản trị viên</span>
-        </div>
-        <Button type="text" icon={<LogoutOutlined />} onClick={handleLogout} title="Đăng xuất" style={{ color: '#fff' }} />
+      <div style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 8 }}>
+        <Button danger icon={<LogoutOutlined />} block onClick={handleLogout}>
+          Đăng xuất
+        </Button>
       </div>
     </Sider>
   );

@@ -124,14 +124,20 @@ export default function SewageLogPage() {
     marpolRuleDesc = 'Luật MARPOL: Nước thải đã qua hệ thống xử lý (STP) không quy định giới hạn khoảng cách và tốc độ khi xả.';
   }
 
+  const [voyageInfo, setVoyageInfo] = useState(null);
+
   const fetchLogs = async () => {
     setLoading(true);
     try {
       const res = await api.get(`/sewage-logs/voyage/${activeVoyageId}`);
       setLogs(res.data);
+      
+      const vRes = await api.get('/voyages');
+      const currentVoyage = (vRes.data || []).find(v => v.id.toString() === activeVoyageId.toString());
+      setVoyageInfo(currentVoyage || null);
     } catch (error) {
       console.error(error);
-      message.error('Không thể tải dữ liệu nhật ký xả thải.');
+      message.error('Không thể tải dữ liệu.');
     } finally {
       setLoading(false);
     }
@@ -393,7 +399,13 @@ export default function SewageLogPage() {
             <Text type="secondary">Quản lý và phê duyệt các hoạt động xả nước thải trên tàu</Text>
           </div>
           {isChief && (
-            <Button type="primary" icon={<PlusOutlined />} onClick={() => setIsModalVisible(true)}>
+            <Button 
+              type="primary" 
+              icon={<PlusOutlined />} 
+              onClick={() => setIsModalVisible(true)}
+              disabled={!voyageInfo || !['Underway', 'Arrived', 'Discharge', 'Discharged', 'Homeward Bounding'].includes(voyageInfo.status)}
+              title={(!voyageInfo || !['Underway', 'Arrived', 'Discharge', 'Discharged', 'Homeward Bounding'].includes(voyageInfo.status)) ? 'Chỉ được phép xả thải khi tàu đang di chuyển (từ Underway đến Homeward Bounding)' : ''}
+            >
               Tạo yêu cầu xả thải
             </Button>
           )}
@@ -423,7 +435,12 @@ export default function SewageLogPage() {
             columns={columns}
             rowKey="id"
             loading={loading}
-            pagination={{ pageSize: 10 }}
+            pagination={{
+              defaultPageSize: 10,
+              showSizeChanger: true,
+              pageSizeOptions: ['10', '20', '50'],
+              showTotal: (total, range) => `Hiển thị ${range[0]}-${range[1]} trong số ${total} bản ghi`,
+            }}
             scroll={{ x: 1000 }}
           />
         </Card>

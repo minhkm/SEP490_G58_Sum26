@@ -181,12 +181,21 @@ export default function AddCargoPage() {
               <Form.Item
                 label="Tổng Khối Lượng (Tấn)"
                 name="totalWeight"
-                rules={[{ required: true, message: 'Vui lòng nhập tổng khối lượng' }]}
+                rules={[
+                  { required: true, message: 'Vui lòng nhập tổng khối lượng' },
+                  { type: 'number', min: 0.01, message: 'Khối lượng phải lớn hơn 0' }
+                ]}
               >
-                <InputNumber step={0.01} placeholder="VD: 2750" style={{ width: '100%' }} />
+                <InputNumber step={0.01} min={0} placeholder="VD: 2750" style={{ width: '100%' }} />
               </Form.Item>
-              <Form.Item label="Tổng Thể Tích (m³)" name="totalVolume">
-                <InputNumber step={0.01} placeholder="VD: 3200" style={{ width: '100%' }} />
+              <Form.Item 
+                label="Tổng Thể Tích (m³)" 
+                name="totalVolume"
+                rules={[
+                  { type: 'number', min: 0.01, message: 'Thể tích phải lớn hơn 0' }
+                ]}
+              >
+                <InputNumber step={0.01} min={0} placeholder="VD: 3200" style={{ width: '100%' }} />
               </Form.Item>
             </div>
 

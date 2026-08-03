@@ -554,7 +554,12 @@ export default function DeckLogPage() {
         {selectedShift && (
           <Card title={`📜 Lịch sử ghi chép — ${selectedDate.format('DD/MM/YYYY')}`}>
             <Table rowKey="id" columns={historyColumns} dataSource={history}
-              pagination={{ pageSize: 10, hideOnSinglePage: true }}
+              pagination={{
+              defaultPageSize: 10,
+              showSizeChanger: true,
+              pageSizeOptions: ['10', '20', '50'],
+              showTotal: (total, range) => `Hiển thị ${range[0]}-${range[1]} trong số ${total} bản ghi`,
+            }}
               scroll={{ x: 800 }}
               locale={{ emptyText: 'Chưa có ghi chép nào trong ca trực này.' }} />
           </Card>

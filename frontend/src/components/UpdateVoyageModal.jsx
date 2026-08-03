@@ -158,6 +158,16 @@ export default function UpdateVoyageModal({ voyage, onClose, onUpdate }) {
   ];
   const isStatusDisabled = userRole === 'admin' && lockedForAdminStatuses.includes(voyage.status);
 
+  const isDepartureDateLocked = [
+    'Underway', 'Arrived', 'Discharge', 'Discharged', 
+    'Homeward Bounding', 'At Anchor', 'Completed'
+  ].includes(voyage.status);
+
+  const isArrivalDateLocked = [
+    'Arrived', 'Discharge', 'Discharged', 
+    'Homeward Bounding', 'Completed'
+  ].includes(voyage.status);
+
   const crewColumns = [
     { title: 'STT', key: 'stt', width: 60, render: (_, __, idx) => idx + 1 },
     { title: 'Họ và tên', dataIndex: 'fullName', key: 'fullName' },
@@ -186,7 +196,7 @@ export default function UpdateVoyageModal({ voyage, onClose, onUpdate }) {
                   onChange={(d) =>
                     setFormData((prev) => ({ ...prev, departureDate: d ? d.format(DATE_FORMAT) : '' }))
                   }
-                  disabled={isChiefOfficer}
+                  disabled={isChiefOfficer || isDepartureDateLocked || isStatusDisabled}
                 />
               </Form.Item>
             </Col>
@@ -199,7 +209,7 @@ export default function UpdateVoyageModal({ voyage, onClose, onUpdate }) {
                   onChange={(d) =>
                     setFormData((prev) => ({ ...prev, arrivalDate: d ? d.format(DATE_FORMAT) : '' }))
                   }
-                  disabled={isChiefOfficer}
+                  disabled={isChiefOfficer || isArrivalDateLocked || isStatusDisabled}
                 />
               </Form.Item>
             </Col>
@@ -310,18 +320,20 @@ export default function UpdateVoyageModal({ voyage, onClose, onUpdate }) {
       footer={
         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 12, paddingTop: 16 }}>
           <Button size="large" onClick={onClose} style={{ borderRadius: 8, fontWeight: 500 }}>
-            Hủy
+            {isStatusDisabled ? 'Đóng' : 'Hủy'}
           </Button>
-          <Button
-            size="large"
-            type="primary"
-            icon={<SaveOutlined />}
-            loading={loading}
-            onClick={handleSubmit}
-            style={{ borderRadius: 8, fontWeight: 500, boxShadow: '0 4px 6px -1px rgba(37, 99, 235, 0.3)' }}
-          >
-            Lưu cập nhật
-          </Button>
+          {!isStatusDisabled && (
+            <Button
+              size="large"
+              type="primary"
+              icon={<SaveOutlined />}
+              loading={loading}
+              onClick={handleSubmit}
+              style={{ borderRadius: 8, fontWeight: 500, boxShadow: '0 4px 6px -1px rgba(37, 99, 235, 0.3)' }}
+            >
+              Lưu cập nhật
+            </Button>
+          )}
         </div>
       }
     >

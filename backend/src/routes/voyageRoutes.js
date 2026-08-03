@@ -46,6 +46,12 @@ router.post('/', async (req, res) => {
       }
     }
 
+    if (routeInfo && routeInfo.departureDate && routeInfo.arrivalDate) {
+      if (routeInfo.arrivalDate <= routeInfo.departureDate) {
+        errors.push('Ngày đến dự kiến phải sau ngày khởi hành.');
+      }
+    }
+
     if (errors.length > 0) {
       await t.rollback();
       return res.status(400).json({ 
@@ -421,9 +427,36 @@ router.put('/:id', authMiddleware, async (req, res) => {
     const nextStatus = status || voyage.status;
     let nextIsCrewSufficient = voyage.isCrewSufficient;
 
+    const nextDepDate = departureDate || voyage.departureDate;
+    const nextArrDate = arrivalDate || voyage.arrivalDate;
+    if (nextDepDate && nextArrDate && nextArrDate <= nextDepDate) {
+       return res.status(400).json({ message: 'Ngày đến dự kiến phải sau ngày khởi hành.' });
+    }
+
     if (status) voyage.status = status;
-    if (departureDate) voyage.departureDate = departureDate;
-    if (arrivalDate) voyage.arrivalDate = arrivalDate;
+    
+    const lockedDepDateStatuses = [
+      'Underway', 'Arrived', 'Discharge', 
+      'Discharged', 'Homeward Bounding', 'At Anchor', 'Completed'
+    ];
+    if (departureDate && departureDate !== voyage.departureDate) {
+      if (lockedDepDateStatuses.includes(voyage.status)) {
+        return res.status(400).json({ message: 'Không thể sửa đổi ngày khởi hành khi tàu đã hoặc đang trong chuyến đi.' });
+      }
+      voyage.departureDate = departureDate;
+    }
+    
+    const lockedArrDateStatuses = [
+      'Arrived', 'Discharge', 'Discharged', 
+      'Homeward Bounding', 'Completed'
+    ];
+    if (arrivalDate && arrivalDate !== voyage.arrivalDate) {
+      if (lockedArrDateStatuses.includes(voyage.status)) {
+        return res.status(400).json({ message: 'Không thể sửa đổi ngày đến khi tàu đã cập bến.' });
+      }
+      voyage.arrivalDate = arrivalDate;
+    }
+
     if (isCargoLoaded !== undefined) voyage.isCargoLoaded = isCargoLoaded;
     if (issueReason !== undefined) voyage.issueReason = issueReason;
     if (routeWaypoints !== undefined) {
@@ -514,21 +547,31 @@ router.put('/:id', authMiddleware, async (req, res) => {
       if (voyage.routeStatus !== 'Approved' && routeStatus !== 'Approved') {
         return res.status(400).json({ message: 'Lộ trình chưa được phê duyệt, không thể chuyển trạng thái Đang di chuyển (Underway)!' });
       }
-      // Check if cargo is loaded (or being marked as loaded in this request)
-      const nextIsCargoLoaded = req.body.isCargoLoaded !== undefined ? req.body.isCargoLoaded : voyage.isCargoLoaded;
-      if (!nextIsCargoLoaded) {
-        // Also check if they are marking cargo loaded right now
-        let allCargoLoaded = true;
-        if (cargoList && Array.isArray(cargoList) && cargoList.length > 0) {
-           for (const item of cargoList) {
-             if (!item.isLoaded) allCargoLoaded = false;
-           }
-        } else {
-           allCargoLoaded = false;
+      // Check if all cargo is loaded in DB
+      const cargosInVoyage = await Cargo.findAll({
+        where: { voyageId: id },
+        include: [{ model: CargoItem }]
+      });
+
+      let allLoaded = true;
+      if (cargosInVoyage.length > 0) {
+        for (const cargo of cargosInVoyage) {
+          if (cargo.CargoItems && cargo.CargoItems.length > 0) {
+            for (const item of cargo.CargoItems) {
+              if (!item.isLoaded) {
+                allLoaded = false;
+                break;
+              }
+            }
+          }
+          if (!allLoaded) break;
         }
-        if (!allCargoLoaded) {
-           return res.status(400).json({ message: 'Chưa bốc xếp hàng hóa xong, không thể chuyển trạng thái Đang di chuyển (Underway)!' });
-        }
+      }
+
+      if (!allLoaded) {
+        return res.status(400).json({ message: 'Chưa bốc xếp hàng hóa xong, không thể chuyển trạng thái Đang di chuyển (Underway)!' });
+      } else {
+        voyage.isCargoLoaded = true; // Auto-update to true if actually loaded
       }
     }
 

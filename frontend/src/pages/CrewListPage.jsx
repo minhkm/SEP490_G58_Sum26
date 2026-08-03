@@ -70,10 +70,7 @@ export default function CrewListPage() {
   const filteredCrews = useMemo(() => {
     const keyword = searchTerm.toLowerCase();
     return crews.filter(
-      (c) =>
-        (c.fullName && c.fullName.toLowerCase().includes(keyword)) ||
-        (c.cccd && c.cccd.includes(searchTerm)) ||
-        (c.position && c.position.toLowerCase().includes(keyword))
+      (c) => c.fullName && c.fullName.toLowerCase().includes(keyword)
     );
   }, [crews, searchTerm]);
 
@@ -148,13 +145,16 @@ export default function CrewListPage() {
       title: 'Thao tác',
       key: 'actions',
       align: 'center',
-      render: (_, crew) => (
-        <RowActions
-          onEdit={() => navigate(`/crews/edit/${crew.id}`)}
-          onDelete={() => handleDelete(crew.id, crew.fullName)}
-          deleteTitle="Xóa"
-        />
-      ),
+      render: (_, crew) => {
+        const isOnVoyage = crew.User?.status === 'OnVoyage';
+        return (
+          <RowActions
+            onEdit={() => navigate(`/crews/edit/${crew.id}`)}
+            onDelete={isOnVoyage ? undefined : () => handleDelete(crew.id, crew.fullName)}
+            deleteTitle="Xóa"
+          />
+        );
+      },
     },
   ];
 
@@ -178,7 +178,7 @@ export default function CrewListPage() {
         <Card
           extra={
             <Input.Search
-              placeholder="Tìm tên, CCCD, chức vụ..."
+              placeholder="Tìm kiếm theo họ và tên..."
               allowClear
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
@@ -191,7 +191,12 @@ export default function CrewListPage() {
             columns={columns}
             dataSource={filteredCrews}
             loading={loading}
-            pagination={{ pageSize: 10, hideOnSinglePage: true }}
+            pagination={{
+              defaultPageSize: 10,
+              showSizeChanger: true,
+              pageSizeOptions: ['10', '20', '50'],
+              showTotal: (total, range) => `Hiển thị ${range[0]}-${range[1]} trong số ${total} thủy thủ`,
+            }}
             locale={{ emptyText: 'Không tìm thấy thủy thủ nào phù hợp.' }}
           />
         </Card>

@@ -66,20 +66,28 @@ export default function VesselListPage() {
     {
       title: 'Trạng thái',
       dataIndex: 'status',
-      render: (status) => <StatusTag status={status} />,
+      render: (status) => (
+        <StatusTag
+          status={status === 'OnVoyage' ? 'Đang trên hải trình' : (status === 'Hoạt động' || status === 'Active' ? 'Sẵn sàng' : status)}
+          color={status === 'OnVoyage' ? 'blue' : (status === 'Hoạt động' || status === 'Active' ? 'green' : undefined)}
+        />
+      ),
     },
     {
       title: 'Thao tác',
       key: 'actions',
       align: 'center',
-      render: (_, v) => (
-        <RowActions
-          onView={() => navigate(`/vessels/view/${v.id}`)}
-          onEdit={() => navigate(`/vessels/edit/${v.id}`)}
-          onDelete={() => handleDelete(v.id, v.shipName)}
-          deleteTitle="Xoá tàu"
-        />
-      ),
+      render: (_, v) => {
+        const isOnVoyage = v.status === 'OnVoyage';
+        return (
+          <RowActions
+            onView={() => navigate(`/vessels/view/${v.id}`)}
+            onEdit={() => navigate(`/vessels/edit/${v.id}`)}
+            onDelete={isOnVoyage ? undefined : () => handleDelete(v.id, v.shipName)}
+            deleteTitle="Xoá tàu"
+          />
+        );
+      },
     },
   ];
 

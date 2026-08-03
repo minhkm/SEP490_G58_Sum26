@@ -494,7 +494,12 @@ export default function EngineLogPage() {
         {selectedShift && (
           <Card title={`Lịch sử kiểm tra — ${selectedDate.format('DD/MM/YYYY')}`} style={{ marginTop: 16 }}>
             <Table rowKey="id" columns={historyColumns} dataSource={history}
-              pagination={{ pageSize: 10, hideOnSinglePage: true }}
+              pagination={{
+              defaultPageSize: 10,
+              showSizeChanger: true,
+              pageSizeOptions: ['10', '20', '50'],
+              showTotal: (total, range) => `Hiển thị ${range[0]}-${range[1]} trong số ${total} bản ghi`,
+            }}
               locale={{ emptyText: 'Chưa có kiểm tra nào trong ca trực này.' }} />
           </Card>
         )}

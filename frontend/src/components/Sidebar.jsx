@@ -34,6 +34,7 @@ export default function Sidebar() {
   const isGlobalRoleNonAdmin = user.role !== 'Admin' && user.role !== 'Agency';
 
   const [hasValidVoyage, setHasValidVoyage] = useState(true); // default true to avoid flicker
+  const [activeVoyageStatus, setActiveVoyageStatus] = useState(null);
 
   useEffect(() => {
     if (isMasterOrChief) {
@@ -42,6 +43,14 @@ export default function Sidebar() {
           // Check if there is any voyage that is Loaded (or beyond, like Underway)
           const valid = (data || []).some(v => v.status === 'Loaded' || v.status === 'Underway');
           setHasValidVoyage(valid);
+
+          const activeVoyageId = localStorage.getItem('activeVoyageId');
+          if (activeVoyageId) {
+            const activeV = (data || []).find(v => v.id.toString() === activeVoyageId.toString());
+            if (activeV) {
+              setActiveVoyageStatus(activeV.status);
+            }
+          }
         })
         .catch(err => {
           console.error('Error fetching voyages for sidebar:', err);
@@ -59,16 +68,20 @@ export default function Sidebar() {
       key: '/route-planner', 
       icon: <SendOutlined />, 
       label: role === 'Master' ? 'Phê duyệt lộ trình' : 'Thiết lập lộ trình',
-      disabled: !hasValidVoyage
+      disabled: activeVoyageStatus !== 'Loaded'
     },
     CARGO_ROLES.includes(role) && { key: '/cargos', icon: <InboxOutlined />, label: 'Hàng hóa' },
     isCrewRole && { key: '/shifts', icon: <ClockCircleOutlined />, label: 'Ca trực' },
     isDeck && { key: '/deck-logs', icon: <FileTextOutlined />, label: 'Nhật ký Trực boong' },
     isEngine && { key: '/engine-logs', icon: <ToolOutlined />, label: 'Nhật ký Kiểm tra Máy' },
     isEngineOfficer && { key: '/engine-management', icon: <SettingOutlined />, label: 'Quản lý Máy & Thiết bị' },
-    isMasterOrChief && { key: '/sewage-logs', icon: <FileTextOutlined />, label: 'Xả thải (MARPOL)' },
+    isMasterOrChief && { 
+      key: '/sewage-logs', 
+      icon: <FileTextOutlined />, 
+      label: 'Xả thải (MARPOL)',
+      disabled: activeVoyageStatus ? !['Underway', 'Arrived', 'Discharge', 'Discharged', 'Homeward Bounding'].includes(activeVoyageStatus) : false
+    },
     { key: '/reports', icon: <BarChartOutlined />, label: 'Báo cáo' },
-    { key: '/crew-profile', icon: <UserOutlined />, label: 'Hồ sơ của tôi' },
     isMasterOrChief && { key: 'cai-dat', icon: <SettingOutlined />, label: 'Cài đặt', disabled: true },
   ].filter(Boolean);
 
