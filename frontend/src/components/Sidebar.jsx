@@ -74,7 +74,7 @@ export default function Sidebar() {
     isCrewRole && { key: '/shifts', icon: <ClockCircleOutlined />, label: 'Ca trực' },
     isDeck && { key: '/deck-logs', icon: <FileTextOutlined />, label: 'Nhật ký Trực boong' },
     isEngine && { key: '/engine-logs', icon: <ToolOutlined />, label: 'Nhật ký Kiểm tra Máy' },
-    isEngineOfficer && { key: '/engine-management', icon: <SettingOutlined />, label: 'Quản lý Máy & Thiết bị' },
+    isEngineOfficer && { key: '/engine-management', icon: <SettingOutlined />, label: 'Quản lý máy' },
     isMasterOrChief && { 
       key: '/sewage-logs', 
       icon: <FileTextOutlined />, 

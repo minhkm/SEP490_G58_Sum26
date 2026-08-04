@@ -298,7 +298,7 @@ export default function EngineLogPage() {
   if (!selectedVoyage) {
     return (
       <MasterLayout>
-        <div style={{ padding: '24px 32px' }}>
+        <div style={{ padding: 'clamp(12px, 4vw, 32px)' }}>
           <PageHeader icon={<DashboardOutlined style={{ color: '#2563eb' }} />} breadcrumb="Engine Log" title="Nhật ký Kiểm tra Máy" />
           <Card>
             <Empty description={<div><p>Không có hải trình nào.</p></div>} />
@@ -350,7 +350,7 @@ export default function EngineLogPage() {
 
   return (
     <MasterLayout>
-      <div style={{ padding: '24px 32px' }}>
+      <div style={{ padding: 'clamp(12px, 4vw, 32px)' }}>
         <PageHeader icon={<DashboardOutlined style={{ color: '#2563eb' }} />} breadcrumb="Engine Log" title="Nhật ký Kiểm tra Máy" />
 
         {/* Chọn Hải trình, Ngày, Ca trực */}
