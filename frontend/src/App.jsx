@@ -1,4 +1,4 @@
-import { BrowserRouter as Router, Routes, Route, useNavigate } from "react-router-dom";
+﻿import { BrowserRouter as Router, Routes, Route, useNavigate } from "react-router-dom";
 import LandingPage from "./pages/LandingPage";
 import LoginPage from "./pages/LoginPage";
 import MasterDashboard from "./pages/MasterDashboard";
@@ -121,6 +121,11 @@ function App() {
         <Route path="/deck-logs" element={
           <RequireRole allow={DECK_LOG_ROLES}>
             <DeckLogPage />
+          </RequireRole>
+        } />
+                <Route path="/vessel-supplies" element={
+          <RequireRole allow={['Master', 'ChiefOfficer']}>
+            <EngineManagePage />
           </RequireRole>
         } />
         <Route path="/engine-management" element={

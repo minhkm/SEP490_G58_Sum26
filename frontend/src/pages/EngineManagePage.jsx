@@ -1,9 +1,10 @@
-import { useState, useEffect } from 'react';
+﻿import { useState, useEffect } from 'react';
 import { Card, Tag, Button, Table, Modal, Space, Spin, Empty, Typography, Tabs, Row, Col, Badge, Alert, InputNumber, Tooltip, Progress } from 'antd';
 import { ToolOutlined, SettingOutlined, ExclamationCircleOutlined, MedicineBoxOutlined } from '@ant-design/icons';
 import MasterLayout from '../components/MasterLayout';
 import { voyageService, vesselService } from '../services/api';
 import { PageHeader, notifySuccess, notifyError } from '../components/common';
+import { getEffectiveRole } from '../config/roles';
 import { Select } from 'antd';
 
 const { Text } = Typography;
@@ -41,6 +42,10 @@ const cardBorderColor = (status) => {
 };
 
 export default function EngineManagePage() {
+  const role = getEffectiveRole();
+  const isEngineOfficer = role === 'EngineOfficer';
+  const isCommandStaff = role === 'Master' || role === 'ChiefOfficer';
+
   const [selectedVoyage, setSelectedVoyage] = useState(null);
   const [engines,       setEngines]       = useState([]);
   const [shipEquipments, setShipEquipments] = useState([]);   // thiết bị của tàu
@@ -351,9 +356,9 @@ export default function EngineManagePage() {
         />
 
         <Tabs
-          defaultActiveKey="engines"
+          defaultActiveKey={isEngineOfficer ? 'engines' : 'ship-equipments'}
           items={[
-            {
+            isEngineOfficer && {
               key: 'engines',
               label: <span><ToolOutlined /> Máy tàu ({engines.length})</span>,
               children: (
@@ -362,7 +367,7 @@ export default function EngineManagePage() {
                 </Card>
               )
             },
-            {
+            !isEngineOfficer && {
               key: 'ship-equipments',
               label: <span><ExclamationCircleOutlined /> Thiết bị tàu ({shipEquipments.length})</span>,
               children: (
@@ -381,7 +386,7 @@ export default function EngineManagePage() {
                 </Card>
               )
             },
-            {
+            !isEngineOfficer && {
               key: 'medical',
               label: <span><MedicineBoxOutlined /> Vật tư y tế ({voyageEquipments.length})</span>,
               children: (
@@ -463,7 +468,7 @@ export default function EngineManagePage() {
                 </Card>
               )
             }
-          ]}
+          ].filter(Boolean)}
         />
       </div>
 

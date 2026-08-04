@@ -448,7 +448,17 @@ export default function CreateVoyagePage() {
       );
     }
 
-    // Validate equipment: tất cả phải có tên và số lượng
+    // Validate equipment: bắt buộc phải có ít nhất 5 vật tư y tế
+    if (equipmentList.length === 0) {
+      setActiveTab('supplies');
+      return notifyWarning('Hải trình chưa có vật tư y tế nào! Vui lòng thêm ít nhất 5 loại vật tư y tế.');
+    }
+    if (equipmentList.length < 5) {
+      setActiveTab('supplies');
+      return notifyWarning(`Hiện chỉ có ${equipmentList.length} vật tư y tế. Nên bổ sung ít nhất 5 loại theo khá́c nhắn mLC 2006!`);
+    }
+
+    // Validate tất cả phải có tên và số lượng
     const invalidEq = equipmentList.filter(e => !e.name || !e.name.trim() || !e.quantity || e.quantity < 1);
     if (invalidEq.length > 0) {
       setActiveTab('supplies');
@@ -477,7 +487,7 @@ export default function CreateVoyagePage() {
 
   return (
     <Layout>
-      <div style={{ padding: '24px 32px', height: '100%', overflowY: 'auto' }}>
+      <div style={{ padding: '16px', height: '100%', overflowY: 'auto' }}>
         <PageHeader
           icon={<NodeIndexOutlined />}
           breadcrumb="Voyages / New"
@@ -663,7 +673,7 @@ export default function CreateVoyagePage() {
 
                     <Space direction="vertical" style={{ width: '100%' }} size={12}>
                       {cargoList.map((cargo) => (
-                        <Row key={cargo.id} gutter={8} align="bottom" wrap={false}>
+                        <Row key={cargo.id} gutter={8} align="bottom" >
                           <Col flex="1">
                             <Form.Item label="Chọn Lô hàng" style={{ marginBottom: 0 }}>
                               <Select
@@ -721,7 +731,7 @@ export default function CreateVoyagePage() {
                 ) : (
                   <Space direction="vertical" style={{ width: '100%' }} size={12}>
                     {crewList.map((crew) => (
-                      <Row key={crew.id} gutter={8} align="bottom" wrap={false}>
+                      <Row key={crew.id} gutter={8} align="bottom" >
                         <Col flex="1.5">
                           <Form.Item label="Chọn Nhân sự" required style={{ marginBottom: 0 }}>
                             <Select
@@ -800,8 +810,10 @@ export default function CreateVoyagePage() {
                     image={<ToolOutlined style={{ fontSize: 32, color: '#94a3b8' }} />}
                     description={
                       <div>
-                        <p style={{ margin: 0 }}>Chưa có vật tư y tế nào.</p>
-                        <Text type="secondary">Thêm thuốc, băng găc, dụng cụ sơ cấp cứu...</Text>
+                        <p style={{ margin: 0, fontWeight: 500 }}>Chưa có vật tư y tế nào.</p>
+                        <Text type="secondary">Hải trình <strong>bắt buộc</strong> phải có ít nhất một vật tư y tế.</Text>
+                        <br />
+                        <Text type="secondary" style={{ fontSize: 12 }}>Thêm thuốc, băng gạc, dụng cụ sơ cấp cứu...</Text>
                       </div>
                     }
                   />

@@ -82,6 +82,7 @@ export default function Sidebar() {
       disabled: activeVoyageStatus ? !['Underway', 'Arrived', 'Discharge', 'Discharged', 'Homeward Bounding'].includes(activeVoyageStatus) : false
     },
     { key: '/reports', icon: <BarChartOutlined />, label: 'Báo cáo' },
+    isMasterOrChief && { key: '/vessel-supplies', icon: <ToolOutlined />, label: 'Thiết bị & Vật tư' },
     isMasterOrChief && { key: 'cai-dat', icon: <SettingOutlined />, label: 'Cài đặt', disabled: true },
   ].filter(Boolean);
 
@@ -111,7 +112,7 @@ export default function Sidebar() {
   };
 
   return (
-    <Sider theme="dark" width={260} style={{ display: 'flex', flexDirection: 'column', height: '100vh' }}>
+    <Sider theme="dark" width={260} breakpoint="md" collapsedWidth={0} style={{ display: 'flex', flexDirection: 'column', height: '100vh' }}>
       <div
         onClick={() => navigate(dashboardPath)}
         style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '20px 16px', cursor: 'pointer', color: '#fff' }}

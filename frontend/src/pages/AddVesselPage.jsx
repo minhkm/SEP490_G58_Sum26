@@ -550,6 +550,24 @@ export default function AddVesselPage() {
       }
     }
 
+    // Validate thiết bị tàu
+    if (shipEquipments.length === 0) {
+      setActiveTab('equipment');
+      notifyWarning('Tàu chưa có thiết bị nào! Vui lòng thêm ít nhất 5 loại thiết bị trước khi lưu.');
+      return;
+    }
+    if (shipEquipments.length < 5) {
+      setActiveTab('equipment');
+      notifyWarning(`Hiện chỉ có ${shipEquipments.length} thiết bị. Nên bổ sung ít nhất 5 loại!`);
+      return;
+    }
+    const invalidEqs = shipEquipments.filter(e => !e.equipmentName || !e.equipmentName.trim());
+    if (invalidEqs.length > 0) {
+      setActiveTab('equipment');
+      notifyWarning('Tất cả thiết bị phải có tên. Vui lòng kiểm tra lại!');
+      return;
+    }
+
     try {
       const payload = { basicInfo, capacity, mainEngine, generatorEngines, holds };
 
@@ -690,7 +708,7 @@ export default function AddVesselPage() {
 
   return (
     <AgencyLayout>
-      <div style={{ padding: '24px 32px' }}>
+      <div style={{ padding: '16px' }}>
         <Title level={3} style={{ marginTop: 0, marginBottom: 24 }}>
           {isEditMode ? 'Cập nhật Thông tin Tàu' : 'Thêm Tàu Mới'}
         </Title>

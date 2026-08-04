@@ -1017,8 +1017,9 @@ router.patch('/equipments/:equipmentId/status', authMiddleware, async (req, res)
 
 // PATCH /api/voyages/equipments/:equipmentId/broken-count — Cập nhật số lượng hỏng (EngineOfficer)
 router.patch('/equipments/:equipmentId/broken-count', authMiddleware, async (req, res) => {
-  if (req.user?.role !== 'EngineOfficer') {
-    return res.status(403).json({ message: 'Chỉ Sĩ quan máy mới được cập nhật số thiết bị hỏng' });
+  const allowedEquipRoles = ['EngineOfficer', 'Master', 'ChiefOfficer'];
+  if (!allowedEquipRoles.includes(req.user?.role)) {
+    return res.status(403).json({ message: 'Chỉ Sĩ quan máy, Thuyền trưởng hoặc Thuyền phó mới được cập nhật' });
   }
   const { brokenCount } = req.body;
   if (brokenCount === undefined || brokenCount === null || brokenCount < 0) {
