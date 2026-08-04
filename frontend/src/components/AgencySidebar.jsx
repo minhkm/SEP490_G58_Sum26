@@ -48,7 +48,7 @@ export default function AgencySidebar() {
   };
 
   return (
-    <Sider theme="dark" width={260} style={{ display: 'flex', flexDirection: 'column', height: '100vh' }}>
+    <Sider theme="dark" width={260} breakpoint="md" collapsedWidth={0} style={{ display: 'flex', flexDirection: 'column', height: '100vh' }}>
       <div
         onClick={() => navigate('/agency-dashboard')}
         style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '20px 16px', cursor: 'pointer', color: '#fff' }}

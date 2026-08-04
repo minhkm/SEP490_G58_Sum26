@@ -432,7 +432,7 @@ export default function DeckLogPage() {
 
         {/* Chọn Hải trình, Ngày, Ca trực */}
         <Card style={{ marginBottom: 16 }}>
-          <Space size={32} wrap align="start">
+          <Space size={16} wrap align="start" style={{ overflowX: 'auto', width: '100%' }}>
             <div style={{ minWidth: 280 }}>
               <div style={{ marginBottom: 6 }}><Text type="secondary"><CompassOutlined /> Chọn Hải trình</Text></div>
               <Select style={{ width: '100%' }} value={selectedVoyage?.id || undefined} onChange={handleVoyageChange}
