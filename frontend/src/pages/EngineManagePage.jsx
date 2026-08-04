@@ -322,7 +322,7 @@ export default function EngineManagePage() {
   if (!selectedVoyage) {
     return (
       <MasterLayout>
-        <div style={{ padding: '24px 32px' }}>
+        <div style={{ padding: 'clamp(12px, 4vw, 32px)' }}>
           <PageHeader icon={<ToolOutlined style={{ color: '#f59e0b' }} />}
             breadcrumb="Quản lý Máy & Thiết bị" title="Quản lý Trạng thái Máy & Thiết bị" />
           <Card><Empty description="Hiện không có hải trình nào đang hoạt động." /></Card>
@@ -374,7 +374,7 @@ export default function EngineManagePage() {
                 <Card
                   title="Thiết bị của tàu"
                   extra={
-                    <Select style={{ width: 200 }} value={eqTypeFilter} onChange={setEqTypeFilter}
+                    <Select style={{ width: '100%', maxWidth: 200, minWidth: 120 }} value={eqTypeFilter} onChange={setEqTypeFilter}
                       options={eqTypes.map(t => ({ value: t, label: t }))} />
                   }
                 >

@@ -350,7 +350,7 @@ export default function DeckLogPage() {
   if (!selectedVoyage) {
     return (
       <MasterLayout>
-        <div style={{ padding: '24px 32px' }}>
+        <div style={{ padding: 'clamp(12px, 4vw, 32px)' }}>
           <PageHeader icon={<FileTextOutlined style={{ color: '#2563eb' }} />} breadcrumb="Deck Log" title="Nhật ký Trực boong" />
           <Card><Empty description={<div><p>Không có hải trình nào.</p></div>} /></Card>
         </div>
@@ -427,7 +427,7 @@ export default function DeckLogPage() {
 
   return (
     <MasterLayout>
-      <div style={{ padding: '24px 32px' }}>
+      <div style={{ padding: 'clamp(12px, 4vw, 32px)' }}>
         <PageHeader icon={<FileTextOutlined style={{ color: '#2563eb' }} />} breadcrumb="Deck Log" title="Nhật ký Trực boong" />
 
         {/* Chọn Hải trình, Ngày, Ca trực */}
