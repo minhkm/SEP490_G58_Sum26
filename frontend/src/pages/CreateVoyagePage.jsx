@@ -812,6 +812,7 @@ export default function CreateVoyagePage() {
                     columns={equipmentColumns}
                     dataSource={equipmentList}
                     pagination={false}
+                    scroll={{ x: 600 }}
                   />
                 )}
               </Card>

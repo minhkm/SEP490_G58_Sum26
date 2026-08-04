@@ -1012,30 +1012,30 @@ export default function AddVesselPage() {
           ) : (
             <Space direction="vertical" style={{ width: '100%' }} size={8}>
               {shipEquipments.map((eq) => (
-                <div key={eq._uid} style={{ display: 'flex', gap: 8, alignItems: 'flex-start', padding: '10px 12px', border: '1px solid #e2e8f0', borderRadius: 6, background: '#fafbfc' }}>
-                  <div style={{ flex: 2 }}>
+                <div key={eq._uid} style={{ display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'flex-start', padding: '10px 12px', border: '1px solid #e2e8f0', borderRadius: 6, background: '#fafbfc' }}>
+                  <div style={{ flex: '2 1 200px', minWidth: 150 }}>
                     <div style={{ fontSize: 11, color: '#64748b', marginBottom: 2 }}>Tên thiết bị <span style={{ color: 'red' }}>*</span></div>
                     <Input placeholder="VD: Áo phao cá nhân, Radar, Bình chữa cháy..." value={eq.equipmentName}
                       onChange={e => handleShipEquipChange(eq._uid, 'equipmentName', e.target.value)} />
                   </div>
-                  <div style={{ flex: 1 }}>
+                  <div style={{ flex: '1 1 130px', minWidth: 120 }}>
                     <div style={{ fontSize: 11, color: '#64748b', marginBottom: 2 }}>Loại</div>
                     <Select style={{ width: '100%' }} value={eq.equipmentType || undefined} placeholder="Chọn loại"
                       onChange={v => handleShipEquipChange(eq._uid, 'equipmentType', v)}
                       options={SHIP_EQ_TYPES.map(t => ({ value: t, label: t }))} />
                   </div>
-                  <div style={{ width: 120 }}>
+                  <div style={{ flex: '0 1 120px', minWidth: 100 }}>
                     <div style={{ fontSize: 11, color: '#64748b', marginBottom: 2 }}>Vị trí</div>
                     <Select style={{ width: '100%' }} value={eq.location || 'Boong'}
                       onChange={v => handleShipEquipChange(eq._uid, 'location', v)}
                       options={SHIP_EQ_LOCATIONS.map(l => ({ value: l, label: l }))} />
                   </div>
-                  <div style={{ width: 90 }}>
+                  <div style={{ flex: '0 1 90px', minWidth: 80 }}>
                     <div style={{ fontSize: 11, color: '#64748b', marginBottom: 2 }}>Số lượng <span style={{ color: 'red' }}>*</span></div>
                     <InputNumber min={1} style={{ width: '100%' }} value={eq.quantity || 1}
                       onChange={v => handleShipEquipChange(eq._uid, 'quantity', v)} />
                   </div>
-                  <div style={{ flex: 1 }}>
+                  <div style={{ flex: '1 1 150px', minWidth: 120 }}>
                     <div style={{ fontSize: 11, color: '#64748b', marginBottom: 2 }}>Hạn sử dụng (ghi chú)</div>
                     <Input placeholder="VD: 06/2027 hoặc Không có hạn" value={eq.expiryNote || ''}
                       onChange={e => handleShipEquipChange(eq._uid, 'expiryNote', e.target.value)} />

@@ -355,7 +355,7 @@ export default function EngineLogPage() {
 
         {/* Chọn Hải trình, Ngày, Ca trực */}
         <Card style={{ marginBottom: 16 }}>
-          <Space size={32} wrap align="start">
+          <Space size={16} wrap align="start" style={{ overflowX: 'auto', width: '100%' }}>
             <div style={{ minWidth: 280 }}>
               <div style={{ marginBottom: 6 }}><Text type="secondary"><CompassOutlined /> Chọn Hải trình</Text></div>
               <Select style={{ width: '100%' }} value={selectedVoyage?.id || undefined} onChange={handleVoyageChange}
@@ -493,14 +493,19 @@ export default function EngineLogPage() {
         {/* Lịch sử */}
         {selectedShift && (
           <Card title={`Lịch sử kiểm tra — ${selectedDate.format('DD/MM/YYYY')}`} style={{ marginTop: 16 }}>
-            <Table rowKey="id" columns={historyColumns} dataSource={history}
+            <Table
+              rowKey="id"
+              columns={historyColumns}
+              dataSource={history}
+              scroll={{ x: 900 }}
               pagination={{
-              defaultPageSize: 10,
-              showSizeChanger: true,
-              pageSizeOptions: ['10', '20', '50'],
-              showTotal: (total, range) => `Hiển thị ${range[0]}-${range[1]} trong số ${total} bản ghi`,
-            }}
-              locale={{ emptyText: 'Chưa có kiểm tra nào trong ca trực này.' }} />
+                defaultPageSize: 10,
+                showSizeChanger: true,
+                pageSizeOptions: ['10', '20', '50'],
+                showTotal: (total, range) => `Hiển thị ${range[0]}-${range[1]} trong số ${total} bản ghi`,
+              }}
+              locale={{ emptyText: 'Chưa có kiểm tra nào trong ca trực này.' }}
+            />
           </Card>
         )}
       </div>
