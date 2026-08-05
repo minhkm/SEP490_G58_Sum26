@@ -5,7 +5,10 @@
   "main": "index.js",
   "scripts": {
     "start": "node src/server.js",
-    "test": "echo \"Error: no test specified\" && exit 1",
+    "test": "jest --runInBand",
+    "test:unit": "jest --runInBand --config=jest.unit.config.cjs",
+    "test:watch": "jest --watch",
+    "test:coverage": "jest --coverage --runInBand",
     "dev": "nodemon src/server.js",
     "seed": "node src/seed.js"
   },
@@ -29,6 +32,8 @@
     "sequelize": "^6.37.8"
   },
   "devDependencies": {
-    "nodemon": "^3.1.14"
+    "jest": "^30.4.2",
+    "nodemon": "^3.1.14",
+    "supertest": "^7.2.2"
   }
 }

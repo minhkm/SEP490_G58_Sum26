@@ -2,7 +2,7 @@ const { Op } = require('sequelize');
 const { 
   Voyage, VoyageCrew, Ship, Engine, EngineParameter, 
   Shift, ShiftLog, EngineLog, EngineLogValue, 
-  CrewProfile, LogEditHistory, LogImage, Equipment, ShiftLogEquipment
+  CrewProfile, LogEditHistory, LogImage
 } = require('../models');
 const notificationService = require('../services/notificationService');
 
@@ -132,10 +132,21 @@ const getShiftsForCurrentUser = async (req, res) => {
 // ============================================================
 const createEngineLog = async (req, res) => {
   try {
-    const { shiftId, engineId, note, values, equipmentIds } = req.body;
+    const { shiftId, engineId, note, values } = req.body;
 
     if (!shiftId || !engineId) {
       return res.status(400).json({ message: 'Thiếu thông tin ca trực hoặc máy cần kiểm tra' });
+    }
+
+    const engine = await Engine.findByPk(engineId, { attributes: ['id', 'status'] });
+    if (!engine) {
+      return res.status(404).json({ message: 'Không tìm thấy máy cần kiểm tra' });
+    }
+    if (engine.status !== 'Operational') {
+      return res.status(400).json({ message: 'Chỉ máy đang hoạt động mới được ghi nhật ký' });
+    }
+    if (!Array.isArray(values) || values.length < 3) {
+      return res.status(400).json({ message: 'Vui lòng nhập ít nhất 3 thông số máy' });
     }
 
     // Bước 1: Tạo ShiftLog
@@ -161,15 +172,6 @@ const createEngineLog = async (req, res) => {
         value: v.value
       }));
       await EngineLogValue.bulkCreate(logValues);
-    }
-
-    // Bước 4: Tạo liên kết thiết bị sử dụng
-    if (equipmentIds && equipmentIds.length > 0) {
-      const mappings = equipmentIds.map(eqId => ({
-        shiftLogId: shiftLog.id,
-        equipmentId: Number(eqId)
-      }));
-      await ShiftLogEquipment.bulkCreate(mappings);
     }
 
     await safeNotifyExceededEngineValues({
@@ -198,7 +200,7 @@ const createEngineLog = async (req, res) => {
 const updateEngineLog = async (req, res) => {
   try {
     const { shiftLogId } = req.params;
-    const { note, values, editReason, equipmentIds } = req.body;
+    const { note, values, editReason } = req.body;
     const crewId = req.user?.profileId;
 
     if (!editReason || editReason.trim() === '') {
@@ -217,9 +219,11 @@ const updateEngineLog = async (req, res) => {
       return res.status(404).json({ message: 'Không tìm thấy nhật ký' });
     }
 
-    // Lấy danh sách thiết bị cũ để lưu lịch sử
-    const oldEquips = await ShiftLogEquipment.findAll({ where: { shiftLogId } });
-    const oldEquipIds = oldEquips.map(oe => oe.equipmentId);
+    const createdAt = new Date(shiftLog.createdAt).getTime();
+    const editWindowMs = 24 * 60 * 60 * 1000;
+    if (Number.isFinite(createdAt) && Date.now() - createdAt > editWindowMs) {
+      return res.status(403).json({ message: 'Nhật ký đã quá 24 giờ và không thể chỉnh sửa' });
+    }
 
     // Lưu snapshot bản cũ vào LogEditHistory
     await LogEditHistory.create({
@@ -228,7 +232,6 @@ const updateEngineLog = async (req, res) => {
       previousContent: JSON.stringify({
         note: shiftLog.EngineLog.note,
         content: shiftLog.content,
-        equipmentIds: oldEquipIds,
         values: shiftLog.EngineLog.EngineLogValues?.map(v => ({
           parameterId: v.parameterId,
           parameterName: v.EngineParameter?.name,
@@ -255,18 +258,6 @@ const updateEngineLog = async (req, res) => {
         value: v.value
       }));
       await EngineLogValue.bulkCreate(logValues);
-    }
-
-    // Cập nhật danh sách thiết bị
-    if (equipmentIds !== undefined) {
-      await ShiftLogEquipment.destroy({ where: { shiftLogId } });
-      if (equipmentIds && equipmentIds.length > 0) {
-        const mappings = equipmentIds.map(eqId => ({
-          shiftLogId: Number(shiftLogId),
-          equipmentId: Number(eqId)
-        }));
-        await ShiftLogEquipment.bulkCreate(mappings);
-      }
     }
 
     if (values && values.length > 0) {
@@ -308,7 +299,6 @@ const getEngineLogsByShift = async (req, res) => {
           ]
         },
         { model: LogImage, attributes: ['id', 'imageUrl', 'caption', 'createdAt'] },
-        { model: Equipment, attributes: ['id', 'equipmentName', 'equipmentType', 'location', 'status'], as: 'Equipments' },
         { model: LogEditHistory, attributes: ['id', 'editReason', 'editedAt', 'previousContent'],
           include: [{ model: CrewProfile, attributes: ['fullName'] }]
         }
