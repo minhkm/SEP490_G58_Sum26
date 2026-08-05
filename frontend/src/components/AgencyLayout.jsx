@@ -2,6 +2,7 @@ import { Layout } from 'antd';
 import { useLocation } from 'react-router-dom';
 import AgencySidebar from './AgencySidebar';
 import NotificationBell from './NotificationBell';
+import HelpButton from './HelpButton';
 import './AppTopbar.css';
 
 const { Content } = Layout;
@@ -19,6 +20,7 @@ export default function AgencyLayout({ children }) {
       <Content style={{ overflowY: isSharedPage ? 'hidden' : 'auto', overflowX: 'hidden', display: 'flex', flexDirection: 'column' }}>
         <div className="app-topbar">
           <NotificationBell />
+          <HelpButton />
           <div className="app-topbar-user">
             <div className="app-topbar-user-info">
               <span className="app-topbar-user-name">{displayName}</span>

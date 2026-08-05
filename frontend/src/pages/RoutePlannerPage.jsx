@@ -7,6 +7,7 @@ import L from 'leaflet';
 import { voyageService } from '../services/api';
 import MasterLayout from '../components/MasterLayout';
 import { isWaterArea } from '../utils/geoUtils';
+import { translateStatus } from '../components/common/StatusTag';
 
 import { SEAPORTS } from '../data/ports';
 
@@ -227,11 +228,7 @@ export default function RoutePlannerPage() {
 
   let isReadOnly = !selectedVoyage || 
                      ['Approved', 'Pending'].includes(selectedVoyage.routeStatus) || 
-                     ['Underway', 'Arrived', 'Completed', 'Discharge', 'Discharged', 'Homeward Bounding'].includes(selectedVoyage.status);
-
-  if (userRole === 'chiefofficer' && selectedVoyage && selectedVoyage.status !== 'Loaded') {
-    isReadOnly = true;
-  }
+                     selectedVoyage.status !== 'Loaded';
 
   if (userRole === 'master') {
     isReadOnly = true;
@@ -260,7 +257,7 @@ export default function RoutePlannerPage() {
               >
                 {voyages.map(v => (
                   <Select.Option key={v.id} value={v.id}>
-                    VY-{String(v.id).padStart(4, '0')} - {v.departurePort} đến {v.destinationPort} ({v.status})
+                    VY-{String(v.id).padStart(4, '0')} - {v.departurePort} đến {v.destinationPort} ({translateStatus(v.status || 'Planning')})
                     {v.routeStatus === 'Pending' && <Tag color="warning" style={{ marginLeft: 8 }}>Chờ duyệt</Tag>}
                     {v.routeStatus === 'Approved' && <Tag color="success" style={{ marginLeft: 8 }}>Đã duyệt</Tag>}
                     {(!v.routeStatus || v.routeStatus === 'Draft') && <Tag color="default" style={{ marginLeft: 8 }}>Nháp</Tag>}
@@ -290,10 +287,10 @@ export default function RoutePlannerPage() {
                 )}
                 {userRole === 'master' && selectedVoyage?.routeStatus === 'Pending' && (
                   <>
-                    <Button type="primary" icon={<CheckOutlined />} onClick={handleApprove} loading={saving} style={{ background: '#10b981', borderColor: '#10b981' }}>
+                    <Button type="primary" icon={<CheckOutlined />} onClick={handleApprove} loading={saving} style={{ background: '#10b981', borderColor: '#10b981' }} disabled={selectedVoyage?.status !== 'Loaded'}>
                       Phê duyệt
                     </Button>
-                    <Button danger icon={<CloseOutlined />} onClick={handleReject} loading={saving}>
+                    <Button danger icon={<CloseOutlined />} onClick={handleReject} loading={saving} disabled={selectedVoyage?.status !== 'Loaded'}>
                       Từ chối
                     </Button>
                   </>

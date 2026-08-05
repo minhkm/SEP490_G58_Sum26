@@ -27,15 +27,47 @@ export const getStatusColor = (status) => {
   return 'default'; // planning / planned / lên kế hoạch / không rõ
 };
 
+export const STATUS_TRANSLATIONS = {
+  'Planning': 'Lên kế hoạch',
+  'Loading': 'Đang làm hàng',
+  'Loaded': 'Đã làm hàng xong',
+  'Underway': 'Đang di chuyển',
+  'Arrived': 'Cập bến',
+  'Discharge': 'Dỡ hàng',
+  'Discharged': 'Đã dỡ hàng xong',
+  'Homeward Bounding': 'Đang quay về',
+  'Completed': 'Hoàn thành',
+  'At Anchor': 'Đang neo đậu',
+  'Anchored': 'Đang neo đậu',
+  'Cancelled': 'Đã hủy',
+  'Active': 'Hoạt động',
+  'OnVoyage': 'Đang trên hải trình',
+  'Available': 'Sẵn sàng',
+  'Operational': 'Hoạt động tốt',
+  'Standby': 'Đang chờ',
+  'Under Maintenance': 'Đang bảo trì',
+  'Pending': 'Chờ xử lý',
+  'Resolved': 'Đã xử lý',
+  'Closed': 'Đã đóng',
+  'Rejected': 'Từ chối'
+};
+
+export const translateStatus = (status) => {
+  if (!status) return status;
+  const key = Object.keys(STATUS_TRANSLATIONS).find(k => k.toLowerCase() === status.toLowerCase());
+  return key ? STATUS_TRANSLATIONS[key] : status;
+};
+
 /**
  * <StatusTag status={voyage.status} />
  * <StatusTag status={raw} text="Đang hoạt động" />   // hiển thị nhãn khác
  * <StatusTag status={raw} color="purple" />           // ghi đè màu
  */
 export default function StatusTag({ status, text, color, fallback = '--', ...rest }) {
+  const displayText = text ?? translateStatus(status) ?? fallback;
   return (
     <Tag color={color || getStatusColor(status)} {...rest}>
-      {text ?? status ?? fallback}
+      {displayText}
     </Tag>
   );
 }

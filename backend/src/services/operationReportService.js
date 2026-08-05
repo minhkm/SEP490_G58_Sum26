@@ -80,6 +80,11 @@ function resolvePeriod(periodType, date, voyage) {
     to = new Date(base.getFullYear(), base.getMonth() + 1, 0);
   }
 
+  const departureDate = parseDate(String(voyage.departureDate || "").slice(0, 10));
+  if (departureDate && to < departureDate) {
+    throw new Error("Không thể xuất báo cáo cho thời gian trước ngày khởi hành của chuyến đi.");
+  }
+
   return { periodType: type, fromDate: isoDate(from), toDate: isoDate(to), filterByDate: true };
 }
 

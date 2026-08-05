@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Layout, Typography, Card, Table, Space, Button, Tag, message } from 'antd';
-import { CompassOutlined, ArrowRightOutlined, LogoutOutlined } from '@ant-design/icons';
+import { CompassOutlined, ArrowRightOutlined, LogoutOutlined, UserOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import { voyageService } from '../services/api';
 import { PageHeader, StatusTag } from '../components/common';
@@ -114,7 +114,7 @@ export default function MyVoyagesPage() {
       ),
     },
     { title: 'Khởi hành', dataIndex: 'departureDate', render: (d) => formatDate(d) },
-    { title: 'Dự kiến đến', dataIndex: 'arrivalDate', render: (d) => formatDate(d) },
+    { title: 'Cập bến', dataIndex: 'arrivalDate', render: (d) => formatDate(d) },
     {
       title: 'Chức danh',
       dataIndex: 'userRoleInVoyage',
@@ -127,7 +127,7 @@ export default function MyVoyagesPage() {
     {
       title: 'Trạng thái',
       dataIndex: 'status',
-      render: (status) => <StatusTag status={status} text={status || 'Planning'} />,
+      render: (status) => <StatusTag status={status || 'Planning'} />,
     },
     {
       title: 'Thao tác',
@@ -148,6 +148,9 @@ export default function MyVoyagesPage() {
         </div>
         <div style={{ color: 'white', display: 'flex', gap: 16, alignItems: 'center' }}>
           <Text style={{ color: 'rgba(255, 255, 255, 0.85)' }}>Xin chào, {user.fullName || user.username || 'Crew'}</Text>
+          <Button type="primary" ghost icon={<UserOutlined />} onClick={() => navigate('/crew-profile')}>
+            Hồ sơ của tôi
+          </Button>
           <Button type="text" danger icon={<LogoutOutlined />} onClick={handleLogout}>
             Đăng xuất
           </Button>

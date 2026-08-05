@@ -46,6 +46,27 @@ router.put('/me', authMiddleware, async (req, res) => {
   }
 });
 
+// PUT /api/crews/me/password
+router.put('/me/password', authMiddleware, async (req, res) => {
+  try {
+    const { oldPassword, newPassword } = req.body;
+    const user = await User.findByPk(req.user.id);
+    
+    const isMatch = await bcrypt.compare(oldPassword, user.password);
+    if (!isMatch) {
+      return res.status(400).json({ message: 'Mật khẩu cũ không chính xác.' });
+    }
+    
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+    await user.update({ password: hashedPassword });
+    
+    res.json({ message: 'Đổi mật khẩu thành công.' });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Lỗi server.' });
+  }
+});
+
 // GET /api/crews/me/certificates
 router.get('/me/certificates', authMiddleware, async (req, res) => {
   try {
@@ -343,6 +364,23 @@ router.delete('/:id', async (req, res) => {
   try {
     const crew = await CrewProfile.findByPk(req.params.id);
     if (!crew) return res.status(404).json({ message: 'Không tìm thấy thủy thủ' });
+
+    // Check if crew is on an active voyage
+    const activeAssignment = await VoyageCrew.findOne({
+      where: { crewId: req.params.id },
+      include: [{
+        model: Voyage,
+        where: {
+          status: {
+            [Op.notIn]: ['Completed', 'Cancelled']
+          }
+        }
+      }]
+    });
+
+    if (activeAssignment) {
+      return res.status(400).json({ message: 'Không thể xóa thủy thủ đang tham gia hải trình đang hoạt động' });
+    }
 
     // Xóa User -> Sẽ tự động CASCADE xóa CrewProfile
     await User.destroy({ where: { id: crew.userId } });

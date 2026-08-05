@@ -350,7 +350,7 @@ export default function DeckLogPage() {
   if (!selectedVoyage) {
     return (
       <MasterLayout>
-        <div style={{ padding: '24px 32px' }}>
+        <div style={{ padding: 'clamp(12px, 4vw, 32px)' }}>
           <PageHeader icon={<FileTextOutlined style={{ color: '#2563eb' }} />} breadcrumb="Deck Log" title="Nhật ký Trực boong" />
           <Card><Empty description={<div><p>Không có hải trình nào.</p></div>} /></Card>
         </div>
@@ -427,12 +427,12 @@ export default function DeckLogPage() {
 
   return (
     <MasterLayout>
-      <div style={{ padding: '24px 32px' }}>
+      <div style={{ padding: 'clamp(12px, 4vw, 32px)' }}>
         <PageHeader icon={<FileTextOutlined style={{ color: '#2563eb' }} />} breadcrumb="Deck Log" title="Nhật ký Trực boong" />
 
         {/* Chọn Hải trình, Ngày, Ca trực */}
         <Card style={{ marginBottom: 16 }}>
-          <Space size={32} wrap align="start">
+          <Space size={16} wrap align="start" style={{ overflowX: 'auto', width: '100%' }}>
             <div style={{ minWidth: 280 }}>
               <div style={{ marginBottom: 6 }}><Text type="secondary"><CompassOutlined /> Chọn Hải trình</Text></div>
               <Select style={{ width: '100%' }} value={selectedVoyage?.id || undefined} onChange={handleVoyageChange}
@@ -554,7 +554,12 @@ export default function DeckLogPage() {
         {selectedShift && (
           <Card title={`📜 Lịch sử ghi chép — ${selectedDate.format('DD/MM/YYYY')}`}>
             <Table rowKey="id" columns={historyColumns} dataSource={history}
-              pagination={{ pageSize: 10, hideOnSinglePage: true }}
+              pagination={{
+              defaultPageSize: 10,
+              showSizeChanger: true,
+              pageSizeOptions: ['10', '20', '50'],
+              showTotal: (total, range) => `Hiển thị ${range[0]}-${range[1]} trong số ${total} bản ghi`,
+            }}
               scroll={{ x: 800 }}
               locale={{ emptyText: 'Chưa có ghi chép nào trong ca trực này.' }} />
           </Card>

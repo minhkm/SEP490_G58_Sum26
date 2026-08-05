@@ -1,7 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  QuestionCircleOutlined,
   SearchOutlined,
   ProfileOutlined,
   ThunderboltOutlined,
@@ -30,8 +29,10 @@ import { Spin } from 'antd';
 import './MasterDashboard.css';
 import MasterLayout from '../components/MasterLayout';
 import NotificationBell from '../components/NotificationBell';
+import HelpButton from '../components/HelpButton';
 import { notifyInfo, notifyError } from '../utils/feedback';
 import { dashboardService } from '../services/api';
+import { translateStatus } from '../components/common/StatusTag';
 
 const statusConfig = {
   Planning: { color: 'default', icon: <FileTextOutlined />, text: '#475569', bg: '#f1f5f9' },
@@ -115,7 +116,7 @@ export default function MasterDashboard() {
 
         <div className="header-actions">
           <NotificationBell />
-          <QuestionCircleOutlined className="action-icon" />
+          <HelpButton className="action-icon" />
 
           <div className="user-profile-wrapper" ref={dropdownRef}>
             <div className="user-profile" onClick={() => setShowDropdown(!showDropdown)}>
@@ -176,7 +177,7 @@ export default function MasterDashboard() {
                     fontWeight: 600, fontSize: '14px', border: `1px solid ${statusConfig[voyage.status]?.text || '#cbd5e1'}33`
                   }}>
                     {statusConfig[voyage.status]?.icon || <div className="status-dot" style={{ backgroundColor: '#94a3b8' }}></div>}
-                    <span style={{ textTransform: 'uppercase', letterSpacing: '0.5px' }}>{voyage.status}</span>
+                    <span style={{ textTransform: 'uppercase', letterSpacing: '0.5px' }}>{translateStatus(voyage.status)}</span>
                   </div>
                 ) : (
                   <div className="status-badge status-waiting">

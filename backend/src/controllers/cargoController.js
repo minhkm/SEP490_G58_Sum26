@@ -148,6 +148,10 @@ exports.createCargo = async (req, res) => {
   try {
     const { voyageId, cargoName, cargoType, totalWeight, totalVolume, status } = req.body;
 
+    if (totalWeight <= 0 || totalVolume <= 0) {
+      return res.status(400).json({ success: false, message: "Khối lượng và thể tích phải lớn hơn 0" });
+    }
+
     const newCargo = await Cargo.create({
       voyageId: voyageId || null,
       cargoName,
@@ -182,6 +186,13 @@ exports.updateCargo = async (req, res) => {
     const cargo = await Cargo.findByPk(cargoId);
     if (!cargo) {
       return res.status(404).json({ success: false, message: "Không tìm thấy lô hàng" });
+    }
+
+    if (totalWeight !== undefined && totalWeight <= 0) {
+      return res.status(400).json({ success: false, message: "Khối lượng phải lớn hơn 0" });
+    }
+    if (totalVolume !== undefined && totalVolume <= 0) {
+      return res.status(400).json({ success: false, message: "Thể tích phải lớn hơn 0" });
     }
 
     // Lô hàng đã thuộc hải trình thì bị khoá — không cho chỉnh sửa

@@ -173,7 +173,12 @@ export default function CargoTypePage() {
             columns={columns}
             dataSource={cargoTypes}
             loading={loading}
-            pagination={{ pageSize: 10, hideOnSinglePage: true }}
+            pagination={{
+              defaultPageSize: 10,
+              showSizeChanger: true,
+              pageSizeOptions: ['10', '20', '50'],
+              showTotal: (total, range) => `Hiển thị ${range[0]}-${range[1]} trong số ${total} loại hàng hóa`,
+            }}
             locale={{ emptyText: `Chưa có loại hàng nào.${canEdit ? ' Hãy thêm loại hàng mới ở trên.' : ''}` }}
           />
         </Card>

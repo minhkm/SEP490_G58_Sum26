@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
-import { Card, Button, Input, DatePicker, Form, Space, Typography, Spin, Empty, Row, Col } from 'antd';
+import { useNavigate } from 'react-router-dom';
+import { Card, Button, Input, DatePicker, Form, Space, Typography, Spin, Empty, Row, Col, Layout } from 'antd';
 import {
   UserOutlined,
   SafetyCertificateOutlined,
@@ -12,13 +13,15 @@ import {
   ExclamationCircleOutlined,
   ClockCircleOutlined,
   LinkOutlined,
+  ArrowLeftOutlined,
+  KeyOutlined,
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
-import MasterLayout from '../components/MasterLayout';
 import { profileService } from '../services/api';
 import { PageHeader, StatusTag, notifySuccess, notifyError, confirmDelete } from '../components/common';
 
 const { Text } = Typography;
+const { Header, Content } = Layout;
 
 const STATUS_CONFIG = {
   Valid: { color: 'green', icon: <CheckCircleOutlined />, label: 'Còn hiệu lực' },
@@ -39,6 +42,7 @@ const toDate = (val) => (val ? dayjs(val) : null);
 const fromDate = (d) => (d ? d.format('YYYY-MM-DD') : '');
 
 export default function CrewProfilePage() {
+  const navigate = useNavigate();
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState(false);
@@ -69,20 +73,25 @@ export default function CrewProfilePage() {
   }, []);
 
   const startEditProfile = () => {
-    profileForm.setFieldsValue({ fullName: profile?.fullName || '', phone: profile?.phone || '' });
+    profileForm.resetFields();
     setEditing(true);
   };
 
   const handleSaveProfile = async (values) => {
+    if (values.newPassword !== values.confirmPassword) {
+      notifyError('Mật khẩu xác nhận không khớp.');
+      return;
+    }
     setSaving(true);
     try {
-      await profileService.updateMe(values);
-      const updated = await profileService.getMe();
-      setProfile(updated);
+      await profileService.changePassword({
+        oldPassword: values.oldPassword,
+        newPassword: values.newPassword
+      });
       setEditing(false);
-      notifySuccess('Cập nhật hồ sơ thành công.');
+      notifySuccess('Đổi mật khẩu thành công.');
     } catch (err) {
-      notifyError(err.response?.data?.message || 'Lỗi khi lưu.');
+      notifyError(err.response?.data?.message || 'Lỗi khi đổi mật khẩu.');
     } finally {
       setSaving(false);
     }
@@ -164,11 +173,16 @@ export default function CrewProfilePage() {
 
   if (loading) {
     return (
-      <MasterLayout>
-        <div style={{ display: 'flex', justifyContent: 'center', padding: 60 }}>
+      <Layout style={{ minHeight: '100vh', background: '#f4f7fb' }}>
+        <Header style={{ background: '#001529', padding: '0 32px', display: 'flex', alignItems: 'center' }}>
+          <div style={{ color: 'white', fontSize: '20px', fontWeight: 'bold' }}>
+            <span style={{ fontSize: 24, marginRight: 12 }}>🚢</span> CargoOps
+          </div>
+        </Header>
+        <Content style={{ display: 'flex', justifyContent: 'center', padding: 60 }}>
           <Spin tip="Đang tải..." />
-        </div>
-      </MasterLayout>
+        </Content>
+      </Layout>
     );
   }
 
@@ -191,8 +205,21 @@ export default function CrewProfilePage() {
   ];
 
   return (
-    <MasterLayout>
-      <div style={{ padding: '24px 32px', maxWidth: 960, margin: '0 auto' }}>
+    <Layout style={{ minHeight: '100vh', background: '#f4f7fb' }}>
+      <Header style={{ background: '#001529', display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0 32px' }}>
+        <div style={{ color: 'white', fontSize: '20px', fontWeight: 'bold', display: 'flex', alignItems: 'center' }}>
+          <span style={{ fontSize: 24, marginRight: 12 }}>🚢</span> CargoOps
+        </div>
+        <Button 
+          type="primary" 
+          ghost 
+          icon={<ArrowLeftOutlined />} 
+          onClick={() => navigate(-1)}
+        >
+          Quay lại
+        </Button>
+      </Header>
+      <Content style={{ padding: '24px 32px', maxWidth: 960, margin: '0 auto', width: '100%' }}>
         <PageHeader
           title={
             <>
@@ -215,8 +242,8 @@ export default function CrewProfilePage() {
           }
           extra={
             !editing ? (
-              <Button icon={<EditOutlined />} onClick={startEditProfile}>
-                Chỉnh sửa
+              <Button icon={<KeyOutlined />} onClick={startEditProfile}>
+                Đổi mật khẩu
               </Button>
             ) : (
               <Button
@@ -246,22 +273,19 @@ export default function CrewProfilePage() {
             <Form form={profileForm} layout="vertical" onFinish={handleSaveProfile}>
               <Row gutter={24}>
                 <Col xs={24} sm={12}>
-                  <Form.Item
-                    label="Họ và tên"
-                    name="fullName"
-                    rules={[{ required: true, message: 'Vui lòng nhập họ và tên.' }]}
-                  >
-                    <Input />
+                  <Form.Item label="Mật khẩu cũ" name="oldPassword" rules={[{ required: true, message: 'Vui lòng nhập mật khẩu cũ' }]}>
+                    <Input.Password />
+                  </Form.Item>
+                </Col>
+                <Col xs={24} sm={12}></Col>
+                <Col xs={24} sm={12}>
+                  <Form.Item label="Mật khẩu mới" name="newPassword" rules={[{ required: true, message: 'Vui lòng nhập mật khẩu mới', min: 6 }]}>
+                    <Input.Password />
                   </Form.Item>
                 </Col>
                 <Col xs={24} sm={12}>
-                  <Form.Item label="Số điện thoại" name="phone">
-                    <Input />
-                  </Form.Item>
-                </Col>
-                <Col span={24}>
-                  <Form.Item label="Email — không thể thay đổi">
-                    <Input value={profile?.User?.username || ''} disabled />
+                  <Form.Item label="Xác nhận mật khẩu mới" name="confirmPassword" rules={[{ required: true, message: 'Vui lòng xác nhận mật khẩu' }]}>
+                    <Input.Password />
                   </Form.Item>
                 </Col>
               </Row>
@@ -273,6 +297,7 @@ export default function CrewProfilePage() {
         </Card>
 
         {/* CERTIFICATES */}
+        {!editing && (
         <Card
           title={
             <Space>
@@ -306,7 +331,7 @@ export default function CrewProfilePage() {
                       name="issueDate"
                       rules={[{ required: true, message: 'Vui lòng điền đầy đủ thông tin.' }]}
                     >
-                      <DatePicker style={{ width: '100%' }} format="YYYY-MM-DD" />
+                      <DatePicker style={{ width: '100%' }} format="YYYY-MM-DD" disabledDate={(current) => current && current > dayjs().endOf('day')} />
                     </Form.Item>
                   </Col>
                   <Col xs={12} md={6}>
@@ -315,7 +340,7 @@ export default function CrewProfilePage() {
                       name="expiryDate"
                       rules={[{ required: true, message: 'Vui lòng điền đầy đủ thông tin.' }]}
                     >
-                      <DatePicker style={{ width: '100%' }} format="YYYY-MM-DD" />
+                      <DatePicker style={{ width: '100%' }} format="YYYY-MM-DD" disabledDate={(current) => current && current < dayjs().startOf('day')} />
                     </Form.Item>
                   </Col>
                   <Col span={24}>
@@ -429,7 +454,7 @@ export default function CrewProfilePage() {
                                 { required: true, message: 'Vui lòng điền đầy đủ thông tin bắt buộc.' },
                               ]}
                             >
-                              <DatePicker style={{ width: '100%' }} format="YYYY-MM-DD" />
+                              <DatePicker style={{ width: '100%' }} format="YYYY-MM-DD" disabledDate={(current) => current && current > dayjs().endOf('day')} />
                             </Form.Item>
                           </Col>
                           <Col xs={12} md={6}>
@@ -440,7 +465,7 @@ export default function CrewProfilePage() {
                                 { required: true, message: 'Vui lòng điền đầy đủ thông tin bắt buộc.' },
                               ]}
                             >
-                              <DatePicker style={{ width: '100%' }} format="YYYY-MM-DD" />
+                              <DatePicker style={{ width: '100%' }} format="YYYY-MM-DD" disabledDate={(current) => current && current < dayjs().startOf('day')} />
                             </Form.Item>
                           </Col>
                           <Col span={24}>
@@ -475,7 +500,8 @@ export default function CrewProfilePage() {
             })
           )}
         </Card>
-      </div>
-    </MasterLayout>
+        )}
+      </Content>
+    </Layout>
   );
 }

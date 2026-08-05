@@ -1,0 +1,551 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>CargoOps — Hướng dẫn sử dụng</title>
+<style>
+  :root{
+    --navy:#0b1a2c; --navy2:#13233b; --primary:#1677ff; --primary-weak:#e6f0ff;
+    --ink:#0f172a; --muted:#64748b; --line:#e2e8f0; --bg:#f4f7fb; --card:#ffffff;
+    --ok:#16a34a; --warn:#d97706; --danger:#dc2626; --radius:12px;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,"Noto Sans",sans-serif;
+    color:var(--ink);background:var(--bg);line-height:1.6;font-size:15px}
+  a{color:var(--primary);text-decoration:none}
+  a:hover{text-decoration:underline}
+
+  /* ===== Top bar ===== */
+  .topbar{position:sticky;top:0;z-index:50;background:var(--navy);color:#fff;display:flex;align-items:center;gap:12px;
+    padding:14px 24px;box-shadow:0 2px 10px rgba(2,6,23,.25)}
+  .topbar .logo{width:34px;height:34px;border-radius:8px;background:linear-gradient(135deg,#1677ff,#0b5cff);
+    display:flex;align-items:center;justify-content:center;font-size:18px}
+  .topbar .brand{font-weight:800;font-size:18px;letter-spacing:.2px}
+  .topbar .brand small{display:block;font-weight:500;font-size:11px;color:#9fb3c8;letter-spacing:.5px}
+  .topbar .spacer{flex:1}
+  .topbar .tag{background:#ffffff1a;border:1px solid #ffffff26;padding:6px 12px;border-radius:999px;font-size:12px;color:#dbe7f3}
+
+  /* ===== Layout ===== */
+  .wrap{display:grid;grid-template-columns:280px 1fr;gap:0;max-width:1280px;margin:0 auto}
+  nav.toc{position:sticky;top:64px;align-self:start;height:calc(100vh - 64px);overflow-y:auto;
+    padding:20px 14px 40px;border-right:1px solid var(--line);background:#fff}
+  nav.toc h4{margin:14px 8px 6px;font-size:11px;text-transform:uppercase;letter-spacing:.8px;color:var(--muted)}
+  nav.toc a{display:block;padding:7px 10px;border-radius:8px;color:#334155;font-size:13.5px;font-weight:500}
+  nav.toc a:hover{background:var(--primary-weak);text-decoration:none}
+  nav.toc a.active{background:var(--primary);color:#fff}
+
+  main{padding:28px 40px 80px;min-width:0}
+  .hero{background:linear-gradient(135deg,var(--navy),var(--navy2));color:#fff;border-radius:16px;padding:28px 30px;margin-bottom:26px}
+  .hero h1{margin:0 0 8px;font-size:26px}
+  .hero p{margin:0;color:#c7d6e6;max-width:70ch}
+
+  section{scroll-margin-top:80px;margin-bottom:34px}
+  section > h2{font-size:21px;margin:6px 0 4px;padding-bottom:10px;border-bottom:2px solid var(--line);display:flex;align-items:center;gap:10px}
+  section > h2 .num{background:var(--primary);color:#fff;font-size:13px;font-weight:700;width:26px;height:26px;border-radius:7px;
+    display:inline-flex;align-items:center;justify-content:center;flex:0 0 auto}
+  h3{font-size:17px;margin:22px 0 8px;color:var(--navy)}
+  h4.task{font-size:15px;margin:16px 0 6px;color:var(--ink)}
+
+  .card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:18px 20px;margin:12px 0}
+  .role-badges{display:flex;flex-wrap:wrap;gap:6px;margin:4px 0 6px}
+  .badge{font-size:12px;font-weight:600;padding:3px 10px;border-radius:999px;background:var(--primary-weak);color:#0b5cff;border:1px solid #cfe0ff}
+  .badge.gray{background:#f1f5f9;color:#475569;border-color:#e2e8f0}
+
+  ol.steps{counter-reset:step;list-style:none;padding-left:0;margin:8px 0}
+  ol.steps>li{counter-increment:step;position:relative;padding:6px 0 6px 40px;margin:2px 0}
+  ol.steps>li::before{content:counter(step);position:absolute;left:0;top:5px;width:26px;height:26px;border-radius:50%;
+    background:var(--navy);color:#fff;font-size:13px;font-weight:700;display:flex;align-items:center;justify-content:center}
+  ul.plain{margin:6px 0;padding-left:20px}
+  ul.plain li{margin:3px 0}
+
+  code,.k{background:#eef2f7;border:1px solid #e2e8f0;border-radius:6px;padding:1px 6px;font-size:13px;
+    font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;color:#0b3a82}
+
+  table{width:100%;border-collapse:collapse;margin:10px 0;font-size:14px;background:#fff;border-radius:10px;overflow:hidden}
+  th,td{text-align:left;padding:10px 12px;border-bottom:1px solid var(--line);vertical-align:top}
+  th{background:#f8fafc;font-size:12.5px;text-transform:uppercase;letter-spacing:.4px;color:#475569}
+  tr:last-child td{border-bottom:none}
+  .err{color:#b91c1c;font-weight:600}
+
+  .note{border-left:4px solid var(--primary);background:var(--primary-weak);padding:12px 16px;border-radius:8px;margin:12px 0}
+  .warnbox{border-left:4px solid var(--warn);background:#fffbeb;padding:12px 16px;border-radius:8px;margin:12px 0}
+  .flow{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin:10px 0}
+  .flow .st{background:#fff;border:1px solid var(--line);border-radius:8px;padding:6px 12px;font-size:13px;font-weight:600}
+  .flow .arrow{color:var(--muted);font-weight:700}
+  .pill{display:inline-block;font-size:12px;font-weight:700;padding:2px 9px;border-radius:6px}
+  .pill.ok{background:#dcfce7;color:#166534}.pill.warn{background:#fef3c7;color:#92400e}.pill.dng{background:#fee2e2;color:#991b1b}
+
+  footer{border-top:1px solid var(--line);padding:22px 40px;color:var(--muted);font-size:13px;text-align:center}
+  .backtop{position:fixed;right:22px;bottom:22px;background:var(--navy);color:#fff;border:none;border-radius:50%;width:46px;height:46px;
+    font-size:20px;cursor:pointer;box-shadow:0 6px 18px rgba(2,6,23,.35);display:none}
+  .menu-btn{display:none}
+
+  @media(max-width:900px){
+    .wrap{grid-template-columns:1fr}
+    nav.toc{position:fixed;left:0;top:60px;bottom:0;width:82%;max-width:320px;transform:translateX(-105%);transition:.25s;z-index:60;box-shadow:6px 0 24px rgba(2,6,23,.2)}
+    nav.toc.open{transform:none}
+    main{padding:20px 18px 70px}
+    .menu-btn{display:inline-flex;background:#ffffff1a;border:1px solid #ffffff26;color:#fff;border-radius:8px;padding:6px 10px;cursor:pointer;font-size:14px}
+  }
+  @media print{.topbar,nav.toc,.backtop{display:none}.wrap{grid-template-columns:1fr}main{padding:0}}
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <button class="menu-btn" id="menuBtn" aria-label="Mở mục lục">☰</button>
+  <div class="logo">🚢</div>
+  <div class="brand">CargoOps <small>MARITIME LOGISTICS</small></div>
+  <div class="spacer"></div>
+  <span class="tag">Hướng dẫn sử dụng</span>
+</header>
+
+<div class="wrap">
+  <nav class="toc" id="toc">
+    <h4>Bắt đầu</h4>
+    <a href="#gioi-thieu">Giới thiệu</a>
+    <a href="#dang-nhap">0. Đăng nhập</a>
+    <h4>Theo vai trò</h4>
+    <a href="#admin">A. Quản trị viên / Đại lý</a>
+    <a href="#chihuy">B. Thuyền trưởng / Đại phó</a>
+    <a href="#thuyenvien">C. Sĩ quan & Thuyền viên</a>
+    <h4>Quy trình chung</h4>
+    <a href="#baocao">D. Báo cáo sự vụ</a>
+    <a href="#thongbao">E. Thông báo (chuông)</a>
+    <a href="#luuy">Phụ lục — Lưu ý vận hành</a>
+  </nav>
+
+  <main>
+    <div class="hero">
+      <h1>Hướng dẫn sử dụng hệ thống CargoOps</h1>
+      <p>Tài liệu hướng dẫn thao tác theo từng vai trò trên hệ thống quản lý vận hành tàu vận tải biển CargoOps. Mỗi tác vụ được trình bày theo các bước, kèm bảng thông báo lỗi thường gặp và cách khắc phục.</p>
+    </div>
+
+    <!-- ===== GIỚI THIỆU ===== -->
+    <section id="gioi-thieu">
+      <h2><span class="num">i</span> Giới thiệu &amp; Vai trò</h2>
+      <p>CargoOps phân quyền theo <strong>8 vai trò</strong>. Sau khi đăng nhập, hệ thống tự đưa bạn tới bảng điều khiển phù hợp.</p>
+      <table>
+        <thead><tr><th>Vai trò</th><th>Nhãn</th><th>Bảng điều khiển</th><th>Phạm vi chính</th></tr></thead>
+        <tbody>
+          <tr><td><span class="badge gray">Admin</span></td><td>Quản trị viên</td><td>/agency-dashboard</td><td>Toàn quyền dữ liệu nền: tàu, thuyền viên, hàng hóa, loại hàng, cài đặt</td></tr>
+          <tr><td><span class="badge gray">Agency</span></td><td>Đại lý</td><td>/agency-dashboard</td><td>Quản lý đội tàu, thuyền viên, hàng hóa, khởi tạo hải trình</td></tr>
+          <tr><td><span class="badge">Master</span></td><td>Thuyền trưởng</td><td>/master-dashboard</td><td>Chỉ huy hải trình, điểm danh, duyệt lộ trình/xả thải, tiếp nhận báo cáo</td></tr>
+          <tr><td><span class="badge">ChiefOfficer</span></td><td>Đại phó</td><td>/master-dashboard</td><td>Hàng hóa, lộ trình, chốt báo cáo vận hành, tạo yêu cầu xả thải</td></tr>
+          <tr><td><span class="badge">DeckOfficer</span></td><td>Sĩ quan boong</td><td>/crew-dashboard</td><td>Xếp ca trực boong</td></tr>
+          <tr><td><span class="badge">Sailor</span></td><td>Thủy thủ</td><td>/crew-dashboard</td><td>Ghi nhật ký trực boong, trực ca</td></tr>
+          <tr><td><span class="badge">EngineOfficer</span></td><td>Sĩ quan máy</td><td>/crew-dashboard</td><td>Xếp ca trực máy, quản lý máy &amp; thiết bị</td></tr>
+          <tr><td><span class="badge">EngineCrew</span></td><td>Thợ máy</td><td>/crew-dashboard</td><td>Ghi nhật ký trực máy, trực ca</td></tr>
+        </tbody>
+      </table>
+      <div class="note"><strong>Vai trò theo hải trình:</strong> Thuyền viên trên tàu cần vào <strong>“Chuyến đi của tôi”</strong> để chọn/“kích hoạt” hải trình trước khi thao tác. Nếu chưa chọn, hệ thống sẽ điều hướng về trang này.</div>
+    </section>
+
+    <!-- ===== 0. ĐĂNG NHẬP ===== -->
+    <section id="dang-nhap">
+      <h2><span class="num">0</span> Đăng nhập (mọi vai trò)</h2>
+      <div class="card">
+        <ol class="steps">
+          <li>Mở hệ thống, chọn <strong>Đăng nhập</strong>.</li>
+          <li>Nhập <strong>Email</strong> (chính là tên đăng nhập) và <strong>Mật khẩu</strong>.</li>
+          <li>Nhấn <strong>Đăng nhập</strong>.</li>
+          <li>Nếu là lần đầu, hệ thống yêu cầu <strong>đổi mật khẩu</strong> → nhập mật khẩu mới → xác nhận.</li>
+          <li>Hệ thống tự đưa bạn tới bảng điều khiển theo vai trò.</li>
+        </ol>
+      </div>
+      <h4 class="task">Lỗi thường gặp</h4>
+      <table>
+        <thead><tr><th>Thông báo</th><th>Nguyên nhân</th><th>Cách khắc phục</th></tr></thead>
+        <tbody>
+          <tr><td class="err">Tài khoản không tồn tại.</td><td>Sai email đăng nhập</td><td>Kiểm tra lại email</td></tr>
+          <tr><td class="err">Sai mật khẩu.</td><td>Nhập sai mật khẩu</td><td>Nhập lại; nếu quên, nhờ Quản trị viên tạo lại</td></tr>
+          <tr><td class="err">Tài khoản này không yêu cầu đổi mật khẩu.</td><td>Bấm đổi mật khẩu lần đầu nhưng đã đổi rồi</td><td>Đăng nhập bình thường</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <!-- ===== A. ADMIN / AGENCY ===== -->
+    <section id="admin">
+      <h2><span class="num">A</span> Quản trị viên (Admin) &amp; Đại lý (Agency)</h2>
+      <div class="role-badges"><span class="badge gray">Admin</span><span class="badge gray">Agency</span></div>
+      <p>Đăng nhập vào <strong>Bảng điều khiển Đại lý</strong> — xem tổng số tàu, thuyền viên, hải trình đang chạy.</p>
+
+      <h3>A1. Quản lý Tàu</h3>
+      <div class="card">
+        <h4 class="task">Thêm tàu</h4>
+        <ol class="steps">
+          <li>Vào menu <strong>Quản lý tàu</strong> → <strong>Thêm tàu</strong>.</li>
+          <li>Nhập thông tin cơ bản (tên, số IMO, cờ), dung tích (tải trọng/thể tích, số thuyền viên tối thiểu/tối đa), máy chính, máy phát, hầm hàng.</li>
+          <li>Nhấn <strong>Lưu</strong> → <em>“Tạo tàu thành công”</em>.</li>
+        </ol>
+        <h4 class="task">Sửa / Xóa &amp; Thiết bị</h4>
+        <ul class="plain">
+          <li>Mở tàu → <strong>Sửa</strong> (đồng bộ toàn bộ) hoặc <strong>Xóa</strong>.</li>
+          <li>Thêm thiết bị: mỗi dòng cần <strong>tên</strong> và <strong>số lượng ≥ 1</strong>.</li>
+        </ul>
+      </div>
+      <table>
+        <thead><tr><th>Thông báo</th><th>Cách khắc phục</th></tr></thead>
+        <tbody>
+          <tr><td class="err">Danh sách thiết bị không được để trống</td><td>Thêm ít nhất một thiết bị</td></tr>
+          <tr><td class="err">Tên thiết bị và số lượng là bắt buộc</td><td>Nhập đủ tên &amp; số lượng ≥ 1</td></tr>
+        </tbody>
+      </table>
+
+      <h3>A2. Quản lý Thuyền viên</h3>
+      <div class="card">
+        <ol class="steps">
+          <li>Vào <strong>Quản lý thuyền viên</strong> → <strong>Thêm</strong>.</li>
+          <li>Nhập họ tên, <strong>email</strong> (dùng làm tài khoản), SĐT, CCCD, bộ phận (Boong/Máy), chức danh, <strong>vai trò</strong>.</li>
+          <li>Nhấn <strong>Lưu</strong> → hệ thống tạo tài khoản và <strong>gửi email mật khẩu tạm</strong> → <em>“Thêm thủy thủ thành công”</em>.</li>
+        </ol>
+        <p style="margin:6px 0 0;color:var(--muted)">Sửa/Xóa: mở hồ sơ để đổi thông tin/vai trò/mật khẩu hoặc xóa (xóa tài khoản kèm hồ sơ).</p>
+      </div>
+      <table>
+        <thead><tr><th>Thông báo</th><th>Cách khắc phục</th></tr></thead>
+        <tbody>
+          <tr><td class="err">Email này đã được sử dụng cho một tài khoản khác!</td><td>Dùng email khác</td></tr>
+          <tr><td class="err">CCCD này đã tồn tại trong hệ thống!</td><td>Kiểm tra trùng CCCD</td></tr>
+          <tr><td class="err">Số điện thoại này đã tồn tại trong hệ thống!</td><td>Dùng SĐT khác</td></tr>
+        </tbody>
+      </table>
+
+      <h3>A3. Quản lý Hàng hóa &amp; Loại hàng</h3>
+      <div class="card">
+        <h4 class="task">Thêm lô hàng</h4>
+        <ol class="steps">
+          <li>Vào <strong>Hàng hóa</strong> → <strong>Thêm lô hàng</strong>.</li>
+          <li>Nhập tên lô, loại hàng, tổng khối lượng, thể tích → <strong>Lưu</strong> (hệ thống tự tạo 1 kiện đại diện).</li>
+        </ol>
+        <div class="warnbox"><strong>Lưu ý khóa dữ liệu:</strong> Lô hàng chỉ sửa/xóa được khi <strong>chưa gán hải trình</strong>. Khi đã gắn vào chuyến đi, hệ thống báo <span class="err">“Lô hàng đã thuộc hải trình nên không thể chỉnh sửa./…xoá.”</span></div>
+        <p style="margin:0"><strong>Loại hàng</strong> (<span class="badge gray">chỉ Admin</span>): tên bắt buộc, không được trùng — <span class="err">“Vui lòng nhập tên loại hàng”</span> / <span class="err">“Loại hàng này đã tồn tại”</span>.</p>
+      </div>
+
+      <h3>A4. Khởi tạo Hải trình</h3>
+      <div class="card">
+        <ol class="steps">
+          <li>Vào <strong>Hải trình</strong> → <strong>Tạo hải trình</strong>.</li>
+          <li>Chọn <strong>tàu</strong>, nhập cảng đi/đến, ngày đi/đến.</li>
+          <li>Chọn <strong>hàng hóa</strong> (chỉ hàng chưa thuộc hải trình khác), <strong>thuyền viên</strong> (chỉ người rảnh), thiết bị y tế.</li>
+          <li>Nhấn <strong>Khởi tạo</strong> → <em>“Khởi tạo hải trình thành công”</em> (trạng thái <span class="pill warn">Planning</span>).</li>
+        </ol>
+      </div>
+      <table>
+        <thead><tr><th>Thông báo</th><th>Ý nghĩa &amp; cách khắc phục</th></tr></thead>
+        <tbody>
+          <tr><td class="err">Tàu này đang thực hiện một hải trình khác chưa hoàn thành.</td><td>Chọn tàu khác hoặc hoàn tất hải trình cũ</td></tr>
+          <tr><td class="err">Vượt quá tải trọng / thể tích tàu…</td><td>Bớt hàng cho dưới dung tích tàu</td></tr>
+          <tr><td class="err">Các thủy thủ sau đang tham gia hải trình khác:…</td><td>Bỏ chọn người đang bận</td></tr>
+          <tr><td class="err">…đang trong trạng thái tạm nghỉ/không hoạt động:…</td><td>Bỏ chọn người không rảnh</td></tr>
+        </tbody>
+      </table>
+      <div class="warnbox"><strong>Phân quyền:</strong> Sau khi tàu bắt đầu làm hàng, Admin <strong>không</strong> đổi được trạng thái nữa và chỉ được chuyển về <span class="k">Planning</span>/<span class="k">Cancelled</span>.</div>
+    </section>
+
+    <!-- ===== B. MASTER / CHIEF OFFICER ===== -->
+    <section id="chihuy">
+      <h2><span class="num">B</span> Thuyền trưởng (Master) &amp; Đại phó (ChiefOfficer)</h2>
+      <div class="role-badges"><span class="badge">Master</span><span class="badge">ChiefOfficer</span></div>
+      <p>Vào <strong>Bảng điều khiển Chỉ huy</strong>. Nếu thuộc nhiều tàu, chọn hải trình ở <strong>“Chuyến đi của tôi”</strong> trước.</p>
+
+      <h3>B1. Điều hành trạng thái hải trình</h3>
+      <div class="flow">
+        <span class="st">Planning</span><span class="arrow">→</span>
+        <span class="st">Loading/Loaded</span><span class="arrow">→</span>
+        <span class="st">Underway</span><span class="arrow">→</span>
+        <span class="st">Arrived/Discharge</span><span class="arrow">→</span>
+        <span class="st">Discharged</span><span class="arrow">→</span>
+        <span class="st">Homeward Bounding</span><span class="arrow">→</span>
+        <span class="st">Completed</span>
+      </div>
+      <p>Hệ thống chặn chuyển trạng thái nếu chưa đủ điều kiện:</p>
+      <table>
+        <thead><tr><th>Muốn chuyển sang</th><th>Cần làm trước</th><th>Lỗi nếu thiếu</th></tr></thead>
+        <tbody>
+          <tr><td><strong>Underway</strong> (đang chạy)</td><td>Điểm danh đủ + Lộ trình đã duyệt + Hàng xếp xong</td><td class="err">…chưa điểm danh hoặc nhân sự chưa đủ… / Lộ trình chưa được phê duyệt… / Chưa bốc xếp hàng hóa xong…</td></tr>
+          <tr><td><strong>Discharged</strong> (dỡ xong)</td><td>Mọi kiện đã dỡ</td><td class="err">Chưa dỡ hết hàng hóa…</td></tr>
+          <tr><td><strong>Homeward Bounding</strong> (quay về)</td><td>Điểm danh “kết thúc chuyến đi” đủ</td><td class="err">Chưa hoàn thành điểm danh 'Kết thúc chuyến đi'…</td></tr>
+          <tr><td><strong>Cancelled</strong> (hủy)</td><td>Chỉ hủy khi còn Planning</td><td class="err">Không thể hủy hải trình khi đã bắt đầu làm hàng hoặc di chuyển!</td></tr>
+        </tbody>
+      </table>
+
+      <h3>B2. Điểm danh</h3>
+      <div class="card">
+        <ol class="steps">
+          <li>Mở hải trình → <strong>Điểm danh</strong>.</li>
+          <li>Chọn loại: <strong>Trước khởi hành</strong> / <strong>Hằng ngày</strong> (chọn ngày) / <strong>Kết thúc chuyến</strong>.</li>
+          <li>Đánh dấu Có mặt/Vắng cho từng người → <strong>Lưu</strong> → <em>“Lưu điểm danh thành công”</em>.</li>
+        </ol>
+        <p style="margin:6px 0 0;color:var(--muted)">Điểm danh “Trước khởi hành” đủ mặt sẽ bật cờ <strong>đủ nhân sự</strong> — điều kiện để chuyển Underway.</p>
+      </div>
+      <table>
+        <thead><tr><th>Thông báo</th><th>Cách khắc phục</th></tr></thead>
+        <tbody>
+          <tr><td class="err">Điểm danh hằng ngày cần date theo định dạng YYYY-MM-DD</td><td>Chọn ngày điểm danh</td></tr>
+          <tr><td class="err">Thuyền viên #X không thuộc hải trình này</td><td>Chỉ điểm danh người trong hải trình</td></tr>
+          <tr><td class="err">Bạn không có quyền thực hiện điểm danh</td><td>Chỉ Admin/Thuyền trưởng/Đại phó/Sĩ quan boong</td></tr>
+        </tbody>
+      </table>
+
+      <h3>B3. Lộ trình (Route Planner)</h3>
+      <div class="card">
+        <h4 class="task">Đại phó — soạn &amp; gửi duyệt</h4>
+        <ol class="steps">
+          <li>Khi tàu ở trạng thái <strong>Loaded</strong>, mở <strong>Lộ trình</strong> → vẽ các waypoint.</li>
+          <li>Nhấn <strong>Gửi duyệt</strong> → hệ thống email Thuyền trưởng (trạng thái lộ trình → <span class="pill warn">Pending</span>).</li>
+        </ol>
+        <h4 class="task">Thuyền trưởng — phê duyệt</h4>
+        <p style="margin:0">Mở lộ trình chờ duyệt → <strong>Phê duyệt</strong> (→ <span class="pill ok">Approved</span>). Đây là điều kiện bắt buộc để chạy tàu.</p>
+      </div>
+      <table>
+        <thead><tr><th>Thông báo</th><th>Cách khắc phục</th></tr></thead>
+        <tbody>
+          <tr><td class="err">Đại phó chỉ được chỉnh sửa/gửi duyệt lộ trình khi trạng thái tàu là Loaded!</td><td>Chờ tàu đạt trạng thái Loaded</td></tr>
+          <tr><td class="err">Lộ trình đã được gửi duyệt hoặc phê duyệt, không thể chỉnh sửa!</td><td>Chỉ sửa khi lộ trình còn nháp</td></tr>
+        </tbody>
+      </table>
+
+      <h3>B4. Làm hàng &amp; Dỡ hàng</h3>
+      <div class="card">
+        <ul class="plain">
+          <li><strong>Xếp hàng vào hầm:</strong> mở hải trình → phần hàng hóa → gán kiện vào hầm, đánh dấu <strong>đã xếp</strong>. Hệ thống cập nhật dung tích hầm và tạo bản ghi thao tác <strong>LOAD</strong>.</li>
+          <li><strong>Dỡ hàng:</strong> đánh dấu kiện <strong>đã dỡ</strong> → tạo thao tác <strong>UNLOAD</strong>; khi dỡ hết, lô chuyển <em>“Đã giao thành công”</em>.</li>
+        </ul>
+        <p style="margin:0;color:var(--muted)">Chỉ Thuyền trưởng/Đại phó được cập nhật dỡ hàng — lỗi: <span class="err">“Chỉ Thuyền trưởng hoặc Đại phó được cập nhật dỡ hàng”</span>.</p>
+      </div>
+
+      <h3>B5. Báo cáo vận hành (bốc dỡ + điểm danh)</h3>
+      <div class="card">
+        <h4 class="task">Đại phó — Chốt báo cáo</h4>
+        <ol class="steps">
+          <li>Mở hải trình → <strong>Báo cáo vận hành</strong> → <strong>Xem trước</strong> (kiểm tra số liệu bốc dỡ &amp; ma trận điểm danh).</li>
+          <li>Nhấn <strong>Chốt &amp; gửi Thuyền trưởng</strong> → <em>“Đã chốt và gửi báo cáo cho thuyền trưởng.”</em> (số liệu bị đóng băng).</li>
+          <li>Có thể <strong>Xuất Excel</strong>.</li>
+        </ol>
+        <h4 class="task">Thuyền trưởng — Xác nhận</h4>
+        <p style="margin:0">Mở báo cáo đã chốt → <strong>Xác nhận đã xem</strong> → <em>“Đã xác nhận xem báo cáo.”</em></p>
+      </div>
+
+      <h3>B6. Duyệt xả thải MARPOL</h3>
+      <div class="card">
+        <h4 class="task">Đại phó — Tạo yêu cầu (khi tàu đang Underway)</h4>
+        <ol class="steps">
+          <li>Vào <strong>Nhật ký xả thải (MARPOL)</strong> → <strong>Tạo yêu cầu</strong>.</li>
+          <li>Chọn loại xả (Đã xử lý / Nghiền / Thô), nhập <strong>khoảng cách bờ</strong>, <strong>tốc độ tàu</strong>, thể tích, vị trí, ngày dự kiến, ảnh.</li>
+          <li><strong>Gửi</strong> → hệ thống tính mức <strong>tuân thủ</strong> và email Thuyền trưởng.</li>
+        </ol>
+        <div class="warnbox"><strong>Ngưỡng tuân thủ MARPOL:</strong> Xả <strong>thô (Untreated)</strong> cần cách bờ ≥ 12 hải lý &amp; tốc độ ≥ 4 knots; xả <strong>nghiền (Comminuted)</strong> cần cách bờ ≥ 3 hải lý &amp; tốc độ ≥ 4 knots; xả <strong>đã xử lý (Treated_STP)</strong> luôn hợp lệ. Yêu cầu không tuân thủ vẫn tạo được nhưng <strong>nên tránh</strong>.</div>
+        <h4 class="task">Thuyền trưởng — Duyệt/Từ chối</h4>
+        <p style="margin:0">Mở yêu cầu → <strong>Phê duyệt</strong> / <strong>Từ chối</strong> → <em>“Đã phê duyệt/từ chối yêu cầu xả thải.”</em></p>
+      </div>
+      <table>
+        <thead><tr><th>Thông báo</th><th>Cách khắc phục</th></tr></thead>
+        <tbody>
+          <tr><td class="err">Tàu chưa chạy (Status không phải Underway)…</td><td>Chỉ tạo yêu cầu khi tàu đang chạy (Underway)</td></tr>
+          <tr><td class="err">Chỉ Đại phó (ChiefOfficer) mới được tạo yêu cầu xả thải…</td><td>Đúng vai trò mới tạo được</td></tr>
+          <tr><td class="err">Chỉ Thuyền trưởng mới được phê duyệt/từ chối…</td><td>Việc duyệt thuộc Thuyền trưởng</td></tr>
+        </tbody>
+      </table>
+      <div class="note"><strong>Tiếp nhận Báo cáo sự vụ:</strong> Thuyền trưởng <strong>không tạo</strong> báo cáo, chỉ <strong>tiếp nhận, xử lý, đóng</strong>. Xem mục <a href="#baocao">D. Báo cáo sự vụ</a> — Master là bậc cao nhất của cả hai thang Boong &amp; Máy.</div>
+    </section>
+
+    <!-- ===== C. CREW ===== -->
+    <section id="thuyenvien">
+      <h2><span class="num">C</span> Sĩ quan &amp; Thuyền viên (Boong / Máy)</h2>
+      <div class="role-badges"><span class="badge">DeckOfficer</span><span class="badge">Sailor</span><span class="badge">EngineOfficer</span><span class="badge">EngineCrew</span></div>
+      <p>Vào <strong>Bảng điều khiển Thuyền viên</strong>. Chọn hải trình ở <strong>“Chuyến đi của tôi”</strong> nếu cần.</p>
+
+      <h3>C1. Hồ sơ &amp; Chứng chỉ cá nhân</h3>
+      <div class="card">
+        <ol class="steps">
+          <li>Vào <strong>Hồ sơ của tôi</strong> → sửa <strong>họ tên, số điện thoại</strong>.</li>
+          <li>Tab <strong>Chứng chỉ</strong> → <strong>Thêm</strong> (tên, ngày cấp, ngày hết hạn, file). Hệ thống tự đánh dấu <strong>Còn hiệu lực / Hết hạn</strong> theo ngày.</li>
+        </ol>
+        <p style="margin:0;color:var(--muted)">Trùng SĐT → <span class="err">“Số điện thoại đã được sử dụng.”</span></p>
+      </div>
+
+      <h3>C2. Xếp ca trực <span style="font-weight:500;font-size:13px;color:var(--muted)">(Sĩ quan boong / Sĩ quan máy)</span></h3>
+      <div class="card">
+        <ol class="steps">
+          <li>Vào <strong>Quản lý ca trực</strong> → chọn <strong>ngày</strong>.</li>
+          <li>Với mỗi ca (6 ca × 4 giờ), chọn <strong>thủy thủ/thợ máy cấp dưới cùng bộ phận</strong> và vị trí.</li>
+          <li>Nhấn <strong>Lưu</strong> → <em>“Đã tạo N ca trực.”</em></li>
+        </ol>
+      </div>
+      <table>
+        <thead><tr><th>Thông báo</th><th>Cách khắc phục</th></tr></thead>
+        <tbody>
+          <tr><td class="err">Chỉ sĩ quan boong/máy được tạo ca trực.</td><td>Cần vai trò DeckOfficer/EngineOfficer</td></tr>
+          <tr><td class="err">Không thể tạo ca đã qua giờ (…)</td><td>Chọn ca trong tương lai</td></tr>
+          <tr><td class="err">Chỉ được gán thủy thủ/thợ máy cấp dưới cùng bộ phận X.</td><td>Chọn đúng bộ phận &amp; cấp dưới</td></tr>
+          <tr><td class="err">&lt;tên&gt; đã có ca trùng giờ (…)</td><td>Người này đã có ca khác trùng giờ</td></tr>
+          <tr><td class="err">&lt;tên&gt; đã đủ 2 ca trong ngày.</td><td>Mỗi người tối đa 2 ca/ngày</td></tr>
+        </tbody>
+      </table>
+      <p style="color:var(--muted)">Sửa/Hủy ca chỉ với ca <strong>chưa bắt đầu</strong> — <span class="err">“Không thể sửa/hủy ca đã bắt đầu hoặc đã kết thúc.”</span></p>
+
+      <h3>C3. Bàn giao &amp; Nhận ca <span style="font-weight:500;font-size:13px;color:var(--muted)">(mọi crew trực ca)</span></h3>
+      <div class="card">
+        <ul class="plain">
+          <li><strong>Bàn giao:</strong> đến gần giờ hết ca (bấm được từ 5 phút trước ca kế), mở ca của bạn → <strong>Bàn giao</strong>, ghi chú tình trạng.</li>
+          <li><strong>Nhận ca:</strong> người vào ca kế mở ca của mình → <strong>Nhận ca</strong>.</li>
+          <li>Bàn giao/nhận muộn quá 30 phút sẽ bị đánh dấu <span class="pill warn">trễ</span>.</li>
+        </ul>
+      </div>
+      <table>
+        <thead><tr><th>Thông báo</th><th>Cách khắc phục</th></tr></thead>
+        <tbody>
+          <tr><td class="err">Chưa có ca kế tiếp cùng vị trí để bàn giao.</td><td>Cần có ca kế tiếp cùng vị trí</td></tr>
+          <tr><td class="err">Chưa tới giờ bàn giao/nhận ca…</td><td>Chỉ thao tác từ 5 phút trước ca</td></tr>
+          <tr><td class="err">Ca trước chưa bàn giao, chưa thể nhận.</td><td>Chờ người ca trước bàn giao</td></tr>
+        </tbody>
+      </table>
+
+      <h3>C4. Nhật ký trực boong <span style="font-weight:500;font-size:13px;color:var(--muted)">(chỉ Thủy thủ)</span></h3>
+      <div class="card">
+        <ol class="steps">
+          <li>Vào <strong>Nhật ký boong</strong> → chọn hải trình → chọn <strong>ca trực</strong>.</li>
+          <li>Nhập <strong>từng dòng theo giờ</strong> (hướng đi, la bàn, tốc độ, RPM, gió, thời tiết, khí áp, tầm nhìn, nhiệt độ…) và/hoặc ghi chú; đính kèm ảnh (tối đa 5).</li>
+          <li><strong>Lưu</strong> → <em>“Ghi nhận nhật ký boong thành công”</em>.</li>
+        </ol>
+        <p style="margin:0;color:var(--muted)">Khi <strong>sửa</strong> phải nhập <strong>lý do</strong> (<span class="err">“Vui lòng cung cấp lý do chỉnh sửa”</span>); mọi lần sửa được lưu vào lịch sử chỉnh sửa.</p>
+      </div>
+
+      <h3>C5. Nhật ký trực máy <span style="font-weight:500;font-size:13px;color:var(--muted)">(chỉ Thợ máy)</span></h3>
+      <div class="card">
+        <ol class="steps">
+          <li>Vào <strong>Nhật ký máy</strong> → chọn hải trình → <strong>ca trực</strong> → <strong>máy</strong> cần kiểm tra.</li>
+          <li>Nhập giá trị cho từng <strong>thông số</strong> (RPM, nhiệt độ, áp suất…). Giá trị được tô màu <span class="pill ok">ok</span> <span class="pill warn">cảnh báo</span> <span class="pill dng">nguy hiểm</span> theo ngưỡng.</li>
+          <li><strong>Lưu</strong> → <em>“Ghi nhận kiểm tra máy thành công”</em>.</li>
+        </ol>
+        <p style="margin:0;color:var(--muted)">Giá trị ngoài ngưỡng vẫn lưu được (chỉ cảnh báo). Sửa cũng cần lý do như nhật ký boong.</p>
+      </div>
+
+      <h3>C6. Quản lý Máy &amp; Thiết bị <span style="font-weight:500;font-size:13px;color:var(--muted)">(Sĩ quan máy)</span></h3>
+      <div class="card">
+        <ul class="plain">
+          <li><strong>Đổi trạng thái máy:</strong> <span class="k">Operational</span> / <span class="k">Standby</span> / <span class="k">Under Maintenance</span>. Đặt <strong>máy chính</strong> “Under Maintenance” khi đang chạy sẽ <strong>tự thả neo</strong> (Voyage → Anchored); đưa lại “Operational” sẽ chạy tiếp (Underway).</li>
+          <li><strong>Cập nhật số thiết bị hỏng / trạng thái thiết bị</strong> (Operational/Broken/Lost). Số hỏng không được lớn hơn tổng số lượng.</li>
+        </ul>
+      </div>
+    </section>
+
+    <!-- ===== D. REPORT ===== -->
+    <section id="baocao">
+      <h2><span class="num">D</span> Quy trình Báo cáo sự vụ (mọi crew trên tàu)</h2>
+      <p>Áp dụng cho tất cả vai trò trên tàu. Báo cáo được chuyển theo <strong>thang bậc xử lý</strong>:</p>
+      <div class="flow"><strong style="margin-right:6px">Boong:</strong><span class="st">Thủy thủ</span><span class="arrow">→</span><span class="st">Sĩ quan boong</span><span class="arrow">→</span><span class="st">Đại phó</span><span class="arrow">→</span><span class="st">Thuyền trưởng</span></div>
+      <div class="flow"><strong style="margin-right:6px">Máy:</strong><span class="st">Thợ máy / Thủy thủ</span><span class="arrow">→</span><span class="st">Sĩ quan máy</span><span class="arrow">→</span><span class="st">Thuyền trưởng</span></div>
+
+      <h3>D1. Tạo báo cáo <span style="font-weight:500;font-size:13px;color:var(--muted)">(mọi role trừ Thuyền trưởng)</span></h3>
+      <div class="card">
+        <ol class="steps">
+          <li>Vào <strong>Báo cáo</strong> → <strong>Tạo báo cáo</strong>.</li>
+          <li>Chọn <strong>loại</strong> (Thường nhật / Sự cố), bộ phận (Boong/Máy), độ ưu tiên, nhập <strong>tiêu đề</strong> và <strong>nội dung</strong>. Có thể tạo từ <strong>ca trực của mình</strong> (đính kèm số liệu ca).</li>
+          <li><strong>Gửi</strong> → báo cáo tự chuyển tới <strong>cấp trên liền kề</strong>.</li>
+        </ol>
+      </div>
+      <table>
+        <thead><tr><th>Thông báo</th><th>Cách khắc phục</th></tr></thead>
+        <tbody>
+          <tr><td class="err">Thuyền trưởng không tạo báo cáo, chỉ tiếp nhận xử lý.</td><td>Master chỉ xử lý, không tạo</td></tr>
+          <tr><td class="err">Vui lòng nhập tiêu đề và nội dung báo cáo.</td><td>Nhập đủ tiêu đề &amp; nội dung</td></tr>
+          <tr><td class="err">Bạn chỉ có thể tạo báo cáo từ ca trực của mình.</td><td>Chỉ tạo từ ca của bạn</td></tr>
+        </tbody>
+      </table>
+
+      <h3>D2. Xử lý báo cáo <span style="font-weight:500;font-size:13px;color:var(--muted)">(người đang giữ lượt xử lý)</span></h3>
+      <div class="flow">
+        <span class="st">Open (Mở)</span><span class="arrow">→</span>
+        <span class="st">InProgress (Đang xử lý)</span><span class="arrow">→</span>
+        <span class="st">Resolved (Đã xử lý)</span><span class="arrow">→</span>
+        <span class="st">Closed (Đã đóng)</span>
+        <span class="arrow" style="margin:0 4px">|</span><span class="st">Rejected (Từ chối)</span>
+      </div>
+      <div class="card">
+        <ul class="plain">
+          <li><strong>Phản hồi:</strong> ghi trao đổi. Nếu bạn là người xử lý và báo cáo đang <em>Mở</em>, phản hồi đầu tiên = <strong>tiếp nhận</strong> (chuyển Đang xử lý).</li>
+          <li><strong>Đẩy cấp:</strong> chuyển lên cấp trên kế tiếp. Ở đỉnh (Thuyền trưởng) sẽ không đẩy được nữa.</li>
+          <li><strong>Đã xử lý (Resolve):</strong> từ Đang xử lý → Đã xử lý.</li>
+          <li><strong>Đóng (Close):</strong> từ Đã xử lý → Đã đóng (kết thúc).</li>
+          <li><strong>Mở lại (Reopen):</strong> từ Đã xử lý → Đang xử lý (<strong>bắt buộc lý do</strong>). Người tạo cũng được mở lại.</li>
+          <li><strong>Từ chối (Reject):</strong> từ Mở/Đang xử lý → Bị từ chối (<strong>bắt buộc lý do</strong>).</li>
+        </ul>
+      </div>
+      <table>
+        <thead><tr><th>Thông báo</th><th>Ý nghĩa</th></tr></thead>
+        <tbody>
+          <tr><td class="err">Chỉ &lt;cấp&gt; (cấp đang giữ báo cáo) mới có quyền thao tác.</td><td>Chưa tới lượt vai trò của bạn</td></tr>
+          <tr><td class="err">Báo cáo đang được một người khác ở cấp này tiếp nhận xử lý.</td><td>Đồng cấp khác đã nhận</td></tr>
+          <tr><td class="err">Không thể chuyển từ trạng thái 'X' sang 'Y'.</td><td>Sai luồng trạng thái</td></tr>
+          <tr><td class="err">Vui lòng nhập lý do.</td><td>Reopen/Reject cần lý do</td></tr>
+          <tr><td class="err">Báo cáo đã kết thúc, không thể phản hồi thêm.</td><td>Đã Đóng/Từ chối</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <!-- ===== E. NOTIFICATION ===== -->
+    <section id="thongbao">
+      <h2><span class="num">E</span> Thông báo (chuông) — mọi vai trò</h2>
+      <div class="card">
+        <p style="margin:0 0 6px">Biểu tượng <strong>chuông 🔔</strong> trên thanh trên cùng hiển thị các sự kiện liên quan tới bạn:</p>
+        <ul class="plain">
+          <li>Được phân công vào hải trình</li>
+          <li>Điểm danh được cập nhật</li>
+          <li>Hải trình được cập nhật</li>
+          <li>Báo cáo mới / được đẩy cấp / có phản hồi / đổi trạng thái</li>
+        </ul>
+        <p style="margin:6px 0 0">Bạn có thể <strong>đánh dấu đã đọc</strong> từng cái hoặc tất cả, và <strong>xóa</strong> thông báo.</p>
+      </div>
+    </section>
+
+    <!-- ===== PHỤ LỤC ===== -->
+    <section id="luuy">
+      <h2><span class="num">✓</span> Phụ lục — Lưu ý vận hành</h2>
+      <div class="card">
+        <ul class="plain">
+          <li><strong>Chọn hải trình trước khi thao tác:</strong> thuyền viên trên tàu phải vào “Chuyến đi của tôi” để kích hoạt vai trò trong hải trình; nếu không, hệ thống điều hướng về trang này.</li>
+          <li><strong>Vòng đời chuyến đi:</strong> Planning → (điểm danh + duyệt lộ trình + xếp hàng) → Underway → Arrived/Discharge → Discharged → (điểm danh kết thúc) → Homeward Bounding → Completed. Chỉ <strong>hủy</strong> được khi còn Planning.</li>
+          <li><strong>Ngưỡng cảnh báo máy &amp; MARPOL</strong> là cảnh báo, không chặn — hãy tuân thủ để đảm bảo an toàn/pháp lý.</li>
+          <li><strong>Email tự động</strong> gửi cho: thuyền viên mới (mật khẩu), Thuyền trưởng (duyệt lộ trình, duyệt xả thải). Không nhận được → kiểm tra hộp thư/spam hoặc nhờ Quản trị viên.</li>
+        </ul>
+      </div>
+    </section>
+
+  </main>
+</div>
+
+<footer>© CargoOps — Maritime Logistics · Hướng dẫn sử dụng nội bộ. Nội dung dựa trên hành vi thực tế của hệ thống.</footer>
+
+<button class="backtop" id="backtop" title="Lên đầu trang" aria-label="Lên đầu trang">↑</button>
+
+<script>
+  // Mobile TOC toggle
+  var toc = document.getElementById('toc');
+  var menuBtn = document.getElementById('menuBtn');
+  if (menuBtn) menuBtn.addEventListener('click', function(){ toc.classList.toggle('open'); });
+  toc.addEventListener('click', function(e){ if (e.target.tagName === 'A') toc.classList.remove('open'); });
+
+  // Back-to-top
+  var backtop = document.getElementById('backtop');
+  window.addEventListener('scroll', function(){ backtop.style.display = window.scrollY > 400 ? 'block' : 'none'; });
+  backtop.addEventListener('click', function(){ window.scrollTo({ top: 0, behavior: 'smooth' }); });
+
+  // Active section highlight
+  var links = Array.prototype.slice.call(document.querySelectorAll('nav.toc a'));
+  var sections = links.map(function(a){ return document.querySelector(a.getAttribute('href')); }).filter(Boolean);
+  var obs = new IntersectionObserver(function(entries){
+    entries.forEach(function(en){
+      if (en.isIntersecting){
+        links.forEach(function(l){ l.classList.remove('active'); });
+        var active = links.find(function(l){ return l.getAttribute('href') === '#' + en.target.id; });
+        if (active) active.classList.add('active');
+      }
+    });
+  }, { rootMargin: '-20% 0px -70% 0px' });
+  sections.forEach(function(s){ obs.observe(s); });
+</script>
+</body>
+</html>

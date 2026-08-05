@@ -368,6 +368,10 @@ export const profileService = {
     const response = await api.put('/crews/me', data);
     return response.data;
   },
+  changePassword: async (data) => {
+    const response = await api.put('/crews/me/password', data);
+    return response.data;
+  },
   getCertificates: async () => {
     const response = await api.get('/crews/me/certificates');
     return response.data;

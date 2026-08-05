@@ -313,7 +313,12 @@ export default function AgencyDashboard() {
                 rowKey="id"
                 columns={vesselColumns}
                 dataSource={data.recentVessels}
-                pagination={{ pageSize: 5, hideOnSinglePage: true }}
+                pagination={{
+                  defaultPageSize: 10,
+                  showSizeChanger: true,
+                  pageSizeOptions: ['10', '20', '50'],
+                  showTotal: (total, range) => `Hiển thị ${range[0]}-${range[1]} trong số ${total} tàu`,
+                }}
                 locale={{ emptyText: 'Chưa có dữ liệu tàu' }}
                 footer={() => (
                   <Text type="secondary">
