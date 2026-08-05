@@ -36,19 +36,28 @@ const HANDOVER_LATE_MIN = 30;
 // Đặt SHIFT_HANDOVER_ENFORCE=false trong .env để tắt kiểm tra cửa sổ giờ khi dev/test.
 const HANDOVER_ENFORCE_WINDOW = process.env.SHIFT_HANDOVER_ENFORCE !== 'false';
 
-// Mốc đầu/cuối ngày (theo giờ server) cho chuỗi 'YYYY-MM-DD'
-function dayBounds(dateStr) {
-  const [y, m, d] = dateStr.split('-').map(Number);
-  return { dayStart: new Date(y, m - 1, d, 0, 0, 0), dayEnd: new Date(y, m - 1, d + 1, 0, 0, 0) };
+// Múi giờ nghiệp vụ, KHỚP với `timezone` Sequelize dùng khi ghi DB (+07:00). Dựng mốc thời gian
+// gắn cố định offset +07:00 để không phụ thuộc timezone của tiến trình Node — tránh lệch giờ khi
+// server chạy ở UTC (khiến new Date(y,m,d,h) theo giờ local bị Sequelize ghi lệch sang slot khác).
+const VN_TZ = '+07:00';
+function vnDate(dateStr, hour = 0) {
+  const hh = String(hour).padStart(2, '0');
+  return new Date(`${dateStr}T${hh}:00:00${VN_TZ}`);
 }
 
-// Tính startTime/endTime từ ngày (YYYY-MM-DD) + slot index. Hour 24 tự cuộn sang 00:00 hôm sau.
+// Mốc đầu/cuối ngày cho chuỗi 'YYYY-MM-DD' (theo giờ VN +07:00)
+function dayBounds(dateStr) {
+  const dayStart = vnDate(dateStr, 0);
+  return { dayStart, dayEnd: new Date(dayStart.getTime() + 24 * 60 * 60 * 1000) };
+}
+
+// Tính startTime/endTime từ ngày (YYYY-MM-DD) + slot index. Mỗi ca cố định 4 tiếng
+// (slot 20–24 tự cuộn sang 00:00 hôm sau).
 function slotTimes(dateStr, slotIndex) {
   const s = SHIFT_SLOTS.find(x => x.slot === Number(slotIndex));
   if (!s) return null;
-  const [y, m, d] = dateStr.split('-').map(Number);
-  const start = new Date(y, m - 1, d, s.startHour, 0, 0);
-  const end = new Date(y, m - 1, d, s.endHour, 0, 0); // 24 -> 00:00 hôm sau
+  const start = vnDate(dateStr, s.startHour);
+  const end = new Date(start.getTime() + 4 * 60 * 60 * 1000);
   return { start, end };
 }
 
@@ -135,9 +144,7 @@ router.get('/', authMiddleware, async (req, res) => {
 
     const where = { voyageId: ctx.voyage.id, status: { [Op.ne]: 'Cancelled' } };
     if (req.query.date) {
-      const [y, m, d] = req.query.date.split('-').map(Number);
-      const dayStart = new Date(y, m - 1, d, 0, 0, 0);
-      const dayEnd = new Date(y, m - 1, d + 1, 0, 0, 0);
+      const { dayStart, dayEnd } = dayBounds(req.query.date);
       where.startTime = { [Op.gte]: dayStart, [Op.lt]: dayEnd };
     }
 
