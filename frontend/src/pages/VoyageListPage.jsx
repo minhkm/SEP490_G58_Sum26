@@ -10,6 +10,14 @@ import { voyageService } from '../services/api';
 
 const { Text } = Typography;
 
+const IN_PROGRESS_REPORT_STATUSES = new Set([
+  'Underway', 'Arrived', 'Discharge', 'Discharged',
+  'Homeward Bounding', 'At Anchor', 'Anchored',
+]);
+
+const canExportForStatus = (status) =>
+  status === 'Completed' || IN_PROGRESS_REPORT_STATUSES.has(status);
+
 const formatDate = (date) => {
   if (!date) return '--';
   return new Intl.DateTimeFormat('vi-VN', {
@@ -59,12 +67,24 @@ export default function VoyageListPage() {
 
   const openExportModal = (voyage) => {
     setReportVoyage(voyage);
-    setReportPeriodType('voyage');
+    setReportPeriodType(voyage.status === 'Completed' ? 'voyage' : 'day');
     setReportDate(null);
   };
 
   const handleExportExcel = async () => {
     if (!reportVoyage) return;
+    if (reportPeriodType === 'voyage' && reportVoyage.status !== 'Completed') {
+      message.warning('Chỉ được xuất toàn bộ báo cáo sau khi chuyến đi hoàn thành.');
+      return;
+    }
+    if (
+      reportPeriodType !== 'voyage'
+      && reportVoyage.status !== 'Completed'
+      && !IN_PROGRESS_REPORT_STATUSES.has(reportVoyage.status)
+    ) {
+      message.warning('Báo cáo theo thời gian chỉ được xuất khi chuyến đi đang diễn ra.');
+      return;
+    }
     if (reportPeriodType !== 'voyage' && !reportDate) {
       message.warning('Vui lòng chọn thời gian cần xuất báo cáo.');
       return;
@@ -96,6 +116,19 @@ export default function VoyageListPage() {
     } finally {
       setExporting(false);
     }
+  };
+
+  const disableReportDate = (current) => {
+    const departureDate = reportVoyage?.departureDate;
+    if (!current || !departureDate) return false;
+
+    const periodEnd = reportPeriodType === 'month'
+      ? current.endOf('month')
+      : reportPeriodType === 'week'
+        ? current.endOf('week')
+        : current;
+
+    return periodEnd.format('YYYY-MM-DD') < String(departureDate).slice(0, 10);
   };
 
   const filteredVoyages = useMemo(() => {
@@ -174,7 +207,7 @@ export default function VoyageListPage() {
                 onEdit={canEdit ? () => setSelectedVoyage(voyage) : undefined}
                 editTitle="Cập nhật thông tin chuyến đi"
               >
-                {canExportReport && voyage.status !== 'Cancelled' && (
+                {canExportReport && canExportForStatus(voyage.status) && (
                   <Tooltip title="Xuất báo cáo Excel">
                     <Button
                       type="text"
@@ -277,7 +310,7 @@ export default function VoyageListPage() {
               { value: 'day', label: 'Theo ngày' },
               { value: 'week', label: 'Theo tuần' },
               { value: 'month', label: 'Theo tháng' },
-              { value: 'voyage', label: 'Toàn bộ hải trình' },
+              { value: 'voyage', label: 'Toàn bộ hải trình', disabled: reportVoyage?.status !== 'Completed' },
             ]}
           />
         </div>
@@ -289,6 +322,7 @@ export default function VoyageListPage() {
             <DatePicker
               value={reportDate}
               onChange={setReportDate}
+              disabledDate={disableReportDate}
               picker={reportPeriodType === 'week' ? 'week' : reportPeriodType === 'month' ? 'month' : 'date'}
               format={reportPeriodType === 'month' ? 'MM/YYYY' : reportPeriodType === 'week' ? 'wo [năm] YYYY' : 'DD/MM/YYYY'}
               style={{ width: '100%' }}

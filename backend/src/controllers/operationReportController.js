@@ -38,6 +38,28 @@ function reportFilename(data) {
   return `Cargo_Attendance_Voyage-${data.general.voyageId}_${type}_${range}.xlsx`;
 }
 
+const IN_PROGRESS_VOYAGE_STATUSES = new Set([
+  "underway", "arrived", "discharge", "discharged",
+  "homeward bounding", "at anchor", "anchored",
+]);
+
+function validateExportStatus(voyage, periodType) {
+  const status = String(voyage.status || "").trim().toLowerCase();
+  const type = String(periodType || "voyage").trim().toLowerCase();
+
+  if (type === "voyage") {
+    return status === "completed"
+      ? null
+      : "Chỉ được xuất báo cáo toàn bộ hải trình sau khi chuyến đi đã hoàn thành.";
+  }
+
+  return status === "completed" || IN_PROGRESS_VOYAGE_STATUSES.has(status)
+    ? null
+    : "Báo cáo theo ngày, tuần hoặc tháng chỉ được xuất khi chuyến đi đang diễn ra.";
+}
+
+exports.validateExportStatus = validateExportStatus;
+
 exports.preview = async (req, res) => {
   try {
     const permit = await authorizeVoyage(req, req.params.voyageId, ["admin", "agency", "master", "chiefofficer", "deckofficer"]);
@@ -45,7 +67,7 @@ exports.preview = async (req, res) => {
     const data = await buildOperationReport(req.params.voyageId, req.query);
     res.json({ success: true, data });
   } catch (error) {
-    const status = /periodType|YYYY-MM-DD/.test(error.message) ? 400 : 500;
+    const status = /periodType|YYYY-MM-DD|ngày khởi hành/.test(error.message) ? 400 : 500;
     console.error("Error previewing operation report:", error);
     res.status(status).json({ success: false, message: error.message || "Lỗi tạo bản xem trước báo cáo." });
   }
@@ -55,6 +77,13 @@ exports.exportExcel = async (req, res) => {
   try {
     const permit = await authorizeVoyage(req, req.params.voyageId, ["admin", "agency", "master", "chiefofficer", "deckofficer"]);
     if (!permit.ok) return res.status(permit.status).json({ message: permit.message });
+
+    // Finalized snapshots remain downloadable. New exports must follow the
+    // voyage lifecycle rule even if the endpoint is called directly.
+    if (!req.query.reportId) {
+      const validationMessage = validateExportStatus(permit.voyage, req.query.periodType);
+      if (validationMessage) return res.status(400).json({ success: false, message: validationMessage });
+    }
 
     let data;
     if (req.query.reportId) {
@@ -75,7 +104,7 @@ exports.exportExcel = async (req, res) => {
     res.setHeader("Content-Length", buffer.length);
     res.end(buffer);
   } catch (error) {
-    const status = /periodType|YYYY-MM-DD/.test(error.message) ? 400 : 500;
+    const status = /periodType|YYYY-MM-DD|ngày khởi hành/.test(error.message) ? 400 : 500;
     console.error("Error exporting operation report:", error);
     res.status(status).json({ success: false, message: error.message || "Lỗi xuất file Excel." });
   }
@@ -150,7 +179,7 @@ exports.finalize = async (req, res) => {
     res.status(201).json({ success: true, message: "Đã chốt và gửi báo cáo cho thuyền trưởng.", data: report });
   } catch (error) {
     await transaction.rollback();
-    const status = /periodType|YYYY-MM-DD/.test(error.message) ? 400 : 500;
+    const status = /periodType|YYYY-MM-DD|ngày khởi hành/.test(error.message) ? 400 : 500;
     console.error("Error finalizing operation report:", error);
     res.status(status).json({ success: false, message: error.message || "Lỗi chốt báo cáo." });
   }
