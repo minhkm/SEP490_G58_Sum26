@@ -49,8 +49,12 @@ const CREW_ROLE_OPTIONS = [
   { value: 'Sĩ quan boong (Deck Officer)', label: 'Sĩ quan boong (Deck Officer)' },
   { value: 'Đại phó (Chief Officer)', label: 'Đại phó (Chief Officer)' },
   { value: 'Máy trưởng (Chief Engineer)', label: 'Máy trưởng (Chief Engineer)' },
+  { value: 'Thợ máy (Engine Crew)', label: 'Thợ máy (Engine Crew)' },
   { value: 'Thủy thủ (Crew)', label: 'Thủy thủ (Crew)' },
 ];
+
+// Các chức danh cho phép nhiều người (không giới hạn trùng)
+const MULTI_ALLOWED_ROLES = ['Thủy thủ (Crew)', 'Thợ máy (Engine Crew)'];
 
 // Trong hải trình chỉ có 1 loại: Vật tư y tế
 const VOYAGE_EQ_TYPE = 'Vật tư y tế';
@@ -756,7 +760,7 @@ export default function CreateVoyagePage() {
                               onChange={(value) => handleCrewChange(crew.id, 'role', value)}
                               options={CREW_ROLE_OPTIONS.map(opt => ({
                                 ...opt,
-                                disabled: opt.value !== 'Thủy thủ (Crew)' && crewList.some(c => c.role === opt.value && c.id !== crew.id)
+                                disabled: !MULTI_ALLOWED_ROLES.includes(opt.value) && crewList.some(c => c.role === opt.value && c.id !== crew.id)
                               }))}
                             />
                           </Form.Item>

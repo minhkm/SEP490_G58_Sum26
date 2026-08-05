@@ -1,4 +1,5 @@
 // Cấu hình ca trực dùng chung cho frontend.
+import dayjs from 'dayjs';
 
 // 6 ca cố định 4 tiếng (khớp với backend SHIFT_SLOTS).
 export const SHIFT_SLOTS = [
@@ -33,8 +34,9 @@ export const SHIFT_STATUS = {
   Cancelled:  { label: 'Đã hủy', color: '#6b7280', bg: '#f3f4f6' },
 };
 
-// Xác định slot index từ startTime (Date) của ca.
+// Xác định slot index từ startTime của ca.
+// Dùng dayjs (như phần hiển thị giờ khác trong app) thay vì new Date() để tránh việc trình duyệt
+// hiểu nhầm chuỗi giờ không kèm timezone là UTC — vốn khiến ca 04:00 bị đẩy sang slot kế tiếp.
 export function slotFromStart(startTime) {
-  const h = new Date(startTime).getHours();
-  return Math.floor(h / 4);
+  return Math.floor(dayjs(startTime).hour() / 4);
 }

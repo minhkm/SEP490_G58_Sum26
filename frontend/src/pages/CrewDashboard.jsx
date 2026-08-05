@@ -132,7 +132,6 @@ export default function CrewDashboard() {
             <Space>
               <Tag color="blue">{roleLabelStr}</Tag>
               {deptLabel && <Tag>{deptLabel}</Tag>}
-              {profile?.position && <Tag>{profile.position}</Tag>}
             </Space>
           </div>
         </div>
