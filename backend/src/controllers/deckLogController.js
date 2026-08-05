@@ -2,7 +2,7 @@ const { Op } = require('sequelize');
 const { 
   Voyage, VoyageCrew, Ship,
   Shift, ShiftLog, DeckLog, DeckLogEntry,
-  CrewProfile, LogEditHistory, LogImage, Equipment, ShiftLogEquipment
+  CrewProfile, LogEditHistory, LogImage
 } = require('../models');
 
 // ============================================================
@@ -89,7 +89,7 @@ const getShiftsForCurrentUser = async (req, res) => {
 // ============================================================
 const createDeckLog = async (req, res) => {
   try {
-    const { shiftId, note, entries, equipmentIds } = req.body;
+    const { shiftId, note, entries } = req.body;
 
     if (!shiftId) {
       return res.status(400).json({ message: 'Thiếu thông tin ca trực' });
@@ -140,15 +140,6 @@ const createDeckLog = async (req, res) => {
       await DeckLogEntry.bulkCreate(entryRecords);
     }
 
-    // Tạo liên kết thiết bị sử dụng
-    if (equipmentIds && equipmentIds.length > 0) {
-      const mappings = equipmentIds.map(eqId => ({
-        shiftLogId: shiftLog.id,
-        equipmentId: Number(eqId)
-      }));
-      await ShiftLogEquipment.bulkCreate(mappings);
-    }
-
     res.status(201).json({ 
       message: 'Ghi nhận nhật ký boong thành công', 
       deckLog,
@@ -166,7 +157,7 @@ const createDeckLog = async (req, res) => {
 const updateDeckLog = async (req, res) => {
   try {
     const { shiftLogId } = req.params;
-    const { note, entries, editReason, equipmentIds } = req.body;
+    const { note, entries, editReason } = req.body;
     const crewId = req.user?.profileId;
 
     if (!editReason || editReason.trim() === '') {
@@ -181,9 +172,11 @@ const updateDeckLog = async (req, res) => {
       return res.status(404).json({ message: 'Không tìm thấy nhật ký' });
     }
 
-    // Lấy danh sách thiết bị cũ để lưu lịch sử
-    const oldEquips = await ShiftLogEquipment.findAll({ where: { shiftLogId } });
-    const oldEquipIds = oldEquips.map(oe => oe.equipmentId);
+    const createdAt = new Date(shiftLog.createdAt).getTime();
+    const editWindowMs = 24 * 60 * 60 * 1000;
+    if (Number.isFinite(createdAt) && Date.now() - createdAt > editWindowMs) {
+      return res.status(403).json({ message: 'Nhật ký đã quá 24 giờ và không thể chỉnh sửa' });
+    }
 
     // Lưu snapshot bản cũ vào LogEditHistory
     await LogEditHistory.create({
@@ -192,7 +185,6 @@ const updateDeckLog = async (req, res) => {
       previousContent: JSON.stringify({
         note: shiftLog.DeckLog.note,
         content: shiftLog.content,
-        equipmentIds: oldEquipIds,
         entries: shiftLog.DeckLog.DeckLogEntries?.map(e => ({
           hour: e.hour,
           courseTrue: e.courseTrue, courseGyro: e.courseGyro,
@@ -241,18 +233,6 @@ const updateDeckLog = async (req, res) => {
       await DeckLogEntry.bulkCreate(entryRecords);
     }
 
-    // Cập nhật danh sách thiết bị
-    if (equipmentIds !== undefined) {
-      await ShiftLogEquipment.destroy({ where: { shiftLogId } });
-      if (equipmentIds && equipmentIds.length > 0) {
-        const mappings = equipmentIds.map(eqId => ({
-          shiftLogId: Number(shiftLogId),
-          equipmentId: Number(eqId)
-        }));
-        await ShiftLogEquipment.bulkCreate(mappings);
-      }
-    }
-
     res.json({ message: 'Cập nhật nhật ký thành công' });
   } catch (error) {
     console.error('Lỗi cập nhật nhật ký boong:', error);
@@ -272,7 +252,6 @@ const getDeckLogsByShift = async (req, res) => {
       include: [
         { model: DeckLog, include: [{ model: DeckLogEntry }] },
         { model: LogImage, attributes: ['id', 'imageUrl', 'caption', 'createdAt'] },
-        { model: Equipment, attributes: ['id', 'equipmentName', 'equipmentType', 'location', 'status'], as: 'Equipments' },
         { model: LogEditHistory, attributes: ['id', 'editReason', 'editedAt', 'previousContent'],
           include: [{ model: CrewProfile, attributes: ['fullName'] }]
         }
