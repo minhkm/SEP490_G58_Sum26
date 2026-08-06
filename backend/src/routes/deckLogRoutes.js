@@ -3,6 +3,10 @@ const router = express.Router();
 const ctrl = require('../controllers/deckLogController');
 const authMiddleware = require('../middlewares/authMiddleware');
 const upload = require('../middleware/upload');
+const {
+  requireOwnedShift,
+  requireOwnedShiftLog,
+} = require('../middlewares/logOwnershipMiddleware');
 
 // Áp dụng xác thực cho toàn bộ routes này
 router.use(authMiddleware);
@@ -22,18 +26,27 @@ router.get('/my-voyages', ctrl.getMyVoyages);
 router.get('/shifts/:voyageId', ctrl.getShiftsForCurrentUser);
 
 // Ghi nhận nhật ký boong
-router.post('/', ctrl.createDeckLog);
+router.post('/', requireOwnedShift({ activeWindow: true }), ctrl.createDeckLog);
 
 // Cập nhật nhật ký (chỉnh sửa — yêu cầu lý do)
-router.put('/:shiftLogId', ctrl.updateDeckLog);
+router.put('/:shiftLogId', requireOwnedShiftLog('Deck'), ctrl.updateDeckLog);
 
 // Xem lịch sử trực boong theo ca trực
-router.get('/history/:shiftId', ctrl.getDeckLogsByShift);
+router.get(
+  '/history/:shiftId',
+  requireOwnedShift({ source: 'params' }),
+  ctrl.getDeckLogsByShift,
+);
 
 // Upload ảnh cho nhật ký
-router.post('/:shiftLogId/images', upload.array('images', 5), ctrl.uploadLogImages);
+router.post(
+  '/:shiftLogId/images',
+  requireOwnedShiftLog('Deck'),
+  upload.array('images', 5),
+  ctrl.uploadLogImages,
+);
 
 // Xem lịch sử chỉnh sửa
-router.get('/:shiftLogId/edit-history', ctrl.getEditHistory);
+router.get('/:shiftLogId/edit-history', requireOwnedShiftLog('Deck'), ctrl.getEditHistory);
 
 module.exports = router;

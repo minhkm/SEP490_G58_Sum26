@@ -6,6 +6,18 @@ const {
 } = require('../models');
 const notificationService = require('../services/notificationService');
 
+const isValidEngineValue = (item) => (
+  item?.parameterId !== null
+  && item?.parameterId !== undefined
+  && item?.parameterId !== ''
+  && item?.value !== null
+  && item?.value !== undefined
+  && item?.value !== ''
+  && Number.isInteger(Number(item.parameterId))
+  && Number.isFinite(Number(item.value))
+);
+const isOperationalEngineStatus = (status) => ['Operational', 'Active', 'Hoạt động'].includes(status);
+
 async function notifyExceededEngineValues({ shiftId, shiftLogId, engineLogId, engineId, values, actorUserId }) {
   if (!Array.isArray(values) || values.length === 0) return;
 
@@ -142,11 +154,14 @@ const createEngineLog = async (req, res) => {
     if (!engine) {
       return res.status(404).json({ message: 'Không tìm thấy máy cần kiểm tra' });
     }
-    if (engine.status !== 'Operational') {
+    if (!isOperationalEngineStatus(engine.status)) {
       return res.status(400).json({ message: 'Chỉ máy đang hoạt động mới được ghi nhật ký' });
     }
     if (!Array.isArray(values) || values.length < 3) {
       return res.status(400).json({ message: 'Vui lòng nhập ít nhất 3 thông số máy' });
+    }
+    if (values.some((item) => !isValidEngineValue(item))) {
+      return res.status(400).json({ message: 'Thông số máy hoặc giá trị đo không hợp lệ' });
     }
 
     // Bước 1: Tạo ShiftLog
@@ -206,6 +221,12 @@ const updateEngineLog = async (req, res) => {
     if (!editReason || editReason.trim() === '') {
       return res.status(400).json({ message: 'Vui lòng cung cấp lý do chỉnh sửa' });
     }
+    if (values !== undefined && (!Array.isArray(values) || values.length < 3)) {
+      return res.status(400).json({ message: 'Vui lòng duy trì ít nhất 3 thông số máy' });
+    }
+    if (Array.isArray(values) && values.some((item) => !isValidEngineValue(item))) {
+      return res.status(400).json({ message: 'Thông số máy hoặc giá trị đo không hợp lệ' });
+    }
 
     // Tìm ShiftLog + EngineLog hiện tại
     const shiftLog = await ShiftLog.findByPk(shiftLogId, {
@@ -221,7 +242,7 @@ const updateEngineLog = async (req, res) => {
 
     const createdAt = new Date(shiftLog.createdAt).getTime();
     const editWindowMs = 24 * 60 * 60 * 1000;
-    if (Number.isFinite(createdAt) && Date.now() - createdAt > editWindowMs) {
+    if (!Number.isFinite(createdAt) || Date.now() - createdAt > editWindowMs) {
       return res.status(403).json({ message: 'Nhật ký đã quá 24 giờ và không thể chỉnh sửa' });
     }
 
@@ -250,7 +271,7 @@ const updateEngineLog = async (req, res) => {
     }
 
     // Cập nhật EngineLogValues
-    if (values && values.length > 0) {
+    if (Array.isArray(values)) {
       await EngineLogValue.destroy({ where: { engineLogId: shiftLog.EngineLog.id } });
       const logValues = values.map(v => ({
         engineLogId: shiftLog.EngineLog.id,
@@ -260,7 +281,7 @@ const updateEngineLog = async (req, res) => {
       await EngineLogValue.bulkCreate(logValues);
     }
 
-    if (values && values.length > 0) {
+    if (Array.isArray(values)) {
       await safeNotifyExceededEngineValues({
         shiftId: shiftLog.shiftId,
         shiftLogId: shiftLog.id,

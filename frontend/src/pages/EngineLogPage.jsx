@@ -13,6 +13,16 @@ const { Title, Text } = Typography;
 const { TextArea } = Input;
 
 const API_URL = import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000';
+const isOperationalEngineStatus = (status) => ['Operational', 'Active', 'Hoạt động'].includes(status);
+const isWithinEditWindow = (log) => {
+  const createdAt = dayjs(log?.createdAt);
+  if (!createdAt.isValid()) return false;
+  const ageInHours = dayjs().diff(createdAt, 'hour', true);
+  return ageInHours >= 0 && ageInHours <= 24;
+};
+const parsePreviousContent = (content) => {
+  try { return JSON.parse(content) || {}; } catch { return {}; }
+};
 
 export default function EngineLogPage() {
   const [voyages, setVoyages] = useState([]);
@@ -43,7 +53,7 @@ export default function EngineLogPage() {
   const isToday = selectedDate && selectedDate.startOf('day').isSame(today);
   const isPastDate = selectedDate && selectedDate.startOf('day').isBefore(today);
   const daysDiff = isPastDate ? today.diff(selectedDate.startOf('day'), 'day') : 0;
-  const canEdit = daysDiff <= 1; // Cho phép chỉnh sửa trong 24h
+  const hasEditableLog = history.some(isWithinEditWindow);
   const isCompleted = selectedVoyage?.status === 'Completed';
 
   const [searchParams] = useSearchParams();
@@ -147,7 +157,7 @@ export default function EngineLogPage() {
   };
 
   const handleSelectEngine = (engine) => {
-    if (engine.status !== 'Operational') return; // Block non-operational engines
+    if (!isOperationalEngineStatus(engine.status)) return; // Block non-operational engines
     setSelectedEngine(engine);
     const defaultValues = {};
     if (engine.EngineParameters) {
@@ -185,6 +195,10 @@ export default function EngineLogPage() {
     const values = Object.entries(paramValues)
       .filter(([, val]) => val !== '' && val !== null)
       .map(([paramId, value]) => ({ parameterId: parseInt(paramId), value: parseFloat(value) }));
+    if (values.length < 3) {
+      notifyWarning('Vui lòng nhập ít nhất 3 thông số máy');
+      return;
+    }
     const mainKeywords = ['Fuel Oil Pressure', 'Exhaust Gas Temp XL2', 'Cooling Water Temp'];
     const mainParamIds = selectedEngine.EngineParameters
       .filter(p => mainKeywords.some(kw => p.name.includes(kw)))
@@ -255,6 +269,10 @@ export default function EngineLogPage() {
       const values = Object.entries(editValues)
         .filter(([, val]) => val !== '' && val !== null)
         .map(([paramId, value]) => ({ parameterId: parseInt(paramId), value: parseFloat(value) }));
+      if (values.length < 3) {
+        notifyWarning('Vui lòng duy trì ít nhất 3 thông số máy');
+        return;
+      }
 
       const mainKeywords = ['Fuel Oil Pressure', 'Exhaust Gas Temp XL2', 'Cooling Water Temp'];
       const mainParamIds = editEngineParams
@@ -346,7 +364,7 @@ export default function EngineLogPage() {
       title: '', key: 'actions', width: 100,
       render: (_, log) => (
         <Space size={4}>
-          {canEdit && !isCompleted && (
+          {isWithinEditWindow(log) && !isCompleted && (
             <Button type="link" size="small" icon={<EditOutlined />} onClick={() => openEditModal(log)}>Sửa</Button>
           )}
           {log.LogEditHistories?.length > 0 && (
@@ -395,8 +413,8 @@ export default function EngineLogPage() {
         )}
         {isPastDate && !isCompleted && selectedShift && (
           <Alert
-            message={canEdit ? `Ngày đã qua (${daysDiff} ngày trước) — Bạn vẫn có thể chỉnh sửa nhật ký nhưng phải ghi lý do` : `Đã quá 24 giờ — Chỉ xem, không chỉnh sửa được`}
-            type={canEdit ? 'info' : 'warning'} showIcon style={{ marginBottom: 16 }} />
+            message={hasEditableLog ? `Ngày đã qua (${daysDiff} ngày trước) — Nhật ký được tạo chưa quá 24 giờ vẫn có thể chỉnh sửa và phải ghi lý do` : 'Các nhật ký hiện tại đã quá 24 giờ — Chỉ xem, không chỉnh sửa được'}
+            type={hasEditableLog ? 'info' : 'warning'} showIcon style={{ marginBottom: 16 }} />
         )}
 
         {/* Cảnh báo ca đã kết thúc */}
@@ -419,10 +437,10 @@ export default function EngineLogPage() {
                 description={`Ca này bắt đầu lúc ${formatTime(selectedShift.startTime)}. Chưa thể ghi nhật ký.`}
                 type="warning" showIcon style={{ marginBottom: 16 }} />
             )}
-            <Title level={5} style={{ marginBottom: 12 }}>Chọn máy cần kiểm tra ({engines.filter(e => ['Operational', 'Active', 'Hoạt động'].includes(e.status)).length}/{engines.length} máy hoạt động)</Title>
+            <Title level={5} style={{ marginBottom: 12 }}>Chọn máy cần kiểm tra ({engines.filter(e => isOperationalEngineStatus(e.status)).length}/{engines.length} máy hoạt động)</Title>
             <Row gutter={[16, 16]}>
               {engines.map(engine => {
-                const isOperational = ['Operational', 'Active', 'Hoạt động'].includes(engine.status);
+                const isOperational = isOperationalEngineStatus(engine.status);
                 const isSelected = selectedEngine?.id === engine.id;
                 const card = (
                   <Card
@@ -464,7 +482,7 @@ export default function EngineLogPage() {
         {selectedEngine && !isCompleted && isToday && new Date() <= new Date(selectedShift?.endTime) && (
           <Card style={{ marginTop: 16 }} title={`Kiểm tra: ${selectedEngine.engineName} (${selectedEngine.engineType})`}>
             <Row gutter={[16, 16]}>
-              {selectedEngine.EngineParameters?.map((param, index) => {
+              {selectedEngine.EngineParameters?.map((param) => {
                 const status = getValueStatus(param, paramValues[param.id]);
                 const isMain = ['Fuel Oil Pressure', 'Exhaust Gas Temp XL2', 'Cooling Water Temp'].some(kw => param.name.includes(kw));
                 return (
@@ -551,8 +569,7 @@ export default function EngineLogPage() {
           <Empty description="Chưa có lịch sử chỉnh sửa" />
         ) : (
           <Timeline items={editHistoryData.map(h => {
-            let prev = {};
-            try { prev = JSON.parse(h.previousContent); } catch {}
+            const prev = parsePreviousContent(h.previousContent);
             return {
               color: 'blue',
               children: (

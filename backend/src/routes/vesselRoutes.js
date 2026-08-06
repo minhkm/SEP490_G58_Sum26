@@ -4,6 +4,18 @@ const authMiddleware = require('../middlewares/authMiddleware');
 
 const router = express.Router();
 
+const normalizeEngineStatus = (status) => {
+  const statusMap = {
+    Active: 'Operational',
+    'Hoạt động': 'Operational',
+    Inactive: 'Standby',
+    'Tạm ngưng': 'Standby',
+    Maintenance: 'Under Maintenance',
+    'Bảo trì': 'Under Maintenance',
+  };
+  return statusMap[status] || status || 'Operational';
+};
+
 // GET /api/vessels - Lấy danh sách toàn bộ tàu
 router.get('/', async (req, res) => {
   try {
@@ -81,7 +93,7 @@ router.post('/', async (req, res) => {
         shipId: newShip.id, 
         engineName: mainEngine.engineName, 
         engineType: mainEngine.engineType || 'Diesel 2-kỳ', 
-        status: mainEngine.status || 'Operational' 
+        status: normalizeEngineStatus(mainEngine.status)
       });
       // Tạo parameters động
       if (mainEngine.parameters && mainEngine.parameters.length > 0) {
@@ -101,7 +113,7 @@ router.post('/', async (req, res) => {
           shipId: newShip.id, 
           engineName: gen.engineName, 
           engineType: gen.engineType || 'Diesel 4-kỳ', 
-          status: gen.status || 'Operational' 
+          status: normalizeEngineStatus(gen.status)
         });
         if (gen.parameters && gen.parameters.length > 0) {
           await EngineParameter.bulkCreate(
@@ -188,11 +200,11 @@ router.put('/:id', async (req, res) => {
       if (mainEngine.id) {
         const me = await Engine.findByPk(mainEngine.id);
         if (me) {
-          await me.update({ engineName: mainEngine.engineName, engineType: mainEngine.engineType, status: mainEngine.status });
+          await me.update({ engineName: mainEngine.engineName, engineType: mainEngine.engineType, status: normalizeEngineStatus(mainEngine.status) });
           await syncEngineParams(me.id, mainEngine.parameters);
         }
       } else if (mainEngine.engineName) {
-        const me = await Engine.create({ shipId: vesselId, engineName: mainEngine.engineName, engineType: mainEngine.engineType, status: mainEngine.status });
+        const me = await Engine.create({ shipId: vesselId, engineName: mainEngine.engineName, engineType: mainEngine.engineType, status: normalizeEngineStatus(mainEngine.status) });
         await EngineParameter.bulkCreate(
           (mainEngine.parameters || []).filter(p => p.name).map(p => ({
             engineId: me.id, name: p.name, minValue: p.minValue || null, maxValue: p.maxValue || null
@@ -220,11 +232,11 @@ router.put('/:id', async (req, res) => {
         if (gen.id) {
           const ge = await Engine.findByPk(gen.id);
           if (ge) {
-            await ge.update({ engineName: gen.engineName, engineType: gen.engineType, status: gen.status });
+            await ge.update({ engineName: gen.engineName, engineType: gen.engineType, status: normalizeEngineStatus(gen.status) });
             await syncEngineParams(ge.id, gen.parameters);
           }
         } else {
-          const ge = await Engine.create({ shipId: vesselId, engineName: gen.engineName, engineType: gen.engineType, status: gen.status });
+          const ge = await Engine.create({ shipId: vesselId, engineName: gen.engineName, engineType: gen.engineType, status: normalizeEngineStatus(gen.status) });
           await EngineParameter.bulkCreate(
             (gen.parameters || []).filter(p => p.name).map(p => ({
               engineId: ge.id, name: p.name, minValue: p.minValue || null, maxValue: p.maxValue || null
