@@ -91,6 +91,8 @@ body {
   font-weight: 700 !important;
   color: #1e3a8a !important; /* Deep Navy Blue 900 */
 }
+
+#root {
   width: 100%;
   margin: 0;
   padding: 0;
