@@ -9,14 +9,11 @@ import {
   Select,
   Slider,
   Button,
-  Table,
   Tag,
   Space,
   Typography,
-  Radio,
   Divider,
   Empty,
-  Alert,
   Tooltip,
   Upload,
   Tabs,
@@ -44,6 +41,16 @@ import * as XLSX from 'xlsx';
 import { getNames } from 'country-list';
 
 const { Title, Text } = Typography;
+
+const normalizeEngineStatus = (status) => ({
+  Active: 'Operational',
+  'Hoạt động': 'Operational',
+  Inactive: 'Standby',
+  'Tạm ngưng': 'Standby',
+  Maintenance: 'Under Maintenance',
+  'Bảo trì': 'Under Maintenance',
+}[status] || status || 'Operational');
+const REQUIRED_PARAMS = ['Fuel Oil Pressure (kg/cm²)', 'Exhaust Gas Temp XL2 (°C)', 'Cooling Water Temp (°C)'];
 
 export default function AddVesselPage() {
   const navigate = useNavigate();
@@ -83,8 +90,6 @@ export default function AddVesselPage() {
   const countries = getNames().map(name => ({ label: name, value: name }));
 
   // 3 thông số bắt buộc (fix cứng, không xóa được)
-  const REQUIRED_PARAMS = ['Fuel Oil Pressure (kg/cm²)', 'Exhaust Gas Temp XL2 (°C)', 'Cooling Water Temp (°C)'];
-
   // 9 thông số kỹ thuật bổ sung (tùy chọn thêm)
   const PARAM_OPTIONS = [
     'RPM (Main Engine)',
@@ -111,7 +116,7 @@ export default function AddVesselPage() {
   const [mainEngine, setMainEngine] = useState({
     engineName: '',
     engineType: 'Diesel 2-kỳ',
-    status: 'Active',
+    status: 'Operational',
     parameters: makeRequiredParams(),
   });
 
@@ -120,7 +125,7 @@ export default function AddVesselPage() {
       id: 1,
       engineName: '',
       engineType: 'Diesel 4-kỳ',
-      status: 'Active',
+      status: 'Operational',
       parameters: makeRequiredParams(),
     },
   ]);
@@ -172,7 +177,7 @@ export default function AddVesselPage() {
                 id: me.id,
                 engineName: me.engineName,
                 engineType: me.engineType,
-                status: me.status,
+                status: normalizeEngineStatus(me.status),
                 parameters: dbParams,
               });
             }
@@ -199,7 +204,7 @@ export default function AddVesselPage() {
                     id: g.id,
                     engineName: g.engineName,
                     engineType: g.engineType,
-                    status: g.status,
+                    status: normalizeEngineStatus(g.status),
                     parameters: dbParams,
                   };
                 })
@@ -301,7 +306,7 @@ export default function AddVesselPage() {
         id: newId,
         engineName: '',
         engineType: 'Diesel 4-kỳ',
-        status: 'Active',
+        status: 'Operational',
         parameters: makeRequiredParams(),
       },
     ]);
@@ -702,8 +707,9 @@ export default function AddVesselPage() {
 
 
   const engineStatusOptions = [
-    { label: 'Hoạt động', value: 'Active' },
-    { label: 'Tạm ngưng', value: 'Inactive' },
+    { label: 'Hoạt động', value: 'Operational' },
+    { label: 'Dự phòng', value: 'Standby' },
+    { label: 'Đang bảo dưỡng', value: 'Under Maintenance' },
   ];
 
   return (

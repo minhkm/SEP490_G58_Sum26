@@ -1,17 +1,26 @@
 import { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Select, Input, InputNumber, Button, Table, Card, Spin, Empty, Typography, Space, Alert, DatePicker, Upload, Modal, Image, Timeline, Tag, Row, Col } from 'antd';
+import { Select, Input, InputNumber, Button, Table, Card, Spin, Empty, Typography, Space, Alert, DatePicker, Upload, Modal, Image, Timeline, Tag } from 'antd';
 import { FileTextOutlined, SaveOutlined, ClockCircleOutlined, CompassOutlined, CalendarOutlined, UploadOutlined, EditOutlined, HistoryOutlined, PictureOutlined } from '@ant-design/icons';
 import MasterLayout from '../components/MasterLayout';
-import { deckLogService, voyageService } from '../services/api';
+import { deckLogService } from '../services/api';
 import { PageHeader, notifyWarning, notifySuccess, notifyError } from '../components/common';
 import dayjs from 'dayjs';
 import { SHIFT_SLOTS, slotFromStart } from '../config/shifts';
 
-const { Title, Text } = Typography;
+const { Text } = Typography;
 const { TextArea } = Input;
 
 const API_URL = import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000';
+const isWithinEditWindow = (log) => {
+  const createdAt = dayjs(log?.createdAt);
+  if (!createdAt.isValid()) return false;
+  const ageInHours = dayjs().diff(createdAt, 'hour', true);
+  return ageInHours >= 0 && ageInHours <= 24;
+};
+const parsePreviousContent = (content) => {
+  try { return JSON.parse(content) || {}; } catch { return {}; }
+};
 
 // ===== Cấu hình 16 cột thông số =====
 const ENTRY_FIELDS = [
@@ -83,7 +92,7 @@ export default function DeckLogPage() {
   const isToday = selectedDate && selectedDate.startOf('day').isSame(today);
   const isPastDate = selectedDate && selectedDate.startOf('day').isBefore(today);
   const daysDiff = isPastDate ? today.diff(selectedDate.startOf('day'), 'day') : 0;
-  const canEdit = daysDiff <= 1;
+  const hasEditableLog = history.some(isWithinEditWindow);
   const isCompleted = selectedVoyage?.status === 'Completed';
 
   const [searchParams] = useSearchParams();
@@ -260,6 +269,10 @@ export default function DeckLogPage() {
       const filledEntries = editEntries.filter(e =>
         ENTRY_FIELDS.some(f => e[f.key] !== null && e[f.key] !== '' && e[f.key] !== undefined)
       );
+      if (filledEntries.length === 0 && (!editNote || !editNote.trim())) {
+        notifyWarning('Nhật ký phải có ít nhất một dòng dữ liệu hoặc ghi chú');
+        return;
+      }
       await deckLogService.update(editingLog.id, {
         note: editNote,
         entries: filledEntries,
@@ -301,7 +314,6 @@ export default function DeckLogPage() {
   };
 
   // Kiểm tra ca trực đã bắt đầu chưa (dể hiển thị cảnh báo)
-  const isShiftStarted = selectedShift ? new Date() >= new Date(selectedShift.startTime) : false;
   // Kiểm tra ca trực đã kết thúc chưa
   const isShiftEnded = selectedShift ? new Date() > new Date(selectedShift.endTime) : false;
 
@@ -412,7 +424,7 @@ export default function DeckLogPage() {
       title: '', key: 'actions', width: 100,
       render: (_, log) => (
         <Space size={4}>
-          {canEdit && !isCompleted && (
+          {isWithinEditWindow(log) && !isCompleted && (
             <Button type="link" size="small" icon={<EditOutlined />} onClick={() => openEditModal(log)}>Sửa</Button>
           )}
           {log.LogEditHistories?.length > 0 && (
@@ -460,8 +472,8 @@ export default function DeckLogPage() {
         )}
         {isPastDate && !isCompleted && selectedShift && (
           <Alert
-            message={canEdit ? `Ngày đã qua (${daysDiff} ngày trước) — Chỉnh sửa cần ghi lý do` : `Đã quá 24 giờ — Chỉ xem, không chỉnh sửa được`}
-            type={canEdit ? 'info' : 'warning'} showIcon style={{ marginBottom: 16 }} />
+            message={hasEditableLog ? `Ngày đã qua (${daysDiff} ngày trước) — Nhật ký được tạo chưa quá 24 giờ vẫn có thể chỉnh sửa và phải ghi lý do` : 'Các nhật ký hiện tại đã quá 24 giờ — Chỉ xem, không chỉnh sửa được'}
+            type={hasEditableLog ? 'info' : 'warning'} showIcon style={{ marginBottom: 16 }} />
         )}
 
         {/* Cảnh báo ca đã kết thúc */}
@@ -623,8 +635,7 @@ export default function DeckLogPage() {
           <Empty description="Chưa có lịch sử chỉnh sửa" />
         ) : (
           <Timeline items={editHistoryData.map(h => {
-            let prev = {};
-            try { prev = JSON.parse(h.previousContent); } catch {}
+            const prev = parsePreviousContent(h.previousContent);
             return {
               color: 'blue',
               children: (
