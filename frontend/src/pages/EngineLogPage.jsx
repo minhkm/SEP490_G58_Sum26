@@ -3,7 +3,7 @@ import { useSearchParams } from 'react-router-dom';
 import { Select, Input, InputNumber, Button, Table, Card, Tag, Spin, Empty, Typography, Space, Row, Col, Alert, DatePicker, Upload, Modal, Image, Timeline, Tooltip } from 'antd';
 import { DashboardOutlined, SaveOutlined, ClockCircleOutlined, CompassOutlined, CalendarOutlined, UploadOutlined, EditOutlined, HistoryOutlined, PictureOutlined } from '@ant-design/icons';
 import MasterLayout from '../components/MasterLayout';
-import { engineLogService, voyageService } from '../services/api';
+import { engineLogService, voyageService, vesselService } from '../services/api';
 import { PageHeader, notifyWarning, notifySuccess, notifyError } from '../components/common';
 import dayjs from 'dayjs';
 import { SHIFT_SLOTS, slotFromStart } from '../config/shifts';
@@ -62,8 +62,15 @@ export default function EngineLogPage() {
           || data.find(v => v.status !== 'Completed') || data[0];
         setSelectedVoyage(voyage);
 
-        // Chỉ hiển thị máy đang Operational cho thợ máy ghi nhật ký
-        if (voyage.Ship?.Engines) setEngines(voyage.Ship.Engines.filter(e => e.status === 'Operational'));
+        if (voyage) {
+          try {
+            const vessel = await vesselService.getById(voyage.shipId);
+            setEngines(vessel.Engines || []);
+          } catch (e) {
+            console.error('Failed to fetch vessel engines', e);
+            if (voyage.Ship?.Engines) setEngines(voyage.Ship.Engines);
+          }
+        }
         const date = initDate ? dayjs(initDate) : dayjs();
         setSelectedDate(date);
         const shiftsData = await engineLogService.getShifts(voyage.id, date.format('YYYY-MM-DD'));
@@ -96,8 +103,12 @@ export default function EngineLogPage() {
     setNote('');
     setFileList([]);
     if (v) {
-      // Chỉ hiển thị máy đang Operational cho thợ máy ghi nhật ký
-      if (v.Ship?.Engines) setEngines(v.Ship.Engines.filter(e => e.status === 'Operational'));
+      try {
+        const vessel = await vesselService.getById(v.shipId);
+        setEngines(vessel.Engines || []);
+      } catch (e) {
+        if (v.Ship?.Engines) setEngines(v.Ship.Engines);
+      }
       const shiftsData = await engineLogService.getShifts(v.id, selectedDate.format('YYYY-MM-DD'));
       setShifts(shiftsData);
     }
@@ -408,10 +419,10 @@ export default function EngineLogPage() {
                 description={`Ca này bắt đầu lúc ${formatTime(selectedShift.startTime)}. Chưa thể ghi nhật ký.`}
                 type="warning" showIcon style={{ marginBottom: 16 }} />
             )}
-            <Title level={5} style={{ marginBottom: 12 }}>Chọn máy cần kiểm tra ({engines.filter(e => e.status === 'Operational').length}/{engines.length} máy hoạt động)</Title>
+            <Title level={5} style={{ marginBottom: 12 }}>Chọn máy cần kiểm tra ({engines.filter(e => ['Operational', 'Active', 'Hoạt động'].includes(e.status)).length}/{engines.length} máy hoạt động)</Title>
             <Row gutter={[16, 16]}>
               {engines.map(engine => {
-                const isOperational = engine.status === 'Operational';
+                const isOperational = ['Operational', 'Active', 'Hoạt động'].includes(engine.status);
                 const isSelected = selectedEngine?.id === engine.id;
                 const card = (
                   <Card

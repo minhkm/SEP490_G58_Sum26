@@ -1,4 +1,4 @@
-﻿import { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, Tag, Button, Table, Modal, Space, Spin, Empty, Typography, Tabs, Row, Col, Badge, Alert, InputNumber, Tooltip, Progress } from 'antd';
 import { ToolOutlined, SettingOutlined, ExclamationCircleOutlined, MedicineBoxOutlined } from '@ant-design/icons';
 import MasterLayout from '../components/MasterLayout';
@@ -24,7 +24,8 @@ const isMainEngine = (engine) => {
   const name = (engine.engineName || '').toLowerCase();
   const type = (engine.engineType || '').toLowerCase();
   return name.includes('main') || name.includes('chính') ||
-         type.includes('main') || type.includes('chính');
+         type.includes('main') || type.includes('chính') ||
+         type.includes('2');
 };
 
 // Trạng thái hợp lệ theo loại máy

@@ -111,7 +111,7 @@ export default function AddVesselPage() {
   const [mainEngine, setMainEngine] = useState({
     engineName: '',
     engineType: 'Diesel 2-kỳ',
-    status: 'Active',
+    status: 'Operational',
     parameters: makeRequiredParams(),
   });
 
@@ -120,7 +120,7 @@ export default function AddVesselPage() {
       id: 1,
       engineName: '',
       engineType: 'Diesel 4-kỳ',
-      status: 'Active',
+      status: 'Operational',
       parameters: makeRequiredParams(),
     },
   ]);
@@ -301,7 +301,7 @@ export default function AddVesselPage() {
         id: newId,
         engineName: '',
         engineType: 'Diesel 4-kỳ',
-        status: 'Active',
+        status: 'Operational',
         parameters: makeRequiredParams(),
       },
     ]);
@@ -702,8 +702,9 @@ export default function AddVesselPage() {
 
 
   const engineStatusOptions = [
-    { label: 'Hoạt động', value: 'Active' },
-    { label: 'Tạm ngưng', value: 'Inactive' },
+    { label: 'Hoạt động', value: 'Operational' },
+    { label: 'Tạm ngưng', value: 'Standby' },
+    { label: 'Bảo trì', value: 'Under Maintenance' },
   ];
 
   return (

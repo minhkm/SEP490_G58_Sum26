@@ -95,6 +95,10 @@ router.post('/', async (req, res) => {
       status: 'Planning'
     }, { transaction: t });
 
+    if (shipId) {
+      await Ship.update({ status: 'Đang làm việc' }, { where: { id: shipId }, transaction: t });
+    }
+
     // 2. Phân bổ nhân sự (sử dụng ID thủy thủ đã chọn từ Frontend)
     if (crewList && crewList.length > 0) {
       const crewIds = crewList.map(c => c.crewId).filter(Boolean);
@@ -740,6 +744,16 @@ router.put('/:id', authMiddleware, async (req, res) => {
     }
 
     await voyage.save();
+
+    if (nextStatus === 'Completed' || nextStatus === 'Cancelled') {
+      if (voyage.shipId) {
+        await Ship.update({ status: 'Active' }, { where: { id: voyage.shipId } });
+      }
+    } else if (previousVoyage.status !== nextStatus) {
+      if (voyage.shipId) {
+        await Ship.update({ status: 'Đang làm việc' }, { where: { id: voyage.shipId } });
+      }
+    }
 
     // Hủy hải trình -> giải phóng lô hàng
     if (nextStatus === 'Cancelled' && previousVoyage.status !== 'Cancelled') {

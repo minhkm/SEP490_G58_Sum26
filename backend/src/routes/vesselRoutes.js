@@ -81,7 +81,7 @@ router.post('/', async (req, res) => {
         shipId: newShip.id, 
         engineName: mainEngine.engineName, 
         engineType: mainEngine.engineType || 'Diesel 2-kỳ', 
-        status: mainEngine.status || 'Hoạt động' 
+        status: mainEngine.status || 'Operational' 
       });
       // Tạo parameters động
       if (mainEngine.parameters && mainEngine.parameters.length > 0) {
@@ -101,7 +101,7 @@ router.post('/', async (req, res) => {
           shipId: newShip.id, 
           engineName: gen.engineName, 
           engineType: gen.engineType || 'Diesel 4-kỳ', 
-          status: gen.status || 'Hoạt động' 
+          status: gen.status || 'Operational' 
         });
         if (gen.parameters && gen.parameters.length > 0) {
           await EngineParameter.bulkCreate(
@@ -327,7 +327,8 @@ router.patch('/engines/:engineId/status', async (req, res) => {
     const engineName = (engine.engineName || '').toLowerCase();
     const engineType = (engine.engineType || '').toLowerCase();
     const isMainEngine = engineName.includes('main') || engineName.includes('chính') ||
-                         engineType.includes('main') || engineType.includes('chính');
+                         engineType.includes('main') || engineType.includes('chính') ||
+                         engineType.includes('2');
 
     if (isMainEngine && voyageId) {
       const voyage = await Voyage.findByPk(voyageId);
