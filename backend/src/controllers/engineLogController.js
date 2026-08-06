@@ -5,6 +5,8 @@ const {
   CrewProfile, LogEditHistory, LogImage
 } = require('../models');
 const notificationService = require('../services/notificationService');
+const { isOperationalEngineStatus } = require('../utils/engine');
+const { isEngineLogRole } = require('../utils/voyageRole');
 
 const isValidEngineValue = (item) => (
   item?.parameterId !== null
@@ -16,7 +18,6 @@ const isValidEngineValue = (item) => (
   && Number.isInteger(Number(item.parameterId))
   && Number.isFinite(Number(item.value))
 );
-const isOperationalEngineStatus = (status) => ['Operational', 'Active', 'Hoạt động'].includes(status);
 
 async function notifyExceededEngineValues({ shiftId, shiftLogId, engineLogId, engineId, values, actorUserId }) {
   if (!Array.isArray(values) || values.length === 0) return;
@@ -72,14 +73,16 @@ const getMyVoyages = async (req, res) => {
 
     const myVoyageCrews = await VoyageCrew.findAll({
       where: { crewId: crew.id },
-      attributes: ['voyageId']
+      attributes: ['voyageId', 'role']
     });
 
-    if (!myVoyageCrews.length) {
-      return res.status(404).json({ message: 'Bạn chưa được phân công hải trình nào' });
+    const engineAssignments = myVoyageCrews.filter((assignment) => isEngineLogRole(assignment.role));
+
+    if (!engineAssignments.length) {
+      return res.status(404).json({ message: 'Bạn chưa được phân công làm Thợ máy trong hải trình nào' });
     }
 
-    const myVoyageIds = myVoyageCrews.map(vc => vc.voyageId);
+    const myVoyageIds = engineAssignments.map(vc => vc.voyageId);
 
     const myVoyages = await Voyage.findAll({
       where: { id: { [Op.in]: myVoyageIds } },
@@ -96,7 +99,7 @@ const getMyVoyages = async (req, res) => {
     res.json(myVoyages);
   } catch (error) {
     console.error('Lỗi lấy hải trình:', error);
-    res.status(500).json({ message: 'Lỗi server', error: error.message });
+    res.status(500).json({ message: 'Lỗi máy chủ khi lấy hải trình nhật ký máy' });
   }
 };
 
@@ -111,6 +114,14 @@ const getShiftsForCurrentUser = async (req, res) => {
 
     if (!crewId) {
       return res.status(401).json({ message: 'Không xác định được thông tin người dùng' });
+    }
+
+    const assignment = await VoyageCrew.findOne({
+      where: { voyageId, crewId },
+      attributes: ['role'],
+    });
+    if (!assignment || !isEngineLogRole(assignment.role)) {
+      return res.status(403).json({ message: 'Bạn không được phân công làm Thợ máy trong hải trình này' });
     }
 
     const where = { voyageId, crewId };
@@ -135,7 +146,7 @@ const getShiftsForCurrentUser = async (req, res) => {
     res.json(shifts);
   } catch (error) {
     console.error('Lỗi lấy ca trực:', error);
-    res.status(500).json({ message: 'Lỗi server', error: error.message });
+    res.status(500).json({ message: 'Lỗi máy chủ khi lấy ca trực máy' });
   }
 };
 
@@ -205,7 +216,7 @@ const createEngineLog = async (req, res) => {
     });
   } catch (error) {
     console.error('Lỗi tạo nhật ký máy:', error);
-    res.status(500).json({ message: 'Lỗi server', error: error.message });
+    res.status(500).json({ message: 'Lỗi máy chủ khi tạo nhật ký máy' });
   }
 };
 
@@ -295,7 +306,7 @@ const updateEngineLog = async (req, res) => {
     res.json({ message: 'Cập nhật nhật ký thành công' });
   } catch (error) {
     console.error('Lỗi cập nhật nhật ký máy:', error);
-    res.status(500).json({ message: 'Lỗi server', error: error.message });
+    res.status(500).json({ message: 'Lỗi máy chủ khi cập nhật nhật ký máy' });
   }
 };
 
@@ -330,7 +341,7 @@ const getEngineLogsByShift = async (req, res) => {
     res.json(shiftLogs);
   } catch (error) {
     console.error('Lỗi lấy lịch sử:', error);
-    res.status(500).json({ message: 'Lỗi server', error: error.message });
+    res.status(500).json({ message: 'Lỗi máy chủ khi lấy lịch sử nhật ký máy' });
   }
 };
 
@@ -367,7 +378,7 @@ const getEngineLogsByVoyage = async (req, res) => {
     res.json(shifts);
   } catch (error) {
     console.error('Lỗi lấy lịch sử theo hải trình:', error);
-    res.status(500).json({ message: 'Lỗi server', error: error.message });
+    res.status(500).json({ message: 'Lỗi máy chủ khi lấy nhật ký máy theo hải trình' });
   }
 };
 
@@ -398,10 +409,10 @@ const uploadLogImages = async (req, res) => {
       }))
     );
 
-    res.status(201).json({ message: 'Upload ảnh thành công', images });
+    res.status(201).json({ message: 'Tải ảnh lên thành công', images });
   } catch (error) {
-    console.error('Lỗi upload ảnh:', error);
-    res.status(500).json({ message: 'Lỗi server', error: error.message });
+    console.error('Lỗi tải ảnh lên:', error);
+    res.status(500).json({ message: 'Lỗi máy chủ khi tải ảnh nhật ký máy lên' });
   }
 };
 
@@ -421,7 +432,7 @@ const getEditHistory = async (req, res) => {
     res.json(history);
   } catch (error) {
     console.error('Lỗi lấy lịch sử chỉnh sửa:', error);
-    res.status(500).json({ message: 'Lỗi server', error: error.message });
+    res.status(500).json({ message: 'Lỗi máy chủ khi lấy lịch sử chỉnh sửa nhật ký máy' });
   }
 };
 

@@ -6,7 +6,7 @@ const Ship = sequelize.define("Ship", {
   shipName: { type: DataTypes.STRING },
   imoNumber: { type: DataTypes.STRING },
   flag: { type: DataTypes.STRING },
-  status: { type: DataTypes.STRING, defaultValue: "Active" },
+  status: { type: DataTypes.STRING, defaultValue: "Hoạt động" },
 }, { tableName: "Ship", timestamps: false });
 
 module.exports = Ship;

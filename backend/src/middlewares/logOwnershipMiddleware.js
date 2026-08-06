@@ -8,8 +8,11 @@ const {
   EngineLog,
   EngineParameter,
 } = require('../models');
+const { isOperationalEngineStatus } = require('../utils/engine');
+const { isLogRoleForDuty } = require('../utils/voyageRole');
 
 const getCrewId = (req) => req.user?.profileId;
+const logTypeLabel = (logType) => logType === 'Engine' ? 'máy' : 'boong';
 
 const requireCrewProfile = (req, res) => {
   const crewId = getCrewId(req);
@@ -20,7 +23,25 @@ const requireCrewProfile = (req, res) => {
   return crewId;
 };
 
-const requireOwnedShift = ({ source = 'body', activeWindow = false } = {}) => async (req, res, next) => {
+const requireDutyAssignment = async ({ voyageId, crewId, duty, res }) => {
+  if (!duty) return true;
+
+  const assignment = await VoyageCrew.findOne({
+    where: { voyageId, crewId },
+    attributes: ['voyageId', 'crewId', 'role'],
+  });
+  if (!assignment || !isLogRoleForDuty(assignment.role, duty)) {
+    const logName = duty === 'Engine' ? 'nhật ký máy' : 'nhật ký boong';
+    res.status(403).json({
+      message: `Bạn không được phân công đúng chức danh để ghi ${logName} trong hải trình này.`,
+    });
+    return false;
+  }
+
+  return assignment;
+};
+
+const requireOwnedShift = ({ source = 'body', activeWindow = false, duty } = {}) => async (req, res, next) => {
   try {
     const crewId = requireCrewProfile(req, res);
     if (!crewId) return;
@@ -37,6 +58,10 @@ const requireOwnedShift = ({ source = 'body', activeWindow = false } = {}) => as
     if (Number(shift.crewId) !== Number(crewId)) {
       return res.status(403).json({ message: 'Bạn không được phép thao tác trên ca trực của người khác.' });
     }
+
+    const assignment = await requireDutyAssignment({ voyageId: shift.voyageId, crewId, duty, res });
+    if (!assignment) return;
+    if (assignment !== true) req.authorizedVoyageAssignment = assignment;
 
     if (activeWindow) {
       const now = Date.now();
@@ -72,7 +97,7 @@ const requireOwnedShift = ({ source = 'body', activeWindow = false } = {}) => as
     next();
   } catch (error) {
     console.error('Lỗi xác minh quyền ca trực:', error);
-    res.status(500).json({ message: 'Lỗi server', error: error.message });
+    res.status(500).json({ message: 'Lỗi máy chủ khi xác minh ca trực' });
   }
 };
 
@@ -83,7 +108,7 @@ const requireOwnedShiftLog = (logType) => async (req, res, next) => {
 
     const shiftLog = await ShiftLog.findByPk(req.params.shiftLogId);
     if (!shiftLog || shiftLog.logType !== logType) {
-      return res.status(404).json({ message: `Không tìm thấy nhật ký ${logType}.` });
+      return res.status(404).json({ message: `Không tìm thấy nhật ký ${logTypeLabel(logType)}.` });
     }
 
     const shift = await Shift.findByPk(shiftLog.shiftId);
@@ -94,32 +119,41 @@ const requireOwnedShiftLog = (logType) => async (req, res, next) => {
       return res.status(403).json({ message: 'Bạn không được phép thao tác trên nhật ký của người khác.' });
     }
 
+    const assignment = await requireDutyAssignment({ voyageId: shift.voyageId, crewId, duty: logType, res });
+    if (!assignment) return;
+
     req.authorizedShiftLog = shiftLog;
     req.authorizedShift = shift;
+    req.authorizedVoyageAssignment = assignment;
     next();
   } catch (error) {
     console.error('Lỗi xác minh quyền nhật ký:', error);
-    res.status(500).json({ message: 'Lỗi server', error: error.message });
+    res.status(500).json({ message: 'Lỗi máy chủ khi xác minh quyền sở hữu nhật ký' });
   }
 };
 
-const requireVoyageAssignment = async (req, res, next) => {
+const requireVoyageAssignment = (duty) => async (req, res, next) => {
   try {
     const crewId = requireCrewProfile(req, res);
     if (!crewId) return;
 
     const assignment = await VoyageCrew.findOne({
       where: { voyageId: req.params.voyageId, crewId },
-      attributes: ['voyageId', 'crewId'],
+      attributes: ['voyageId', 'crewId', 'role'],
     });
     if (!assignment) {
       return res.status(403).json({ message: 'Bạn không được phân công vào hải trình này.' });
     }
+    if (duty && !isLogRoleForDuty(assignment.role, duty)) {
+      const logName = duty === 'Engine' ? 'nhật ký máy' : 'nhật ký boong';
+      return res.status(403).json({ message: `Chức danh trong hải trình không có quyền xem ${logName}.` });
+    }
 
+    req.authorizedVoyageAssignment = assignment;
     next();
   } catch (error) {
     console.error('Lỗi xác minh phân công hải trình:', error);
-    res.status(500).json({ message: 'Lỗi server', error: error.message });
+    res.status(500).json({ message: 'Lỗi máy chủ khi xác minh phân công hải trình' });
   }
 };
 
@@ -173,7 +207,7 @@ const validateEngineValues = ({ update = false } = {}) => async (req, res, next)
     if (!engine) {
       return res.status(404).json({ message: 'Không tìm thấy máy cần kiểm tra.' });
     }
-    if (!update && !['Operational', 'Active', 'Hoạt động'].includes(engine.status)) {
+    if (!update && !isOperationalEngineStatus(engine.status)) {
       return res.status(400).json({ message: 'Chỉ máy đang hoạt động mới được ghi nhật ký.' });
     }
 
@@ -198,7 +232,7 @@ const validateEngineValues = ({ update = false } = {}) => async (req, res, next)
     next();
   } catch (error) {
     console.error('Lỗi xác thực dữ liệu nhật ký máy:', error);
-    res.status(500).json({ message: 'Lỗi server', error: error.message });
+    res.status(500).json({ message: 'Lỗi máy chủ khi kiểm tra thông số máy' });
   }
 };
 

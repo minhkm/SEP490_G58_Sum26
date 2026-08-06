@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import dayjs from 'dayjs';
 import {
@@ -38,6 +38,7 @@ import AgencyLayout from '../components/AgencyLayout';
 import { voyageService, vesselService, crewService, cargoService } from '../services/api';
 import { PageHeader, notifySuccess, notifyError, notifyWarning } from '../components/common';
 import { SEAPORTS } from '../data/ports';
+import { positionLabel } from '../config/roles';
 import * as XLSX from 'xlsx';
 
 const { Text } = Typography;
@@ -45,12 +46,12 @@ const DATE_FORMAT = 'YYYY-MM-DD';
 const toDayjs = (value) => (value ? dayjs(value, DATE_FORMAT) : null);
 
 const CREW_ROLE_OPTIONS = [
-  { value: 'Captain (CAPT)', label: 'Thuyền trưởng (Captain)' },
-  { value: 'Sĩ quan boong (Deck Officer)', label: 'Sĩ quan boong (Deck Officer)' },
-  { value: 'Đại phó (Chief Officer)', label: 'Đại phó (Chief Officer)' },
-  { value: 'Máy trưởng (Chief Engineer)', label: 'Máy trưởng (Chief Engineer)' },
-  { value: 'Thợ máy (Engine Crew)', label: 'Thợ máy (Engine Crew)' },
-  { value: 'Thủy thủ (Crew)', label: 'Thủy thủ (Crew)' },
+  { value: 'Captain (CAPT)', label: 'Thuyền trưởng' },
+  { value: 'Sĩ quan boong (Deck Officer)', label: 'Sĩ quan boong' },
+  { value: 'Đại phó (Chief Officer)', label: 'Đại phó' },
+  { value: 'Máy trưởng (Chief Engineer)', label: 'Máy trưởng' },
+  { value: 'Thợ máy (Engine Crew)', label: 'Thợ máy' },
+  { value: 'Thủy thủ (Crew)', label: 'Thủy thủ' },
 ];
 
 // Các chức danh cho phép nhiều người (không giới hạn trùng)
@@ -59,19 +60,26 @@ const MULTI_ALLOWED_ROLES = ['Thủy thủ (Crew)', 'Thợ máy (Engine Crew)'];
 // Trong hải trình chỉ có 1 loại: Vật tư y tế
 const VOYAGE_EQ_TYPE = 'Vật tư y tế';
 
-const EQUIPMENT_LOCATION_OPTIONS = [
-  { label: 'Boong', value: 'Boong' },
-  { label: 'Buồng máy', value: 'Buồng máy' },
-  { label: 'Buồng lái', value: 'Buồng lái' },
-];
+const CARGO_TYPE_LABELS = {
+  Rice: 'Gạo',
+  Coal: 'Than đá',
+  Stores: 'Vật tư, lương thực',
+  Container: 'Hàng công-ten-nơ',
+  Steel: 'Sắt thép',
+  Cement: 'Xi măng',
+};
 
-const mapPositionToRole = (position) => {
+const cargoTypeLabel = (type) => CARGO_TYPE_LABELS[type] || type || 'Chưa phân loại';
+
+const mapPositionToRole = (position, department) => {
   if (!position) return '';
   const pos = position.toLowerCase();
   if (pos.includes('captain') || pos.includes('master') || pos.includes('thuyền trưởng') || pos.includes('capt')) return 'Captain (CAPT)';
   if (pos.includes('chief officer') || pos.includes('đại phó') || pos.includes('c/o')) return 'Đại phó (Chief Officer)';
   if (pos.includes('chief engineer') || pos.includes('máy trưởng') || pos.includes('c/e')) return 'Máy trưởng (Chief Engineer)';
+  if (pos.includes('engine officer') || pos.includes('engine office') || pos.includes('sĩ quan máy')) return 'Máy trưởng (Chief Engineer)';
   if (pos.includes('deck officer') || pos.includes('sĩ quan boong') || pos.includes('d/o')) return 'Sĩ quan boong (Deck Officer)';
+  if (pos.includes('engine crew') || pos.includes('seaman engine') || pos.includes('thợ máy') || department === 'Engine') return 'Thợ máy (Engine Crew)';
   return 'Thủy thủ (Crew)';
 };
 
@@ -109,10 +117,6 @@ export default function CreateVoyagePage() {
   const [availableCargos, setAvailableCargos] = useState([]);
   const [availableCrews, setAvailableCrews] = useState([]);
 
-  // Capacity Calculations
-  const [selectedShipCapacity, setSelectedShipCapacity] = useState({ maxWeight: 0, maxVolume: 0, minCrew: 0, maxCrew: 0 });
-  const [currentCargoTotal, setCurrentCargoTotal] = useState({ weight: 0, volume: 0 });
-
   useEffect(() => {
     const fetchData = async () => {
       try {
@@ -128,40 +132,26 @@ export default function CreateVoyagePage() {
           setAvailableCargos(unassignedCargos);
         }
       } catch (err) {
-        console.error('Failed to fetch reference data', err);
+        console.error('Không thể tải dữ liệu tham chiếu', err);
       }
     };
     fetchData();
   }, []);
 
-  // Update selected ship capacity when shipId changes
-  useEffect(() => {
-    if (shipId) {
-      const ship = availableShips.find((s) => s.id === parseInt(shipId));
-      if (ship && ship.ShipCapacity) {
-        setSelectedShipCapacity({
-          maxWeight: ship.ShipCapacity.maxCargoWeight || 0,
-          maxVolume: ship.ShipCapacity.maxCargoVolume || 0,
-          minCrew: ship.ShipCapacity.minCrew || 10,
-          maxCrew: ship.ShipCapacity.maxCrew || 25,
-        });
-      } else if (ship && ship.ShipCapacities && ship.ShipCapacities.length > 0) {
-        setSelectedShipCapacity({
-          maxWeight: ship.ShipCapacities[0].maxCargoWeight || 0,
-          maxVolume: ship.ShipCapacities[0].maxCargoVolume || 0,
-          minCrew: ship.ShipCapacities[0].minCrew || 10,
-          maxCrew: ship.ShipCapacities[0].maxCrew || 25,
-        });
-      } else {
-        setSelectedShipCapacity({ maxWeight: 0, maxVolume: 0, minCrew: 0, maxCrew: 0 });
-      }
-    } else {
-      setSelectedShipCapacity({ maxWeight: 0, maxVolume: 0, minCrew: 0, maxCrew: 0 });
-    }
+  const selectedShipCapacity = useMemo(() => {
+    const ship = availableShips.find((item) => item.id === Number(shipId));
+    const capacity = ship?.ShipCapacity || ship?.ShipCapacities?.[0];
+    if (!capacity) return { maxWeight: 0, maxVolume: 0, minCrew: 0, maxCrew: 0 };
+
+    return {
+      maxWeight: capacity.maxCargoWeight || 0,
+      maxVolume: capacity.maxCargoVolume || 0,
+      minCrew: capacity.minCrew || 10,
+      maxCrew: capacity.maxCrew || 25,
+    };
   }, [shipId, availableShips]);
 
-  // Update current cargo totals when cargoList changes
-  useEffect(() => {
+  const currentCargoTotal = useMemo(() => {
     let tWeight = 0;
     let tVolume = 0;
     cargoList.forEach((item) => {
@@ -173,7 +163,7 @@ export default function CreateVoyagePage() {
         }
       }
     });
-    setCurrentCargoTotal({ weight: tWeight, volume: tVolume });
+    return { weight: tWeight, volume: tVolume };
   }, [cargoList, availableCargos]);
 
   // Handlers
@@ -206,7 +196,7 @@ export default function CreateVoyagePage() {
   const handleCrewChange = (id, name, value) => {
     if (name === 'crewId') {
       const selectedCrew = availableCrews.find(c => c.id === value);
-      const autoRole = selectedCrew ? mapPositionToRole(selectedCrew.position) : '';
+      const autoRole = selectedCrew ? mapPositionToRole(selectedCrew.position, selectedCrew.department) : '';
       setCrewList(crewList.map((c) => (c.id === id ? { ...c, crewId: value, role: autoRole } : c)));
     } else {
       setCrewList(crewList.map((c) => (c.id === id ? { ...c, [name]: value } : c)));
@@ -266,7 +256,7 @@ export default function CreateVoyagePage() {
         // Bỏ dòng tiêu đề (dòng 0), lọc dòng có cột A không rỗng
         const nonEmptyRows = rows.slice(1).filter(r => String(r[0] || '').trim());
         if (nonEmptyRows.length === 0) {
-          message.warning('File không có dữ liệu hoặc sai định dạng!');
+        message.warning('Tệp không có dữ liệu hoặc sai định dạng!');
           return;
         }
 
@@ -317,7 +307,7 @@ export default function CreateVoyagePage() {
             `Dòng ${rowNum}: ${rowErrors.join('; ')}`
           );
           Modal.warning({
-            title: `Import có ${errors.length} dòng lỗi — bị bỏ qua`,
+            title: `Tệp nhập có ${errors.length} dòng lỗi — đã bỏ qua`,
             width: 600,
             content: (
               <div style={{ maxHeight: 300, overflowY: 'auto' }}>
@@ -331,12 +321,12 @@ export default function CreateVoyagePage() {
 
         if (imported.length > 0) {
           setEquipmentList(prev => [...prev, ...imported]);
-          message.success(`Đã import ${imported.length} mặt hàng hợp lệ${errors.length > 0 ? `, bỏ qua ${errors.length} dòng lỗi` : ''}!`);
+          message.success(`Đã nhập ${imported.length} mặt hàng hợp lệ${errors.length > 0 ? `, bỏ qua ${errors.length} dòng lỗi` : ''}!`);
         } else {
-          message.error('Không có dòng nào hợp lệ để import. Kiểm tra lại file!');
+          message.error('Không có dòng nào hợp lệ để nhập. Vui lòng kiểm tra lại tệp!');
         }
       } catch {
-        message.error('Không đọc được file. Hãy kiểm tra đúng định dạng xlsx/xls.');
+        message.error('Không đọc được tệp. Hãy kiểm tra đúng định dạng xlsx/xls.');
       }
     };
     reader.readAsArrayBuffer(file);
@@ -413,13 +403,13 @@ export default function CreateVoyagePage() {
     if (currentCargoTotal.weight > selectedShipCapacity.maxWeight) {
       setActiveTab('cargo');
       return notifyWarning(
-        `Tổng trọng lượng hàng (${currentCargoTotal.weight} MT) vượt quá tải trọng của tàu (${selectedShipCapacity.maxWeight} MT)! Vui lòng điều chỉnh.`
+        `Tổng trọng lượng hàng (${currentCargoTotal.weight} tấn) vượt quá tải trọng của tàu (${selectedShipCapacity.maxWeight} tấn)! Vui lòng điều chỉnh.`
       );
     }
     if (currentCargoTotal.volume > selectedShipCapacity.maxVolume) {
       setActiveTab('cargo');
       return notifyWarning(
-        `Tổng thể tích hàng (${currentCargoTotal.volume} CBM) vượt quá dung tích của tàu (${selectedShipCapacity.maxVolume} CBM)! Vui lòng điều chỉnh.`
+        `Tổng thể tích hàng (${currentCargoTotal.volume} m³) vượt quá dung tích của tàu (${selectedShipCapacity.maxVolume} m³)! Vui lòng điều chỉnh.`
       );
     }
 
@@ -452,14 +442,19 @@ export default function CreateVoyagePage() {
       );
     }
 
-    // Validate equipment: bắt buộc phải có ít nhất 5 vật tư y tế
-    if (equipmentList.length === 0) {
+    // Mỗi tên vật tư hợp lệ được tính là một loại.
+    const validMedicalTypes = new Set(
+      equipmentList
+        .filter((item) => item.name?.trim() && Number(item.quantity) >= 1)
+        .map((item) => item.name.trim().toLocaleLowerCase('vi-VN')),
+    );
+    if (validMedicalTypes.size === 0) {
       setActiveTab('supplies');
       return notifyWarning('Hải trình chưa có vật tư y tế nào! Vui lòng thêm ít nhất 5 loại vật tư y tế.');
     }
-    if (equipmentList.length < 5) {
+    if (validMedicalTypes.size < 5) {
       setActiveTab('supplies');
-      return notifyWarning(`Hiện chỉ có ${equipmentList.length} vật tư y tế. Nên bổ sung ít nhất 5 loại theo khá́c nhắn mLC 2006!`);
+      return notifyWarning(`Hiện chỉ có ${validMedicalTypes.size} loại vật tư y tế hợp lệ. Vui lòng bổ sung đủ ít nhất 5 loại.`);
     }
 
     // Validate tất cả phải có tên và số lượng
@@ -471,7 +466,7 @@ export default function CreateVoyagePage() {
 
     try {
       const data = { shipId, routeInfo, cargoList, crewList, equipmentList };
-      console.log('Saving Voyage:', data);
+      console.log('Dữ liệu tạo hải trình:', data);
       await voyageService.createVoyage(data);
       notifySuccess('Khởi tạo Hải trình thành công!');
       navigate('/voyages');
@@ -494,7 +489,7 @@ export default function CreateVoyagePage() {
       <div style={{ padding: '16px', height: '100%', overflowY: 'auto' }}>
         <PageHeader
           icon={<NodeIndexOutlined />}
-          breadcrumb="Voyages / New"
+          breadcrumb="Hải trình / Tạo mới"
           title="Tạo Hải trình Mới"
           extra={
             <Space>
@@ -510,7 +505,7 @@ export default function CreateVoyagePage() {
           type="info"
           showIcon
           style={{ marginBottom: 16 }}
-          message='Trạng thái: Bản nháp (Draft) — hải trình sẽ chuyển "Đang lên kế hoạch" (Planning) sau khi khởi tạo.'
+          message='Trạng thái hiện tại là bản nháp; sau khi khởi tạo, hải trình sẽ chuyển sang đang lên kế hoạch.'
         />
 
         <Form layout="vertical">
@@ -659,15 +654,15 @@ export default function CreateVoyagePage() {
                         message={
                           <Space direction="vertical" style={{ width: '100%' }}>
                             <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                              <strong>Kiểm tra tải trọng (Weight):</strong>
+                              <strong>Kiểm tra tải trọng:</strong>
                               <span style={{ color: overWeight ? 'red' : 'green', fontWeight: 'bold' }}>
-                                {currentCargoTotal.weight.toFixed(2)} / {selectedShipCapacity.maxWeight} MT
+                                {currentCargoTotal.weight.toFixed(2)} / {selectedShipCapacity.maxWeight} tấn
                               </span>
                             </div>
                             <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                              <strong>Kiểm tra thể tích (Volume):</strong>
+                              <strong>Kiểm tra thể tích:</strong>
                               <span style={{ color: overVolume ? 'red' : 'green', fontWeight: 'bold' }}>
-                                {currentCargoTotal.volume.toFixed(2)} / {selectedShipCapacity.maxVolume} CBM
+                                {currentCargoTotal.volume.toFixed(2)} / {selectedShipCapacity.maxVolume} m³
                               </span>
                             </div>
                           </Space>
@@ -686,7 +681,7 @@ export default function CreateVoyagePage() {
                                 onChange={(value) => handleCargoChange(cargo.id, 'cargoId', value)}
                                 options={availableCargos.map((ac) => ({
                                   value: ac.id,
-                                  label: `${ac.cargoName || `Cargo #${ac.id}`} - ${ac.cargoType} (${ac.totalWeight} MT | ${ac.totalVolume} CBM)`,
+                                  label: `${ac.cargoName || `Lô hàng số ${ac.id}`} - ${cargoTypeLabel(ac.cargoType)} (${ac.totalWeight} tấn | ${ac.totalVolume} m³)`,
                                 }))}
                               />
                             </Form.Item>
@@ -713,7 +708,7 @@ export default function CreateVoyagePage() {
                 label: 'Nhân sự',
                 children: (
               <Card
-                title="Nhân sự Dự kiến (Voyage Crew)"
+                title="Nhân sự dự kiến"
                 extra={
                   <Button type="link" icon={<PlusOutlined />} onClick={addCrew}>
                     Thêm Nhân sự
@@ -746,7 +741,7 @@ export default function CreateVoyagePage() {
                               onChange={(value) => handleCrewChange(crew.id, 'crewId', value)}
                               options={availableCrews.map((ac) => ({
                                 value: ac.id,
-                                label: `${ac.fullName} (${ac.email}) - ${ac.position}`,
+                                label: `${ac.fullName} (${ac.email}) - ${positionLabel(ac.position)}`,
                                 disabled: crewList.some(c => c.crewId === ac.id && c.id !== crew.id)
                               }))}
                             />
@@ -786,10 +781,10 @@ export default function CreateVoyagePage() {
                 label: 'Vật tư y tế',
                 children: (
               <Card
-                title={<span><ToolOutlined /> Vật tư y tế (Medical Supplies)</span>}
+                title={<span><ToolOutlined /> Vật tư y tế</span>}
                 extra={
                   <Space size="small">
-                    <Tooltip title="Tải file Excel mẫu về, điền rồi import lên">
+                    <Tooltip title="Tải tệp Excel mẫu về, điền dữ liệu rồi nhập lên">
                       <Button size="small" icon={<DownloadOutlined />} onClick={downloadTemplate}>
                         Tải mẫu
                       </Button>
@@ -800,7 +795,7 @@ export default function CreateVoyagePage() {
                       beforeUpload={handleImportExcel}
                     >
                       <Button size="small" icon={<UploadOutlined />} type="default">
-                        Import Excel
+                        Nhập từ Excel
                       </Button>
                     </Upload>
                     <Button type="link" icon={<PlusOutlined />} onClick={addEquipment}>
@@ -815,7 +810,7 @@ export default function CreateVoyagePage() {
                     description={
                       <div>
                         <p style={{ margin: 0, fontWeight: 500 }}>Chưa có vật tư y tế nào.</p>
-                        <Text type="secondary">Hải trình <strong>bắt buộc</strong> phải có ít nhất một vật tư y tế.</Text>
+                        <Text type="secondary">Hải trình <strong>bắt buộc</strong> phải có ít nhất 5 loại vật tư y tế.</Text>
                         <br />
                         <Text type="secondary" style={{ fontSize: 12 }}>Thêm thuốc, băng gạc, dụng cụ sơ cấp cứu...</Text>
                       </div>

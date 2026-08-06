@@ -1,51 +1,58 @@
 import { useState, useEffect } from 'react';
-import { Card, Tag, Button, Table, Modal, Space, Spin, Empty, Typography, Tabs, Row, Col, Badge, Alert, InputNumber, Tooltip, Progress } from 'antd';
-import { ToolOutlined, SettingOutlined, ExclamationCircleOutlined, MedicineBoxOutlined } from '@ant-design/icons';
+import { Card, Tag, Button, Modal, Space, Spin, Empty, Typography, Tabs, Row, Col, Badge, Alert, Input, InputNumber, Tooltip, Progress } from 'antd';
+import { ToolOutlined, SettingOutlined, ExclamationCircleOutlined, MedicineBoxOutlined, SearchOutlined } from '@ant-design/icons';
 import MasterLayout from '../components/MasterLayout';
 import { voyageService, vesselService } from '../services/api';
 import { PageHeader, notifySuccess, notifyError } from '../components/common';
 import { getEffectiveRole } from '../config/roles';
 import { Select } from 'antd';
+import {
+  ENGINE_STATUS,
+  ENGINE_STATUS_OPTIONS,
+  engineNameLabel,
+  engineTypeLabel,
+  isMainEngine,
+  normalizeEngineStatus,
+} from '../utils/engine';
+import { equipmentLocationLabel, equipmentNameLabel, equipmentTypeLabel } from '../utils/vessel';
 
 const { Text } = Typography;
 
-// Cấu hình trạng thái Engine
-const ENGINE_STATUSES = [
-  { value: 'Operational',      label: 'Hoạt động',       color: '#22c55e', textColor: '#16a34a' },
-  { value: 'Standby',          label: 'Dự phòng / Chờ',  color: '#3b82f6', textColor: '#2563eb' },
-  { value: 'Under Maintenance',label: 'Đang bảo dưỡng',  color: '#f59e0b', textColor: '#b45309' },
-];
-
-
-const getEngineStatusCfg = (s) => ENGINE_STATUSES.find(x => x.value === s) || { label: s, color: 'default' };
-
-// Loại máy — kiểm tra cả tên máy lẫn loại máy
-const isMainEngine = (engine) => {
-  const name = (engine.engineName || '').toLowerCase();
-  const type = (engine.engineType || '').toLowerCase();
-  return name.includes('main') || name.includes('chính') ||
-         type.includes('main') || type.includes('chính') ||
-         type.includes('2');
+const getEngineStatusCfg = (status) => {
+  const normalized = normalizeEngineStatus(status);
+  return ENGINE_STATUS_OPTIONS.find((item) => item.value === normalized)
+    || { label: normalized, color: 'default' };
 };
 
-// Trạng thái hợp lệ theo loại máy
-const validStatusesForEngine = (engine) => {
-  if (isMainEngine(engine)) return ENGINE_STATUSES.filter(s => s.value !== 'Standby');
-  return ENGINE_STATUSES;
-};
+// Máy chính không có chế độ dự phòng; máy phụ có đủ ba trạng thái vận hành.
+const validStatusesForEngine = (engine) => (
+  isMainEngine(engine)
+    ? ENGINE_STATUS_OPTIONS.filter((item) => item.value !== ENGINE_STATUS.STANDBY)
+    : ENGINE_STATUS_OPTIONS
+);
+
+const normalizeSearchText = (value) => String(value || '')
+  .normalize('NFD')
+  .replace(/[\u0300-\u036f]/g, '')
+  .toLowerCase()
+  .trim();
+
+const isPositiveIntegerWithin = (value, maximum) => (
+  Number.isInteger(value) && value > 0 && value <= maximum
+);
 
 // Màu viền card theo status
 const cardBorderColor = (status) => {
-  if (status === 'Operational')       return '#22c55e';
-  if (status === 'Standby')           return '#3b82f6';
-  if (status === 'Under Maintenance') return '#f59e0b';
+  const normalized = normalizeEngineStatus(status);
+  if (normalized === ENGINE_STATUS.OPERATIONAL) return '#22c55e';
+  if (normalized === ENGINE_STATUS.STANDBY) return '#3b82f6';
+  if (normalized === ENGINE_STATUS.MAINTENANCE) return '#f59e0b';
   return '#d1d5db';
 };
 
 export default function EngineManagePage() {
   const role = getEffectiveRole();
   const isEngineOfficer = role === 'EngineOfficer';
-  const isCommandStaff = role === 'Master' || role === 'ChiefOfficer';
 
   const [selectedVoyage, setSelectedVoyage] = useState(null);
   const [engines,       setEngines]       = useState([]);
@@ -55,15 +62,17 @@ export default function EngineManagePage() {
 
   // Filter cho thiết bị tàu
   const [eqTypeFilter, setEqTypeFilter] = useState('Tất cả');
+  const [eqSearch, setEqSearch] = useState('');
+  const [medicalSearch, setMedicalSearch] = useState('');
 
   // Modal đổi trạng thái Engine
   const [engineModal, setEngineModal] = useState({ open: false, engine: null, newStatus: null });
 
   // Modal cập nhật brokenCount (thiết bị tàu)
-  const [brokenModal, setBrokenModal] = useState({ open: false, equip: null, newBroken: 0 });
+  const [brokenModal, setBrokenModal] = useState({ open: false, equip: null, newBroken: 1 });
 
   // Modal cập nhật số đã dùng (vật tư y tế)
-  const [medModal, setMedModal] = useState({ open: false, equip: null, newUsed: 0 });
+  const [medModal, setMedModal] = useState({ open: false, equip: null, newUsed: 1 });
 
   // Tự động load hải trình đang hoạt động
   useEffect(() => {
@@ -102,24 +111,24 @@ export default function EngineManagePage() {
   // Đổi trạng thái Engine
   const confirmEngineStatus = async () => {
     const { engine, newStatus } = engineModal;
-    // Guard: chỉ được đổi khi hải trình đang Underway hoặc Anchored
+    // Chỉ đổi trạng thái máy khi hải trình đang đi hoặc neo đậu.
     if (!['Underway', 'Anchored'].includes(selectedVoyage?.status)) {
-      notifyError('Chỉ được phép đổi trạng thái máy khi hải trình đang Underway hoặc Anchored!');
+      notifyError('Chỉ được phép đổi trạng thái máy khi hải trình đang đi hoặc neo đậu!');
       setEngineModal({ open: false, engine: null, newStatus: null });
       return;
     }
     const isMain = isMainEngine(engine);
-    const goingToMaintenance = newStatus === 'Under Maintenance';
+    const stoppingMainEngine = newStatus !== ENGINE_STATUS.OPERATIONAL;
 
-    const doUpdate = async (updateVoyage = false) => {
-      // Truyền voyageId để backend tự xử lý đổi trạng thái hải trình nếu cần
-      const voyageId = (isMain && updateVoyage && selectedVoyage) ? selectedVoyage.id : null;
+    const doUpdate = async () => {
+      // Truyền hải trình cho mọi máy để backend kiểm tra đúng chức danh được phân công.
+      const voyageId = selectedVoyage?.id || null;
       const result = await vesselService.updateEngineStatus(engine.id, newStatus, voyageId);
-      setEngines(prev => prev.map(e => e.id === engine.id ? { ...e, status: newStatus } : e));
-      notifySuccess(`Đã cập nhật "${engine.engineName}" → ${getEngineStatusCfg(newStatus).label}`);
+      setEngines(prev => prev.map(e => e.id === engine.id ? { ...e, status: normalizeEngineStatus(newStatus) } : e));
+      notifySuccess(`Đã cập nhật "${engineNameLabel(engine.engineName)}" → ${getEngineStatusCfg(newStatus).label}`);
       if (result.voyageUpdated && result.newVoyageStatus) {
         setSelectedVoyage(prev => ({ ...prev, status: result.newVoyageStatus }));
-        const voyageLabel = result.newVoyageStatus === 'Anchored' ? 'Neo đậu' : 'Underway';
+        const voyageLabel = result.newVoyageStatus === 'Anchored' ? 'Neo đậu' : 'Đang hành trình';
         notifySuccess(`Hải trình đã chuyển sang trạng thái ${voyageLabel}`);
       }
       setEngineModal({ open: false, engine: null, newStatus: null });
@@ -127,56 +136,74 @@ export default function EngineManagePage() {
 
 
     try {
-      // Máy chính → sửa chữa: hỏi có muốn neo đậu hải trình không
-      if (isMain && goingToMaintenance && selectedVoyage) {
+      // Máy chính ngừng chạy thì hải trình bắt buộc chuyển sang neo đậu.
+      if (isMain && stoppingMainEngine && selectedVoyage) {
         setEngineModal({ open: false, engine: null, newStatus: null }); // đóng modal select trước
         Modal.confirm({
-          title: 'Máy chính đang vào sửa chữa',
+          title: 'Máy chính sẽ ngừng hoạt động',
           icon: <ExclamationCircleOutlined style={{ color: '#f59e0b' }} />,
           content: (
             <div>
-              <p>Máy chính chuyển sang <strong>Đang bảo dưỡng / Sửa chữa</strong>.</p>
-              <p>Tàu sẽ không thể vận hành. Bạn có muốn đổi hải trình sang trạng thái <strong>Neo đậu (Anchored)</strong> không?</p>
+              <p>Máy chính chuyển sang <strong>{getEngineStatusCfg(newStatus).label}</strong>.</p>
+              <p>Tàu sẽ không thể vận hành và hải trình sẽ tự chuyển sang trạng thái <strong>Neo đậu</strong>.</p>
             </div>
           ),
-          okText: 'Đổi sang Neo đậu',
-          cancelText: 'Chỉ cập nhật máy',
-          onOk: () => doUpdate(true),
-          onCancel: () => doUpdate(false),
+          okText: 'Xác nhận',
+          cancelText: 'Hủy',
+          onOk: async () => {
+            try {
+              await doUpdate();
+            } catch (err) {
+              notifyError('Cập nhật thất bại: ' + (err.response?.data?.message || 'Không thể kết nối tới máy chủ.'));
+              throw err;
+            }
+          },
         });
       } else {
-        // Máy chính đổi sang Operational: backend tự đổi hải trình về Underway nếu đang Anchored
-        await doUpdate(isMain);
+        // Máy chính hoạt động lại: backend tự cho hải trình tiếp tục nếu đang neo đậu.
+        await doUpdate();
       }
 
     } catch (err) {
-      notifyError('Cập nhật thất bại: ' + (err.response?.data?.message || err.message));
+      notifyError('Cập nhật thất bại: ' + (err.response?.data?.message || 'Không thể kết nối tới máy chủ.'));
     }
   };
 
   // Cập nhật brokenCount cho thiết bị tàu
   const confirmBrokenCount = async () => {
     const { equip, newBroken } = brokenModal;
+    const remainingGood = (equip?.quantity || 0) - (equip?.brokenCount || 0);
+    if (!isPositiveIntegerWithin(newBroken, remainingGood)) {
+      notifyError(`Số lượng hỏng mới phải là số nguyên dương và không vượt quá ${remainingGood}.`);
+      return;
+    }
     try {
-      await vesselService.updateEquipmentBrokenCount(equip.id, newBroken);
-      setShipEquipments(prev => prev.map(e => e.id === equip.id ? { ...e, brokenCount: newBroken } : e));
-      notifySuccess(`Đã cập nhật số thiết bị hỏng: ${equip.equipmentName}`);
-      setBrokenModal({ open: false, equip: null, newBroken: 0 });
+      const result = await vesselService.updateEquipmentBrokenCount(equip.id, newBroken);
+      const updatedBrokenCount = result.equipment?.brokenCount ?? ((equip.brokenCount || 0) + newBroken);
+      setShipEquipments(prev => prev.map(e => e.id === equip.id ? { ...e, brokenCount: updatedBrokenCount } : e));
+      notifySuccess(`Đã ghi nhận thêm ${newBroken} thiết bị hỏng: ${equip.equipmentName}`);
+      setBrokenModal({ open: false, equip: null, newBroken: 1 });
     } catch (err) {
-      notifyError('Cập nhật thất bại: ' + (err.response?.data?.message || err.message));
+      notifyError('Cập nhật thất bại: ' + (err.response?.data?.message || 'Không thể kết nối tới máy chủ.'));
     }
   };
 
   // Cập nhật số đã dùng cho vật tư y tế (dùng brokenCount làm usedCount)
   const confirmMedUsed = async () => {
     const { equip, newUsed } = medModal;
+    const remaining = (equip?.quantity || 0) - (equip?.brokenCount || 0);
+    if (!isPositiveIntegerWithin(newUsed, remaining)) {
+      notifyError(`Số lượng sử dụng thêm phải là số nguyên dương và không vượt quá ${remaining}.`);
+      return;
+    }
     try {
-      await voyageService.updateEquipmentBrokenCount(equip.id, newUsed);
-      setVoyageEquipments(prev => prev.map(e => e.id === equip.id ? { ...e, brokenCount: newUsed } : e));
-      notifySuccess(`Đã cập nhật số đã dùng: ${equip.equipmentName}`);
-      setMedModal({ open: false, equip: null, newUsed: 0 });
+      const result = await voyageService.updateEquipmentBrokenCount(equip.id, newUsed);
+      const updatedUsedCount = result.equipment?.brokenCount ?? ((equip.brokenCount || 0) + newUsed);
+      setVoyageEquipments(prev => prev.map(e => e.id === equip.id ? { ...e, brokenCount: updatedUsedCount } : e));
+      notifySuccess(`Đã ghi nhận thêm ${newUsed} vật tư đã dùng: ${equip.equipmentName}`);
+      setMedModal({ open: false, equip: null, newUsed: 1 });
     } catch (err) {
-      notifyError('Cập nhật thất bại: ' + (err.response?.data?.message || err.message));
+      notifyError('Cập nhật thất bại: ' + (err.response?.data?.message || 'Không thể kết nối tới máy chủ.'));
     }
   };
 
@@ -187,7 +214,7 @@ export default function EngineManagePage() {
         {engines.map(engine => {
           const statusCfg = getEngineStatusCfg(engine.status);
           const isMain    = isMainEngine(engine);
-          // Được đổi trạng thái khi hải trình đang Underway hoặc Anchored
+          // Được đổi trạng thái khi hải trình đang đi hoặc neo đậu
           const canChangeStatus = ['Underway', 'Anchored'].includes(selectedVoyage?.status);
           return (
             <Col xs={24} sm={12} lg={8} key={engine.id}>
@@ -196,13 +223,13 @@ export default function EngineManagePage() {
                 actions={[
                   <Tooltip
                     key="change-status"
-                    title={!canChangeStatus ? `Hải trình đang "${selectedVoyage?.status || '—'}" — chỉ được đổi khi Underway hoặc Anchored` : ''}
+                    title={!canChangeStatus ? 'Chỉ được đổi trạng thái máy khi hải trình đang đi hoặc neo đậu' : ''}
                   >
                     <Button
                       type="link"
                       icon={<SettingOutlined />}
                       disabled={!canChangeStatus}
-                      onClick={() => canChangeStatus && setEngineModal({ open: true, engine, newStatus: engine.status })}
+                      onClick={() => canChangeStatus && setEngineModal({ open: true, engine, newStatus: normalizeEngineStatus(engine.status) })}
                     >
                       Đổi trạng thái
                     </Button>
@@ -217,8 +244,8 @@ export default function EngineManagePage() {
                       <span style={{ color: statusCfg.textColor || '#6b7280', fontWeight: 600, fontSize: 13 }}>{statusCfg.label}</span>
                     </span>
                   </Space>
-                  <Text strong style={{ fontSize: 16 }}>{engine.engineName}</Text>
-                  <Text type="secondary" style={{ fontSize: 12 }}>{engine.engineType}</Text>
+                  <Text strong style={{ fontSize: 16 }}>{engineNameLabel(engine.engineName)}</Text>
+                  <Text type="secondary" style={{ fontSize: 12 }}>{engineTypeLabel(engine)}</Text>
                 </Space>
               </Card>
             </Col>
@@ -229,10 +256,24 @@ export default function EngineManagePage() {
   };
 
   // ===== RENDER thiết bị tàu (có brokenCount) =====
-  const eqTypes = ['Tất cả', ...Array.from(new Set(shipEquipments.map(e => e.equipmentType)))];
-  const filteredShipEqs = shipEquipments.filter(e =>
-    eqTypeFilter === 'Tất cả' || e.equipmentType === eqTypeFilter
-  );
+  const eqTypes = ['Tất cả', ...Array.from(new Set(shipEquipments.map(e => equipmentTypeLabel(e.equipmentType))))];
+  const normalizedEqSearch = normalizeSearchText(eqSearch);
+  const filteredShipEqs = shipEquipments.filter((equipment) => {
+    const matchesType = eqTypeFilter === 'Tất cả'
+      || equipmentTypeLabel(equipment.equipmentType) === eqTypeFilter;
+    const searchableText = normalizeSearchText([
+      equipmentNameLabel(equipment.equipmentName),
+      equipmentTypeLabel(equipment.equipmentType),
+      equipmentLocationLabel(equipment.location),
+    ].join(' '));
+    return matchesType && (!normalizedEqSearch || searchableText.includes(normalizedEqSearch));
+  });
+
+  const normalizedMedicalSearch = normalizeSearchText(medicalSearch);
+  const filteredVoyageEquipments = voyageEquipments.filter((equipment) => (
+    !normalizedMedicalSearch
+    || normalizeSearchText(equipment.equipmentName).includes(normalizedMedicalSearch)
+  ));
 
   const renderShipEquipmentCard = (eq) => {
     const good   = (eq.quantity || 1) - (eq.brokenCount || 0);
@@ -255,10 +296,10 @@ export default function EngineManagePage() {
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
           {/* Tên + loại */}
           <div style={{ flex: 1 }}>
-            <Text strong>{eq.equipmentName}</Text>
+            <Text strong>{equipmentNameLabel(eq.equipmentName)}</Text>
             <div style={{ marginTop: 2 }}>
-              <Tag style={{ fontSize: 11 }}>{eq.equipmentType}</Tag>
-              <Text type="secondary" style={{ fontSize: 11 }}>{eq.location}</Text>
+              <Tag style={{ fontSize: 11 }}>{equipmentTypeLabel(eq.equipmentType)}</Tag>
+              <Text type="secondary" style={{ fontSize: 11 }}>{equipmentLocationLabel(eq.location)}</Text>
               {eq.expiryNote && (
                 <Tooltip title={`Hạn sử dụng: ${eq.expiryNote}`}>
                   <Tag color="orange" style={{ fontSize: 10, marginLeft: 4 }}>HSD: {eq.expiryNote}</Tag>
@@ -292,9 +333,10 @@ export default function EngineManagePage() {
           <Button
             size="small"
             icon={<ExclamationCircleOutlined />}
-            onClick={() => setBrokenModal({ open: true, equip: eq, newBroken: eq.brokenCount || 0 })}
+            disabled={allBroken}
+            onClick={() => setBrokenModal({ open: true, equip: eq, newBroken: 1 })}
           >
-            Cập nhật hỏng
+            {allBroken ? 'Đã hỏng toàn bộ' : 'Ghi nhận hỏng'}
           </Button>
         </div>
       </Card>
@@ -302,14 +344,6 @@ export default function EngineManagePage() {
   };
 
   // ===== RENDER vật tư y tế hải trình =====
-  const voyageEqColumns = [
-    { title: 'Vật tư / Thuốc', dataIndex: 'equipmentName', key: 'name' },
-    { title: 'Số lượng', dataIndex: 'quantity', key: 'qty', width: 100,
-      render: (q) => <Tag color="blue">{q}</Tag> },
-    { title: 'Ghi chú hạn SD', dataIndex: 'expiryNote', key: 'expiry',
-      render: (n) => n ? <Tag color="orange">{n}</Tag> : <Text type="secondary">—</Text> },
-  ];
-
   if (loading) {
     return (
       <MasterLayout>
@@ -325,7 +359,7 @@ export default function EngineManagePage() {
       <MasterLayout>
         <div style={{ padding: 'clamp(12px, 4vw, 32px)' }}>
           <PageHeader icon={<ToolOutlined style={{ color: '#f59e0b' }} />}
-            breadcrumb="Quản lý Máy & Thiết bị" title="Quản lý Trạng thái Máy & Thiết bị" />
+            breadcrumb="Quản lý máy và thiết bị" title="Quản lý trạng thái máy và thiết bị" />
           <Card><Empty description="Hiện không có hải trình nào đang hoạt động." /></Card>
         </div>
       </MasterLayout>
@@ -337,8 +371,8 @@ export default function EngineManagePage() {
       <div style={{ padding: '24px 32px' }}>
         <PageHeader
           icon={<ToolOutlined style={{ color: '#f59e0b' }} />}
-          breadcrumb="Quản lý Máy & Thiết bị"
-          title="Quản lý Trạng thái Máy & Thiết bị"
+          breadcrumb="Quản lý máy và thiết bị"
+          title="Quản lý trạng thái máy và thiết bị"
         />
 
         {/* Thông tin hải trình hiện tại */}
@@ -349,7 +383,7 @@ export default function EngineManagePage() {
           message={
             <span>
               Hải trình đang hoạt động:{' '}
-              <strong>{selectedVoyage.voyageCode || `#${selectedVoyage.id}`}</strong>
+              <strong>{selectedVoyage.voyageCode || `Hải trình số ${selectedVoyage.id}`}</strong>
               {' — '}
               {selectedVoyage.departurePort} → {selectedVoyage.destinationPort}
             </span>
@@ -375,12 +409,22 @@ export default function EngineManagePage() {
                 <Card
                   title="Thiết bị của tàu"
                   extra={
-                    <Select style={{ width: '100%', maxWidth: 200, minWidth: 120 }} value={eqTypeFilter} onChange={setEqTypeFilter}
-                      options={eqTypes.map(t => ({ value: t, label: t }))} />
+                    <Space wrap>
+                      <Input
+                        allowClear
+                        prefix={<SearchOutlined />}
+                        placeholder="Tìm tên thiết bị..."
+                        value={eqSearch}
+                        onChange={(event) => setEqSearch(event.target.value)}
+                        style={{ width: 220 }}
+                      />
+                      <Select style={{ width: 180 }} value={eqTypeFilter} onChange={setEqTypeFilter}
+                        options={eqTypes.map(t => ({ value: t, label: t }))} />
+                    </Space>
                   }
                 >
                   {filteredShipEqs.length === 0 ? (
-                    <Empty description="Không có thiết bị nào." />
+                    <Empty description="Không tìm thấy thiết bị phù hợp." />
                   ) : (
                     <div>{filteredShipEqs.map(eq => renderShipEquipmentCard(eq))}</div>
                   )}
@@ -391,12 +435,26 @@ export default function EngineManagePage() {
               key: 'medical',
               label: <span><MedicineBoxOutlined /> Vật tư y tế ({voyageEquipments.length})</span>,
               children: (
-                <Card title="Vật tư y tế hải trình">
-                  {voyageEquipments.length === 0 ? (
-                    <Empty description="Hải trình này chưa có vật tư y tế." />
+                <Card
+                  title="Vật tư y tế hải trình"
+                  extra={(
+                    <Input
+                      allowClear
+                      prefix={<SearchOutlined />}
+                      placeholder="Tìm tên vật tư..."
+                      value={medicalSearch}
+                      onChange={(event) => setMedicalSearch(event.target.value)}
+                      style={{ width: 220 }}
+                    />
+                  )}
+                >
+                  {filteredVoyageEquipments.length === 0 ? (
+                    <Empty description={voyageEquipments.length === 0
+                      ? 'Hải trình này chưa có vật tư y tế.'
+                      : 'Không tìm thấy vật tư phù hợp.'} />
                   ) : (
                     <div>
-                      {voyageEquipments.map(eq => {
+                      {filteredVoyageEquipments.map(eq => {
                         const used    = eq.brokenCount || 0;
                         const remain  = (eq.quantity || 0) - used;
                         const total   = eq.quantity || 1;
@@ -456,9 +514,10 @@ export default function EngineManagePage() {
                               <Button
                                 size="small"
                                 icon={<MedicineBoxOutlined />}
-                                onClick={() => setMedModal({ open: true, equip: eq, newUsed: used })}
+                                disabled={isEmpty}
+                                onClick={() => setMedModal({ open: true, equip: eq, newUsed: 1 })}
                               >
-                                Cập nhật
+                                {isEmpty ? 'Đã dùng hết' : 'Ghi nhận sử dụng'}
                               </Button>
                             </div>
                           </Card>
@@ -475,7 +534,7 @@ export default function EngineManagePage() {
 
       {/* Modal đổi trạng thái Máy */}
       <Modal
-        title={`Đổi trạng thái: ${engineModal.engine?.engineName}`}
+        title={`Đổi trạng thái: ${engineNameLabel(engineModal.engine?.engineName)}`}
         open={engineModal.open}
         onCancel={() => setEngineModal({ open: false, engine: null, newStatus: null })}
         onOk={confirmEngineStatus}
@@ -484,7 +543,7 @@ export default function EngineManagePage() {
         {engineModal.engine && (
           <Space direction="vertical" style={{ width: '100%' }}>
             <Text>Trạng thái hiện tại: <Badge
-              status={getEngineStatusCfg(engineModal.engine.status).color}
+              color={getEngineStatusCfg(engineModal.engine.status).color}
               text={getEngineStatusCfg(engineModal.engine.status).label} /></Text>
             <Text strong>Chọn trạng thái mới:</Text>
             <Select
@@ -493,13 +552,13 @@ export default function EngineManagePage() {
               onChange={(val) => setEngineModal(prev => ({ ...prev, newStatus: val }))}
               options={validStatusesForEngine(engineModal.engine).map(s => ({ value: s.value, label: s.label }))}
             />
-            {/* Cảnh báo khi máy chính vào sửa chữa */}
-            {isMainEngine(engineModal.engine) && engineModal.newStatus === 'Under Maintenance' && (
+            {/* Cảnh báo khi máy chính vào bảo dưỡng */}
+            {isMainEngine(engineModal.engine) && engineModal.newStatus === ENGINE_STATUS.MAINTENANCE && (
               <Alert
                 type="warning"
                 showIcon
-                message="Máy chính vào sửa chữa"
-                description="Tàu sẽ không thể vận hành. Bạn sẽ được hỏi có muốn chuyển hải trình sang trạng thái Neo đậu hay không."
+                message="Máy chính chuyển sang bảo dưỡng"
+                description="Tàu sẽ không thể vận hành và hải trình sẽ chuyển sang trạng thái Neo đậu sau khi bạn xác nhận."
               />
             )}
           </Space>
@@ -508,11 +567,17 @@ export default function EngineManagePage() {
 
       {/* Modal cập nhật số thiết bị hỏng */}
       <Modal
-        title={`Cập nhật số hỏng: ${brokenModal.equip?.equipmentName}`}
+        title={`Ghi nhận thiết bị hỏng: ${brokenModal.equip?.equipmentName}`}
         open={brokenModal.open}
-        onCancel={() => setBrokenModal({ open: false, equip: null, newBroken: 0 })}
+        onCancel={() => setBrokenModal({ open: false, equip: null, newBroken: 1 })}
         onOk={confirmBrokenCount}
         okText="Xác nhận" cancelText="Hủy"
+        okButtonProps={{
+          disabled: !brokenModal.equip || !isPositiveIntegerWithin(
+            brokenModal.newBroken,
+            (brokenModal.equip.quantity || 0) - (brokenModal.equip.brokenCount || 0),
+          ),
+        }}
       >
         {brokenModal.equip && (
           <Space direction="vertical" style={{ width: '100%' }}>
@@ -520,64 +585,68 @@ export default function EngineManagePage() {
             <Text>Hiện đang hỏng: <strong style={{ color: '#dc2626' }}>{brokenModal.equip.brokenCount || 0}</strong></Text>
             <div>
               <Text strong style={{ display: 'block', marginBottom: 8 }}>
-                Số lượng hỏng mới <span style={{ fontSize: 12, fontWeight: 400, color: '#64748b' }}>(0 = tất cả còn tốt)</span>:
+                Số lượng hỏng mới phát sinh <span style={{ fontSize: 12, fontWeight: 400, color: '#64748b' }}>(chỉ nhập số nguyên dương)</span>:
               </Text>
               <InputNumber
-                min={0}
-                max={brokenModal.equip.quantity}
+                min={1}
+                max={(brokenModal.equip.quantity || 0) - (brokenModal.equip.brokenCount || 0)}
+                precision={0}
+                step={1}
                 value={brokenModal.newBroken}
-                onChange={val => setBrokenModal(prev => ({ ...prev, newBroken: val ?? 0 }))}
+                onKeyDown={(event) => {
+                  if (['.', ',', 'e', 'E', '+', '-'].includes(event.key)) event.preventDefault();
+                }}
+                onChange={val => setBrokenModal(prev => ({ ...prev, newBroken: val }))}
                 style={{ width: '100%' }}
-                addonAfter={`/ ${brokenModal.equip.quantity}`}
+                addonAfter={`/ ${(brokenModal.equip.quantity || 0) - (brokenModal.equip.brokenCount || 0)} còn tốt`}
               />
             </div>
             <Alert
-              type={brokenModal.newBroken === 0 ? 'success' : brokenModal.newBroken === brokenModal.equip.quantity ? 'error' : 'warning'}
+              type={(brokenModal.equip.brokenCount || 0) + brokenModal.newBroken === brokenModal.equip.quantity ? 'error' : 'warning'}
               showIcon
-              message={
-                brokenModal.newBroken === 0
-                  ? 'Tất cả còn tốt'
-                  : brokenModal.newBroken === brokenModal.equip.quantity
-                    ? 'Toàn bộ đã hỏng!'
-                    : `Còn ${brokenModal.equip.quantity - brokenModal.newBroken} cái tốt, ${brokenModal.newBroken} cái hỏng`
-              }
+              message={`Sau khi ghi nhận: ${brokenModal.equip.quantity - (brokenModal.equip.brokenCount || 0) - (brokenModal.newBroken || 0)} cái tốt, ${(brokenModal.equip.brokenCount || 0) + (brokenModal.newBroken || 0)} cái hỏng`}
             />
           </Space>
         )}
       </Modal>
       {/* Modal cập nhật số đã dùng (vật tư y tế) */}
       <Modal
-        title={`Cập nhật đã dùng: ${medModal.equip?.equipmentName}`}
+        title={`Ghi nhận vật tư đã dùng: ${medModal.equip?.equipmentName}`}
         open={medModal.open}
-        onCancel={() => setMedModal({ open: false, equip: null, newUsed: 0 })}
+        onCancel={() => setMedModal({ open: false, equip: null, newUsed: 1 })}
         onOk={confirmMedUsed}
         okText="Xác nhận" cancelText="Hủy"
+        okButtonProps={{
+          disabled: !medModal.equip || !isPositiveIntegerWithin(
+            medModal.newUsed,
+            (medModal.equip.quantity || 0) - (medModal.equip.brokenCount || 0),
+          ),
+        }}
       >
         {medModal.equip && (
           <Space direction="vertical" style={{ width: '100%' }}>
             <Text>Số lượng ban đầu: <strong>{medModal.equip.quantity}</strong></Text>
             <Text>Đã dùng trước đó: <strong style={{ color: '#d97706' }}>{medModal.equip.brokenCount || 0}</strong></Text>
             <div>
-              <Text strong style={{ display: 'block', marginBottom: 8 }}>Tổng số đã sử dụng:</Text>
+              <Text strong style={{ display: 'block', marginBottom: 8 }}>Số lượng mới sử dụng thêm:</Text>
               <InputNumber
-                min={0}
-                max={medModal.equip.quantity}
+                min={1}
+                max={(medModal.equip.quantity || 0) - (medModal.equip.brokenCount || 0)}
+                precision={0}
+                step={1}
                 value={medModal.newUsed}
-                onChange={val => setMedModal(prev => ({ ...prev, newUsed: val ?? 0 }))}
+                onKeyDown={(event) => {
+                  if (['.', ',', 'e', 'E', '+', '-'].includes(event.key)) event.preventDefault();
+                }}
+                onChange={val => setMedModal(prev => ({ ...prev, newUsed: val }))}
                 style={{ width: '100%' }}
-                addonAfter={`/ ${medModal.equip.quantity}`}
+                addonAfter={`/ ${(medModal.equip.quantity || 0) - (medModal.equip.brokenCount || 0)} còn lại`}
               />
             </div>
             <Alert
-              type={medModal.newUsed === 0 ? 'info' : medModal.newUsed >= medModal.equip.quantity ? 'error' : 'warning'}
+              type={(medModal.equip.brokenCount || 0) + medModal.newUsed >= medModal.equip.quantity ? 'error' : 'warning'}
               showIcon
-              message={
-                medModal.newUsed === 0
-                  ? 'Chưa sử dụng'
-                  : medModal.newUsed >= medModal.equip.quantity
-                    ? 'Đã dùng hết!'
-                    : `Còn lại: ${medModal.equip.quantity - medModal.newUsed} đơn vị`
-              }
+              message={`Sau khi ghi nhận còn lại: ${medModal.equip.quantity - (medModal.equip.brokenCount || 0) - (medModal.newUsed || 0)} đơn vị`}
             />
           </Space>
         )}

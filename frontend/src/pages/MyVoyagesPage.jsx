@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { Layout, Typography, Card, Table, Space, Button, Tag, message } from 'antd';
 import { CompassOutlined, ArrowRightOutlined, LogoutOutlined, UserOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
@@ -24,22 +24,6 @@ export default function MyVoyagesPage() {
   
   const user = JSON.parse(localStorage.getItem('user') || '{}');
 
-  useEffect(() => {
-    fetchMyVoyages();
-  }, []);
-
-  const fetchMyVoyages = async () => {
-    try {
-      const data = await voyageService.getAll();
-      setVoyages(data || []);
-    } catch (err) {
-      console.error(err);
-      message.error('Không thể tải danh sách chuyến đi của bạn');
-    } finally {
-      setLoading(false);
-    }
-  };
-
   // Đưa chuỗi role trong VoyageCrew và role thực tế của tài khoản vào để map sang frontend role
   const parseRole = (roleStr, accountRole) => {
     if (!roleStr && !accountRole) return 'Sailor';
@@ -49,7 +33,8 @@ export default function MyVoyagesPage() {
     if (lower.includes('chief officer')) return 'ChiefOfficer';
     if (lower.includes('chief engineer') || lower.includes('engine officer')) return 'EngineOfficer';
     if (lower.includes('deck officer')) return 'DeckOfficer';
-    if (lower.includes('engine crew')) return 'EngineCrew';
+    if (lower.includes('engine crew') || lower.includes('thợ máy')) return 'EngineCrew';
+    if (lower.includes('thủy thủ') || lower.trim() === 'crew' || lower.includes('(crew)')) return 'Sailor';
     // Với các chuỗi chung (“Thủy thủ”, “Crew”, v.v.), dùng role thực tế của tài khoản
     if (accountRole === 'EngineCrew') return 'EngineCrew';
     if (accountRole === 'Sailor') return 'Sailor';
@@ -57,6 +42,35 @@ export default function MyVoyagesPage() {
     if (accountRole === 'EngineOfficer') return 'EngineOfficer';
     if (accountRole === 'ChiefEngineer') return 'EngineOfficer'; // legacy
     return 'Sailor';
+  }
+
+  useEffect(() => {
+    let active = true;
+    voyageService.getAll()
+      .then((data) => {
+        if (active) setVoyages(data || []);
+      })
+      .catch((err) => {
+        console.error(err);
+        message.error('Không thể tải danh sách chuyến đi của bạn');
+      })
+      .finally(() => {
+        if (active) setLoading(false);
+      });
+
+    return () => { active = false; };
+  }, []);
+
+  const voyageRoleLabel = (role) => {
+    const parsedRole = parseRole(role, user.role);
+    return {
+      Master: 'Thuyền trưởng',
+      ChiefOfficer: 'Đại phó',
+      DeckOfficer: 'Sĩ quan boong',
+      EngineOfficer: 'Máy trưởng',
+      EngineCrew: 'Thợ máy',
+      Sailor: 'Thủy thủ',
+    }[parsedRole] || 'Thuyền viên';
   };
 
   const handleSelectVoyage = (voyage) => {
@@ -94,7 +108,7 @@ export default function MyVoyagesPage() {
       render: (_, voyage) => (
         <div>
           <div>
-            <strong>{voyage.Ship?.shipName || `Tàu #${voyage.shipId}`}</strong>
+            <strong>{voyage.Ship?.shipName || `Tàu số ${voyage.shipId}`}</strong>
           </div>
           <Text type="secondary" style={{ fontSize: 12 }}>
             {voyage.Ship?.imoNumber || 'Chưa có IMO'}
@@ -120,7 +134,7 @@ export default function MyVoyagesPage() {
       dataIndex: 'userRoleInVoyage',
       render: (role) => (
         <Tag color="blue" style={{ fontWeight: 'bold' }}>
-          {role || 'Crew'}
+          {voyageRoleLabel(role)}
         </Tag>
       ),
     },
@@ -147,7 +161,7 @@ export default function MyVoyagesPage() {
           <span style={{ fontSize: 24, marginRight: 12 }}>🚢</span> CargoOps
         </div>
         <div style={{ color: 'white', display: 'flex', gap: 16, alignItems: 'center' }}>
-          <Text style={{ color: 'rgba(255, 255, 255, 0.85)' }}>Xin chào, {user.fullName || user.username || 'Crew'}</Text>
+          <Text style={{ color: 'rgba(255, 255, 255, 0.85)' }}>Xin chào, {user.fullName || user.username || 'Thuyền viên'}</Text>
           <Button type="primary" ghost icon={<UserOutlined />} onClick={() => navigate('/crew-profile')}>
             Hồ sơ của tôi
           </Button>
@@ -160,7 +174,7 @@ export default function MyVoyagesPage() {
       <Content style={{ padding: '24px 32px', margin: '0 auto', maxWidth: 1200, width: '100%' }}>
         <PageHeader
           icon={<CompassOutlined />}
-          breadcrumb="Welcome"
+          breadcrumb="Trang chủ"
           title="Hải trình của tôi"
         />
 

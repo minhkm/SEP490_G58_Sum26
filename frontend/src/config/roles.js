@@ -17,9 +17,9 @@ export const COMMAND_ROLES = ['Master', 'ChiefOfficer'];
 export const DECK_CREW_ROLES = ['DeckOfficer', 'Sailor'];
 export const ENGINE_CREW_ROLES = ['EngineOfficer', 'EngineCrew'];
 // Toàn bộ người trên tàu (chỉ huy + boong + máy)
-export const ONBOARD_ROLES = ['Master', 'ChiefOfficer', 'DeckOfficer', 'Sailor', 'EngineOfficer', 'EngineCrew'];
+export const ONBOARD_ROLES = ['Master', 'ChiefOfficer', 'DeckOfficer', 'Sailor', 'Crew', 'EngineOfficer', 'EngineCrew'];
 // Thuyền viên có dashboard "crew" (không phải chỉ huy)
-export const CREW_DASHBOARD_ROLES = ['DeckOfficer', 'Sailor', 'EngineOfficer', 'EngineCrew'];
+export const CREW_DASHBOARD_ROLES = ['DeckOfficer', 'Sailor', 'Crew', 'EngineOfficer', 'EngineCrew'];
 
 // Role hiệu lực hiện tại: ưu tiên role theo hải trình, fallback role tài khoản.
 // Dùng CHUNG cho mọi nơi (RequireRole, Sidebar, layout, dashboard) để tránh lệch nguồn.
@@ -101,10 +101,11 @@ export function getNextHandlerRole(currentRole, department) {
 // Nhãn tiếng Việt cho role.
 export const ROLE_LABELS = {
   Sailor: 'Thủy thủ',
+  Crew: 'Thủy thủ',
   DeckOfficer: 'Sĩ quan boong',
   ChiefOfficer: 'Đại phó',
   EngineCrew: 'Thợ máy',
-  EngineOfficer: 'Sĩ quan máy',
+  EngineOfficer: 'Máy trưởng',
   Master: 'Thuyền trưởng',
   Admin: 'Quản trị viên',
   Agency: 'Đại lý',
@@ -112,5 +113,36 @@ export const ROLE_LABELS = {
 
 export function roleLabel(role) {
   return ROLE_LABELS[role] || role || '';
+}
+
+const POSITION_LABELS = {
+  Captain: 'Thuyền trưởng',
+  Master: 'Thuyền trưởng',
+  'Chief Officer': 'Đại phó',
+  'Deck Officer': 'Sĩ quan boong',
+  'Chief Engineer': 'Máy trưởng',
+  'Engine Officer': 'Sĩ quan máy',
+  'Engine Office': 'Sĩ quan máy',
+  'Engine Crew': 'Thợ máy',
+  'Seaman Engine': 'Thợ máy',
+  'Seaman Deck': 'Thủy thủ',
+  Crew: 'Thủy thủ',
+  Sailor: 'Thủy thủ',
+};
+
+export function positionLabel(position) {
+  if (!position) return '';
+  if (POSITION_LABELS[position]) return POSITION_LABELS[position];
+
+  const normalized = String(position).toLowerCase();
+  if (normalized.includes('captain') || normalized.includes('master')) return 'Thuyền trưởng';
+  if (normalized.includes('chief officer')) return 'Đại phó';
+  if (normalized.includes('deck officer')) return 'Sĩ quan boong';
+  if (normalized.includes('chief engineer')) return 'Máy trưởng';
+  if (normalized.includes('engine officer') || normalized.includes('engine office')) return 'Sĩ quan máy';
+  if (normalized.includes('engine crew') || normalized.includes('seaman engine')) return 'Thợ máy';
+  if (normalized.includes('seaman deck')) return 'Thủy thủ';
+  if (normalized.includes('cook')) return 'Đầu bếp';
+  return position;
 }
 

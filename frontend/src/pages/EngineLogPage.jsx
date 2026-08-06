@@ -1,19 +1,44 @@
 import { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Select, Input, InputNumber, Button, Table, Card, Tag, Spin, Empty, Typography, Space, Row, Col, Alert, DatePicker, Upload, Modal, Image, Timeline, Tooltip } from 'antd';
+import { Select, Input, InputNumber, Button, Table, Card, Tag, Spin, Empty, Typography, Space, Row, Col, Alert, DatePicker, Upload, Modal, Image, Timeline } from 'antd';
 import { DashboardOutlined, SaveOutlined, ClockCircleOutlined, CompassOutlined, CalendarOutlined, UploadOutlined, EditOutlined, HistoryOutlined, PictureOutlined } from '@ant-design/icons';
 import MasterLayout from '../components/MasterLayout';
-import { engineLogService, voyageService, vesselService } from '../services/api';
+import { engineLogService, vesselService } from '../services/api';
 import { PageHeader, notifyWarning, notifySuccess, notifyError } from '../components/common';
 import dayjs from 'dayjs';
 import { SHIFT_SLOTS, slotFromStart } from '../config/shifts';
+import {
+  engineParameterLabel,
+  engineNameLabel,
+  engineTypeLabel,
+  isOperationalEngineStatus,
+  normalizeEngineStatus,
+} from '../utils/engine';
 import './EngineLogPage.css';
 
 const { Title, Text } = Typography;
 const { TextArea } = Input;
 
 const API_URL = import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000';
-const isOperationalEngineStatus = (status) => ['Operational', 'Active', 'Hoạt động'].includes(status);
+const REQUIRED_PARAMETER_NAMES = new Set([
+  'Áp suất dầu nhiên liệu (kg/cm²)',
+  'Nhiệt độ khí xả XL2 (°C)',
+  'Nhiệt độ nước làm mát (°C)',
+]);
+const isRequiredParameter = (name) => REQUIRED_PARAMETER_NAMES.has(engineParameterLabel(name));
+const voyageStatusLabel = (status) => ({
+  Planning: 'Đang lập kế hoạch',
+  Underway: 'Đang hành trình',
+  Anchored: 'Neo đậu',
+  Completed: 'Đã hoàn thành',
+  Cancelled: 'Đã hủy',
+}[status] || status);
+const shiftStatusLabel = (status) => ({
+  Scheduled: 'Đã lên lịch',
+  Active: 'Đang trực',
+  Completed: 'Đã hoàn thành',
+  Cancelled: 'Đã hủy',
+}[status] || status);
 const isWithinEditWindow = (log) => {
   const createdAt = dayjs(log?.createdAt);
   if (!createdAt.isValid()) return false;
@@ -73,12 +98,16 @@ export default function EngineLogPage() {
         setSelectedVoyage(voyage);
 
         if (voyage) {
-          try {
-            const vessel = await vesselService.getById(voyage.shipId);
-            setEngines(vessel.Engines || []);
-          } catch (e) {
-            console.error('Failed to fetch vessel engines', e);
-            if (voyage.Ship?.Engines) setEngines(voyage.Ship.Engines);
+          const includedEngines = voyage.Ship?.Engines;
+          if (includedEngines) {
+            setEngines(includedEngines);
+          } else {
+            try {
+              const vessel = await vesselService.getById(voyage.shipId);
+              setEngines(vessel.Engines || []);
+            } catch (e) {
+              console.error('Không thể tải danh sách máy của tàu', e);
+            }
           }
         }
         const date = initDate ? dayjs(initDate) : dayjs();
@@ -113,11 +142,17 @@ export default function EngineLogPage() {
     setNote('');
     setFileList([]);
     if (v) {
-      try {
-        const vessel = await vesselService.getById(v.shipId);
-        setEngines(vessel.Engines || []);
-      } catch (e) {
-        if (v.Ship?.Engines) setEngines(v.Ship.Engines);
+      const includedEngines = v.Ship?.Engines;
+      if (includedEngines) {
+        setEngines(includedEngines);
+      } else {
+        try {
+          const vessel = await vesselService.getById(v.shipId);
+          setEngines(vessel.Engines || []);
+        } catch (e) {
+          console.error('Không thể tải danh sách máy của tàu', e);
+          setEngines([]);
+        }
       }
       const shiftsData = await engineLogService.getShifts(v.id, selectedDate.format('YYYY-MM-DD'));
       setShifts(shiftsData);
@@ -224,12 +259,12 @@ export default function EngineLogPage() {
         try {
           await engineLogService.uploadImages(result.shiftLog.id, files);
         } catch (uploadErr) {
-          console.error('Lỗi upload ảnh:', uploadErr);
-          notifyWarning('Nhật ký đã lưu nhưng upload ảnh thất bại. Kiểm tra kết nối Cloudinary.');
+          console.error('Lỗi tải ảnh lên:', uploadErr);
+          notifyWarning('Nhật ký đã lưu nhưng tải ảnh lên dịch vụ lưu trữ thất bại. Vui lòng kiểm tra kết nối mạng.');
         }
       }
 
-      notifySuccess(`Ghi nhận kiểm tra "${selectedEngine.engineName}" thành công!`);
+      notifySuccess(`Ghi nhận kiểm tra "${engineNameLabel(selectedEngine.engineName)}" thành công!`);
       const logs = await engineLogService.getHistoryByShift(selectedShift.id);
       setHistory(logs);
       setSelectedEngine(null);
@@ -328,7 +363,7 @@ export default function EngineLogPage() {
     return (
       <MasterLayout>
         <div style={{ padding: 'clamp(12px, 4vw, 32px)' }}>
-          <PageHeader icon={<DashboardOutlined style={{ color: '#2563eb' }} />} breadcrumb="Engine Log" title="Nhật ký Kiểm tra Máy" />
+          <PageHeader icon={<DashboardOutlined style={{ color: '#2563eb' }} />} breadcrumb="Nhật ký máy" title="Nhật ký Kiểm tra Máy" />
           <Card>
             <Empty description={<div><p>Không có hải trình nào.</p></div>} />
           </Card>
@@ -339,7 +374,7 @@ export default function EngineLogPage() {
 
   const historyColumns = [
     { title: 'Thời gian', dataIndex: 'createdAt', width: 100, render: (d) => formatTime(d) },
-    { title: 'Máy', key: 'engine', width: 120, render: (_, log) => <strong>{log.EngineLog?.Engine?.engineName || 'N/A'}</strong> },
+    { title: 'Máy', key: 'engine', width: 120, render: (_, log) => <strong>{engineNameLabel(log.EngineLog?.Engine?.engineName) || 'Không có'}</strong> },
     {
       title: 'Thông số đo', key: 'values',
       render: (_, log) => log.EngineLog?.EngineLogValues?.map(v => {
@@ -380,7 +415,7 @@ export default function EngineLogPage() {
   return (
     <MasterLayout>
       <div style={{ padding: 'clamp(12px, 4vw, 32px)' }}>
-        <PageHeader icon={<DashboardOutlined style={{ color: '#2563eb' }} />} breadcrumb="Engine Log" title="Nhật ký Kiểm tra Máy" />
+        <PageHeader icon={<DashboardOutlined style={{ color: '#2563eb' }} />} breadcrumb="Nhật ký máy" title="Nhật ký Kiểm tra Máy" />
 
         {/* Chọn Hải trình, Ngày, Ca trực */}
         <Card style={{ marginBottom: 16 }}>
@@ -388,7 +423,7 @@ export default function EngineLogPage() {
             <div style={{ minWidth: 280 }}>
               <div style={{ marginBottom: 6 }}><Text type="secondary"><CompassOutlined /> Chọn Hải trình</Text></div>
               <Select style={{ width: '100%' }} value={selectedVoyage?.id || undefined} onChange={handleVoyageChange}
-                options={voyages.map(v => ({ value: v.id, label: `${v.Ship?.shipName} | ${v.departurePort} → ${v.destinationPort} (${v.status})` }))} />
+                options={voyages.map(v => ({ value: v.id, label: `${v.Ship?.shipName} | ${v.departurePort} → ${v.destinationPort} (${voyageStatusLabel(v.status)})` }))} />
             </div>
             <div>
               <div style={{ marginBottom: 6 }}><Text type="secondary"><CalendarOutlined /> Chọn Ngày</Text></div>
@@ -401,7 +436,7 @@ export default function EngineLogPage() {
                 options={shifts.map(s => {
                   const slot = SHIFT_SLOTS.find(sl => sl.slot === slotFromStart(s.startTime));
                   const timeLabel = slot ? slot.label : `${formatTime(s.startTime)} - ${formatTime(s.endTime)}`;
-                  return { value: s.id, label: `${s.CrewProfile?.fullName} | ${timeLabel} (${s.status})` };
+                  return { value: s.id, label: `${s.CrewProfile?.fullName} | ${timeLabel} (${shiftStatusLabel(s.status)})` };
                 })} />
             </div>
           </Space>
@@ -437,40 +472,31 @@ export default function EngineLogPage() {
                 description={`Ca này bắt đầu lúc ${formatTime(selectedShift.startTime)}. Chưa thể ghi nhật ký.`}
                 type="warning" showIcon style={{ marginBottom: 16 }} />
             )}
-            <Title level={5} style={{ marginBottom: 12 }}>Chọn máy cần kiểm tra ({engines.filter(e => isOperationalEngineStatus(e.status)).length}/{engines.length} máy hoạt động)</Title>
+            <Title level={5} style={{ marginBottom: 12 }}>Chọn máy đang hoạt động để kiểm tra</Title>
             <Row gutter={[16, 16]}>
-              {engines.map(engine => {
-                const isOperational = isOperationalEngineStatus(engine.status);
+              {engines.filter(engine => isOperationalEngineStatus(engine.status)).map(engine => {
                 const isSelected = selectedEngine?.id === engine.id;
-                const card = (
+                return (
+                  <Col xs={24} sm={12} lg={8} key={engine.id}>
                   <Card
-                    hoverable={isOperational}
+                    hoverable
                     onClick={() => handleSelectEngine(engine)}
                     style={{
                       borderColor: isSelected ? '#1677ff' : undefined,
                       borderWidth: isSelected ? 2 : 1,
-                      opacity: isOperational ? 1 : 0.55,
-                      cursor: isOperational ? 'pointer' : 'not-allowed',
+                      cursor: 'pointer',
                     }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <h4 style={{ margin: 0, color: isOperational ? undefined : '#999' }}>{engine.engineName}</h4>
-                      <Tag color={engine.engineType?.includes('2') ? 'blue' : 'gold'}>{engine.engineType?.includes('2') ? 'Máy chính' : 'Máy đèn'}</Tag>
+                      <h4 style={{ margin: 0 }}>{engineNameLabel(engine.engineName)}</h4>
+                      <Tag color={engineTypeLabel(engine) === 'Máy chính' ? 'blue' : 'gold'}>{engineTypeLabel(engine)}</Tag>
                     </div>
                     <div style={{ marginTop: 8 }}>
-                      <Tag color={isOperational ? 'green' : 'default'}>{engine.status}</Tag>
+                      <Tag color="green">{normalizeEngineStatus(engine.status)}</Tag>
                     </div>
                     <Text type="secondary" style={{ fontSize: 12 }}>
-                      {isOperational ? `${engine.EngineParameters?.length || 0} thông số cần kiểm tra` : 'Không cần ghi nhật ký'}
+                      {`${engine.EngineParameters?.length || 0} thông số cần kiểm tra`}
                     </Text>
                   </Card>
-                );
-                return (
-                  <Col xs={24} sm={12} lg={8} key={engine.id}>
-                    {isOperational ? card : (
-                      <Tooltip title={`Máy đang ${engine.status} — không cần ghi nhật ký`}>
-                        {card}
-                      </Tooltip>
-                    )}
                   </Col>
                 );
               })}
@@ -480,20 +506,20 @@ export default function EngineLogPage() {
 
         {/* Form nhập thông số */}
         {selectedEngine && !isCompleted && isToday && new Date() <= new Date(selectedShift?.endTime) && (
-          <Card style={{ marginTop: 16 }} title={`Kiểm tra: ${selectedEngine.engineName} (${selectedEngine.engineType})`}>
+          <Card style={{ marginTop: 16 }} title={`Kiểm tra: ${engineNameLabel(selectedEngine.engineName)} (${engineTypeLabel(selectedEngine)})`}>
             <Row gutter={[16, 16]}>
               {selectedEngine.EngineParameters?.map((param) => {
                 const status = getValueStatus(param, paramValues[param.id]);
-                const isMain = ['Fuel Oil Pressure', 'Exhaust Gas Temp XL2', 'Cooling Water Temp'].some(kw => param.name.includes(kw));
+                const isMain = isRequiredParameter(param.name);
                 return (
                   <Col xs={24} sm={12} lg={8} key={param.id}>
                     <div style={{ fontWeight: 500, marginBottom: 4 }}>
-                      {param.name} {isMain && <span style={{ color: 'red' }}>*</span>}
+                      {engineParameterLabel(param.name)} {isMain && <span style={{ color: 'red' }}>*</span>}
                     </div>
                     <InputNumber style={{ width: '100%', borderColor: statusBorderColor(status) }} placeholder="Nhập giá trị" min={0}
                       value={paramValues[param.id] === '' ? null : paramValues[param.id]}
                       onChange={value => handleParamChange(param.id, value === null ? '' : value)} />
-                    <Text type="secondary" style={{ fontSize: 12 }}>{param.maxValue != null && `Max: ${param.maxValue}`}</Text>
+                    <Text type="secondary" style={{ fontSize: 12 }}>{param.maxValue != null && `Tối đa: ${param.maxValue}`}</Text>
                   </Col>
                 );
               })}
@@ -553,10 +579,10 @@ export default function EngineLogPage() {
         </div>
 
         {editEngineParams.map(param => {
-          const isMain = ['Fuel Oil Pressure', 'Exhaust Gas Temp XL2', 'Cooling Water Temp'].some(kw => param.name.includes(kw));
+          const isMain = isRequiredParameter(param.name);
           return (
             <div key={param.id} style={{ marginBottom: 8 }}>
-              <Text strong>{param.name} {isMain && <span style={{ color: 'red' }}>*</span>}: </Text>
+              <Text strong>{engineParameterLabel(param.name)} {isMain && <span style={{ color: 'red' }}>*</span>}: </Text>
               <InputNumber style={{ width: '100%' }} min={0} value={editValues[param.id]} onChange={val => setEditValues({ ...editValues, [param.id]: val })} />
             </div>
           );

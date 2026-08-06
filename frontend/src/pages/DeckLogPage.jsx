@@ -7,11 +7,26 @@ import { deckLogService } from '../services/api';
 import { PageHeader, notifyWarning, notifySuccess, notifyError } from '../components/common';
 import dayjs from 'dayjs';
 import { SHIFT_SLOTS, slotFromStart } from '../config/shifts';
+import { positionLabel } from '../config/roles';
 
 const { Text } = Typography;
 const { TextArea } = Input;
 
 const API_URL = import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000';
+const voyageStatusLabel = (status) => ({
+  Planning: 'Đang lập kế hoạch',
+  Underway: 'Đang hành trình',
+  Anchored: 'Neo đậu',
+  Completed: 'Đã hoàn thành',
+  Cancelled: 'Đã hủy',
+}[status] || status);
+const shiftStatusLabel = (status) => ({
+  Scheduled: 'Đã lên lịch',
+  Active: 'Đang trực',
+  InProgress: 'Đang trực',
+  Completed: 'Đã hoàn thành',
+  Cancelled: 'Đã hủy',
+}[status] || status);
 const isWithinEditWindow = (log) => {
   const createdAt = dayjs(log?.createdAt);
   if (!createdAt.isValid()) return false;
@@ -22,23 +37,49 @@ const parsePreviousContent = (content) => {
   try { return JSON.parse(content) || {}; } catch { return {}; }
 };
 
-// ===== Cấu hình 16 cột thông số =====
+const WIND_DIRECTION_OPTIONS = [
+  { value: 'N', label: 'Bắc' },
+  { value: 'NE', label: 'Đông Bắc' },
+  { value: 'E', label: 'Đông' },
+  { value: 'SE', label: 'Đông Nam' },
+  { value: 'S', label: 'Nam' },
+  { value: 'SW', label: 'Tây Nam' },
+  { value: 'W', label: 'Tây' },
+  { value: 'NW', label: 'Tây Bắc' },
+  { value: 'C', label: 'Lặng gió' },
+];
+
+const WEATHER_OPTIONS = [
+  { value: 'bc', label: 'Trời quang xen mây' },
+  { value: 'br', label: 'Sương mù nhẹ' },
+  { value: 'c', label: 'Nhiều mây' },
+  { value: 'f', label: 'Sương mù' },
+  { value: 'g', label: 'Trời u ám' },
+  { value: 'h', label: 'Mưa đá' },
+  { value: 'o', label: 'Trời âm u' },
+  { value: 'p', label: 'Mưa rào' },
+  { value: 'q', label: 'Mưa giông' },
+  { value: 'r', label: 'Mưa' },
+  { value: 's', label: 'Tuyết' },
+];
+
+// ===== Cấu hình 15 thông số hàng hải =====
 const ENTRY_FIELDS = [
   { key: 'courseTrue', label: 'Hướng đi Thật', short: 'HĐ Thật', type: 'number', max: 360 },
   { key: 'courseGyro', label: 'LBCQ', short: 'LBCQ', type: 'number', max: 360 },
   { key: 'courseSteer', label: 'LB Lái', short: 'LB Lái', type: 'number', max: 360 },
   { key: 'gyroError', label: 'Sai số LBCQ', short: 'SS LBCQ', type: 'number' },
   { key: 'courseMagnetic', label: 'LB Từ', short: 'LB Từ', type: 'number', max: 360 },
-  { key: 'speed', label: 'Tốc độ (Knots)', short: 'Tốc độ', type: 'number' },
-  { key: 'rpm', label: 'RPM', short: 'RPM', type: 'number' },
-  { key: 'windDirection', label: 'Hướng gió', short: 'H.Gió', type: 'select', options: ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW', 'C'] },
-  { key: 'windForce', label: 'Sức gió (Bf)', short: 'S.Gió', type: 'number', max: 12 },
-  { key: 'weather', label: 'Thời tiết', short: 'T.Tiết', type: 'select', options: ['bc', 'br', 'c', 'f', 'g', 'h', 'o', 'p', 'q', 'r', 's'] },
-  { key: 'barometer', label: 'Khí áp (mb)', short: 'Khí áp', type: 'number' },
+  { key: 'speed', label: 'Tốc độ (hải lý/giờ)', short: 'Tốc độ', type: 'number' },
+  { key: 'rpm', label: 'Vòng quay/phút', short: 'Vòng/phút', type: 'number' },
+  { key: 'windDirection', label: 'Hướng gió', short: 'H.Gió', type: 'select', options: WIND_DIRECTION_OPTIONS },
+  { key: 'windForce', label: 'Cấp gió', short: 'S.Gió', type: 'number', max: 12 },
+  { key: 'weather', label: 'Thời tiết', short: 'T.Tiết', type: 'select', options: WEATHER_OPTIONS },
+  { key: 'barometer', label: 'Khí áp (milibar)', short: 'Khí áp', type: 'number' },
   { key: 'seaState', label: 'Biển', short: 'Biển', type: 'number', max: 9 },
-  { key: 'visibility', label: 'Tầm nhìn (NM)', short: 'Tầm nhìn', type: 'number' },
-  { key: 'airTemp', label: 'Nhiệt độ KK (°C)', short: 'T° KK', type: 'number' },
-  { key: 'seaTemp', label: 'Nhiệt độ Biển (°C)', short: 'T° Biển', type: 'number' },
+  { key: 'visibility', label: 'Tầm nhìn (hải lý)', short: 'Tầm nhìn', type: 'number' },
+  { key: 'airTemp', label: 'Nhiệt độ không khí (°C)', short: 'Nhiệt độ KK', type: 'number' },
+  { key: 'seaTemp', label: 'Nhiệt độ biển (°C)', short: 'Nhiệt độ biển', type: 'number' },
 ];
 
 // Nhóm field theo vị trí ca trực
@@ -220,8 +261,8 @@ export default function DeckLogPage() {
         try {
           await deckLogService.uploadImages(result.shiftLog.id, files);
         } catch (uploadErr) {
-          console.error('Lỗi upload ảnh:', uploadErr);
-          notifyWarning('Nhật ký đã lưu nhưng upload ảnh thất bại. Kiểm tra kết nối Cloudinary.');
+          console.error('Lỗi tải ảnh lên:', uploadErr);
+          notifyWarning('Nhật ký đã lưu nhưng tải ảnh lên dịch vụ lưu trữ thất bại. Vui lòng kiểm tra kết nối mạng.');
         }
       }
 
@@ -335,7 +376,7 @@ export default function DeckLogPage() {
           disabled={disabled}
           value={entry[field.key] || undefined}
           onChange={val => onChange(entry.hour, field.key, val || null)}
-          options={field.options.map(o => ({ value: o, label: o }))} />
+          options={field.options.map(o => typeof o === 'string' ? { value: o, label: o } : o)} />
       );
     }
     return (
@@ -363,7 +404,7 @@ export default function DeckLogPage() {
     return (
       <MasterLayout>
         <div style={{ padding: 'clamp(12px, 4vw, 32px)' }}>
-          <PageHeader icon={<FileTextOutlined style={{ color: '#2563eb' }} />} breadcrumb="Deck Log" title="Nhật ký Trực boong" />
+          <PageHeader icon={<FileTextOutlined style={{ color: '#2563eb' }} />} breadcrumb="Nhật ký boong" title="Nhật ký Trực boong" />
           <Card><Empty description={<div><p>Không có hải trình nào.</p></div>} /></Card>
         </div>
       </MasterLayout>
@@ -440,7 +481,7 @@ export default function DeckLogPage() {
   return (
     <MasterLayout>
       <div style={{ padding: 'clamp(12px, 4vw, 32px)' }}>
-        <PageHeader icon={<FileTextOutlined style={{ color: '#2563eb' }} />} breadcrumb="Deck Log" title="Nhật ký Trực boong" />
+        <PageHeader icon={<FileTextOutlined style={{ color: '#2563eb' }} />} breadcrumb="Nhật ký boong" title="Nhật ký Trực boong" />
 
         {/* Chọn Hải trình, Ngày, Ca trực */}
         <Card style={{ marginBottom: 16 }}>
@@ -448,7 +489,7 @@ export default function DeckLogPage() {
             <div style={{ minWidth: 280 }}>
               <div style={{ marginBottom: 6 }}><Text type="secondary"><CompassOutlined /> Chọn Hải trình</Text></div>
               <Select style={{ width: '100%' }} value={selectedVoyage?.id || undefined} onChange={handleVoyageChange}
-                options={voyages.map(v => ({ value: v.id, label: `${v.Ship?.shipName} | ${v.departurePort} → ${v.destinationPort} (${v.status})` }))} />
+                options={voyages.map(v => ({ value: v.id, label: `${v.Ship?.shipName} | ${v.departurePort} → ${v.destinationPort} (${voyageStatusLabel(v.status)})` }))} />
             </div>
             <div>
               <div style={{ marginBottom: 6 }}><Text type="secondary"><CalendarOutlined /> Chọn Ngày</Text></div>
@@ -460,7 +501,7 @@ export default function DeckLogPage() {
                 options={shifts.map(s => {
                   const slot = SHIFT_SLOTS.find(sl => sl.slot === slotFromStart(s.startTime));
                   const timeLabel = slot ? slot.label : `${formatTime(s.startTime)} - ${formatTime(s.endTime)}`;
-                  return { value: s.id, label: `${s.CrewProfile?.fullName} | ${timeLabel}${s.position ? ` — ${s.position}` : ''} (${s.status})` };
+                  return { value: s.id, label: `${s.CrewProfile?.fullName} | ${timeLabel}${s.position ? ` — ${positionLabel(s.position)}` : ''} (${shiftStatusLabel(s.status)})` };
                 })} />
             </div>
           </Space>
@@ -492,7 +533,7 @@ export default function DeckLogPage() {
             title={(() => {
               const slot = SHIFT_SLOTS.find(sl => sl.slot === slotFromStart(selectedShift.startTime));
               const timeLabel = slot ? slot.label : `${formatTime(selectedShift.startTime)} - ${formatTime(selectedShift.endTime)}`;
-              return <span>📋 Nhật ký Boong — Ca: {timeLabel} {selectedShift.position && <Tag color={selectedShift.position === 'Lái tàu' ? 'blue' : 'green'}>{selectedShift.position}</Tag>}</span>;
+              return <span>📋 Nhật ký boong — Ca: {timeLabel} {selectedShift.position && <Tag color={selectedShift.position === 'Lái tàu' ? 'blue' : 'green'}>{positionLabel(selectedShift.position)}</Tag>}</span>;
             })()}>
 
             <div style={{ overflowX: 'auto', marginBottom: 16 }}>

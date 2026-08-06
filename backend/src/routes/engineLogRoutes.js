@@ -13,13 +13,7 @@ const {
 // Áp dụng xác thực cho toàn bộ routes này
 router.use(authMiddleware);
 
-// Chỉ Thợ máy (EngineCrew) mới được ghi nhật ký trực máy
-router.use((req, res, next) => {
-  if (req.user?.role !== 'EngineCrew') {
-    return res.status(403).json({ message: 'Chỉ Thợ máy mới được truy cập nhật ký trực máy.' });
-  }
-  next();
-});
+// Quyền cụ thể được kiểm tra theo chức danh được phân công trong từng hải trình.
 
 // Lấy danh sách hải trình của user
 router.get('/my-voyages', ctrl.getMyVoyages);
@@ -30,7 +24,7 @@ router.get('/shifts/:voyageId', ctrl.getShiftsForCurrentUser);
 // Tạo nhật ký kiểm tra máy
 router.post(
   '/',
-  requireOwnedShift({ activeWindow: true }),
+  requireOwnedShift({ activeWindow: true, duty: 'Engine' }),
   validateEngineValues(),
   ctrl.createEngineLog,
 );
@@ -46,12 +40,12 @@ router.put(
 // Xem lịch sử kiểm tra theo ca trực
 router.get(
   '/history/shift/:shiftId',
-  requireOwnedShift({ source: 'params' }),
+  requireOwnedShift({ source: 'params', duty: 'Engine' }),
   ctrl.getEngineLogsByShift,
 );
 
 // Xem lịch sử kiểm tra theo hải trình
-router.get('/history/voyage/:voyageId', requireVoyageAssignment, ctrl.getEngineLogsByVoyage);
+router.get('/history/voyage/:voyageId', requireVoyageAssignment('Engine'), ctrl.getEngineLogsByVoyage);
 
 // Upload ảnh cho nhật ký
 router.post(

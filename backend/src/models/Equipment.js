@@ -11,7 +11,7 @@ const Equipment = sequelize.define("Equipment", {
   quantity:      { type: DataTypes.INTEGER, defaultValue: 1 },
   expiryNote:    { type: DataTypes.STRING, allowNull: true },    // ghi chú hạn sử dụng (text tự do)
   brokenCount:   { type: DataTypes.INTEGER, defaultValue: 0 },   // số lượng hỏng
-  status:        { type: DataTypes.STRING, defaultValue: "Operational" },
+  status:        { type: DataTypes.STRING, defaultValue: "Hoạt động" },
 }, { tableName: "Equipment", timestamps: false });
 
 module.exports = Equipment;

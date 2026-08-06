@@ -4,6 +4,8 @@ const crypto = require('crypto');
 const { sequelize, Voyage, User, CrewProfile, VoyageCrew, Ship, Attendance, Cargo, CargoItem, CargoOperation, ShipCapacity, CargoHold, CargoAllocation, Equipment } = require('../models');
 const { sendCrewCredentialsEmail, sendRouteApprovalEmail } = require('../services/emailService');
 const { notifyCrewAssignedToVoyage, notifyAttendanceUpdated, notifyVoyageUpdated } = require('../services/notificationService');
+const { SHIP_STATUS, normalizeEquipmentLocation, normalizeEquipmentName } = require('../utils/vessel');
+const { canonicalVoyageRole } = require('../utils/voyageRole');
 const authMiddleware = require('../middlewares/authMiddleware');
 
 const router = express.Router();
@@ -52,6 +54,16 @@ router.post('/', async (req, res) => {
       }
     }
 
+    const validMedicalSupplies = Array.isArray(equipmentList)
+      ? equipmentList.filter((item) => item.name?.trim() && Number(item.quantity) >= 1)
+      : [];
+    const medicalSupplyTypes = new Set(
+      validMedicalSupplies.map((item) => item.name.trim().toLocaleLowerCase('vi-VN')),
+    );
+    if (medicalSupplyTypes.size < 5) {
+      errors.push('Hải trình bắt buộc phải có ít nhất 5 loại vật tư y tế hợp lệ.');
+    }
+
     if (errors.length > 0) {
       await t.rollback();
       return res.status(400).json({ 
@@ -76,11 +88,11 @@ router.post('/', async (req, res) => {
         
         if (totalWeight > shipCap.maxCargoWeight) {
           await t.rollback();
-          return res.status(400).json({ message: `Vượt quá tải trọng tàu. (Tối đa: ${shipCap.maxCargoWeight} MT, Hiện tại: ${totalWeight} MT)` });
+          return res.status(400).json({ message: `Vượt quá tải trọng tàu. (Tối đa: ${shipCap.maxCargoWeight} tấn, hiện tại: ${totalWeight} tấn)` });
         }
         if (totalVolume > shipCap.maxCargoVolume) {
           await t.rollback();
-          return res.status(400).json({ message: `Vượt quá thể tích tàu. (Tối đa: ${shipCap.maxCargoVolume} CBM, Hiện tại: ${totalVolume} CBM)` });
+          return res.status(400).json({ message: `Vượt quá thể tích tàu. (Tối đa: ${shipCap.maxCargoVolume} m³, hiện tại: ${totalVolume} m³)` });
         }
       }
     }
@@ -172,30 +184,27 @@ router.post('/', async (req, res) => {
     }
 
     // Tạo Equipment y tế cho hải trình (chỉ cho phép Thiết bị y tế)
-    if (equipmentList && equipmentList.length > 0) {
-      const validEquipments = equipmentList.filter(e => e.name && e.name.trim() !== '' && e.quantity && e.quantity >= 1);
-      if (validEquipments.length > 0) {
-        const eqData = validEquipments.map(e => ({
+    if (validMedicalSupplies.length > 0) {
+        const eqData = validMedicalSupplies.map(e => ({
           voyageId: voyage.id,
           shipId: null,
-          equipmentName: e.name,
+          equipmentName: normalizeEquipmentName(e.name),
           equipmentType: 'Vật tư y tế',   // Chỉ cho phép loại vật tư y tế trong hải trình
-          location: e.location || '',
+          location: normalizeEquipmentLocation(e.location),
           quantity: Number(e.quantity) || 1,
           expiryNote: e.expiryNote || null,
           brokenCount: 0,
-          status: 'Operational'
+          status: 'Hoạt động'
         }));
         await Equipment.bulkCreate(eqData, { transaction: t });
-      }
     }
 
     await t.commit();
     res.status(201).json({ message: 'Khởi tạo hải trình thành công', voyage });
   } catch (error) {
     await t.rollback();
-    console.error('Lỗi khi tạo voyage:', error);
-    res.status(500).json({ message: 'Lỗi server khi tạo hải trình', error: error.message });
+    console.error('Lỗi khi tạo hải trình:', error);
+    res.status(500).json({ message: 'Lỗi máy chủ khi tạo hải trình' });
   }
 });
 
@@ -252,8 +261,8 @@ router.get("/", authMiddleware, async (req, res) => {
 
     res.json(resultVoyages);
   } catch (error) {
-    console.error("Error fetching voyages:", error);
-    res.status(500).json({ message: "Unable to fetch voyage list." });
+    console.error('Lỗi khi lấy danh sách hải trình:', error);
+    res.status(500).json({ message: 'Không thể lấy danh sách hải trình.' });
   }
 });
 
@@ -289,7 +298,7 @@ router.get('/:id/crew', authMiddleware, async (req, res) => {
     res.json(result);
   } catch (error) {
     console.error('Lỗi khi lấy danh sách thuyền viên:', error);
-    res.status(500).json({ message: 'Lỗi server khi lấy danh sách thuyền viên', error: error.message });
+    res.status(500).json({ message: 'Lỗi máy chủ khi lấy danh sách thuyền viên' });
   }
 });
 
@@ -345,7 +354,7 @@ router.get('/:id/cargo', authMiddleware, async (req, res) => {
     res.json(result);
   } catch (error) {
     console.error('Lỗi khi lấy danh sách hàng hóa:', error);
-    res.status(500).json({ message: 'Lỗi server khi lấy danh sách hàng hóa', error: error.message });
+    res.status(500).json({ message: 'Lỗi máy chủ khi lấy danh sách hàng hóa' });
   }
 });
 
@@ -359,7 +368,7 @@ router.get('/:id/equipments', authMiddleware, async (req, res) => {
     res.json(equipments);
   } catch (error) {
     console.error('Lỗi khi lấy danh sách thiết bị:', error);
-    res.status(500).json({ message: 'Lỗi server khi lấy danh sách thiết bị', error: error.message });
+    res.status(500).json({ message: 'Lỗi máy chủ khi lấy danh sách thiết bị' });
   }
 });
 
@@ -416,11 +425,11 @@ router.put('/:id', authMiddleware, async (req, res) => {
       ];
       
       if (lockedForAdminStatuses.includes(voyage.status) && status && status !== voyage.status) {
-         return res.status(403).json({ message: 'Admin không được phép thay đổi trạng thái khi tàu đã bắt đầu làm hàng (Loading) hoặc đang hoạt động!' });
+         return res.status(403).json({ message: 'Quản trị viên không được phép thay đổi trạng thái khi tàu đã bắt đầu làm hàng hoặc đang hoạt động!' });
       }
 
       if (status && status !== voyage.status && !['Planning', 'Cancelled'].includes(status)) {
-         return res.status(403).json({ message: 'Admin chỉ được phép chuyển trạng thái thành Planning hoặc Cancelled!' });
+         return res.status(403).json({ message: 'Quản trị viên chỉ được phép chuyển trạng thái thành đang lên kế hoạch hoặc đã hủy!' });
       }
     }
 
@@ -472,7 +481,7 @@ router.put('/:id', authMiddleware, async (req, res) => {
         return res.status(403).json({ message: 'Hải trình đang chạy hoặc đã hoàn thành, không thể chỉnh sửa lộ trình!' });
       }
       if (userRole === 'chiefofficer' && voyage.status !== 'Loaded') {
-        return res.status(403).json({ message: 'Đại phó chỉ được chỉnh sửa lộ trình khi trạng thái tàu là Loaded!' });
+        return res.status(403).json({ message: 'Đại phó chỉ được chỉnh sửa lộ trình khi tàu đã làm hàng xong!' });
       }
       voyage.routeWaypoints = routeWaypoints;
     }
@@ -481,7 +490,7 @@ router.put('/:id', authMiddleware, async (req, res) => {
     if (routeStatus !== undefined && routeStatus !== voyage.routeStatus) {
       if (routeStatus === 'Pending') {
         if (userRole === 'chiefofficer' && voyage.status !== 'Loaded') {
-           return res.status(403).json({ message: 'Đại phó chỉ được gửi duyệt lộ trình khi trạng thái tàu là Loaded!' });
+           return res.status(403).json({ message: 'Đại phó chỉ được gửi duyệt lộ trình khi tàu đã làm hàng xong!' });
         }
         routeStatusChangedToPending = true;
       }
@@ -546,10 +555,10 @@ router.put('/:id', authMiddleware, async (req, res) => {
     if (nextStatus === 'Underway') {
       // Assuming isCrewSufficient being false means attendance is missing or crew is absent
       if (!nextIsCrewSufficient) {
-        return res.status(400).json({ message: 'Thuyền trưởng chưa điểm danh hoặc nhân sự chưa đủ, không thể chuyển trạng thái Đang di chuyển (Underway)!' });
+        return res.status(400).json({ message: 'Thuyền trưởng chưa điểm danh hoặc nhân sự chưa đủ, không thể chuyển sang trạng thái đang di chuyển!' });
       }
       if (voyage.routeStatus !== 'Approved' && routeStatus !== 'Approved') {
-        return res.status(400).json({ message: 'Lộ trình chưa được phê duyệt, không thể chuyển trạng thái Đang di chuyển (Underway)!' });
+        return res.status(400).json({ message: 'Lộ trình chưa được phê duyệt, không thể chuyển sang trạng thái đang di chuyển!' });
       }
       // Check if all cargo is loaded in DB
       const cargosInVoyage = await Cargo.findAll({
@@ -573,7 +582,7 @@ router.put('/:id', authMiddleware, async (req, res) => {
       }
 
       if (!allLoaded) {
-        return res.status(400).json({ message: 'Chưa bốc xếp hàng hóa xong, không thể chuyển trạng thái Đang di chuyển (Underway)!' });
+        return res.status(400).json({ message: 'Chưa bốc xếp hàng hóa xong, không thể chuyển sang trạng thái đang di chuyển!' });
       } else {
         voyage.isCargoLoaded = true; // Auto-update to true if actually loaded
       }
@@ -598,7 +607,7 @@ router.put('/:id', authMiddleware, async (req, res) => {
       }
 
       if (!allDischarged) {
-        return res.status(400).json({ message: 'Chưa dỡ hết hàng hóa, không thể chuyển trạng thái Đã dỡ hàng xong (Discharged)!' });
+        return res.status(400).json({ message: 'Chưa dỡ hết hàng hóa, không thể chuyển sang trạng thái đã dỡ hàng xong!' });
       }
     }
 
@@ -609,7 +618,7 @@ router.put('/:id', authMiddleware, async (req, res) => {
       });
 
       if (postDischargeAttendanceCount === 0 || postDischargeAttendanceCount < requiredCrewCount) {
-        return res.status(400).json({ message: 'Chưa hoàn thành điểm danh "Kết thúc chuyến đi" cho toàn bộ thuyền viên, không thể chuyển trạng thái Đang quay về (Homeward Bounding)!' });
+        return res.status(400).json({ message: 'Chưa hoàn thành điểm danh "Kết thúc chuyến đi" cho toàn bộ thuyền viên, không thể chuyển sang trạng thái đang quay về!' });
       }
     }
 
@@ -747,7 +756,7 @@ router.put('/:id', authMiddleware, async (req, res) => {
 
     if (nextStatus === 'Completed' || nextStatus === 'Cancelled') {
       if (voyage.shipId) {
-        await Ship.update({ status: 'Active' }, { where: { id: voyage.shipId } });
+        await Ship.update({ status: SHIP_STATUS.OPERATIONAL }, { where: { id: voyage.shipId } });
       }
     } else if (previousVoyage.status !== nextStatus) {
       if (voyage.shipId) {
@@ -799,7 +808,7 @@ router.put('/:id', authMiddleware, async (req, res) => {
     res.json({ message: 'Cập nhật chuyến đi thành công', voyage });
   } catch (error) {
     console.error('Lỗi khi cập nhật chuyến đi:', error);
-    res.status(500).json({ message: 'Lỗi server khi cập nhật chuyến đi', error: error.message });
+    res.status(500).json({ message: 'Lỗi máy chủ khi cập nhật chuyến đi' });
   }
 });
 
@@ -873,7 +882,7 @@ router.get('/:id/attendances', authMiddleware, async (req, res) => {
     res.json(result);
   } catch (error) {
     console.error('Lỗi khi lấy danh sách điểm danh:', error);
-    res.status(500).json({ message: 'Lỗi server khi lấy danh sách điểm danh' });
+    res.status(500).json({ message: 'Lỗi máy chủ khi lấy danh sách điểm danh' });
   }
 });
 
@@ -906,7 +915,7 @@ router.post('/:id/attendances', authMiddleware, async (req, res) => {
       return res.status(400).json({ message: 'Loại điểm danh không hợp lệ' });
     }
     if (type === 'Daily' && !/^\d{4}-\d{2}-\d{2}$/.test(date || '')) {
-      return res.status(400).json({ message: 'Điểm danh hằng ngày cần date theo định dạng YYYY-MM-DD' });
+      return res.status(400).json({ message: 'Ngày điểm danh hằng ngày phải theo định dạng YYYY-MM-DD' });
     }
 
     if (!attendanceList || !Array.isArray(attendanceList)) {
@@ -921,7 +930,7 @@ router.post('/:id/attendances', authMiddleware, async (req, res) => {
     for (const item of attendanceList) {
       const crewAssignment = await VoyageCrew.findOne({ where: { voyageId: id, crewId: item.crewId } });
       if (!crewAssignment) {
-        return res.status(400).json({ message: `Thuyền viên #${item.crewId} không thuộc hải trình này` });
+        return res.status(400).json({ message: `Thuyền viên có mã số ${item.crewId} không thuộc hải trình này` });
       }
       const attendanceDate = type === 'Daily'
         ? date
@@ -1002,7 +1011,7 @@ router.post('/:id/attendances', authMiddleware, async (req, res) => {
     res.json({ message: 'Lưu điểm danh thành công' });
   } catch (error) {
     console.error('Lỗi khi lưu điểm danh:', error);
-    res.status(500).json({ message: 'Lỗi server khi lưu điểm danh' });
+    res.status(500).json({ message: 'Lỗi máy chủ khi lưu điểm danh' });
   }
 });
 
@@ -1012,44 +1021,63 @@ router.patch('/equipments/:equipmentId/status', authMiddleware, async (req, res)
     return res.status(403).json({ message: 'Chỉ Sĩ quan máy mới được đổi trạng thái thiết bị' });
   }
 
-  const VALID_EQUIPMENT_STATUSES = ['Operational', 'Broken', 'Lost'];
   const { status } = req.body;
-  if (!VALID_EQUIPMENT_STATUSES.includes(status)) {
-    return res.status(400).json({ message: `Trạng thái không hợp lệ. Chỉ chấp nhận: ${VALID_EQUIPMENT_STATUSES.join(', ')}` });
+  const statusAliases = {
+    Operational: 'Hoạt động',
+    'Hoạt động': 'Hoạt động',
+    Broken: 'Hỏng',
+    Hỏng: 'Hỏng',
+    Lost: 'Mất',
+    Mất: 'Mất',
+  };
+  const normalizedStatus = statusAliases[status];
+  if (!normalizedStatus) {
+    return res.status(400).json({ message: 'Trạng thái không hợp lệ. Chỉ chấp nhận: Hoạt động, Hỏng, Mất' });
   }
 
   try {
     const equipment = await Equipment.findByPk(req.params.equipmentId);
     if (!equipment) return res.status(404).json({ message: 'Không tìm thấy thiết bị' });
-    await equipment.update({ status });
+    await equipment.update({ status: normalizedStatus });
     res.json({ message: 'Cập nhật trạng thái thiết bị thành công', equipment });
   } catch (error) {
     console.error('Lỗi cập nhật trạng thái thiết bị:', error);
-    res.status(500).json({ message: 'Lỗi server', error: error.message });
+    res.status(500).json({ message: 'Lỗi máy chủ khi cập nhật trạng thái vật tư' });
   }
 });
 
-// PATCH /api/voyages/equipments/:equipmentId/broken-count — Cập nhật số lượng hỏng (EngineOfficer)
+// PATCH /api/voyages/equipments/:equipmentId/broken-count — Ghi nhận số vật tư y tế đã dùng thêm
 router.patch('/equipments/:equipmentId/broken-count', authMiddleware, async (req, res) => {
-  const allowedEquipRoles = ['EngineOfficer', 'Master', 'ChiefOfficer'];
-  if (!allowedEquipRoles.includes(req.user?.role)) {
-    return res.status(403).json({ message: 'Chỉ Sĩ quan máy, Thuyền trưởng hoặc Thuyền phó mới được cập nhật' });
-  }
   const { brokenCount } = req.body;
-  if (brokenCount === undefined || brokenCount === null || brokenCount < 0) {
-    return res.status(400).json({ message: 'Số lượng hỏng phải là số ≥ 0' });
+  const additionalUsedCount = Number(brokenCount);
+  if (!Number.isInteger(additionalUsedCount) || additionalUsedCount <= 0) {
+    return res.status(400).json({ message: 'Số lượng sử dụng thêm phải là số nguyên dương' });
   }
   try {
     const equipment = await Equipment.findByPk(req.params.equipmentId);
     if (!equipment) return res.status(404).json({ message: 'Không tìm thấy thiết bị' });
-    if (brokenCount > equipment.quantity) {
-      return res.status(400).json({ message: `Số lượng hỏng (${brokenCount}) không được lớn hơn tổng (${equipment.quantity})` });
+
+    const assignment = equipment.voyageId && req.user.profileId
+      ? await VoyageCrew.findOne({ where: { voyageId: equipment.voyageId, crewId: req.user.profileId } })
+      : null;
+    const effectiveRole = assignment
+      ? canonicalVoyageRole(assignment.role)
+      : (equipment.voyageId ? '' : canonicalVoyageRole(req.user?.role));
+    if (!['EngineOfficer', 'Master', 'ChiefOfficer'].includes(effectiveRole)) {
+      return res.status(403).json({ message: 'Chỉ Máy trưởng, Thuyền trưởng hoặc Đại phó mới được cập nhật vật tư y tế' });
     }
-    await equipment.update({ brokenCount });
-    res.json({ message: 'Cập nhật số lượng hỏng thành công', equipment });
+
+    const currentUsedCount = Number(equipment.brokenCount) || 0;
+    const nextUsedCount = currentUsedCount + additionalUsedCount;
+    if (nextUsedCount > equipment.quantity) {
+      const remaining = Math.max(0, equipment.quantity - currentUsedCount);
+      return res.status(400).json({ message: `Chỉ còn ${remaining} vật tư có thể ghi nhận đã sử dụng` });
+    }
+    await equipment.update({ brokenCount: nextUsedCount });
+    res.json({ message: 'Ghi nhận số vật tư đã dùng thành công', equipment });
   } catch (error) {
-    console.error('Lỗi cập nhật broken-count:', error);
-    res.status(500).json({ message: 'Lỗi server', error: error.message });
+    console.error('Lỗi cập nhật số lượng vật tư đã dùng:', error);
+    res.status(500).json({ message: 'Lỗi máy chủ khi cập nhật số lượng vật tư đã dùng' });
   }
 });
 
@@ -1152,7 +1180,7 @@ router.put('/:id/cargo/:itemId/discharge', authMiddleware, async (req, res) => {
     res.json({ message: 'Cập nhật trạng thái dỡ hàng thành công', cargoItem });
   } catch (error) {
     console.error('Lỗi khi dỡ hàng:', error);
-    res.status(500).json({ message: 'Lỗi server khi dỡ hàng', error: error.message });
+    res.status(500).json({ message: 'Lỗi máy chủ khi dỡ hàng' });
   }
 });
 
@@ -1171,7 +1199,7 @@ router.get('/:id', authMiddleware, async (req, res) => {
     res.json(voyage);
   } catch (error) {
     console.error('Lỗi khi lấy thông tin chuyến đi:', error);
-    res.status(500).json({ message: 'Lỗi server', error: error.message });
+    res.status(500).json({ message: 'Lỗi máy chủ khi gửi thông báo hải trình' });
   }
 });
 

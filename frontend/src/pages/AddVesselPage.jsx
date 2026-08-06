@@ -38,19 +38,31 @@ import AgencyLayout from '../components/AgencyLayout';
 import { vesselService } from '../services/api';
 import { notifyError, notifySuccess, notifyWarning } from '../utils/feedback';
 import * as XLSX from 'xlsx';
-import { getNames } from 'country-list';
+import { getData } from 'country-list';
+import {
+  ENGINE_STATUS,
+  ENGINE_TYPE,
+  ENGINE_STATUS_OPTIONS,
+  engineNameLabel,
+  engineParameterLabel,
+  isMainEngine,
+  normalizeEngineStatus,
+} from '../utils/engine';
+import {
+  cargoHoldNameLabel,
+  equipmentLocationLabel,
+  equipmentNameLabel,
+  equipmentTypeLabel,
+  normalizeShipStatus,
+} from '../utils/vessel';
 
 const { Title, Text } = Typography;
 
-const normalizeEngineStatus = (status) => ({
-  Active: 'Operational',
-  'Hoạt động': 'Operational',
-  Inactive: 'Standby',
-  'Tạm ngưng': 'Standby',
-  Maintenance: 'Under Maintenance',
-  'Bảo trì': 'Under Maintenance',
-}[status] || status || 'Operational');
-const REQUIRED_PARAMS = ['Fuel Oil Pressure (kg/cm²)', 'Exhaust Gas Temp XL2 (°C)', 'Cooling Water Temp (°C)'];
+const REQUIRED_PARAMS = [
+  'Áp suất dầu nhiên liệu (kg/cm²)',
+  'Nhiệt độ khí xả XL2 (°C)',
+  'Nhiệt độ nước làm mát (°C)',
+];
 
 export default function AddVesselPage() {
   const navigate = useNavigate();
@@ -67,7 +79,7 @@ export default function AddVesselPage() {
     shipName: '',
     imoNumber: '',
     flag: '',
-    status: 'Active',
+    status: 'Hoạt động',
   });
 
   // Capacity State
@@ -87,20 +99,24 @@ export default function AddVesselPage() {
   const [shipEquipments, setShipEquipments] = useState([]);
 
   // Countries Options
-  const countries = getNames().map(name => ({ label: name, value: name }));
+  const vietnameseRegionNames = new Intl.DisplayNames(['vi'], { type: 'region' });
+  const countries = getData().map(({ code, name }) => ({
+    label: vietnameseRegionNames.of(code) || name,
+    value: name,
+  }));
 
   // 3 thông số bắt buộc (fix cứng, không xóa được)
   // 9 thông số kỹ thuật bổ sung (tùy chọn thêm)
   const PARAM_OPTIONS = [
-    'RPM (Main Engine)',
-    'Scavenge Pressure (kg/cm²)',
-    'Air Pressure (kg/cm²)',
-    'Start Air Pressure (kg/cm²)',
-    'Lube Oil Temperature (°C)',
-    'Exhaust Gas Temp XL3 (°C)',
-    'Exhaust Gas Temp XL4 (°C)',
-    'Exhaust Gas Temp XL5 (°C)',
-    'Exhaust Gas Temp XL6 (°C)',
+    'Vòng quay máy chính (vòng/phút)',
+    'Áp suất khí quét (kg/cm²)',
+    'Áp suất khí nén (kg/cm²)',
+    'Áp suất khí khởi động (kg/cm²)',
+    'Nhiệt độ dầu bôi trơn (°C)',
+    'Nhiệt độ khí xả XL3 (°C)',
+    'Nhiệt độ khí xả XL4 (°C)',
+    'Nhiệt độ khí xả XL5 (°C)',
+    'Nhiệt độ khí xả XL6 (°C)',
   ];
 
   const makeRequiredParams = () =>
@@ -115,8 +131,8 @@ export default function AddVesselPage() {
   // Engine & Parameters State
   const [mainEngine, setMainEngine] = useState({
     engineName: '',
-    engineType: 'Diesel 2-kỳ',
-    status: 'Operational',
+    engineType: ENGINE_TYPE.MAIN,
+    status: ENGINE_STATUS.OPERATIONAL,
     parameters: makeRequiredParams(),
   });
 
@@ -124,8 +140,8 @@ export default function AddVesselPage() {
     {
       id: 1,
       engineName: '',
-      engineType: 'Diesel 4-kỳ',
-      status: 'Operational',
+      engineType: ENGINE_TYPE.AUXILIARY,
+      status: ENGINE_STATUS.OPERATIONAL,
       parameters: makeRequiredParams(),
     },
   ]);
@@ -141,7 +157,7 @@ export default function AddVesselPage() {
             shipName: data.shipName || '',
             imoNumber: data.imoNumber || '',
             flag: data.flag || '',
-            status: data.status || 'Active',
+            status: normalizeShipStatus(data.status),
           });
           if (data.ShipCapacity) {
             setCapacity({
@@ -153,18 +169,16 @@ export default function AddVesselPage() {
           }
 
           if (data.Engines && data.Engines.length > 0) {
-            const me =
-              data.Engines.find((e) => e.engineType === 'Main Engine' || e.engineType === 'Diesel 2-kỳ') ||
-              data.Engines[0];
+            const me = data.Engines.find(isMainEngine) || data.Engines[0];
             if (me) {
               // Load params từ DB, đánh dấu required
               const dbParams = (me.EngineParameters || []).map((p, i) => ({
                 _uid: i + 1,
                 id: p.id,
-                name: p.name,
+                name: engineParameterLabel(p.name),
                 minValue: p.minValue ?? '',
                 maxValue: p.maxValue ?? '',
-                fixed: REQUIRED_PARAMS.includes(p.name),
+                fixed: REQUIRED_PARAMS.includes(engineParameterLabel(p.name)),
               }));
               // Thêm các required param nếu DB chưa có
               let uid = dbParams.length + 1;
@@ -175,8 +189,8 @@ export default function AddVesselPage() {
               }
               setMainEngine({
                 id: me.id,
-                engineName: me.engineName,
-                engineType: me.engineType,
+                engineName: engineNameLabel(me.engineName),
+                engineType: ENGINE_TYPE.MAIN,
                 status: normalizeEngineStatus(me.status),
                 parameters: dbParams,
               });
@@ -189,10 +203,10 @@ export default function AddVesselPage() {
                   const dbParams = (g.EngineParameters || []).map((p, i) => ({
                     _uid: i + 1,
                     id: p.id,
-                    name: p.name,
+                    name: engineParameterLabel(p.name),
                     minValue: p.minValue ?? '',
                     maxValue: p.maxValue ?? '',
-                    fixed: REQUIRED_PARAMS.includes(p.name),
+                    fixed: REQUIRED_PARAMS.includes(engineParameterLabel(p.name)),
                   }));
                   let uid = dbParams.length + 1;
                   for (const rp of REQUIRED_PARAMS) {
@@ -202,8 +216,8 @@ export default function AddVesselPage() {
                   }
                   return {
                     id: g.id,
-                    engineName: g.engineName,
-                    engineType: g.engineType,
+                    engineName: engineNameLabel(g.engineName),
+                    engineType: ENGINE_TYPE.AUXILIARY,
                     status: normalizeEngineStatus(g.status),
                     parameters: dbParams,
                   };
@@ -216,7 +230,7 @@ export default function AddVesselPage() {
             setHolds(
               data.CargoHolds.map((h) => ({
                 id: h.id,
-                name: h.holdName,
+                  name: cargoHoldNameLabel(h.holdName),
                 capacity: h.maxCapacity,
               }))
             );
@@ -229,9 +243,9 @@ export default function AddVesselPage() {
               setShipEquipments(eqs.map((e, i) => ({
                 _uid: i + 1,
                 id: e.id,
-                equipmentName: e.equipmentName,
-                equipmentType: e.equipmentType,
-                location: e.location,
+                equipmentName: equipmentNameLabel(e.equipmentName),
+                equipmentType: equipmentTypeLabel(e.equipmentType),
+                location: equipmentLocationLabel(e.location),
                 quantity: e.quantity,
                 expiryNote: e.expiryNote || '',
               })));
@@ -305,8 +319,8 @@ export default function AddVesselPage() {
       {
         id: newId,
         engineName: '',
-        engineType: 'Diesel 4-kỳ',
-        status: 'Operational',
+        engineType: ENGINE_TYPE.AUXILIARY,
+        status: ENGINE_STATUS.OPERATIONAL,
         parameters: makeRequiredParams(),
       },
     ]);
@@ -348,7 +362,7 @@ export default function AddVesselPage() {
       ['Bộ đồ phòng cháy chữa cháy', 'Thiết bị chữa cháy', 'Buồng lái', 2, 'Không có hạn'],
       // Thiết bị hàng hải
       ['La bàn từ', 'Thiết bị hàng hải', 'Buồng lái', 1, 'Kiểm định 5 năm'],
-      ['Radar hàng hải ARPA', 'Thiết bị hàng hải', 'Buồng lái', 1, 'Kiểm định 5 năm'],
+      ['Ra-đa hàng hải ARPA', 'Thiết bị hàng hải', 'Buồng lái', 1, 'Kiểm định 5 năm'],
       ['Hệ thống AIS', 'Thiết bị hàng hải', 'Buồng lái', 1, 'Kiểm định 5 năm'],
       ['GPS định vị', 'Thiết bị hàng hải', 'Buồng lái', 2, 'Không có hạn'],
       // Thiết bị liên lạc
@@ -384,7 +398,7 @@ export default function AddVesselPage() {
         const nonEmptyRows = dataRows.filter(r => String(r[0] || '').trim());
 
         if (nonEmptyRows.length === 0) {
-          message.warning('File không có dữ liệu hoặc sai định dạng!');
+          message.warning('Tệp không có dữ liệu hoặc sai định dạng!');
           return;
         }
 
@@ -454,7 +468,7 @@ export default function AddVesselPage() {
             `Dòng ${rowNum}: ${rowErrors.join('; ')}`
           );
           Modal.warning({
-            title: `Import có ${errors.length} dòng lỗi — bị bỏ qua`,
+            title: `Tệp nhập có ${errors.length} dòng lỗi — đã bỏ qua`,
             width: 600,
             content: (
               <div style={{ maxHeight: 300, overflowY: 'auto' }}>
@@ -468,12 +482,12 @@ export default function AddVesselPage() {
 
         if (imported.length > 0) {
           setShipEquipments(prev => [...prev, ...imported]);
-          message.success(`Đã import ${imported.length} thiết bị hợp lệ${errors.length > 0 ? `, bỏ qua ${errors.length} dòng lỗi` : ''}!`);
+          message.success(`Đã nhập ${imported.length} thiết bị hợp lệ${errors.length > 0 ? `, bỏ qua ${errors.length} dòng lỗi` : ''}!`);
         } else {
-          message.error('Không có dòng nào hợp lệ để import. Kiểm tra lại file!');
+          message.error('Không có dòng nào hợp lệ để nhập. Vui lòng kiểm tra lại tệp!');
         }
       } catch {
-        message.error('Không đọc được file. Kiểm tra đúng định dạng xlsx/xls.');
+        message.error('Không đọc được tệp. Hãy kiểm tra đúng định dạng xlsx/xls.');
       }
     };
     reader.readAsArrayBuffer(file);
@@ -507,7 +521,7 @@ export default function AddVesselPage() {
 
     if (!capacity.maxWeight || !capacity.maxVolume) {
       setActiveTab('capacity');
-      notifyWarning('Vui lòng nhập đầy đủ Tải trọng Max và Thể tích Max.');
+      notifyWarning('Vui lòng nhập đầy đủ tải trọng tối đa và thể tích tối đa.');
       return;
     }
 
@@ -535,7 +549,7 @@ export default function AddVesselPage() {
       const missingGenParams = gen.parameters.filter(p => p.fixed && (p.maxValue === '' || p.maxValue === null));
       if (missingGenParams.length > 0) {
         setActiveTab('engine');
-        notifyWarning(`Vui lòng nhập đủ các hạn mức chỉ số an toàn bắt buộc cho Máy đèn (${gen.engineName || 'chưa có tên'}).`);
+        notifyWarning(`Vui lòng nhập đủ các hạn mức chỉ số an toàn bắt buộc cho máy phụ (${gen.engineName || 'chưa có tên'}).`);
         return;
       }
     }
@@ -548,7 +562,7 @@ export default function AddVesselPage() {
       if (totalHoldsVolume > shipMaxVolume) {
         setActiveTab('capacity');
         notifyWarning(
-          `Tổng thể tích các khoang (${totalHoldsVolume.toLocaleString()} m³) đang vượt quá Thể tích Max của tàu (${shipMaxVolume.toLocaleString()} m³). Vui lòng phân bổ lại sức chứa khoang hàng cho hợp lý!`,
+          `Tổng thể tích các khoang (${totalHoldsVolume.toLocaleString()} m³) đang vượt quá thể tích tối đa của tàu (${shipMaxVolume.toLocaleString()} m³). Vui lòng phân bổ lại sức chứa khoang hàng cho hợp lý!`,
           5
         );
         return; // Dừng việc submit
@@ -614,27 +628,27 @@ export default function AddVesselPage() {
 
   // Render label cho 3 thông số bắt buộc
   const requiredParamLabel = (name) => {
-    if (name === 'Fuel Oil Pressure (kg/cm²)')
+    if (name === 'Áp suất dầu nhiên liệu (kg/cm²)')
       return (
         <Space size={4}>
-          <DashboardOutlined /> Fuel Oil Pressure
+          <DashboardOutlined /> Áp suất dầu nhiên liệu
         </Space>
       );
-    if (name === 'Exhaust Gas Temp XL2 (°C)')
+    if (name === 'Nhiệt độ khí xả XL2 (°C)')
       return (
         <Space size={4}>
-          <FireOutlined /> Exhaust Gas Temp XL2
+          <FireOutlined /> Nhiệt độ khí xả XL2
         </Space>
       );
     return (
       <Space size={4}>
-        <CloudOutlined /> Cooling Water Temp
+        <CloudOutlined /> Nhiệt độ nước làm mát
       </Space>
     );
   };
 
   const requiredParamPlaceholder = (name) =>
-    name === 'Fuel Oil Pressure (kg/cm²)' ? 'vd: 6.0' : name === 'Exhaust Gas Temp XL2 (°C)' ? 'vd: 420' : 'vd: 75';
+    name === 'Áp suất dầu nhiên liệu (kg/cm²)' ? 'VD: 6.0' : name === 'Nhiệt độ khí xả XL2 (°C)' ? 'VD: 420' : 'VD: 75';
 
   // Render khối thông số cho 1 động cơ (dùng chung cho máy chính & máy đèn)
   const renderParameters = (params, onChange, onAdd, onRemove) => {
@@ -689,7 +703,7 @@ export default function AddVesselPage() {
             <Col flex="1">
               <InputNumber
                 style={{ width: '100%' }}
-                placeholder="Max"
+                placeholder="Giá trị tối đa"
                 min={0}
                 value={param.maxValue === '' ? null : param.maxValue}
                 onChange={(value) => onChange(param._uid, 'maxValue', value ?? '')}
@@ -706,11 +720,21 @@ export default function AddVesselPage() {
 
 
 
-  const engineStatusOptions = [
-    { label: 'Hoạt động', value: 'Operational' },
-    { label: 'Dự phòng', value: 'Standby' },
-    { label: 'Đang bảo dưỡng', value: 'Under Maintenance' },
-  ];
+  // Máy chính mới bắt buộc Hoạt động; máy phụ mới cho phép Hoạt động hoặc Dự phòng.
+  // Máy đã tồn tại chỉ hiển thị trạng thái; việc thay đổi thực hiện tại trang Quản lý máy.
+  const newAuxiliaryEngineStatusOptions = ENGINE_STATUS_OPTIONS
+    .filter(({ value }) => value !== ENGINE_STATUS.MAINTENANCE)
+    .map(({ label, value }) => ({ label, value }));
+  const newMainEngineStatusOptions = ENGINE_STATUS_OPTIONS
+    .filter(({ value }) => value === ENGINE_STATUS.OPERATIONAL)
+    .map(({ label, value }) => ({ label, value }));
+  const existingEngineStatusOptions = ENGINE_STATUS_OPTIONS
+    .map(({ label, value }) => ({ label, value }));
+  const engineStatusOptionsFor = (engine) => (
+    engine?.id
+      ? existingEngineStatusOptions
+      : (isMainEngine(engine) ? newMainEngineStatusOptions : newAuxiliaryEngineStatusOptions)
+  );
 
   return (
     <AgencyLayout>
@@ -732,7 +756,7 @@ export default function AddVesselPage() {
             <Card
               title={
                 <Space>
-                  <InfoCircleOutlined /> THÔNG TIN CƠ BẢN (SHIP)
+                  <InfoCircleOutlined /> THÔNG TIN CƠ BẢN
                 </Space>
               }
             >
@@ -742,7 +766,7 @@ export default function AddVesselPage() {
                     Tên Tàu {requiredTag}
                   </div>
                   <Input
-                    placeholder="Ví dụ: Blue Atlantic Voyager"
+                    placeholder="Ví dụ: Hải Trình Biển Đông"
                     value={basicInfo.shipName}
                     onChange={(e) => setBasicInfo({ ...basicInfo, shipName: e.target.value })}
                   />
@@ -764,7 +788,7 @@ export default function AddVesselPage() {
               </Row>
               <Row gutter={16}>
                 <Col xs={24} sm={12} style={{ marginBottom: 16 }}>
-                  <div style={{ marginBottom: 4 }}>Quốc tịch (Flag)</div>
+                  <div style={{ marginBottom: 4 }}>Quốc tịch / Quốc kỳ</div>
                   <Select
                     style={{ width: '100%' }}
                     placeholder="Chọn quốc gia treo cờ (có thể tìm kiếm)"
@@ -774,7 +798,7 @@ export default function AddVesselPage() {
                     value={basicInfo.flag || undefined}
                     onChange={(value) => setBasicInfo({ ...basicInfo, flag: value || '' })}
                     options={countries.length > 0 ? countries : [
-                      { label: 'Vietnam', value: 'Vietnam' },
+                      { label: 'Việt Nam', value: 'Vietnam' },
                       { label: 'Panama', value: 'Panama' },
                       { label: 'Liberia', value: 'Liberia' },
                     ]}
@@ -787,9 +811,9 @@ export default function AddVesselPage() {
                     value={basicInfo.status}
                     onChange={(value) => setBasicInfo({ ...basicInfo, status: value })}
                     options={[
-                      { label: 'Active', value: 'Active' },
-                      { label: 'Bảo trì', value: 'Maintenance' },
-                      { label: 'Ngừng h.động', value: 'Inactive' },
+                      { label: 'Hoạt động', value: 'Hoạt động' },
+                      { label: 'Bảo trì', value: 'Bảo trì' },
+                      { label: 'Ngừng hoạt động', value: 'Ngừng hoạt động' },
                     ]}
                   />
                 </Col>
@@ -799,12 +823,12 @@ export default function AddVesselPage() {
             },
             {
               key: 'engine',
-              label: 'Động cơ & Thông số',
+              label: 'Máy và thông số',
               children: (
             <Card
               title={
                 <Space>
-                  <SettingOutlined /> THÔNG SỐ KỸ THUẬT & THIẾT BỊ
+                  <SettingOutlined /> THÔNG SỐ KỸ THUẬT VÀ THIẾT BỊ
                 </Space>
               }
             >
@@ -832,7 +856,8 @@ export default function AddVesselPage() {
                       style={{ width: '100%' }}
                       value={mainEngine.status}
                       onChange={(value) => handleMainEngineChange('status', value)}
-                      options={engineStatusOptions}
+                      options={engineStatusOptionsFor(mainEngine)}
+                      disabled
                     />
                   </Col>
                 </Row>
@@ -847,14 +872,14 @@ export default function AddVesselPage() {
 
               <Divider />
 
-              {/* Generator Engine Section */}
+              {/* Máy phụ */}
               <div style={{ marginBottom: 24 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
                   <Title level={5} style={{ margin: 0 }}>
-                    Máy đèn (Generator)
+                    Máy phụ
                   </Title>
                   <Button type="link" icon={<PlusOutlined />} onClick={addGeneratorEngine}>
-                    Thêm máy đèn
+                    Thêm máy phụ
                   </Button>
                 </div>
 
@@ -868,7 +893,7 @@ export default function AddVesselPage() {
                     }}
                   >
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-                      <Text strong>Máy đèn #{index + 1}</Text>
+                      <Text strong>Máy phụ số {index + 1}</Text>
                       {generatorEngines.length > 1 && (
                         <Button
                           type="text"
@@ -893,7 +918,8 @@ export default function AddVesselPage() {
                           style={{ width: '100%' }}
                           value={gen.status}
                           onChange={(value) => handleGeneratorEngineChange(gen.id, 'status', value)}
-                          options={engineStatusOptions}
+                          options={engineStatusOptionsFor(gen)}
+                          disabled={Boolean(gen.id)}
                         />
                       </Col>
                     </Row>
@@ -914,18 +940,18 @@ export default function AddVesselPage() {
             },
             {
               key: 'capacity',
-              label: 'Sức chứa & Khoang hàng',
+              label: 'Sức chứa và khoang hàng',
               children: (
             <Card
               title={
                 <Space>
-                  <InboxOutlined /> SỨC CHỨA & TẢI TRỌNG
+                  <InboxOutlined /> SỨC CHỨA VÀ TẢI TRỌNG
                 </Space>
               }
             >
               <Row gutter={16}>
                 <Col xs={24} sm={12} style={{ marginBottom: 16 }}>
-                  <div style={{ marginBottom: 6, fontWeight: 600 }}>Tải trọng Max (Tấn) {requiredTag}</div>
+                  <div style={{ marginBottom: 6, fontWeight: 600 }}>Tải trọng tối đa (Tấn) {requiredTag}</div>
                   <InputNumber
                     style={{ width: '100%' }}
                     placeholder="50000"
@@ -934,7 +960,7 @@ export default function AddVesselPage() {
                   />
                 </Col>
                 <Col xs={24} sm={12} style={{ marginBottom: 16 }}>
-                  <div style={{ marginBottom: 6, fontWeight: 600 }}>Thể tích Max (m³) {requiredTag}</div>
+                  <div style={{ marginBottom: 6, fontWeight: 600 }}>Thể tích tối đa (m³) {requiredTag}</div>
                   <InputNumber
                     style={{ width: '100%' }}
                     placeholder="75000"
@@ -964,7 +990,7 @@ export default function AddVesselPage() {
 
               <div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-                  <Text strong>Khoang chứa (Cargo Holds)</Text>
+                  <Text strong>Khoang chứa hàng</Text>
                   <Button type="link" icon={<PlusOutlined />} onClick={addHold}>
                     Thêm khoang
                   </Button>
@@ -1019,13 +1045,13 @@ export default function AddVesselPage() {
           title={<Space><ToolOutlined /><span>Thiết bị của tàu</span></Space>}
           extra={
             <Space size="small">
-              <Tooltip title="Tải file Excel mẫu về, điền rồi import lên">
+              <Tooltip title="Tải tệp Excel mẫu về, điền dữ liệu rồi nhập lên">
                 <Button size="small" icon={<DownloadOutlined />} onClick={downloadVesselEqTemplate}>
                   Tải mẫu
                 </Button>
               </Tooltip>
               <Upload accept=".xlsx,.xls" showUploadList={false} beforeUpload={handleImportVesselEq}>
-                <Button size="small" icon={<UploadOutlined />}>Import Excel</Button>
+                <Button size="small" icon={<UploadOutlined />}>Nhập từ Excel</Button>
               </Upload>
               <Button type="link" icon={<PlusOutlined />} onClick={addShipEquipment}>Thêm thiết bị</Button>
             </Space>
@@ -1039,7 +1065,7 @@ export default function AddVesselPage() {
                 <div key={eq._uid} style={{ display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'flex-start', padding: '10px 12px', border: '1px solid #e2e8f0', borderRadius: 6, background: '#fafbfc' }}>
                   <div style={{ flex: '2 1 200px', minWidth: 150 }}>
                     <div style={{ fontSize: 11, color: '#64748b', marginBottom: 2 }}>Tên thiết bị <span style={{ color: 'red' }}>*</span></div>
-                    <Input placeholder="VD: Áo phao cá nhân, Radar, Bình chữa cháy..." value={eq.equipmentName}
+                    <Input placeholder="VD: Áo phao cá nhân, ra-đa, bình chữa cháy..." value={eq.equipmentName}
                       onChange={e => handleShipEquipChange(eq._uid, 'equipmentName', e.target.value)} />
                   </div>
                   <div style={{ flex: '1 1 130px', minWidth: 120 }}>
