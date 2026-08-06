@@ -6,7 +6,6 @@ import {
   InboxOutlined,
   BarChartOutlined,
   SettingOutlined,
-  UserOutlined,
   LogoutOutlined,
   ClockCircleOutlined,
   ToolOutlined,
@@ -33,17 +32,12 @@ export default function Sidebar() {
   
   const isGlobalRoleNonAdmin = user.role !== 'Admin' && user.role !== 'Agency';
 
-  const [hasValidVoyage, setHasValidVoyage] = useState(true); // default true to avoid flicker
   const [activeVoyageStatus, setActiveVoyageStatus] = useState(null);
 
   useEffect(() => {
     if (isMasterOrChief) {
       voyageService.getAll()
         .then(data => {
-          // Check if there is any voyage that is Loaded (or beyond, like Underway)
-          const valid = (data || []).some(v => v.status === 'Loaded' || v.status === 'Underway');
-          setHasValidVoyage(valid);
-
           const activeVoyageId = localStorage.getItem('activeVoyageId');
           if (activeVoyageId) {
             const activeV = (data || []).find(v => v.id.toString() === activeVoyageId.toString());
@@ -53,8 +47,7 @@ export default function Sidebar() {
           }
         })
         .catch(err => {
-          console.error('Error fetching voyages for sidebar:', err);
-          setHasValidVoyage(false);
+          console.error('Không thể tải hải trình cho thanh điều hướng:', err);
         });
     }
   }, [isMasterOrChief]);
@@ -78,11 +71,11 @@ export default function Sidebar() {
     isMasterOrChief && { 
       key: '/sewage-logs', 
       icon: <FileTextOutlined />, 
-      label: 'Xả thải (MARPOL)',
+      label: 'Nhật ký xả thải',
       disabled: activeVoyageStatus ? !['Underway', 'Arrived', 'Discharge', 'Discharged', 'Homeward Bounding'].includes(activeVoyageStatus) : false
     },
     { key: '/reports', icon: <BarChartOutlined />, label: 'Báo cáo' },
-    isMasterOrChief && { key: '/vessel-supplies', icon: <ToolOutlined />, label: 'Thiết bị & Vật tư' },
+    isMasterOrChief && { key: '/vessel-supplies', icon: <ToolOutlined />, label: 'Thiết bị và vật tư' },
     isMasterOrChief && { key: 'cai-dat', icon: <SettingOutlined />, label: 'Cài đặt', disabled: true },
   ].filter(Boolean);
 
@@ -120,7 +113,7 @@ export default function Sidebar() {
         <span style={{ fontSize: 24, lineHeight: 1 }}>🚢</span>
         <div style={{ display: 'flex', flexDirection: 'column' }}>
           <strong style={{ fontSize: 18 }}>CargoOps</strong>
-          <span style={{ fontSize: 12, color: '#94a3b8' }}>Maritime Logistics</span>
+          <span style={{ fontSize: 12, color: '#94a3b8' }}>Quản lý hàng hải</span>
         </div>
       </div>
 

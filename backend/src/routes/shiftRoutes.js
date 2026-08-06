@@ -1,7 +1,13 @@
 const express = require('express');
 const { Op } = require('sequelize');
-const { Shift, Voyage, VoyageCrew, CrewProfile, User, Ship, Report } = require('../models');
+const { Shift, Voyage, VoyageCrew, CrewProfile, Ship, Report } = require('../models');
 const authMiddleware = require('../middlewares/authMiddleware');
+const {
+  canonicalVoyageRole,
+  isLogRoleForDuty,
+  isShiftOfficerRole,
+  voyageRoleDepartment,
+} = require('../utils/voyageRole');
 
 const router = express.Router();
 
@@ -17,15 +23,9 @@ const SHIFT_SLOTS = [
   { slot: 5, startHour: 20, endHour: 24, label: '20:00 – 24:00' },
 ];
 
-// Role được phép tạo/sửa ca trực
-const OFFICER_ROLES = ['DeckOfficer', 'EngineOfficer'];
-
-// Role được phép NHẬN ca (cấp dưới): thủy thủ boong & thợ máy.
-// Loại trừ thuyền trưởng/đại phó/sĩ quan và chính người phân công.
-const ASSIGNABLE_ROLES = ['Sailor', 'EngineCrew'];
-
 // Map role -> bộ phận (dự phòng nếu CrewProfile.department trống)
 const ROLE_DEPARTMENT = { DeckOfficer: 'Deck', EngineOfficer: 'Engine' };
+const departmentLabel = (department) => department === 'Engine' ? 'máy' : 'boong';
 
 // Số ca trực tối đa một thủy thủ được nhận trong 1 ngày
 const MAX_SHIFTS_PER_DAY = 2;
@@ -74,7 +74,20 @@ async function resolveContext(req) {
     return { error: 'Hiện không có hải trình nào đang diễn ra cho bạn.', profile };
   }
 
-  return { profile, voyage: membership.Voyage, ship: membership.Voyage.Ship };
+  const effectiveRole = canonicalVoyageRole(membership.role) || canonicalVoyageRole(req.user.role);
+  const effectiveDepartment = voyageRoleDepartment(membership.role)
+    || profile.department
+    || ROLE_DEPARTMENT[effectiveRole]
+    || null;
+
+  return {
+    profile,
+    membership,
+    effectiveRole,
+    effectiveDepartment,
+    voyage: membership.Voyage,
+    ship: membership.Voyage.Ship,
+  };
 }
 
 // ================================================================
@@ -85,22 +98,22 @@ router.get('/current-voyage', authMiddleware, async (req, res) => {
     const ctx = await resolveContext(req);
     if (ctx.error) return res.status(404).json({ message: ctx.error });
 
-    const { profile, voyage, ship } = ctx;
-    const myDepartment = profile.department || ROLE_DEPARTMENT[req.user.role] || null;
+    const { profile, voyage, ship, effectiveRole, effectiveDepartment } = ctx;
+    const myDepartment = effectiveDepartment;
 
     // Danh sách thuyền viên thuộc hải trình này (để sĩ quan gán ca)
     const memberships = await VoyageCrew.findAll({
       where: { voyageId: voyage.id },
-      include: [{ model: CrewProfile, include: [{ model: User, attributes: ['role'] }] }],
+      include: [{ model: CrewProfile }],
     });
     const crewPool = memberships
       .filter(m => m.CrewProfile)
       .map(m => ({
         id: m.CrewProfile.id,
         fullName: m.CrewProfile.fullName,
-        department: m.CrewProfile.department,
+        department: voyageRoleDepartment(m.role) || m.CrewProfile.department,
         position: m.CrewProfile.position,
-        role: m.CrewProfile.User ? m.CrewProfile.User.role : null,
+        role: m.role,
       }));
 
     res.json({
@@ -117,19 +130,19 @@ router.get('/current-voyage', authMiddleware, async (req, res) => {
         crewId: profile.id,
         fullName: profile.fullName,
         department: myDepartment,
-        role: req.user.role,
+        role: effectiveRole,
       },
-      canCreate: OFFICER_ROLES.includes(req.user.role),
+      canCreate: isShiftOfficerRole(effectiveRole),
       slots: SHIFT_SLOTS,
       crewPool,
       // Cấp dưới cùng bộ phận mà sĩ quan này được phép gán ca
       assignableCrew: crewPool.filter(
-        c => c.department === myDepartment && ASSIGNABLE_ROLES.includes(c.role) && c.id !== profile.id
+        c => c.department === myDepartment && isLogRoleForDuty(c.role, myDepartment) && c.id !== profile.id
       ),
     });
   } catch (err) {
-    console.error('Lỗi current-voyage:', err);
-    res.status(500).json({ message: 'Lỗi server.' });
+    console.error('Lỗi lấy hải trình hiện tại:', err);
+    res.status(500).json({ message: 'Lỗi máy chủ khi lấy hải trình hiện tại.' });
   }
 });
 
@@ -156,7 +169,7 @@ router.get('/', authMiddleware, async (req, res) => {
     res.json(shifts);
   } catch (err) {
     console.error('Lỗi lấy ca trực:', err);
-    res.status(500).json({ message: 'Lỗi server.' });
+    res.status(500).json({ message: 'Lỗi máy chủ khi lấy danh sách ca trực.' });
   }
 });
 
@@ -166,13 +179,12 @@ router.get('/', authMiddleware, async (req, res) => {
 // ================================================================
 router.post('/bulk', authMiddleware, async (req, res) => {
   try {
-    if (!OFFICER_ROLES.includes(req.user.role)) {
-      return res.status(403).json({ message: 'Chỉ sĩ quan boong/máy được tạo ca trực.' });
-    }
     const ctx = await resolveContext(req);
     if (ctx.error) return res.status(404).json({ message: ctx.error });
-    const { profile, voyage } = ctx;
-    const myDept = profile.department || ROLE_DEPARTMENT[req.user.role];
+    if (!isShiftOfficerRole(ctx.effectiveRole)) {
+      return res.status(403).json({ message: 'Chỉ sĩ quan boong hoặc Máy trưởng của hải trình được tạo ca trực.' });
+    }
+    const { profile, voyage, effectiveDepartment: myDept } = ctx;
 
     const { date, entries } = req.body;
     if (!date || !Array.isArray(entries) || entries.length === 0) {
@@ -182,13 +194,13 @@ router.post('/bulk', authMiddleware, async (req, res) => {
     // Lấy sẵn crew thuộc hải trình + đúng bộ phận + là cấp dưới được gán
     const memberships = await VoyageCrew.findAll({
       where: { voyageId: voyage.id },
-      include: [{ model: CrewProfile, include: [{ model: User, attributes: ['role'] }] }],
+      include: [{ model: CrewProfile }],
     });
     const allowedCrew = new Map(); // crewId -> CrewProfile
     memberships.forEach(m => {
       const cp = m.CrewProfile;
-      const role = cp && cp.User ? cp.User.role : null;
-      if (cp && cp.department === myDept && ASSIGNABLE_ROLES.includes(role) && cp.id !== profile.id) {
+      const assignedDepartment = voyageRoleDepartment(m.role) || cp?.department;
+      if (cp && assignedDepartment === myDept && isLogRoleForDuty(m.role, myDept) && cp.id !== profile.id) {
         allowedCrew.set(cp.id, cp);
       }
     });
@@ -206,7 +218,7 @@ router.post('/bulk', authMiddleware, async (req, res) => {
     const batchKeys = new Set(); // chống trùng crew+slot trong cùng batch
     for (const e of entries) {
       const times = slotTimes(date, e.slot);
-      if (!times) return res.status(400).json({ message: `Ca không hợp lệ (slot ${e.slot}).` });
+      if (!times) return res.status(400).json({ message: `Ca có mã số ${e.slot} không hợp lệ.` });
       if (!e.crewId) continue; // bỏ qua slot chưa gán người
 
       // Chỉ cho tạo ca ở thời gian chưa tới
@@ -216,7 +228,7 @@ router.post('/bulk', authMiddleware, async (req, res) => {
 
       const crew = allowedCrew.get(Number(e.crewId));
       if (!crew) {
-        return res.status(400).json({ message: `Chỉ được gán thủy thủ/thợ máy cấp dưới cùng bộ phận ${myDept}.` });
+        return res.status(400).json({ message: `Chỉ được gán thủy thủ hoặc thợ máy cấp dưới cùng bộ phận ${departmentLabel(myDept)}.` });
       }
 
       const key = `${e.crewId}-${e.slot}`;
@@ -271,7 +283,7 @@ router.post('/bulk', authMiddleware, async (req, res) => {
     res.status(201).json({ message: `Đã tạo ${created.length} ca trực.`, count: created.length });
   } catch (err) {
     console.error('Lỗi tạo ca trực:', err);
-    res.status(500).json({ message: 'Lỗi server.' });
+    res.status(500).json({ message: 'Lỗi máy chủ khi tạo ca trực.' });
   }
 });
 
@@ -281,13 +293,12 @@ router.post('/bulk', authMiddleware, async (req, res) => {
 // ================================================================
 router.put('/:id', authMiddleware, async (req, res) => {
   try {
-    if (!OFFICER_ROLES.includes(req.user.role)) {
-      return res.status(403).json({ message: 'Chỉ sĩ quan boong/máy được sửa ca trực.' });
-    }
     const ctx = await resolveContext(req);
     if (ctx.error) return res.status(404).json({ message: ctx.error });
-    const { profile, voyage } = ctx;
-    const myDept = profile.department || ROLE_DEPARTMENT[req.user.role];
+    if (!isShiftOfficerRole(ctx.effectiveRole)) {
+      return res.status(403).json({ message: 'Chỉ sĩ quan boong hoặc Máy trưởng của hải trình được sửa ca trực.' });
+    }
+    const { profile, voyage, effectiveDepartment: myDept } = ctx;
 
     const shift = await Shift.findOne({ where: { id: req.params.id, voyageId: voyage.id } });
     if (!shift) return res.status(404).json({ message: 'Không tìm thấy ca trực.' });
@@ -302,12 +313,12 @@ router.put('/:id', authMiddleware, async (req, res) => {
     const targetCrewId = crewId ? Number(crewId) : shift.crewId;
     const member = await VoyageCrew.findOne({
       where: { voyageId: voyage.id, crewId: targetCrewId },
-      include: [{ model: CrewProfile, include: [{ model: User, attributes: ['role'] }] }],
+      include: [{ model: CrewProfile }],
     });
-    const targetRole = member && member.CrewProfile && member.CrewProfile.User ? member.CrewProfile.User.role : null;
-    if (!member || !member.CrewProfile || member.CrewProfile.department !== myDept
-        || !ASSIGNABLE_ROLES.includes(targetRole) || member.CrewProfile.id === profile.id) {
-      return res.status(400).json({ message: `Chỉ được gán thủy thủ/thợ máy cấp dưới cùng bộ phận ${myDept}.` });
+    const targetDepartment = member ? (voyageRoleDepartment(member.role) || member.CrewProfile?.department) : null;
+    if (!member || !member.CrewProfile || targetDepartment !== myDept
+        || !isLogRoleForDuty(member.role, myDept) || member.CrewProfile.id === profile.id) {
+      return res.status(400).json({ message: `Chỉ được gán thủy thủ hoặc thợ máy cấp dưới cùng bộ phận ${departmentLabel(myDept)}.` });
     }
 
     // Chống trùng giờ (loại trừ chính ca này)
@@ -348,7 +359,7 @@ router.put('/:id', authMiddleware, async (req, res) => {
     res.json({ message: 'Đã cập nhật ca trực.', shift });
   } catch (err) {
     console.error('Lỗi sửa ca trực:', err);
-    res.status(500).json({ message: 'Lỗi server.' });
+    res.status(500).json({ message: 'Lỗi máy chủ khi cập nhật ca trực.' });
   }
 });
 
@@ -357,13 +368,12 @@ router.put('/:id', authMiddleware, async (req, res) => {
 // ================================================================
 router.delete('/:id', authMiddleware, async (req, res) => {
   try {
-    if (!OFFICER_ROLES.includes(req.user.role)) {
-      return res.status(403).json({ message: 'Chỉ sĩ quan boong/máy được hủy ca trực.' });
-    }
     const ctx = await resolveContext(req);
     if (ctx.error) return res.status(404).json({ message: ctx.error });
-    const { profile, voyage } = ctx;
-    const myDept = profile.department || ROLE_DEPARTMENT[req.user.role];
+    if (!isShiftOfficerRole(ctx.effectiveRole)) {
+      return res.status(403).json({ message: 'Chỉ sĩ quan boong hoặc Máy trưởng của hải trình được hủy ca trực.' });
+    }
+    const { voyage, effectiveDepartment: myDept } = ctx;
 
     const shift = await Shift.findOne({
       where: { id: req.params.id, voyageId: voyage.id },
@@ -372,7 +382,7 @@ router.delete('/:id', authMiddleware, async (req, res) => {
     if (!shift) return res.status(404).json({ message: 'Không tìm thấy ca trực.' });
 
     if (shift.CrewProfile && shift.CrewProfile.department !== myDept) {
-      return res.status(403).json({ message: `Không thể hủy ca ngoài bộ phận ${myDept}.` });
+      return res.status(403).json({ message: `Không thể hủy ca ngoài bộ phận ${departmentLabel(myDept)}.` });
     }
     if (new Date(shift.startTime) <= new Date()) {
       return res.status(400).json({ message: 'Không thể hủy ca đã bắt đầu hoặc đã kết thúc.' });
@@ -382,7 +392,7 @@ router.delete('/:id', authMiddleware, async (req, res) => {
     res.json({ message: 'Đã hủy ca trực.' });
   } catch (err) {
     console.error('Lỗi hủy ca trực:', err);
-    res.status(500).json({ message: 'Lỗi server.' });
+    res.status(500).json({ message: 'Lỗi máy chủ khi hủy ca trực.' });
   }
 });
 
@@ -427,7 +437,7 @@ router.post('/:id/handover', authMiddleware, async (req, res) => {
     res.json({ message: late ? 'Đã bàn giao (muộn).' : 'Đã bàn giao ca.', late });
   } catch (err) {
     console.error('Lỗi bàn giao ca:', err);
-    res.status(500).json({ message: 'Lỗi server.' });
+    res.status(500).json({ message: 'Lỗi máy chủ khi bàn giao ca trực.' });
   }
 });
 
@@ -462,7 +472,7 @@ router.post('/:id/receive', authMiddleware, async (req, res) => {
     res.json({ message: late ? 'Đã nhận ca (muộn).' : 'Đã nhận ca.', late });
   } catch (err) {
     console.error('Lỗi nhận ca:', err);
-    res.status(500).json({ message: 'Lỗi server.' });
+    res.status(500).json({ message: 'Lỗi máy chủ khi nhận ca trực.' });
   }
 });
 

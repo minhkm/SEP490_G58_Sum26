@@ -9,7 +9,6 @@ const ShipDocument = require("./ShipDocument");
 const ShipCapacity = require("./ShipCapacity");
 const Engine = require("./Engine");
 const Equipment = require("./Equipment");
-const RepairLog = require("./RepairLog");
 const CargoHold = require("./CargoHold");
 const CargoAllocation = require("./CargoAllocation");
 const Voyage = require("./Voyage");
@@ -73,16 +72,6 @@ CargoHold.belongsTo(Ship, { foreignKey: "shipId" });
 
 Ship.hasMany(Voyage, { foreignKey: "shipId" });
 Voyage.belongsTo(Ship, { foreignKey: "shipId" });
-
-// Engine / Equipment 1-N RepairLog
-Equipment.hasMany(RepairLog, { foreignKey: "equipmentId" });
-RepairLog.belongsTo(Equipment, { foreignKey: "equipmentId" });
-
-Engine.hasMany(RepairLog, { foreignKey: "engineId" });
-RepairLog.belongsTo(Engine, { foreignKey: "engineId" });
-
-CrewProfile.hasMany(RepairLog, { foreignKey: "repairedBy" });
-RepairLog.belongsTo(CrewProfile, { foreignKey: "repairedBy" });
 
 // Engine 1-N EngineParameter
 Engine.hasMany(EngineParameter, { foreignKey: "engineId" });
@@ -227,7 +216,7 @@ module.exports = {
   sequelize,
   User, CrewProfile, CrewCertificate,
   Ship, ShipDocument, ShipCapacity,
-  Engine, Equipment, RepairLog,
+  Engine, Equipment,
   CargoHold, CargoAllocation,
   Voyage, VoyageCrew,
   Cargo, CargoItem, CargoType, CargoOperation,

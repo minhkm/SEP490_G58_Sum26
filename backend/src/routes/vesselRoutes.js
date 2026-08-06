@@ -1,20 +1,26 @@
 const express = require('express');
-const { Ship, ShipCapacity, Engine, EngineParameter, CargoHold, Equipment, Voyage } = require('../models');
+const { Op } = require('sequelize');
+const { Ship, ShipCapacity, Engine, EngineParameter, CargoHold, Equipment, Voyage, VoyageCrew } = require('../models');
 const authMiddleware = require('../middlewares/authMiddleware');
+const {
+  ENGINE_STATUS,
+  ENGINE_TYPE,
+  parseEngineStatus,
+  normalizeEngineName,
+  normalizeEngineParameterName,
+  normalizeEngineStatus,
+  isMainEngine,
+} = require('../utils/engine');
+const {
+  normalizeCargoHoldName,
+  normalizeEquipmentLocation,
+  normalizeEquipmentName,
+  normalizeEquipmentType,
+  normalizeShipStatus,
+} = require('../utils/vessel');
+const { canonicalVoyageRole, isEngineOfficerRole } = require('../utils/voyageRole');
 
 const router = express.Router();
-
-const normalizeEngineStatus = (status) => {
-  const statusMap = {
-    Active: 'Operational',
-    'Hoạt động': 'Operational',
-    Inactive: 'Standby',
-    'Tạm ngưng': 'Standby',
-    Maintenance: 'Under Maintenance',
-    'Bảo trì': 'Under Maintenance',
-  };
-  return statusMap[status] || status || 'Operational';
-};
 
 // GET /api/vessels - Lấy danh sách toàn bộ tàu
 router.get('/', async (req, res) => {
@@ -41,7 +47,7 @@ router.get('/', async (req, res) => {
     res.json(vessels);
   } catch (error) {
     console.error('Lỗi lấy danh sách tàu:', error);
-    res.status(500).json({ message: 'Lỗi server', error: error.message });
+    res.status(500).json({ message: 'Lỗi máy chủ khi lấy danh sách tàu' });
   }
 });
 
@@ -59,7 +65,7 @@ router.get('/:id', async (req, res) => {
     res.json(vessel);
   } catch (error) {
     console.error('Lỗi lấy thông tin tàu:', error);
-    res.status(500).json({ message: 'Lỗi server', error: error.message });
+    res.status(500).json({ message: 'Lỗi máy chủ khi lấy thông tin tàu' });
   }
 });
 
@@ -67,13 +73,23 @@ router.get('/:id', async (req, res) => {
 router.post('/', async (req, res) => {
   try {
     const { basicInfo, capacity, mainEngine, generatorEngines, holds } = req.body;
+
+    if (mainEngine?.engineName && parseEngineStatus(mainEngine.status) !== ENGINE_STATUS.OPERATIONAL) {
+      return res.status(400).json({ message: 'Máy chính mới bắt buộc phải ở trạng thái Hoạt động.' });
+    }
+    const newAuxiliaryEngines = (generatorEngines || []).filter((engine) => engine?.engineName);
+    if (newAuxiliaryEngines.some((engine) => parseEngineStatus(engine.status) === ENGINE_STATUS.MAINTENANCE)) {
+      return res.status(400).json({
+        message: 'Máy phụ mới chỉ được khai báo ở trạng thái Hoạt động hoặc Dự phòng.',
+      });
+    }
     
     // 1. Tạo bản ghi Ship
     const newShip = await Ship.create({
       shipName: basicInfo.shipName,
       imoNumber: basicInfo.imoNumber,
       flag: basicInfo.flag,
-      status: basicInfo.status || 'Hoạt động'
+      status: normalizeShipStatus(basicInfo.status)
     });
 
     // 2. Tạo bản ghi ShipCapacity
@@ -91,34 +107,34 @@ router.post('/', async (req, res) => {
     if (mainEngine && mainEngine.engineName) {
       const me = await Engine.create({ 
         shipId: newShip.id, 
-        engineName: mainEngine.engineName, 
-        engineType: mainEngine.engineType || 'Diesel 2-kỳ', 
+        engineName: normalizeEngineName(mainEngine.engineName),
+        engineType: ENGINE_TYPE.MAIN,
         status: normalizeEngineStatus(mainEngine.status)
       });
       // Tạo parameters động
       if (mainEngine.parameters && mainEngine.parameters.length > 0) {
         await EngineParameter.bulkCreate(
           mainEngine.parameters.filter(p => p.name).map(p => ({
-            engineId: me.id, name: p.name, minValue: p.minValue || null, maxValue: p.maxValue || null
+            engineId: me.id, name: normalizeEngineParameterName(p.name), minValue: p.minValue || null, maxValue: p.maxValue || null
           }))
         );
       }
     }
 
-    // 4. Tạo Máy đèn
+    // 4. Tạo Máy phụ
     if (generatorEngines && generatorEngines.length > 0) {
       for (const gen of generatorEngines) {
         if (!gen.engineName) continue;
         const ge = await Engine.create({ 
           shipId: newShip.id, 
-          engineName: gen.engineName, 
-          engineType: gen.engineType || 'Diesel 4-kỳ', 
+          engineName: normalizeEngineName(gen.engineName),
+          engineType: ENGINE_TYPE.AUXILIARY,
           status: normalizeEngineStatus(gen.status)
         });
         if (gen.parameters && gen.parameters.length > 0) {
           await EngineParameter.bulkCreate(
             gen.parameters.filter(p => p.name).map(p => ({
-              engineId: ge.id, name: p.name, minValue: p.minValue || null, maxValue: p.maxValue || null
+              engineId: ge.id, name: normalizeEngineParameterName(p.name), minValue: p.minValue || null, maxValue: p.maxValue || null
             }))
           );
         }
@@ -129,7 +145,7 @@ router.post('/', async (req, res) => {
     if (holds && holds.length > 0) {
       const holdsData = holds.map(h => ({ 
         shipId: newShip.id, 
-        holdName: h.name, 
+        holdName: normalizeCargoHoldName(h.name),
         maxCapacity: h.capacity || 0,
         status: 'Available'
       }));
@@ -141,7 +157,7 @@ router.post('/', async (req, res) => {
     res.status(201).json({ message: 'Tạo tàu thành công', ship: newShip });
   } catch (error) {
     console.error('Lỗi tạo tàu:', error);
-    res.status(500).json({ message: 'Lỗi server khi tạo tàu', error: error.message });
+    res.status(500).json({ message: 'Lỗi máy chủ khi tạo tàu' });
   }
 });
 
@@ -150,6 +166,18 @@ router.put('/:id', async (req, res) => {
   try {
     const vesselId = req.params.id;
     const { basicInfo, capacity, mainEngine, generatorEngines, holds } = req.body;
+
+    const newMainEngine = mainEngine && !mainEngine.id && mainEngine.engineName ? mainEngine : null;
+    if (newMainEngine && parseEngineStatus(newMainEngine.status) !== ENGINE_STATUS.OPERATIONAL) {
+      return res.status(400).json({ message: 'Máy chính mới bắt buộc phải ở trạng thái Hoạt động.' });
+    }
+    const newAuxiliaryEngines = (generatorEngines || [])
+      .filter((engine) => !engine.id && engine.engineName);
+    if (newAuxiliaryEngines.some((engine) => parseEngineStatus(engine.status) === ENGINE_STATUS.MAINTENANCE)) {
+      return res.status(400).json({
+        message: 'Máy phụ mới chỉ được khai báo ở trạng thái Hoạt động hoặc Dự phòng.',
+      });
+    }
     
     const vessel = await Ship.findByPk(vesselId);
     if (!vessel) return res.status(404).json({ message: 'Không tìm thấy tàu' });
@@ -159,7 +187,7 @@ router.put('/:id', async (req, res) => {
       shipName: basicInfo.shipName,
       imoNumber: basicInfo.imoNumber,
       flag: basicInfo.flag,
-      status: basicInfo.status
+      status: normalizeShipStatus(basicInfo.status)
     });
 
     if (capacity) {
@@ -189,7 +217,7 @@ router.put('/:id', async (req, res) => {
       if (parameters && parameters.length > 0) {
         await EngineParameter.bulkCreate(
           parameters.filter(p => p.name).map(p => ({
-            engineId, name: p.name, minValue: p.minValue || null, maxValue: p.maxValue || null
+            engineId, name: normalizeEngineParameterName(p.name), minValue: p.minValue || null, maxValue: p.maxValue || null
           }))
         );
       }
@@ -200,22 +228,23 @@ router.put('/:id', async (req, res) => {
       if (mainEngine.id) {
         const me = await Engine.findByPk(mainEngine.id);
         if (me) {
-          await me.update({ engineName: mainEngine.engineName, engineType: mainEngine.engineType, status: normalizeEngineStatus(mainEngine.status) });
+          await me.update({ engineName: normalizeEngineName(mainEngine.engineName), engineType: ENGINE_TYPE.MAIN });
           await syncEngineParams(me.id, mainEngine.parameters);
         }
       } else if (mainEngine.engineName) {
-        const me = await Engine.create({ shipId: vesselId, engineName: mainEngine.engineName, engineType: mainEngine.engineType, status: normalizeEngineStatus(mainEngine.status) });
+        const me = await Engine.create({ shipId: vesselId, engineName: normalizeEngineName(mainEngine.engineName), engineType: ENGINE_TYPE.MAIN, status: normalizeEngineStatus(mainEngine.status) });
         await EngineParameter.bulkCreate(
           (mainEngine.parameters || []).filter(p => p.name).map(p => ({
-            engineId: me.id, name: p.name, minValue: p.minValue || null, maxValue: p.maxValue || null
+            engineId: me.id, name: normalizeEngineParameterName(p.name), minValue: p.minValue || null, maxValue: p.maxValue || null
           }))
         );
       }
     }
 
-    // 3. Sync Generator Engines
+    // 3. Đồng bộ máy phụ
     if (generatorEngines) {
-      const existingGens = await Engine.findAll({ where: { shipId: vesselId, engineType: ['Diesel 4-kỳ', 'Turbine'] } }); // Giả định
+      const shipEngines = await Engine.findAll({ where: { shipId: vesselId } });
+      const existingGens = shipEngines.filter((engine) => !isMainEngine(engine));
       const genIdsToKeep = generatorEngines.filter(g => g.id).map(g => g.id);
       
       // Delete missing
@@ -232,14 +261,14 @@ router.put('/:id', async (req, res) => {
         if (gen.id) {
           const ge = await Engine.findByPk(gen.id);
           if (ge) {
-            await ge.update({ engineName: gen.engineName, engineType: gen.engineType, status: normalizeEngineStatus(gen.status) });
+            await ge.update({ engineName: normalizeEngineName(gen.engineName), engineType: ENGINE_TYPE.AUXILIARY });
             await syncEngineParams(ge.id, gen.parameters);
           }
         } else {
-          const ge = await Engine.create({ shipId: vesselId, engineName: gen.engineName, engineType: gen.engineType, status: normalizeEngineStatus(gen.status) });
+          const ge = await Engine.create({ shipId: vesselId, engineName: normalizeEngineName(gen.engineName), engineType: ENGINE_TYPE.AUXILIARY, status: normalizeEngineStatus(gen.status) });
           await EngineParameter.bulkCreate(
             (gen.parameters || []).filter(p => p.name).map(p => ({
-              engineId: ge.id, name: p.name, minValue: p.minValue || null, maxValue: p.maxValue || null
+              engineId: ge.id, name: normalizeEngineParameterName(p.name), minValue: p.minValue || null, maxValue: p.maxValue || null
             }))
           );
         }
@@ -258,9 +287,9 @@ router.put('/:id', async (req, res) => {
       for (const h of holds) {
         if (h.id) {
           const hold = await CargoHold.findByPk(h.id);
-          if (hold) await hold.update({ holdName: h.name, maxCapacity: h.capacity });
+          if (hold) await hold.update({ holdName: normalizeCargoHoldName(h.name), maxCapacity: h.capacity });
         } else {
-          await CargoHold.create({ shipId: vesselId, holdName: h.name, maxCapacity: h.capacity || 0, status: 'Available' });
+          await CargoHold.create({ shipId: vesselId, holdName: normalizeCargoHoldName(h.name), maxCapacity: h.capacity || 0, status: 'Available' });
         }
       }
     }
@@ -270,7 +299,7 @@ router.put('/:id', async (req, res) => {
     res.json({ message: 'Cập nhật tàu thành công', ship: vessel });
   } catch (error) {
     console.error('Lỗi cập nhật tàu:', error);
-    res.status(500).json({ message: 'Lỗi server khi cập nhật tàu', error: error.message });
+    res.status(500).json({ message: 'Lỗi máy chủ khi cập nhật tàu' });
   }
 });
 
@@ -305,58 +334,72 @@ router.delete('/:id', async (req, res) => {
     res.json({ message: 'Xóa tàu thành công' });
   } catch (error) {
     console.error('Lỗi xoá tàu:', error);
-    res.status(500).json({ message: 'Lỗi server khi xoá tàu', error: error.message });
+    res.status(500).json({ message: 'Lỗi máy chủ khi xoá tàu' });
   }
 });
 
 // PATCH /api/vessels/engines/:engineId/status — Cập nhật trạng thái máy (chỉ EngineOfficer)
 router.patch('/engines/:engineId/status', async (req, res) => {
   const authHeader = req.headers.authorization;
-  if (!authHeader) return res.status(401).json({ message: 'Không tìm thấy token' });
+  if (!authHeader) return res.status(401).json({ message: 'Không tìm thấy thông tin xác thực' });
   const jwt = require('jsonwebtoken');
   let decoded;
   try { decoded = jwt.verify(authHeader.split(' ')[1], process.env.JWT_SECRET || 'super_secret_key'); }
-  catch { return res.status(403).json({ message: 'Token không hợp lệ' }); }
+  catch { return res.status(403).json({ message: 'Thông tin xác thực không hợp lệ' }); }
 
-  const allowedRoles = ['EngineOfficer', 'ChiefEngineer'];
-  if (!allowedRoles.includes(decoded.role)) {
-    return res.status(403).json({ message: 'Chỉ Sĩ quan máy / Máy trưởng mới được đổi trạng thái máy' });
-  }
-
-  const VALID_ENGINE_STATUSES = ['Operational', 'Standby', 'Under Maintenance'];
   const { status, voyageId } = req.body;
-  if (!VALID_ENGINE_STATUSES.includes(status)) {
-    return res.status(400).json({ message: `Trạng thái không hợp lệ. Chỉ chấp nhận: ${VALID_ENGINE_STATUSES.join(', ')}` });
+  const normalizedStatus = parseEngineStatus(status);
+  if (!normalizedStatus) {
+    return res.status(400).json({ message: `Trạng thái không hợp lệ. Chỉ chấp nhận: ${Object.values(ENGINE_STATUS).join(', ')}` });
   }
 
   try {
     const engine = await Engine.findByPk(req.params.engineId);
     if (!engine) return res.status(404).json({ message: 'Không tìm thấy máy' });
-    await engine.update({ status });
+
+    const voyage = voyageId
+      ? await Voyage.findByPk(voyageId)
+      : await Voyage.findOne({
+        where: {
+          shipId: engine.shipId,
+          status: { [Op.in]: ['Underway', 'Anchored'] },
+        },
+      });
+    if (voyage && voyage.shipId != null && Number(voyage.shipId) !== Number(engine.shipId)) {
+      return res.status(400).json({ message: 'Hải trình không thuộc tàu đang quản lý máy.' });
+    }
+
+    const assignment = voyage && decoded.profileId
+      ? await VoyageCrew.findOne({ where: { voyageId: voyage.id, crewId: decoded.profileId } })
+      : null;
+    const effectiveRole = assignment
+      ? canonicalVoyageRole(assignment.role)
+      : (voyage ? '' : canonicalVoyageRole(decoded.role));
+    if (!isEngineOfficerRole(effectiveRole)) {
+      return res.status(403).json({ message: 'Chỉ Máy trưởng được phân công trong hải trình mới được đổi trạng thái máy' });
+    }
+
+    const mainEngine = isMainEngine(engine);
+    if (mainEngine && normalizedStatus === ENGINE_STATUS.STANDBY) {
+      return res.status(400).json({ message: 'Máy chính không có trạng thái Dự phòng. Chỉ được chọn Hoạt động hoặc Đang bảo dưỡng.' });
+    }
 
     let voyageUpdated = false;
     let newVoyageStatus = null;
-    const engineName = (engine.engineName || '').toLowerCase();
-    const engineType = (engine.engineType || '').toLowerCase();
-    const isMainEngine = engineName.includes('main') || engineName.includes('chính') ||
-                         engineType.includes('main') || engineType.includes('chính') ||
-                         engineType.includes('2');
+    await engine.update({ status: normalizedStatus });
 
-    if (isMainEngine && voyageId) {
-      const voyage = await Voyage.findByPk(voyageId);
-      if (voyage && !['Completed', 'Cancelled'].includes(voyage.status)) {
-        // Máy chính → bảo dưỡng: hải trình sang Anchored
-        if (status === 'Under Maintenance' && voyage.status !== 'Anchored') {
-          await voyage.update({ status: 'Anchored' });
-          newVoyageStatus = 'Anchored';
-          voyageUpdated = true;
-        }
-        // Máy chính → hoạt động trở lại: hải trình sang Underway
-        if (status === 'Operational' && voyage.status === 'Anchored') {
-          await voyage.update({ status: 'Underway' });
-          newVoyageStatus = 'Underway';
-          voyageUpdated = true;
-        }
+    if (mainEngine && voyage && !['Completed', 'Cancelled'].includes(voyage.status)) {
+      // Máy chính ngừng chạy: hải trình sang Anchored
+      if (normalizedStatus !== ENGINE_STATUS.OPERATIONAL && voyage.status !== 'Anchored') {
+        await voyage.update({ status: 'Anchored' });
+        newVoyageStatus = 'Anchored';
+        voyageUpdated = true;
+      }
+      // Máy chính → hoạt động trở lại: hải trình sang Underway
+      if (normalizedStatus === ENGINE_STATUS.OPERATIONAL && voyage.status === 'Anchored') {
+        await voyage.update({ status: 'Underway' });
+        newVoyageStatus = 'Underway';
+        voyageUpdated = true;
       }
     }
 
@@ -364,7 +407,7 @@ router.patch('/engines/:engineId/status', async (req, res) => {
 
   } catch (error) {
     console.error('Lỗi cập nhật trạng thái máy:', error);
-    res.status(500).json({ message: 'Lỗi server', error: error.message });
+    res.status(500).json({ message: 'Lỗi máy chủ khi cập nhật trạng thái máy' });
   }
 });
 
@@ -382,7 +425,7 @@ router.get('/:id/equipments', async (req, res) => {
     res.json(equipments);
   } catch (error) {
     console.error('Lỗi lấy thiết bị tàu:', error);
-    res.status(500).json({ message: 'Lỗi server', error: error.message });
+    res.status(500).json({ message: 'Lỗi máy chủ khi lấy thiết bị tàu' });
   }
 });
 
@@ -390,7 +433,7 @@ router.get('/:id/equipments', async (req, res) => {
 router.post('/:id/equipments', authMiddleware, async (req, res) => {
   const { role } = req.user;
   if (role !== 'Admin' && role !== 'Agency') {
-    return res.status(403).json({ message: 'Chỉ Admin/Agency mới được thêm thiết bị tàu' });
+    return res.status(403).json({ message: 'Chỉ Quản trị viên hoặc Đại lý mới được thêm thiết bị tàu' });
   }
   try {
     const ship = await Ship.findByPk(req.params.id);
@@ -410,45 +453,58 @@ router.post('/:id/equipments', authMiddleware, async (req, res) => {
     const eqData = equipmentList.map(e => ({
       shipId: ship.id,
       voyageId: null,
-      equipmentName: e.equipmentName,
-      equipmentType: e.equipmentType || 'Khác',
-      location: e.location || '',
+      equipmentName: normalizeEquipmentName(e.equipmentName),
+      equipmentType: normalizeEquipmentType(e.equipmentType),
+      location: normalizeEquipmentLocation(e.location),
       quantity: Number(e.quantity) || 1,
       expiryNote: e.expiryNote || null,
       brokenCount: 0,
-      status: 'Operational'
+      status: 'Hoạt động'
     }));
 
     const created = await Equipment.bulkCreate(eqData);
     res.json({ message: 'Tạo thiết bị tàu thành công', equipments: created });
   } catch (error) {
     console.error('Lỗi tạo thiết bị tàu:', error);
-    res.status(500).json({ message: 'Lỗi server', error: error.message });
+    res.status(500).json({ message: 'Lỗi máy chủ khi tạo thiết bị tàu' });
   }
 });
 
-// PATCH /api/vessels/equipments/:equipmentId/broken-count - Cập nhật số lượng hỏng (EngineOfficer)
+// PATCH /api/vessels/equipments/:equipmentId/broken-count - Ghi nhận số lượng hỏng phát sinh
 router.patch('/equipments/:equipmentId/broken-count', authMiddleware, async (req, res) => {
-  console.log('[VESSEL broken-count] role:', req.user?.role);
-  const allowedEquipRoles = ['EngineOfficer', 'Master', 'ChiefOfficer'];
-  if (!allowedEquipRoles.includes(req.user?.role)) {
-    return res.status(403).json({ message: 'Chỉ Sĩ quan máy, Thuyền trưởng hoặc Thuyền phó mới được cập nhật số thiết bị hỏng' });
-  }
   const { brokenCount } = req.body;
-  if (brokenCount === undefined || brokenCount === null || brokenCount < 0) {
-    return res.status(400).json({ message: 'Số lượng hỏng phải là số ≥ 0' });
+  const additionalBrokenCount = Number(brokenCount);
+  if (!Number.isInteger(additionalBrokenCount) || additionalBrokenCount <= 0) {
+    return res.status(400).json({ message: 'Số lượng hỏng mới phải là số nguyên dương' });
   }
   try {
     const equipment = await Equipment.findByPk(req.params.equipmentId);
     if (!equipment) return res.status(404).json({ message: 'Không tìm thấy thiết bị' });
-    if (brokenCount > equipment.quantity) {
-      return res.status(400).json({ message: `Số lượng hỏng (${brokenCount}) không được lớn hơn số lượng tổng (${equipment.quantity})` });
+
+    const voyage = await Voyage.findOne({
+      where: { shipId: equipment.shipId, status: { [Op.notIn]: ['Completed', 'Cancelled'] } },
+    });
+    const assignment = voyage && req.user.profileId
+      ? await VoyageCrew.findOne({ where: { voyageId: voyage.id, crewId: req.user.profileId } })
+      : null;
+    const effectiveRole = assignment
+      ? canonicalVoyageRole(assignment.role)
+      : (voyage ? '' : canonicalVoyageRole(req.user?.role));
+    if (!['EngineOfficer', 'Master', 'ChiefOfficer'].includes(effectiveRole)) {
+      return res.status(403).json({ message: 'Chỉ Máy trưởng, Thuyền trưởng hoặc Đại phó mới được cập nhật số thiết bị hỏng' });
     }
-    await equipment.update({ brokenCount });
-    res.json({ message: 'Cập nhật số lượng hỏng thành công', equipment });
+
+    const currentBrokenCount = Number(equipment.brokenCount) || 0;
+    const nextBrokenCount = currentBrokenCount + additionalBrokenCount;
+    if (nextBrokenCount > equipment.quantity) {
+      const remaining = Math.max(0, equipment.quantity - currentBrokenCount);
+      return res.status(400).json({ message: `Chỉ còn ${remaining} thiết bị tốt có thể ghi nhận hỏng` });
+    }
+    await equipment.update({ brokenCount: nextBrokenCount });
+    res.json({ message: 'Ghi nhận số lượng hỏng mới thành công', equipment });
   } catch (error) {
     console.error('Lỗi cập nhật:', error);
-    res.status(500).json({ message: 'Lỗi server', error: error.message });
+    res.status(500).json({ message: 'Lỗi máy chủ khi cập nhật số thiết bị hỏng' });
   }
 });
 

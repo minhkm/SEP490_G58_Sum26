@@ -10,16 +10,9 @@ import {
 } from '@ant-design/icons';
 import MasterLayout from '../components/MasterLayout';
 import { profileService } from '../services/api';
+import { positionLabel, roleLabel } from '../config/roles';
 
 const { Title, Text } = Typography;
-
-const ROLE_LABELS = {
-  DeckOfficer: 'Sĩ quan Boong',
-  EngineOfficer: 'Sĩ quan Máy',
-  Sailor: 'Thủy thủ / Thợ máy',
-  ChiefOfficer: 'Đại phó',
-  Master: 'Thuyền trưởng',
-};
 
 const DEPT_LABELS = {
   Deck: 'Bộ phận Boong',
@@ -49,7 +42,7 @@ export default function CrewDashboard() {
   }, []);
 
   const activeVoyageRole = localStorage.getItem('activeVoyageRole');
-  const roleLabelStr = ROLE_LABELS[activeVoyageRole || user.role] || (activeVoyageRole || user.role);
+  const roleLabelStr = roleLabel(activeVoyageRole || user.role);
   const deptLabel = profile ? DEPT_LABELS[profile.department] || profile.department : '';
 
   const quickLinks = [
@@ -87,10 +80,10 @@ export default function CrewDashboard() {
 
   const summaryFields = profile
     ? [
-        ['Email', profile.User?.username],
+        ['Thư điện tử', profile.User?.username],
         ['Điện thoại', profile.phone || '—'],
         ['CCCD', profile.cccd || '—'],
-        ['Chức danh', profile.position || '—'],
+        ['Chức danh', positionLabel(profile.position) || '—'],
         ['Chứng chỉ', `${(profile.CrewCertificates || []).length} chứng chỉ`],
       ]
     : [];

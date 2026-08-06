@@ -10,6 +10,22 @@ import {
 import AgencyLayout from '../components/AgencyLayout';
 import { vesselService } from '../services/api';
 import { PageHeader, StatusTag } from '../components/common';
+import { engineNameLabel, engineParameterLabel, engineTypeLabel, isMainEngine, normalizeEngineStatus } from '../utils/engine';
+import {
+  cargoHoldNameLabel,
+  equipmentLocationLabel,
+  equipmentNameLabel,
+  equipmentTypeLabel,
+  normalizeShipStatus,
+} from '../utils/vessel';
+import { getCode } from 'country-list';
+
+const vietnameseRegionNames = new Intl.DisplayNames(['vi'], { type: 'region' });
+const countryLabel = (country) => {
+  if (!country) return 'Chưa cập nhật';
+  const code = getCode(country);
+  return code ? vietnameseRegionNames.of(code) : country;
+};
 
 export default function VesselDetailPage() {
   const { id } = useParams();
@@ -63,9 +79,9 @@ export default function VesselDetailPage() {
         <PageHeader
           onBack={() => navigate('/vessels')}
           title={vessel.shipName}
-          breadcrumb={`IMO: ${vessel.imoNumber} • Quốc tịch: ${vessel.flag}`}
+          breadcrumb={`IMO: ${vessel.imoNumber} • Quốc tịch: ${countryLabel(vessel.flag)}`}
           extra={
-            <StatusTag status={vessel.status} color={vessel.status === 'Hoạt động' ? 'green' : 'gold'} />
+            <StatusTag status={normalizeShipStatus(vessel.status)} color={normalizeShipStatus(vessel.status) === 'Hoạt động' ? 'green' : 'gold'} />
           }
         />
 
@@ -88,7 +104,7 @@ export default function VesselDetailPage() {
                   <strong>{vessel.imoNumber}</strong>
                 </Descriptions.Item>
                 <Descriptions.Item label="Quốc gia đăng ký (Cờ)">
-                  <strong>{vessel.flag || 'Chưa cập nhật'}</strong>
+                  <strong>{countryLabel(vessel.flag)}</strong>
                 </Descriptions.Item>
               </Descriptions>
             </Card>
@@ -99,7 +115,7 @@ export default function VesselDetailPage() {
             <Card
               title={
                 <Space>
-                  <InboxOutlined style={{ color: '#f59e0b' }} /> Sức chứa & Tải trọng
+                  <InboxOutlined style={{ color: '#f59e0b' }} /> Sức chứa và tải trọng
                 </Space>
               }
             >
@@ -141,7 +157,7 @@ export default function VesselDetailPage() {
               {vessel.Engines && vessel.Engines.length > 0 ? (
                 <Space direction="vertical" size={16} style={{ width: '100%' }}>
                   {vessel.Engines.map((engine, idx) => {
-                    const isMainEngine = engine.engineType === 'Diesel 2-kỳ';
+                    const mainEngine = isMainEngine(engine);
                     return (
                       <div
                         key={idx}
@@ -162,12 +178,12 @@ export default function VesselDetailPage() {
                           }}
                         >
                           <Space>
-                            <Tag color={isMainEngine ? 'blue' : 'default'}>
-                              {isMainEngine ? 'Máy chính' : 'Máy đèn'}
+                            <Tag color={mainEngine ? 'blue' : 'default'}>
+                              {engineTypeLabel(engine)}
                             </Tag>
-                            <strong style={{ color: '#334155' }}>{engine.engineName}</strong>
+                            <strong style={{ color: '#334155' }}>{engineNameLabel(engine.engineName)}</strong>
                           </Space>
-                          <Tag color="geekblue">{engine.engineType}</Tag>
+                          <Tag color="geekblue">{normalizeEngineStatus(engine.status)}</Tag>
                         </div>
                         {engine.EngineParameters && engine.EngineParameters.length > 0 && (
                           <div
@@ -184,7 +200,7 @@ export default function VesselDetailPage() {
                           >
                             {engine.EngineParameters.map((p, pIdx) => (
                               <div key={pIdx}>
-                                - {p.name}: <strong>{p.maxValue}</strong>
+                                - {engineParameterLabel(p.name)}: <strong>{p.maxValue}</strong>
                               </div>
                             ))}
                           </div>
@@ -205,7 +221,7 @@ export default function VesselDetailPage() {
               <Card
                 title={
                   <Space>
-                    <InboxOutlined style={{ color: '#10b981' }} /> Khoang hàng (Cargo Holds)
+                    <InboxOutlined style={{ color: '#10b981' }} /> Khoang hàng
                   </Space>
                 }
               >
@@ -222,7 +238,7 @@ export default function VesselDetailPage() {
                           fontSize: '0.9rem',
                         }}
                       >
-                        <strong style={{ color: '#166534', display: 'block' }}>{h.holdName}</strong>
+                        <strong style={{ color: '#166534', display: 'block' }}>{cargoHoldNameLabel(h.holdName)}</strong>
                         <span style={{ color: '#15803d' }}>Sức chứa: {h.maxCapacity}</span>
                       </div>
                     ))}
@@ -246,7 +262,7 @@ export default function VesselDetailPage() {
                   <ul style={{ paddingLeft: '20px', margin: 0, color: '#475569', fontSize: '0.95rem' }}>
                     {vessel.Equipment.map((e, idx) => (
                       <li key={idx} style={{ marginBottom: '6px' }}>
-                        <strong>{e.equipmentName}</strong> ({e.equipmentType}) - Vị trí: {e.location}
+                        <strong>{equipmentNameLabel(e.equipmentName)}</strong> ({equipmentTypeLabel(e.equipmentType)}) - Vị trí: {equipmentLocationLabel(e.location)}
                       </li>
                     ))}
                   </ul>

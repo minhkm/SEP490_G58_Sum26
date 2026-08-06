@@ -4,6 +4,7 @@ const {
   Shift, ShiftLog, DeckLog, DeckLogEntry,
   CrewProfile, LogEditHistory, LogImage
 } = require('../models');
+const { isDeckLogRole } = require('../utils/voyageRole');
 
 const DECK_NUMERIC_RULES = {
   courseTrue: { min: 0, max: 360 },
@@ -86,14 +87,16 @@ const getMyVoyages = async (req, res) => {
 
     const myVoyageCrews = await VoyageCrew.findAll({
       where: { crewId: crew.id },
-      attributes: ['voyageId']
+      attributes: ['voyageId', 'role']
     });
 
-    if (!myVoyageCrews.length) {
-      return res.status(404).json({ message: 'Bạn chưa được phân công hải trình nào' });
+    const deckAssignments = myVoyageCrews.filter((assignment) => isDeckLogRole(assignment.role));
+
+    if (!deckAssignments.length) {
+      return res.status(404).json({ message: 'Bạn chưa được phân công làm Thủy thủ trong hải trình nào' });
     }
 
-    const myVoyageIds = myVoyageCrews.map(vc => vc.voyageId);
+    const myVoyageIds = deckAssignments.map(vc => vc.voyageId);
 
     const myVoyages = await Voyage.findAll({
       where: { id: { [Op.in]: myVoyageIds } },
@@ -110,7 +113,7 @@ const getMyVoyages = async (req, res) => {
     res.json(myVoyages);
   } catch (error) {
     console.error('Lỗi lấy hải trình:', error);
-    res.status(500).json({ message: 'Lỗi server', error: error.message });
+    res.status(500).json({ message: 'Lỗi máy chủ khi lấy hải trình nhật ký boong' });
   }
 };
 
@@ -125,6 +128,14 @@ const getShiftsForCurrentUser = async (req, res) => {
 
     if (!crewId) {
       return res.status(401).json({ message: 'Không xác định được thông tin người dùng' });
+    }
+
+    const assignment = await VoyageCrew.findOne({
+      where: { voyageId, crewId },
+      attributes: ['role'],
+    });
+    if (!assignment || !isDeckLogRole(assignment.role)) {
+      return res.status(403).json({ message: 'Bạn không được phân công làm Thủy thủ trong hải trình này' });
     }
 
     const where = { voyageId, crewId };
@@ -148,7 +159,7 @@ const getShiftsForCurrentUser = async (req, res) => {
     res.json(shifts);
   } catch (error) {
     console.error('Lỗi lấy ca trực:', error);
-    res.status(500).json({ message: 'Lỗi server', error: error.message });
+    res.status(500).json({ message: 'Lỗi máy chủ khi lấy ca trực boong' });
   }
 };
 
@@ -218,7 +229,7 @@ const createDeckLog = async (req, res) => {
     });
   } catch (error) {
     console.error('Lỗi tạo nhật ký boong:', error);
-    res.status(500).json({ message: 'Lỗi server', error: error.message });
+    res.status(500).json({ message: 'Lỗi máy chủ khi tạo nhật ký boong' });
   }
 };
 
@@ -322,7 +333,7 @@ const updateDeckLog = async (req, res) => {
     res.json({ message: 'Cập nhật nhật ký thành công' });
   } catch (error) {
     console.error('Lỗi cập nhật nhật ký boong:', error);
-    res.status(500).json({ message: 'Lỗi server', error: error.message });
+    res.status(500).json({ message: 'Lỗi máy chủ khi cập nhật nhật ký boong' });
   }
 };
 
@@ -348,7 +359,7 @@ const getDeckLogsByShift = async (req, res) => {
     res.json(shiftLogs);
   } catch (error) {
     console.error('Lỗi lấy lịch sử:', error);
-    res.status(500).json({ message: 'Lỗi server', error: error.message });
+    res.status(500).json({ message: 'Lỗi máy chủ khi lấy lịch sử nhật ký boong' });
   }
 };
 
@@ -379,10 +390,10 @@ const uploadLogImages = async (req, res) => {
       }))
     );
 
-    res.status(201).json({ message: 'Upload ảnh thành công', images });
+    res.status(201).json({ message: 'Tải ảnh lên thành công', images });
   } catch (error) {
-    console.error('Lỗi upload ảnh:', error);
-    res.status(500).json({ message: 'Lỗi server', error: error.message });
+    console.error('Lỗi tải ảnh lên:', error);
+    res.status(500).json({ message: 'Lỗi máy chủ khi tải ảnh nhật ký boong lên' });
   }
 };
 
@@ -402,7 +413,7 @@ const getEditHistory = async (req, res) => {
     res.json(history);
   } catch (error) {
     console.error('Lỗi lấy lịch sử chỉnh sửa:', error);
-    res.status(500).json({ message: 'Lỗi server', error: error.message });
+    res.status(500).json({ message: 'Lỗi máy chủ khi lấy lịch sử chỉnh sửa nhật ký boong' });
   }
 };
 

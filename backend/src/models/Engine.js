@@ -6,7 +6,7 @@ const Engine = sequelize.define("Engine", {
   shipId: { type: DataTypes.INTEGER, allowNull: false },
   engineName: { type: DataTypes.STRING },
   engineType: { type: DataTypes.STRING },
-  status: { type: DataTypes.STRING, defaultValue: "Operational" },
+  status: { type: DataTypes.STRING, defaultValue: "Hoạt động" },
 }, { tableName: "Engine", timestamps: false });
 
 module.exports = Engine;
