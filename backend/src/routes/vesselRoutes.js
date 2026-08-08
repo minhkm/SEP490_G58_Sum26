@@ -74,6 +74,15 @@ router.post('/', async (req, res) => {
   try {
     const { basicInfo, capacity, mainEngine, generatorEngines, holds } = req.body;
 
+    if (!holds || holds.length === 0) {
+      return res.status(400).json({ message: 'Tàu phải có ít nhất một khoang chứa hàng.' });
+    }
+    const totalHoldsCapacity = holds.reduce((sum, h) => sum + Number(h.capacity || 0), 0);
+    const shipMaxVolume = Number(capacity?.maxVolume || 0);
+    if (totalHoldsCapacity > shipMaxVolume) {
+      return res.status(400).json({ message: `Tổng sức chứa của các khoang (${totalHoldsCapacity}) không được vượt quá thể tích của tàu (${shipMaxVolume}).` });
+    }
+
     if (mainEngine?.engineName && parseEngineStatus(mainEngine.status) !== ENGINE_STATUS.OPERATIONAL) {
       return res.status(400).json({ message: 'Máy chính mới bắt buộc phải ở trạng thái Hoạt động.' });
     }
@@ -167,6 +176,15 @@ router.put('/:id', async (req, res) => {
     const vesselId = req.params.id;
     const { basicInfo, capacity, mainEngine, generatorEngines, holds } = req.body;
 
+    if (!holds || holds.length === 0) {
+      return res.status(400).json({ message: 'Tàu phải có ít nhất một khoang chứa hàng.' });
+    }
+    const totalHoldsCapacity = holds.reduce((sum, h) => sum + Number(h.capacity || 0), 0);
+    const shipMaxVolume = Number(capacity?.maxVolume || 0);
+    if (totalHoldsCapacity > shipMaxVolume) {
+      return res.status(400).json({ message: `Tổng sức chứa của các khoang (${totalHoldsCapacity}) không được vượt quá thể tích của tàu (${shipMaxVolume}).` });
+    }
+
     const newMainEngine = mainEngine && !mainEngine.id && mainEngine.engineName ? mainEngine : null;
     if (newMainEngine && parseEngineStatus(newMainEngine.status) !== ENGINE_STATUS.OPERATIONAL) {
       return res.status(400).json({ message: 'Máy chính mới bắt buộc phải ở trạng thái Hoạt động.' });
@@ -181,6 +199,18 @@ router.put('/:id', async (req, res) => {
     
     const vessel = await Ship.findByPk(vesselId);
     if (!vessel) return res.status(404).json({ message: 'Không tìm thấy tàu' });
+
+    const { Op } = require('sequelize');
+    const activeVoyage = await Voyage.findOne({
+      where: { 
+        shipId: vesselId,
+        status: { [Op.notIn]: ['Completed', 'Cancelled'] }
+      }
+    });
+
+    if (activeVoyage) {
+      return res.status(400).json({ message: 'Không thể chỉnh sửa cấu hình tàu đang trong hải trình hoạt động.' });
+    }
 
     // 1. Update Ship & Capacity
     await vessel.update({

@@ -625,6 +625,39 @@ router.put('/:id', authMiddleware, async (req, res) => {
     // Process cargoList if provided and allowed
     if (isShipStaff && cargoList && Array.isArray(cargoList)) {
       if (cargoList.length > 0) {
+        // PRE-VALIDATE HOLD CAPACITIES
+        const allHolds = await CargoHold.findAll({ where: { shipId: voyage.shipId } });
+        const holdMap = {};
+        allHolds.forEach(h => {
+          holdMap[h.id] = { maxCap: h.maxCapacity || 0, usage: h.currentUsage || 0, name: h.holdName };
+        });
+
+        for (const item of cargoList) {
+          if (item.itemId) {
+            const cargoItem = await CargoItem.findByPk(item.itemId);
+            if (cargoItem) {
+              // revert old
+              if (cargoItem.isLoaded && !cargoItem.isDischarged) {
+                for (const a of (cargoItem.allocations || [])) {
+                  if (a.holdId && holdMap[a.holdId]) holdMap[a.holdId].usage -= Number(a.weight || 0);
+                }
+              }
+              // apply new
+              if (item.isLoaded && !cargoItem.isDischarged) {
+                for (const a of (item.allocations || [])) {
+                  if (a.holdId && holdMap[a.holdId]) holdMap[a.holdId].usage += Number(a.weight || 0);
+                }
+              }
+            }
+          }
+        }
+
+        for (const hid of Object.keys(holdMap)) {
+          if (holdMap[hid].usage > holdMap[hid].maxCap) {
+            return res.status(400).json({ message: `Khoang "${holdMap[hid].name}" vượt quá sức chứa (${holdMap[hid].usage}/${holdMap[hid].maxCap} tấn). Vui lòng điều chỉnh lại.` });
+          }
+        }
+
         let allCargoLoaded = true;
         for (const item of cargoList) {
           if (!item.isLoaded) allCargoLoaded = false;
@@ -764,9 +797,11 @@ router.put('/:id', authMiddleware, async (req, res) => {
       }
     }
 
-    // Hủy hải trình -> giải phóng lô hàng
+    // Hủy hải trình -> giải phóng lô hàng và thuyền viên
     if (nextStatus === 'Cancelled' && previousVoyage.status !== 'Cancelled') {
       await Cargo.update({ voyageId: null, status: 'Đã ở cảng' }, { where: { voyageId: id } });
+      await VoyageCrew.destroy({ where: { voyageId: id } });
+      await Attendance.destroy({ where: { voyageId: id } });
     }
 
     if (routeStatusChangedToPending) {

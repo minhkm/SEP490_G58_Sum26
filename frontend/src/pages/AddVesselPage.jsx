@@ -554,6 +554,19 @@ export default function AddVesselPage() {
       }
     }
 
+    // Validation: Phải có ít nhất 1 khoang hàng và thông tin hợp lệ
+    if (!holds || holds.length === 0) {
+      setActiveTab('capacity');
+      notifyWarning('Vui lòng thêm ít nhất một khoang chứa hàng cho tàu.');
+      return;
+    }
+    const invalidHolds = holds.filter(h => !h.name || !h.name.trim() || !h.capacity || parseFloat(h.capacity) <= 0);
+    if (invalidHolds.length > 0) {
+      setActiveTab('capacity');
+      notifyWarning('Vui lòng điền đầy đủ tên và sức chứa hợp lệ (> 0) cho tất cả các khoang hàng.');
+      return;
+    }
+
     // Validation: Tổng thể tích khoang KHÔNG ĐƯỢC VƯỢT QUÁ Thể tích Max của tàu
     if (holds && holds.length > 0 && capacity && capacity.maxVolume) {
       const totalHoldsVolume = holds.reduce((sum, h) => sum + (parseFloat(h.capacity) || 0), 0);

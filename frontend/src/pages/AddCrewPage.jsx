@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { Form, Input, Select, Button, Card, Row, Col, Space, Spin, Alert, Tabs } from 'antd';
+import { Form, Input, Select, Button, Card, Row, Col, Space, Spin, Alert, Tabs, notification, Typography } from 'antd';
 import { SaveOutlined, TeamOutlined, WarningOutlined } from '@ant-design/icons';
 import AgencyLayout from '../components/AgencyLayout';
 import { crewService } from '../services/api';
@@ -38,7 +38,7 @@ export default function AddCrewPage() {
         department: data.department || 'Deck',
         position: data.position || '',
         role: nextRole,
-        status: data.User?.status || 'Active',
+        status: data.User?.status || 'Available',
       });
     } catch (error) {
       console.error('Lỗi khi lấy thông tin:', error);
@@ -90,8 +90,28 @@ export default function AddCrewPage() {
         await crewService.update(id, values);
         notifySuccess('Cập nhật thông tin thủy thủ thành công!');
       } else {
-        await crewService.create(values);
-        notifySuccess('Thêm thủy thủ mới thành công!');
+        const response = await crewService.create(values);
+        const tempPass = response?.temporaryPassword || response?.data?.temporaryPassword;
+        if (tempPass) {
+          notification.success({
+            message: 'Thêm thủy thủ mới thành công!',
+            description: (
+              <div>
+                <p style={{ marginBottom: 4 }}>Mật khẩu tạm thời của thủy thủ là:</p>
+                <Typography.Text copyable style={{ fontSize: '18px', fontWeight: 'bold', color: '#1677ff' }}>
+                  {tempPass}
+                </Typography.Text>
+                <p style={{ color: '#cf1322', marginTop: 8, fontSize: '13px' }}>
+                  (Lưu ý: Vui lòng Copy và gửi thủ công vì Server miễn phí đang chặn gửi Mail)
+                </p>
+              </div>
+            ),
+            duration: 0, // Không bao giờ tự động đóng
+            placement: 'topRight'
+          });
+        } else {
+          notifySuccess('Thêm thủy thủ mới thành công!');
+        }
       }
       navigate('/crews');
     } catch (error) {
@@ -143,7 +163,7 @@ export default function AddCrewPage() {
             department: 'Deck',
             position: '',
             role: 'Sailor',
-            status: 'Active',
+            status: 'Available',
             password: '',
           }}
         >

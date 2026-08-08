@@ -1,7 +1,8 @@
 const express = require('express');
 const bcrypt = require('bcrypt');
 const nodemailer = require('nodemailer');
-const { CrewProfile, User, CrewCertificate } = require('../models');
+const { CrewProfile, User, CrewCertificate, Voyage, VoyageCrew } = require('../models');
+const { Op } = require('sequelize');
 const authMiddleware = require('../middlewares/authMiddleware');
 
 const router = express.Router();
@@ -246,7 +247,7 @@ router.post('/', async (req, res) => {
       username: email,
       password: hashedPassword,
       role: role || 'Sailor',
-      status: status || 'Active',
+      status: status || 'Available',
       requiresPasswordChange: true
     });
 
@@ -263,11 +264,14 @@ router.post('/', async (req, res) => {
     // Gửi email tự động
     try {
       const transporter = nodemailer.createTransport({
-        service: 'gmail',
+        host: 'smtp.gmail.com',
+        port: 465,
+        secure: true,
         auth: {
           user: process.env.EMAIL_USER,
           pass: process.env.EMAIL_PASS
-        }
+        },
+        family: 4 // Bắt buộc dùng IPv4 để tránh lỗi chặn mạng IPv6 trên Railway
       });
 
       const mailOptions = {
@@ -292,13 +296,13 @@ router.post('/', async (req, res) => {
         `
       };
 
-      await transporter.sendMail(mailOptions);
+      // Chạy ngầm không await để tránh treo request nếu SMTP phản hồi chậm
+      transporter.sendMail(mailOptions).catch(err => console.error('Lỗi gửi email ngầm:', err));
     } catch (mailError) {
-      console.error('Lỗi gửi email:', mailError);
-      // Vẫn báo thành công nhưng log lỗi email
+      console.error('Lỗi cấu hình email:', mailError);
     }
 
-    res.status(201).json({ message: 'Thêm thủy thủ thành công', crew: newCrew });
+    res.status(201).json({ message: 'Thêm thủy thủ thành công', crew: newCrew, temporaryPassword: generatedPassword });
   } catch (error) {
     console.error('Lỗi tạo mới thủy thủ:', error);
     res.status(500).json({ message: 'Lỗi server khi tạo mới' });

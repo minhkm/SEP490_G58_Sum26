@@ -82,7 +82,7 @@ export default function VesselListPage() {
         return (
           <RowActions
             onView={() => navigate(`/vessels/view/${v.id}`)}
-            onEdit={() => navigate(`/vessels/edit/${v.id}`)}
+            onEdit={isOnVoyage ? undefined : () => navigate(`/vessels/edit/${v.id}`)}
             onDelete={isOnVoyage ? undefined : () => handleDelete(v.id, v.shipName)}
             deleteTitle="Xoá tàu"
           />

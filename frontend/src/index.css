@@ -85,6 +85,7 @@ body {
   background-color: #e0f2fe !important;
   border-color: #2563eb !important;
   box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.2) !important;
+}
 :root {
 
 
@@ -242,4 +243,4 @@ code {
   display: flex;
   align-items: center;
   justify-content: center;
-}
+}

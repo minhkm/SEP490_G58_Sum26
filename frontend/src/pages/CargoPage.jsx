@@ -229,6 +229,31 @@ export default function CargoPage() {
   };
 
   const handleSaveVoyageCargoConfig = async () => {
+    // Validate hold capacities
+    let hasOverload = false;
+    for (const hold of holds) {
+      const maxCap = hold.maxCapacity || 0;
+      let simulatedUsage = hold.currentUsage || 0;
+      
+      cargoList.forEach((c) => {
+        const orig = originalCargoList.find((o) => o.itemId === c.itemId);
+        const origWeight = orig?.isLoaded && !orig?.isDischarged
+          ? (orig.allocations || []).filter((a) => String(a.holdId) === String(hold.id)).reduce((s, a) => s + Number(a.weight), 0)
+          : 0;
+        const newWeight = c.isLoaded && !c.isDischarged
+          ? (c.allocations || []).filter((a) => String(a.holdId) === String(hold.id)).reduce((s, a) => s + Number(a.weight), 0)
+          : 0;
+        simulatedUsage += (newWeight - origWeight);
+      });
+      
+      if (simulatedUsage > maxCap) {
+        hasOverload = true;
+        notifyWarning(`Khoang "${hold.holdName}" vượt quá sức chứa (${simulatedUsage}/${maxCap} tấn). Vui lòng điều chỉnh phân bổ.`);
+        break;
+      }
+    }
+    if (hasOverload) return;
+
     try {
       setSavingConfig(true);
       // Constructing minimal payload to not override other voyage data
