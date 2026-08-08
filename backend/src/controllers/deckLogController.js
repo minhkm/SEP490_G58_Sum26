@@ -24,6 +24,20 @@ const DECK_NUMERIC_RULES = {
 const WIND_DIRECTIONS = new Set(['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW', 'C']);
 const WEATHER_CODES = new Set(['bc', 'br', 'c', 'f', 'g', 'h', 'o', 'p', 'q', 'r', 's']);
 
+const parseDateFilter = (value) => {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(String(value || ''))) return null;
+
+  const [year, month, day] = String(value).split('-').map(Number);
+  const parsed = new Date(year, month - 1, day);
+  if (
+    parsed.getFullYear() !== year
+    || parsed.getMonth() !== month - 1
+    || parsed.getDate() !== day
+  ) return null;
+
+  return parsed;
+};
+
 const validateDeckEntries = (entries, shift) => {
   if (!Array.isArray(entries)) return 'Danh sách dữ liệu boong không hợp lệ';
 
@@ -141,9 +155,16 @@ const getShiftsForCurrentUser = async (req, res) => {
     const where = { voyageId, crewId };
 
     if (date) {
-      const dayStart = new Date(date);
+      const parsedDate = parseDateFilter(date);
+      if (!parsedDate) {
+        return res.status(400).json({
+          message: 'Ngày lọc không hợp lệ. Vui lòng nhập theo định dạng YYYY-MM-DD.',
+        });
+      }
+
+      const dayStart = new Date(parsedDate);
       dayStart.setHours(0, 0, 0, 0);
-      const dayEnd = new Date(date);
+      const dayEnd = new Date(parsedDate);
       dayEnd.setHours(23, 59, 59, 999);
       where.startTime = { [Op.between]: [dayStart, dayEnd] };
     }

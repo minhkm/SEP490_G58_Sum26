@@ -368,7 +368,12 @@ export default function CargoPage() {
     },
   ];
 
-  const isCargoLoadAllowed = activeVoyage?.status === 'Loading' && isChiefOfficer;
+  // Trạng thái Loaded nhưng cờ hàng chưa hoàn tất chỉ có thể xuất hiện từ dữ liệu
+  // cũ. Cho phép Đại phó hoàn thiện dữ liệu đó để hải trình không bị mắc kẹt.
+  const isCargoLoadAllowed = isChiefOfficer && (
+    activeVoyage?.status === 'Loading' ||
+    (activeVoyage?.status === 'Loaded' && !activeVoyage?.isCargoLoaded)
+  );
 
   if (activeVoyage && userRole !== 'admin') {
     if (activeVoyage.status === 'Discharge' || activeVoyage.status === 'Arrived' || activeVoyage.status === 'Completed') {

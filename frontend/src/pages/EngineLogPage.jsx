@@ -28,8 +28,15 @@ const REQUIRED_PARAMETER_NAMES = new Set([
 const isRequiredParameter = (name) => REQUIRED_PARAMETER_NAMES.has(engineParameterLabel(name));
 const voyageStatusLabel = (status) => ({
   Planning: 'Đang lập kế hoạch',
+  Loading: 'Đang làm hàng',
+  Loaded: 'Đã làm hàng xong',
   Underway: 'Đang hành trình',
+  Arrived: 'Đã cập bến',
+  Discharge: 'Đang dỡ hàng',
+  Discharged: 'Đã dỡ hàng xong',
+  'Homeward Bounding': 'Đang quay về',
   Anchored: 'Neo đậu',
+  'At Anchor': 'Neo đậu',
   Completed: 'Đã hoàn thành',
   Cancelled: 'Đã hủy',
 }[status] || status);

@@ -551,6 +551,30 @@ router.put('/:id', authMiddleware, async (req, res) => {
       }
     }
 
+    // Chỉ được xác nhận đã làm hàng xong khi toàn bộ hàng thực tế đã lên tàu.
+    // Việc kiểm tra ở đây ngăn hải trình bị mắc kẹt ở trạng thái Loaded trong khi
+    // trang phân bổ hàng đã bị khóa.
+    if (nextStatus === 'Loaded' && voyage.status !== 'Loaded') {
+      const cargosInVoyage = await Cargo.findAll({
+        where: { voyageId: id },
+        include: [{ model: CargoItem }]
+      });
+
+      const allLoaded = cargosInVoyage.length > 0 && cargosInVoyage.every((cargo) =>
+        Array.isArray(cargo.CargoItems) &&
+        cargo.CargoItems.length > 0 &&
+        cargo.CargoItems.every((item) => item.isLoaded)
+      );
+
+      if (!allLoaded) {
+        return res.status(400).json({
+          message: 'Chưa bốc xếp hàng hóa xong, không thể chuyển sang trạng thái đã làm hàng xong!'
+        });
+      }
+
+      voyage.isCargoLoaded = true;
+    }
+
     // Business Logic Validation: Cannot transition to Underway if captain hasn't taken attendance or crew is not sufficient
     if (nextStatus === 'Underway') {
       // Assuming isCrewSufficient being false means attendance is missing or crew is absent
@@ -1047,37 +1071,6 @@ router.post('/:id/attendances', authMiddleware, async (req, res) => {
   } catch (error) {
     console.error('Lỗi khi lưu điểm danh:', error);
     res.status(500).json({ message: 'Lỗi máy chủ khi lưu điểm danh' });
-  }
-});
-
-// PATCH /api/voyages/equipments/:equipmentId/status — Cập nhật trạng thái thiết bị (chỉ EngineOfficer)
-router.patch('/equipments/:equipmentId/status', authMiddleware, async (req, res) => {
-  if (req.user?.role !== 'EngineOfficer') {
-    return res.status(403).json({ message: 'Chỉ Sĩ quan máy mới được đổi trạng thái thiết bị' });
-  }
-
-  const { status } = req.body;
-  const statusAliases = {
-    Operational: 'Hoạt động',
-    'Hoạt động': 'Hoạt động',
-    Broken: 'Hỏng',
-    Hỏng: 'Hỏng',
-    Lost: 'Mất',
-    Mất: 'Mất',
-  };
-  const normalizedStatus = statusAliases[status];
-  if (!normalizedStatus) {
-    return res.status(400).json({ message: 'Trạng thái không hợp lệ. Chỉ chấp nhận: Hoạt động, Hỏng, Mất' });
-  }
-
-  try {
-    const equipment = await Equipment.findByPk(req.params.equipmentId);
-    if (!equipment) return res.status(404).json({ message: 'Không tìm thấy thiết bị' });
-    await equipment.update({ status: normalizedStatus });
-    res.json({ message: 'Cập nhật trạng thái thiết bị thành công', equipment });
-  } catch (error) {
-    console.error('Lỗi cập nhật trạng thái thiết bị:', error);
-    res.status(500).json({ message: 'Lỗi máy chủ khi cập nhật trạng thái vật tư' });
   }
 });
 

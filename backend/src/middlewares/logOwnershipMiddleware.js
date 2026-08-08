@@ -199,6 +199,16 @@ const validateEngineValues = ({ update = false } = {}) => async (req, res, next)
         return res.status(404).json({ message: 'Không tìm thấy nhật ký máy.' });
       }
       engineId = Number(engineLog.engineId);
+    } else if (
+      req.body.engineId === null
+      || req.body.engineId === undefined
+      || req.body.engineId === ''
+    ) {
+      return res.status(400).json({ message: 'Thiếu thông tin ca trực hoặc máy cần kiểm tra.' });
+    }
+
+    if (!Number.isInteger(engineId) || engineId <= 0) {
+      return res.status(400).json({ message: 'Mã máy cần kiểm tra không hợp lệ.' });
     }
 
     const engine = await Engine.findByPk(engineId, {

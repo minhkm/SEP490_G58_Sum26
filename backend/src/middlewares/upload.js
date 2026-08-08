@@ -35,4 +35,20 @@ const upload = multer({
   limits: { fileSize: 5 * 1024 * 1024 }, // 5MB
 });
 
+const uploadLogImages = (req, res, next) => {
+  upload.array('images', 5)(req, res, (error) => {
+    if (!error) return next();
+
+    let message = error.message || 'Không thể tải ảnh lên';
+    if (error.code === 'LIMIT_FILE_SIZE') {
+      message = 'Mỗi ảnh tải lên không được vượt quá 5 MB';
+    } else if (error.code === 'LIMIT_UNEXPECTED_FILE') {
+      message = 'Chỉ được tải lên tối đa 5 ảnh';
+    }
+
+    return res.status(400).json({ message });
+  });
+};
+
 module.exports = upload;
+module.exports.uploadLogImages = uploadLogImages;

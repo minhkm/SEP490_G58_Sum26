@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const ctrl = require('../controllers/deckLogController');
 const authMiddleware = require('../middlewares/authMiddleware');
-const upload = require('../middleware/upload');
+const { uploadLogImages } = require('../middlewares/upload');
 const {
   requireOwnedShift,
   requireOwnedShiftLog,
@@ -36,7 +36,7 @@ router.get(
 router.post(
   '/:shiftLogId/images',
   requireOwnedShiftLog('Deck'),
-  upload.array('images', 5),
+  uploadLogImages,
   ctrl.uploadLogImages,
 );
 

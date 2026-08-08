@@ -237,7 +237,7 @@ export default function VoyageListPage() {
       <div style={{ padding: '24px 32px' }}>
         <PageHeader
           icon={<CompassOutlined />}
-          breadcrumb="Voyages"
+          breadcrumb="Hải trình"
           title="Danh sách hải trình"
           extra={
             canCreate && (

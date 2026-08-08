@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const ctrl = require('../controllers/engineLogController');
 const authMiddleware = require('../middlewares/authMiddleware');
-const upload = require('../middleware/upload');
+const { uploadLogImages } = require('../middlewares/upload');
 const {
   requireOwnedShift,
   requireOwnedShiftLog,
@@ -51,7 +51,7 @@ router.get('/history/voyage/:voyageId', requireVoyageAssignment('Engine'), ctrl.
 router.post(
   '/:shiftLogId/images',
   requireOwnedShiftLog('Engine'),
-  upload.array('images', 5),
+  uploadLogImages,
   ctrl.uploadLogImages,
 );
 
