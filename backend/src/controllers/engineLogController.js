@@ -19,6 +19,20 @@ const isValidEngineValue = (item) => (
   && Number.isFinite(Number(item.value))
 );
 
+const parseDateFilter = (value) => {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(String(value || ''))) return null;
+
+  const [year, month, day] = String(value).split('-').map(Number);
+  const parsed = new Date(year, month - 1, day);
+  if (
+    parsed.getFullYear() !== year
+    || parsed.getMonth() !== month - 1
+    || parsed.getDate() !== day
+  ) return null;
+
+  return parsed;
+};
+
 async function notifyExceededEngineValues({ shiftId, shiftLogId, engineLogId, engineId, values, actorUserId }) {
   if (!Array.isArray(values) || values.length === 0) return;
 
@@ -128,9 +142,16 @@ const getShiftsForCurrentUser = async (req, res) => {
 
     // Nếu có filter theo ngày → chỉ lấy ca trực trong ngày đó
     if (date) {
-      const dayStart = new Date(date);
+      const parsedDate = parseDateFilter(date);
+      if (!parsedDate) {
+        return res.status(400).json({
+          message: 'Ngày lọc không hợp lệ. Vui lòng nhập theo định dạng YYYY-MM-DD.',
+        });
+      }
+
+      const dayStart = new Date(parsedDate);
       dayStart.setHours(0, 0, 0, 0);
-      const dayEnd = new Date(date);
+      const dayEnd = new Date(parsedDate);
       dayEnd.setHours(23, 59, 59, 999);
       where.startTime = { [Op.between]: [dayStart, dayEnd] };
     }

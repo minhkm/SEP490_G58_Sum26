@@ -136,9 +136,9 @@ export default function AttendancePage() {
   const rowDisabled = !canEdit || isLockedDate || !statusValid;
 
   const getStatusWarning = () => {
-    if (activeTab === 'PreDeparture') return 'Điểm danh "Trước khi xuất phát" chỉ được thực hiện khi trạng thái hải trình là Đã làm hàng xong (Loaded).';
-    if (activeTab === 'Daily') return 'Điểm danh "Hằng ngày" chỉ được thực hiện khi tàu Đang di chuyển (Underway), Đang quay về (Homeward Bounding), hoặc Đang neo đậu (At Anchor).';
-    if (activeTab === 'PostDischarge') return 'Điểm danh "Kết thúc chuyến đi" chỉ được thực hiện khi tàu Đã dỡ hàng xong (Discharged).';
+    if (activeTab === 'PreDeparture') return 'Điểm danh "Trước khi xuất phát" chỉ được thực hiện khi hải trình đã làm hàng xong.';
+    if (activeTab === 'Daily') return 'Điểm danh "Hằng ngày" chỉ được thực hiện khi tàu đang di chuyển, đang quay về hoặc đang neo đậu.';
+    if (activeTab === 'PostDischarge') return 'Điểm danh "Kết thúc chuyến đi" chỉ được thực hiện khi tàu đã dỡ hàng xong.';
     return '';
   };
 

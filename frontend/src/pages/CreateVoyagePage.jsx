@@ -351,7 +351,7 @@ export default function CreateVoyagePage() {
     {
       title: <span>Tên thuốc / vật tư <span style={{ color: 'red' }}>*</span></span>, dataIndex: 'name',
       render: (value, record) => (
-        <Input placeholder="VD: Thuốc paracetamol, băng găc, ..." value={value}
+        <Input placeholder="VD: Thuốc paracetamol, băng gạc, ..." value={value}
           onChange={(e) => handleEquipmentChange(record.id, 'name', e.target.value)} />
       ),
     },
