@@ -26,7 +26,7 @@ export default function RequireRole({ allow = [], children }) {
 
   if (!allow.includes(role)) {
     // Không đủ quyền: đưa về dashboard tương ứng với role của họ
-    if (!activeVoyageRole && role !== 'Admin' && role !== 'Agency') {
+    if (!activeVoyageRole && role !== 'Admin') {
       return <Navigate to="/my-voyages" replace />;
     }
     return <Navigate to={getDashboardPath(role)} replace />;

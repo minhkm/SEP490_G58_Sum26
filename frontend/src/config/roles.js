@@ -12,7 +12,7 @@ export const ENGINE_LOG_ROLES = ['EngineCrew'];
 // ===== Nhóm role chuẩn (nguồn duy nhất) =====
 // Bộ phận: Boong = DeckOfficer + Sailor; Máy = EngineOfficer (máy trưởng) + EngineCrew.
 // KHÔNG có role ChiefEngineer riêng (máy trưởng chính là EngineOfficer).
-export const SHORE_ROLES = ['Admin', 'Agency'];
+export const SHORE_ROLES = ['Admin'];
 export const COMMAND_ROLES = ['Master', 'ChiefOfficer'];
 export const DECK_CREW_ROLES = ['DeckOfficer', 'Sailor'];
 export const ENGINE_CREW_ROLES = ['EngineOfficer', 'EngineCrew'];
@@ -36,12 +36,12 @@ export function getEffectiveRole() {
 // Trả về dashboard tương ứng với role hiện tại.
 export function getDashboardPath(role) {
   if (role === 'Master' || role === 'ChiefOfficer') return '/master-dashboard';
-  if (role === 'Admin' || role === 'Agency') return '/agency-dashboard';
+  if (role === 'Admin') return '/admin-dashboard';
   return '/crew-dashboard';
 }
 
 // ===== Module Báo cáo (FT-10) =====
-// Thuyền viên trên tàu được truy cập module Báo cáo (Admin/Agency trên bờ không can thiệp).
+// Thuyền viên trên tàu được truy cập module Báo cáo (Admin trên bờ không can thiệp).
 export const REPORT_ROLES = ['Master', 'ChiefOfficer', 'DeckOfficer', 'EngineOfficer', 'EngineCrew', 'Sailor'];
 
 // FT-10 v2: phân tách quyền tạo / xử lý
@@ -108,7 +108,6 @@ export const ROLE_LABELS = {
   EngineOfficer: 'Máy trưởng',
   Master: 'Thuyền trưởng',
   Admin: 'Quản trị viên',
-  Agency: 'Đại lý',
 };
 
 export function roleLabel(role) {

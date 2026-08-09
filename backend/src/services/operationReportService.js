@@ -427,7 +427,6 @@ function attendanceTypeLabel(value) {
 function roleLabel(value) {
   return ({
     Admin: "Quản trị viên",
-    Agency: "Đại lý",
     Master: "Thuyền trưởng",
     ChiefOfficer: "Đại phó",
     DeckOfficer: "Sĩ quan boong",

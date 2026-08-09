@@ -21,7 +21,7 @@ import {
   EditOutlined,
   LockOutlined,
 } from '@ant-design/icons';
-import AgencyLayout from '../components/AgencyLayout';
+import AdminLayout from '../components/AdminLayout';
 import MasterLayout from '../components/MasterLayout';
 import { cargoService } from '../services/api';
 import { PageHeader, StatusTag } from '../components/common';
@@ -37,9 +37,9 @@ export default function CargoDetailPage() {
   const [loading, setLoading] = useState(true);
 
   const user = JSON.parse(localStorage.getItem('user')) || {};
-  const Layout = (user.role === 'Admin' || user.role === 'Agency') ? AgencyLayout : MasterLayout;
-  // Chỉ Admin/Agency được sửa; lô hàng đã thuộc hải trình sẽ bị khoá (không cho sửa)
-  const canEdit = ['Admin', 'Agency'].includes(user.role);
+  const Layout = user.role === 'Admin' ? AdminLayout : MasterLayout;
+  // Chỉ Admin được sửa; lô hàng đã thuộc hải trình sẽ bị khoá (không cho sửa)
+  const canEdit = user.role === 'Admin';
 
   useEffect(() => {
     cargoService.getById(id).then(res => {

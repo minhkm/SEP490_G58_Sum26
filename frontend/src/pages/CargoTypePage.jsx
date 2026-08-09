@@ -13,7 +13,7 @@ import {
   TagsOutlined,
   PlusOutlined,
 } from '@ant-design/icons';
-import AgencyLayout from '../components/AgencyLayout';
+import AdminLayout from '../components/AdminLayout';
 import MasterLayout from '../components/MasterLayout';
 import { cargoTypeService } from '../services/api';
 import { PageHeader, RowActions, notifySuccess, notifyError, confirmDelete } from '../components/common';
@@ -21,7 +21,7 @@ import { PageHeader, RowActions, notifySuccess, notifyError, confirmDelete } fro
 export default function CargoTypePage() {
   const navigate = useNavigate();
   const user = JSON.parse(localStorage.getItem('user')) || {};
-  const Layout = (user.role === 'Admin' || user.role === 'Agency') ? AgencyLayout : MasterLayout;
+  const Layout = user.role === 'Admin' ? AdminLayout : MasterLayout;
   const canEdit = user.role === 'Admin';
 
   const [cargoTypes, setCargoTypes] = useState([]);

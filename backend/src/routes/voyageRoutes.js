@@ -7,10 +7,11 @@ const { notifyCrewAssignedToVoyage, notifyAttendanceUpdated, notifyVoyageUpdated
 const { SHIP_STATUS, normalizeEquipmentLocation, normalizeEquipmentName } = require('../utils/vessel');
 const { canonicalVoyageRole } = require('../utils/voyageRole');
 const authMiddleware = require('../middlewares/authMiddleware');
+const requireRole = require('../middlewares/roleMiddleware');
 
 const router = express.Router();
 
-router.post('/', async (req, res) => {
+router.post('/', authMiddleware, requireRole('Admin'), async (req, res) => {
   const t = await sequelize.transaction();
   try {
     const { shipId, routeInfo, cargoList, crewList, equipmentList } = req.body;
@@ -214,7 +215,7 @@ router.get("/", authMiddleware, async (req, res) => {
     const userRole = req.user.role;
     let whereClause = {};
 
-    if (userRole !== 'Admin' && userRole !== 'Agency') {
+    if (userRole !== 'Admin') {
       const profileId = req.user.profileId;
       if (!profileId) {
         return res.json([]); // Thủy thủ chưa có hồ sơ -> Không xem được gì
@@ -251,7 +252,7 @@ router.get("/", authMiddleware, async (req, res) => {
     });
 
     let resultVoyages = voyages;
-    if (userRole !== 'Admin' && userRole !== 'Agency' && req.voyageRoleMap) {
+    if (userRole !== 'Admin' && req.voyageRoleMap) {
        resultVoyages = voyages.map(v => {
           const vJson = v.toJSON();
           vJson.userRoleInVoyage = req.voyageRoleMap[v.id];
@@ -396,7 +397,7 @@ router.put('/:id', authMiddleware, async (req, res) => {
     };
 
     // Check authorization
-    if (userRole !== 'admin' && userRole !== 'agency') {
+    if (userRole !== 'admin') {
       const isAssigned = await VoyageCrew.findOne({
         where: { voyageId: id, crewId: profileId }
       });
@@ -884,7 +885,7 @@ router.get('/:id/attendances', authMiddleware, async (req, res) => {
 
     // Lấy danh sách thuyền viên của chuyến đi
     const viewerRole = String(req.user.role || '').replace(/\s+/g, '').toLowerCase();
-    if (!['admin', 'agency'].includes(viewerRole)) {
+    if (viewerRole !== 'admin') {
       const assignment = await VoyageCrew.findOne({ where: { voyageId: id, crewId: req.user.profileId } });
       if (!assignment) {
         return res.status(403).json({ message: 'Bạn không được phân công vào hải trình này' });

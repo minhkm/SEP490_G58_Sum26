@@ -16,6 +16,20 @@ router.post('/login', async (req, res) => {
       return res.status(400).json({ message: 'Tài khoản không tồn tại.' });
     }
 
+    const supportedRoles = [
+      'Admin',
+      'Master',
+      'ChiefOfficer',
+      'DeckOfficer',
+      'Sailor',
+      'Crew',
+      'EngineOfficer',
+      'EngineCrew',
+    ];
+    if (!supportedRoles.includes(user.role)) {
+      return res.status(403).json({ message: 'Vai trò tài khoản không được hỗ trợ. Vui lòng liên hệ Quản trị viên.' });
+    }
+
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) {
       return res.status(400).json({ message: 'Sai mật khẩu.' });

@@ -1,13 +1,13 @@
 import { Layout } from 'antd';
 import { useLocation } from 'react-router-dom';
-import AgencySidebar from './AgencySidebar';
+import AdminSidebar from './AdminSidebar';
 import NotificationBell from './NotificationBell';
 import HelpButton from './HelpButton';
 import './AppTopbar.css';
 
 const { Content } = Layout;
 
-export default function AgencyLayout({ children }) {
+export default function AdminLayout({ children }) {
   const location = useLocation();
   const user = JSON.parse(localStorage.getItem('user') || '{}');
   const displayName = user.fullName || user.username || 'Admin';
@@ -16,7 +16,7 @@ export default function AgencyLayout({ children }) {
 
   return (
     <Layout style={{ height: '100vh' }}>
-      <AgencySidebar />
+      <AdminSidebar />
       <Content style={{ overflowY: isSharedPage ? 'hidden' : 'auto', overflowX: 'hidden', display: 'flex', flexDirection: 'column' }}>
         <div className="app-topbar">
           <NotificationBell />

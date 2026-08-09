@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Table, Button, Input, Card, Row, Col, Statistic, Space, Typography, Tooltip, Modal, Select, DatePicker, message } from 'antd';
 import { PlusOutlined, ReloadOutlined, TeamOutlined, ArrowRightOutlined, CompassOutlined, FileExcelOutlined } from '@ant-design/icons';
 import MasterLayout from '../components/MasterLayout';
-import AgencyLayout from '../components/AgencyLayout';
+import AdminLayout from '../components/AdminLayout';
 import UpdateVoyageModal from '../components/UpdateVoyageModal';
 import { PageHeader, StatusTag, RowActions, notifyError } from '../components/common';
 import { voyageService } from '../services/api';
@@ -41,12 +41,12 @@ export default function VoyageListPage() {
   const user = JSON.parse(localStorage.getItem('user')) || {};
   const activeVoyageRole = localStorage.getItem('activeVoyageRole');
   const userRole = (activeVoyageRole || user.role || '').replace(/\s+/g, '').toLowerCase();
-  const canEdit = ['admin', 'agency', 'chiefofficer', 'master'].includes(userRole);
+  const canEdit = ['admin', 'chiefofficer', 'master'].includes(userRole);
   const canAttendance = ['master', 'chiefofficer'].includes(userRole);
-  const canExportReport = ['admin', 'agency', 'master', 'chiefofficer', 'deckofficer'].includes(userRole);
-  const canCreate = ['admin', 'agency'].includes(userRole);
+  const canExportReport = ['admin', 'master', 'chiefofficer', 'deckofficer'].includes(userRole);
+  const canCreate = userRole === 'admin';
 
-  const Layout = userRole === 'admin' || userRole === 'agency' ? AgencyLayout : MasterLayout;
+  const Layout = userRole === 'admin' ? AdminLayout : MasterLayout;
 
   const loadVoyages = async () => {
     try {
@@ -134,7 +134,7 @@ export default function VoyageListPage() {
   const filteredVoyages = useMemo(() => {
     let list = voyages;
     const activeVoyageId = localStorage.getItem('activeVoyageId');
-    if (activeVoyageId && !['admin', 'agency'].includes(userRole)) {
+    if (activeVoyageId && userRole !== 'admin') {
       list = list.filter(v => v.id.toString() === activeVoyageId.toString());
     }
     

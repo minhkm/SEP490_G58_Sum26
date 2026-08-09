@@ -38,7 +38,7 @@ const DATE_FORMAT = 'YYYY-MM-DD';
 const toDayjs = (value) => (value ? dayjs(value, DATE_FORMAT) : null);
 
 const STATUS_OPTIONS = [
-  { value: 'Planning', label: 'Đang lên kế hoạch (Planning)', roles: ['admin', 'agency'] },
+  { value: 'Planning', label: 'Đang lên kế hoạch (Planning)', roles: ['admin'] },
   { value: 'Loading', label: 'Đang làm hàng (Loading)', roles: ['master'] },
   { value: 'Loaded', label: 'Đã làm hàng xong (Loaded)', roles: ['master'] },
   { value: 'Underway', label: 'Đang di chuyển (Underway)', roles: ['master'] },
@@ -46,9 +46,9 @@ const STATUS_OPTIONS = [
   { value: 'Discharge', label: 'Dỡ hàng (Discharge)', roles: ['master'] },
   { value: 'Discharged', label: 'Đã dỡ hàng xong (Discharged)', roles: ['master'] },
   { value: 'Homeward Bounding', label: 'Đang quay về cảng xuất phát (Homeward Bounding)', roles: ['master'] },
-  { value: 'Completed', label: 'Đã hoàn thành (Completed)', roles: ['admin', 'agency', 'master'] },
+  { value: 'Completed', label: 'Đã hoàn thành (Completed)', roles: ['admin', 'master'] },
   { value: 'At Anchor', label: 'Đang neo đậu (At Anchor)', roles: ['master'] },
-  { value: 'Cancelled', label: 'Đã hủy (Cancelled)', roles: ['admin', 'agency', 'master'] },
+  { value: 'Cancelled', label: 'Đã hủy (Cancelled)', roles: ['admin', 'master'] },
 ];
 
 const statusConfig = {

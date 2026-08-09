@@ -6,7 +6,7 @@ import {
   PlusOutlined,
   SafetyCertificateOutlined,
 } from '@ant-design/icons';
-import AgencyLayout from '../components/AgencyLayout';
+import AdminLayout from '../components/AdminLayout';
 import { crewService } from '../services/api';
 import { PageHeader, StatusTag, RowActions, notifyError, confirmDelete } from '../components/common';
 
@@ -159,7 +159,7 @@ export default function CrewListPage() {
   ];
 
   return (
-    <AgencyLayout>
+    <AdminLayout>
       <div style={{ padding: '24px 32px' }}>
         <PageHeader
           title={
@@ -201,6 +201,6 @@ export default function CrewListPage() {
           />
         </Card>
       </div>
-    </AgencyLayout>
+    </AdminLayout>
   );
 }

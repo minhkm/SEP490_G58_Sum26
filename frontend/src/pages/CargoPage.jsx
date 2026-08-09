@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Table, Button, Input, Card, Space, Typography, Tooltip, Modal, Select, Checkbox, Popconfirm, Tag, Row, Col, Progress, Empty, Spin, message } from 'antd';
 import { AppstoreOutlined, PlusOutlined, SaveOutlined, InboxOutlined } from '@ant-design/icons';
 import MasterLayout from '../components/MasterLayout';
-import AgencyLayout from '../components/AgencyLayout';
+import AdminLayout from '../components/AdminLayout';
 import { cargoService, voyageService, vesselService } from '../services/api';
 import api from '../services/api';
 import { PageHeader, StatusTag, RowActions, notifySuccess, notifyError, confirmDelete } from '../components/common';
@@ -110,8 +110,8 @@ export default function CargoPage() {
   const [savingConfig, setSavingConfig] = useState(false);
 
   const user = JSON.parse(localStorage.getItem('user')) || {};
-  const Layout = (user.role === 'Admin' || user.role === 'Agency') ? AgencyLayout : MasterLayout;
-  const canEdit = ['Admin', 'Agency'].includes(user.role);
+  const Layout = user.role === 'Admin' ? AdminLayout : MasterLayout;
+  const canEdit = user.role === 'Admin';
 
   const activeVoyageId = localStorage.getItem('activeVoyageId');
   const activeVoyageRole = localStorage.getItem('activeVoyageRole');

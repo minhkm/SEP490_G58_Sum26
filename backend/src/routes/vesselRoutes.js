@@ -2,6 +2,7 @@ const express = require('express');
 const { Op } = require('sequelize');
 const { sequelize, Ship, ShipCapacity, Engine, EngineParameter, CargoHold, Equipment, Voyage, VoyageCrew } = require('../models');
 const authMiddleware = require('../middlewares/authMiddleware');
+const requireRole = require('../middlewares/roleMiddleware');
 const {
   ENGINE_STATUS,
   ENGINE_TYPE,
@@ -71,7 +72,7 @@ router.get('/:id', async (req, res) => {
 });
 
 // POST /api/vessels - Tạo tàu mới và dữ liệu đi kèm
-router.post('/', async (req, res) => {
+router.post('/', authMiddleware, requireRole('Admin'), async (req, res) => {
   let transaction;
   try {
     const { basicInfo, capacity, mainEngine, generatorEngines, holds, equipmentList } = req.body;
@@ -503,11 +504,11 @@ router.get('/:id/equipments', async (req, res) => {
   }
 });
 
-// POST /api/vessels/:id/equipments - Tạo thiết bị cho tàu (Admin/Agency)
+// POST /api/vessels/:id/equipments - Tạo thiết bị cho tàu (chỉ Admin)
 router.post('/:id/equipments', authMiddleware, async (req, res) => {
   const { role } = req.user;
-  if (role !== 'Admin' && role !== 'Agency') {
-    return res.status(403).json({ message: 'Chỉ Quản trị viên hoặc Đại lý mới được thêm thiết bị tàu' });
+  if (role !== 'Admin') {
+    return res.status(403).json({ message: 'Chỉ Quản trị viên mới được thêm thiết bị tàu' });
   }
   try {
     const ship = await Ship.findByPk(req.params.id);

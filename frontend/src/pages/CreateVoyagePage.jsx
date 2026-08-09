@@ -34,7 +34,7 @@ import {
   UploadOutlined,
 } from '@ant-design/icons';
 import MasterLayout from '../components/MasterLayout';
-import AgencyLayout from '../components/AgencyLayout';
+import AdminLayout from '../components/AdminLayout';
 import { voyageService, vesselService, crewService, cargoService } from '../services/api';
 import { PageHeader, notifySuccess, notifyError, notifyWarning } from '../components/common';
 import { SEAPORTS } from '../data/ports';
@@ -87,7 +87,7 @@ export default function CreateVoyagePage() {
   const navigate = useNavigate();
 
   const user = JSON.parse(localStorage.getItem('user')) || {};
-  const Layout = user.role === 'Admin' || user.role === 'Agency' ? AgencyLayout : MasterLayout;
+  const Layout = user.role === 'Admin' ? AdminLayout : MasterLayout;
 
   // Basic Info State
   const [voyageId] = useState('');

@@ -13,7 +13,7 @@ import { CARGO_ROLES } from '../config/roles';
 
 const { Sider } = Layout;
 
-export default function AgencySidebar() {
+export default function AdminSidebar() {
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -26,7 +26,7 @@ export default function AgencySidebar() {
   const role = user.role || '';
 
   const items = [
-    { key: '/agency-dashboard', icon: <DashboardOutlined />, label: 'Bảng điều khiển', className: 'tour-dashboard' },
+    { key: '/admin-dashboard', icon: <DashboardOutlined />, label: 'Bảng điều khiển', className: 'tour-dashboard' },
     { key: '/vessels', icon: <ContainerOutlined />, label: 'Quản lý Đội tàu', className: 'tour-vessels' },
     { key: '/crews', icon: <TeamOutlined />, label: 'Quản lý Thủy thủ đoàn', className: 'tour-crews' },
     { key: '/voyages', icon: <CompassOutlined />, label: 'Chuyến hải trình', className: 'tour-voyages' },
@@ -37,7 +37,7 @@ export default function AgencySidebar() {
   const selectedKey =
     items
       .map((it) => it.key)
-      .find((k) => location.pathname === k || location.pathname.startsWith(k + '/')) || '/agency-dashboard';
+      .find((k) => location.pathname === k || location.pathname.startsWith(k + '/')) || '/admin-dashboard';
 
   const handleLogout = () => {
     localStorage.removeItem('token');
@@ -50,7 +50,7 @@ export default function AgencySidebar() {
   return (
     <Sider theme="dark" width={260} breakpoint="md" collapsedWidth={0} style={{ display: 'flex', flexDirection: 'column', height: '100vh' }}>
       <div
-        onClick={() => navigate('/agency-dashboard')}
+        onClick={() => navigate('/admin-dashboard')}
         style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '20px 16px', cursor: 'pointer', color: '#fff' }}
       >
         <span style={{ fontSize: 24, lineHeight: 1 }}>🚢</span>

@@ -34,7 +34,7 @@ import {
   DownloadOutlined,
   UploadOutlined,
 } from '@ant-design/icons';
-import AgencyLayout from '../components/AgencyLayout';
+import AdminLayout from '../components/AdminLayout';
 import { vesselService } from '../services/api';
 import { notifyError, notifySuccess, notifyWarning } from '../utils/feedback';
 import * as XLSX from 'xlsx';
@@ -769,7 +769,7 @@ export default function AddVesselPage() {
   );
 
   return (
-    <AgencyLayout>
+    <AdminLayout>
       <div style={{ padding: '16px' }}>
         <Title level={3} style={{ marginTop: 0, marginBottom: 24 }}>
           {isEditMode ? 'Cập nhật Thông tin Tàu' : 'Thêm Tàu Mới'}
@@ -1143,6 +1143,6 @@ export default function AddVesselPage() {
           </Button>
         </div>
       </div>
-    </AgencyLayout>
+    </AdminLayout>
   );
 }
