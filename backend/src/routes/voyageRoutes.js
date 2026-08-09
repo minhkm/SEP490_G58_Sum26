@@ -5,7 +5,7 @@ const { sequelize, Voyage, User, CrewProfile, VoyageCrew, Ship, Attendance, Carg
 const { sendCrewCredentialsEmail, sendRouteApprovalEmail } = require('../services/emailService');
 const { notifyCrewAssignedToVoyage, notifyAttendanceUpdated, notifyVoyageUpdated } = require('../services/notificationService');
 const { SHIP_STATUS, normalizeEquipmentLocation, normalizeEquipmentName } = require('../utils/vessel');
-const { canonicalVoyageRole } = require('../utils/voyageRole');
+const { canonicalVoyageRole, isSupplyManagerRole } = require('../utils/voyageRole');
 const authMiddleware = require('../middlewares/authMiddleware');
 const requireRole = require('../middlewares/roleMiddleware');
 
@@ -1092,8 +1092,8 @@ router.patch('/equipments/:equipmentId/broken-count', authMiddleware, async (req
     const effectiveRole = assignment
       ? canonicalVoyageRole(assignment.role)
       : (equipment.voyageId ? '' : canonicalVoyageRole(req.user?.role));
-    if (!['EngineOfficer', 'Master', 'ChiefOfficer'].includes(effectiveRole)) {
-      return res.status(403).json({ message: 'Chỉ Máy trưởng, Thuyền trưởng hoặc Đại phó mới được cập nhật vật tư y tế' });
+    if (!isSupplyManagerRole(effectiveRole)) {
+      return res.status(403).json({ message: 'Chỉ Thuyền trưởng hoặc Đại phó mới được cập nhật vật tư y tế' });
     }
 
     const currentUsedCount = Number(equipment.brokenCount) || 0;

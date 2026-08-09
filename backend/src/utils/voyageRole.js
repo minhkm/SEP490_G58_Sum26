@@ -44,6 +44,7 @@ const canonicalVoyageRole = (role) => {
 };
 
 const isEngineOfficerRole = (role) => canonicalVoyageRole(role) === 'EngineOfficer';
+const isSupplyManagerRole = (role) => ['Master', 'ChiefOfficer'].includes(canonicalVoyageRole(role));
 const isShiftOfficerRole = (role) => ['DeckOfficer', 'EngineOfficer'].includes(canonicalVoyageRole(role));
 
 const isLogRoleForDuty = (role, duty) => (
@@ -75,6 +76,7 @@ module.exports = {
   isLogRoleForDuty,
   canonicalVoyageRole,
   isEngineOfficerRole,
+  isSupplyManagerRole,
   isShiftOfficerRole,
   voyageRoleDepartment,
   voyageRoleLabel,

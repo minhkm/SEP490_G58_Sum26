@@ -53,6 +53,10 @@ const cardBorderColor = (status) => {
 export default function EngineManagePage() {
   const role = getEffectiveRole();
   const isEngineOfficer = role === 'EngineOfficer';
+  const canManageSupplies = ['Master', 'ChiefOfficer'].includes(role);
+  const pageTitle = isEngineOfficer
+    ? 'Quản lý trạng thái máy'
+    : 'Quản lý thiết bị và vật tư y tế';
 
   const [selectedVoyage, setSelectedVoyage] = useState(null);
   const [engines,       setEngines]       = useState([]);
@@ -359,7 +363,7 @@ export default function EngineManagePage() {
       <MasterLayout>
         <div style={{ padding: 'clamp(12px, 4vw, 32px)' }}>
           <PageHeader icon={<ToolOutlined style={{ color: '#f59e0b' }} />}
-            breadcrumb="Quản lý máy và thiết bị" title="Quản lý trạng thái máy và thiết bị" />
+            breadcrumb={pageTitle} title={pageTitle} />
           <Card><Empty description="Hiện không có hải trình nào đang hoạt động." /></Card>
         </div>
       </MasterLayout>
@@ -371,8 +375,8 @@ export default function EngineManagePage() {
       <div style={{ padding: '24px 32px' }}>
         <PageHeader
           icon={<ToolOutlined style={{ color: '#f59e0b' }} />}
-          breadcrumb="Quản lý máy và thiết bị"
-          title="Quản lý trạng thái máy và thiết bị"
+          breadcrumb={pageTitle}
+          title={pageTitle}
         />
 
         {/* Thông tin hải trình hiện tại */}
@@ -402,7 +406,7 @@ export default function EngineManagePage() {
                 </Card>
               )
             },
-            !isEngineOfficer && {
+            canManageSupplies && {
               key: 'ship-equipments',
               label: <span><ExclamationCircleOutlined /> Thiết bị tàu ({shipEquipments.length})</span>,
               children: (
@@ -431,7 +435,7 @@ export default function EngineManagePage() {
                 </Card>
               )
             },
-            !isEngineOfficer && {
+            canManageSupplies && {
               key: 'medical',
               label: <span><MedicineBoxOutlined /> Vật tư y tế ({voyageEquipments.length})</span>,
               children: (
