@@ -20,7 +20,7 @@ import {
 } from '@ant-design/icons';
 import { voyageService } from '../services/api';
 import MasterLayout from '../components/MasterLayout';
-import AgencyLayout from '../components/AgencyLayout';
+import AdminLayout from '../components/AdminLayout';
 import { PageHeader } from '../components/common';
 import { notifySuccess, notifyError } from '../utils/feedback';
 
@@ -64,7 +64,7 @@ export default function AttendancePage() {
 
   // Thuyền trưởng và Đại phó thuộc hải trình được phép thực hiện điểm danh.
   const canEdit = ['master', 'chiefofficer'].includes(userRole);
-  const Layout = userRole === 'admin' || userRole === 'agency' ? AgencyLayout : MasterLayout;
+  const Layout = userRole === 'admin' ? AdminLayout : MasterLayout;
 
   const fetchAttendances = async () => {
     try {

@@ -45,7 +45,7 @@ Luồng chuẩn: **route → controller → service → model**.
 
 - Token JWT lưu ở `localStorage` (`token`, `user`). Axios tự gắn `Authorization: Bearer <token>` (xem [frontend/src/services/api.js](frontend/src/services/api.js)). Không tự gắn header thủ công.
 - Nguồn phân quyền frontend: **[frontend/src/config/roles.js](frontend/src/config/roles.js)** — dùng `CARGO_ROLES`, `getDashboardPath(role)`. Đừng hardcode danh sách role rải rác; thêm/sửa quy tắc tại đây.
-- Role chính: `Admin`, `Agency`, `Master`, `ChiefOfficer`, và các role thuyền viên (`EngineOfficer`, `EngineCrew`, `ChiefEngineer`, `DeckOfficer`, `Sailor`...). Bảo vệ route frontend qua [frontend/src/components/RequireRole.jsx](frontend/src/components/RequireRole.jsx).
+- Role chính: `Admin`, `Master`, `ChiefOfficer`, và các role thuyền viên (`EngineOfficer`, `EngineCrew`, `ChiefEngineer`, `DeckOfficer`, `Sailor`...). Bảo vệ route frontend qua [frontend/src/components/RequireRole.jsx](frontend/src/components/RequireRole.jsx).
 - Backend: kiểm tra quyền ở middleware/service, KHÔNG tin role gửi từ client.
 
 ## 6. Quy tắc UI/UX frontend (BẮT BUỘC — đây là phần dễ lệch nhất)

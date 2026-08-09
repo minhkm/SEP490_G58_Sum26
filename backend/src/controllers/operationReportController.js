@@ -17,7 +17,7 @@ async function authorizeVoyage(req, voyageId, allowedRoles, options = {}) {
   const voyage = await Voyage.findByPk(voyageId, { transaction: options.transaction });
   if (!voyage) return { ok: false, status: 404, message: "Không tìm thấy hải trình." };
 
-  if (!["admin", "agency"].includes(role)) {
+  if (role !== "admin") {
     if (!req.user.profileId) return { ok: false, status: 403, message: "Tài khoản chưa có hồ sơ thuyền viên." };
     const assignment = await VoyageCrew.findOne({
       where: { voyageId, crewId: req.user.profileId },
@@ -62,7 +62,7 @@ exports.validateExportStatus = validateExportStatus;
 
 exports.preview = async (req, res) => {
   try {
-    const permit = await authorizeVoyage(req, req.params.voyageId, ["admin", "agency", "master", "chiefofficer", "deckofficer"]);
+    const permit = await authorizeVoyage(req, req.params.voyageId, ["admin", "master", "chiefofficer", "deckofficer"]);
     if (!permit.ok) return res.status(permit.status).json({ message: permit.message });
     const data = await buildOperationReport(req.params.voyageId, req.query);
     res.json({ success: true, data });
@@ -75,7 +75,7 @@ exports.preview = async (req, res) => {
 
 exports.exportExcel = async (req, res) => {
   try {
-    const permit = await authorizeVoyage(req, req.params.voyageId, ["admin", "agency", "master", "chiefofficer", "deckofficer"]);
+    const permit = await authorizeVoyage(req, req.params.voyageId, ["admin", "master", "chiefofficer", "deckofficer"]);
     if (!permit.ok) return res.status(permit.status).json({ message: permit.message });
 
     // Finalized snapshots remain downloadable. New exports must follow the
@@ -187,7 +187,7 @@ exports.finalize = async (req, res) => {
 
 exports.list = async (req, res) => {
   try {
-    const permit = await authorizeVoyage(req, req.params.voyageId, ["admin", "agency", "master", "chiefofficer", "deckofficer"]);
+    const permit = await authorizeVoyage(req, req.params.voyageId, ["admin", "master", "chiefofficer", "deckofficer"]);
     if (!permit.ok) return res.status(permit.status).json({ message: permit.message });
     const reports = await VoyageOperationReport.findAll({
       where: { voyageId: req.params.voyageId },
@@ -207,7 +207,7 @@ exports.list = async (req, res) => {
 
 exports.getOne = async (req, res) => {
   try {
-    const permit = await authorizeVoyage(req, req.params.voyageId, ["admin", "agency", "master", "chiefofficer", "deckofficer"]);
+    const permit = await authorizeVoyage(req, req.params.voyageId, ["admin", "master", "chiefofficer", "deckofficer"]);
     if (!permit.ok) return res.status(permit.status).json({ message: permit.message });
     const report = await VoyageOperationReport.findOne({
       where: { id: req.params.reportId, voyageId: req.params.voyageId },

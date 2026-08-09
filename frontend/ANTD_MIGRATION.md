@@ -9,7 +9,7 @@ Chiến lược: **chuyển đổi tăng dần, song song** — antd chạy cạ
 - [src/main.jsx](src/main.jsx) đã bọc app bằng `<ConfigProvider locale={viVN}><App>...</App></ConfigProvider>`.
 - Helper phản hồi dùng chung: [src/utils/feedback.js](src/utils/feedback.js).
 - Theme: **mặc định antd** (primary `#1677ff`). KHÔNG tự chỉnh token màu trong PR page; mọi tinh chỉnh theme tập trung ở `ConfigProvider`.
-- Layout/Sidebar đã chuyển sang antd: [src/components/Sidebar.jsx](src/components/Sidebar.jsx), [src/components/AgencySidebar.jsx](src/components/AgencySidebar.jsx), [src/components/MasterLayout.jsx](src/components/MasterLayout.jsx), [src/components/AgencyLayout.jsx](src/components/AgencyLayout.jsx).
+- Layout/Sidebar đã chuyển sang antd: [src/components/Sidebar.jsx](src/components/Sidebar.jsx), [src/components/AdminSidebar.jsx](src/components/AdminSidebar.jsx), [src/components/MasterLayout.jsx](src/components/MasterLayout.jsx), [src/components/AdminLayout.jsx](src/components/AdminLayout.jsx).
 - Page mẫu tham khảo (table + search + tag + actions): [src/pages/VoyageListPage.jsx](src/pages/VoyageListPage.jsx).
 
 ## Component dùng chung (BẮT BUỘC tái sử dụng)
@@ -64,7 +64,7 @@ Nếu thiếu component chung cho một pattern lặp lại, hãy bổ sung vào
 - **Vessel**: `VesselListPage`, `AddVesselPage`, `VesselDetailPage`
 - **Cargo**: `CargoPage`, `AddCargoPage`, `CargoDetailPage`, `CargoTypePage`
 - **Crew**: `CrewListPage`, `AddCrewPage`, `CrewProfilePage`, `CrewDashboard`
-- **Dashboard/Khác**: `MasterDashboard`, `AgencyDashboard`, `EngineLogPage`, `SettingsPage`, `LoginPage`, `RegisterPage`, `LandingPage`
+- **Dashboard/Khác**: `MasterDashboard`, `AdminDashboard`, `EngineLogPage`, `SettingsPage`, `LoginPage`, `RegisterPage`, `LandingPage`
 
 ## Trạng thái hiện tại (đã hoàn tất chuyển đổi code)
 
@@ -82,6 +82,6 @@ Nếu thiếu component chung cho một pattern lặp lại, hãy bổ sung vào
 ## Kiểm tra trước khi mở PR
 
 - `npm run dev` chạy không lỗi console (đặc biệt cảnh báo React 19/antd).
-- Đăng nhập đủ role (Master, Agency, Crew, Admin) → sidebar hiện đúng menu.
+- Đăng nhập đủ role (Master, Crew, Admin) → sidebar hiện đúng menu.
 - Bảng (sort/lọc/loading), form (validation/submit), modal, toast hiển thị đúng.
 - File đã chuyển không còn import `lucide-react` / `react-bootstrap` / `sweetalert2`.

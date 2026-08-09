@@ -135,8 +135,8 @@ export const cargoTypeService = {
 };
 
 export const dashboardService = {
-  getAgencyDashboardData: async () => {
-    const response = await api.get('/dashboard/agency');
+  getAdminDashboardData: async () => {
+    const response = await api.get('/dashboard/admin');
     return response.data;
   },
   getMasterDashboardData: async (voyageId) => {

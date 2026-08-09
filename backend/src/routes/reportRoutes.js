@@ -4,7 +4,7 @@ const reportController = require('../controllers/reportController');
 const authMiddleware = require('../middlewares/authMiddleware');
 const requireRole = require('../middlewares/roleMiddleware');
 
-// Module Báo cáo dành cho thuyền viên trên tàu. Admin/Agency (trên bờ) không can thiệp luồng duyệt.
+// Module Báo cáo dành cho thuyền viên trên tàu. Admin (trên bờ) không can thiệp luồng duyệt.
 const allReportRoles = requireRole('Master', 'ChiefOfficer', 'DeckOfficer', 'EngineOfficer', 'EngineCrew', 'Sailor');
 // FT-10 v2 (vấn đề #2a): Master chỉ tiếp nhận xử lý — không tạo báo cáo
 const createReportRoles = requireRole('ChiefOfficer', 'DeckOfficer', 'EngineOfficer', 'EngineCrew', 'Sailor');

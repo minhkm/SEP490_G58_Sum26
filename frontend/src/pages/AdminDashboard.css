@@ -1,4 +1,4 @@
-.agency-dashboard-container {
+.admin-dashboard-container {
   padding: 24px 32px;
   display: flex;
   flex-direction: column;
@@ -6,7 +6,7 @@
 }
 
 /* Header */
-.agency-dash-header {
+.admin-dash-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -100,13 +100,13 @@
 }
 
 /* Stats Cards */
-.agency-stats-grid {
+.admin-stats-grid {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
   gap: 20px;
 }
 
-.agency-stat-card {
+.admin-stat-card {
   background: white;
   border-radius: 8px;
   padding: 20px;
@@ -171,13 +171,13 @@
 }
 
 /* Main Grid */
-.agency-main-grid {
+.admin-main-grid {
   display: grid;
   grid-template-columns: 2fr 1fr;
   gap: 20px;
 }
 
-.agency-panel {
+.admin-panel {
   background: white;
   border-radius: 8px;
   border: 1px solid #e2e8f0;
@@ -232,12 +232,12 @@
   overflow-x: auto;
 }
 
-.agency-table {
+.admin-table {
   width: 100%;
   border-collapse: collapse;
 }
 
-.agency-table th {
+.admin-table th {
   text-align: left;
   padding: 12px 20px;
   font-size: 0.75rem;
@@ -247,7 +247,7 @@
   background-color: #f8fafc;
 }
 
-.agency-table td {
+.admin-table td {
   padding: 16px 20px;
   font-size: 0.875rem;
   color: #334155;

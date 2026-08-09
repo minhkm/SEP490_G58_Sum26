@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Table, Button } from 'antd';
 import { PlusOutlined } from '@ant-design/icons';
-import AgencyLayout from '../components/AgencyLayout';
+import AdminLayout from '../components/AdminLayout';
 import { vesselService } from '../services/api';
 import { PageHeader, StatusTag, RowActions, confirmDelete, notifyError, notifySuccess } from '../components/common';
 
@@ -92,7 +92,7 @@ export default function VesselListPage() {
   ];
 
   return (
-    <AgencyLayout>
+    <AdminLayout>
       <div style={{ padding: '24px 32px' }}>
         <PageHeader
           title="Quản lý Đội tàu"
@@ -112,6 +112,6 @@ export default function VesselListPage() {
           locale={{ emptyText: 'Chưa có tàu nào trong hệ thống. Hãy thêm tàu mới!' }}
         />
       </div>
-    </AgencyLayout>
+    </AdminLayout>
   );
 }

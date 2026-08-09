@@ -1,7 +1,7 @@
 import { useNavigate } from 'react-router-dom';
 import { Card, Row, Col, Typography, Space } from 'antd';
 import { SettingOutlined, TagOutlined, RightOutlined } from '@ant-design/icons';
-import AgencyLayout from '../components/AgencyLayout';
+import AdminLayout from '../components/AdminLayout';
 import MasterLayout from '../components/MasterLayout';
 
 const { Title, Text } = Typography;
@@ -9,7 +9,7 @@ const { Title, Text } = Typography;
 export default function SettingsPage() {
   const navigate = useNavigate();
   const user = JSON.parse(localStorage.getItem('user')) || {};
-  const Layout = (user.role === 'Admin' || user.role === 'Agency') ? AgencyLayout : MasterLayout;
+  const Layout = user.role === 'Admin' ? AdminLayout : MasterLayout;
 
   // Danh mục các mục cài đặt (chỉ Admin truy cập màn này)
   const settingItems = [

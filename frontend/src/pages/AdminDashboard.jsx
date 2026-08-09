@@ -16,14 +16,14 @@ import {
   InboxOutlined,
 } from '@ant-design/icons';
 import { Joyride, STATUS } from 'react-joyride';
-import AgencyLayout from '../components/AgencyLayout';
+import AdminLayout from '../components/AdminLayout';
 import { dashboardService } from '../services/api';
 import { PageHeader, StatusTag, notifyError } from '../components/common';
-import './AgencyDashboard.css';
+import './AdminDashboard.css';
 
 const { Text, Title } = Typography;
 
-export default function AgencyDashboard() {
+export default function AdminDashboard() {
   const navigate = useNavigate();
 
   const currentDate = new Date().toLocaleDateString('vi-VN', {
@@ -94,7 +94,7 @@ export default function AgencyDashboard() {
   useEffect(() => {
     const fetchDashboardData = async () => {
       try {
-        const result = await dashboardService.getAgencyDashboardData();
+        const result = await dashboardService.getAdminDashboardData();
         setData(result);
       } catch (error) {
         console.error('Lỗi khi tải dữ liệu dashboard:', error);
@@ -152,7 +152,7 @@ export default function AgencyDashboard() {
   ];
 
   return (
-    <AgencyLayout>
+    <AdminLayout>
       {/* Joyride Tour Component */}
       <Joyride
         steps={tourSteps}
@@ -179,7 +179,7 @@ export default function AgencyDashboard() {
       <div style={{ padding: '24px 32px' }}>
         {/* Header */}
         <PageHeader
-          title="Bảng điều khiển Đại lý"
+          title="Bảng điều khiển Quản trị viên"
           extra={
             <Space wrap>
               <Text type="secondary">
@@ -345,6 +345,6 @@ export default function AgencyDashboard() {
           </Col>
         </Row>
       </div>
-    </AgencyLayout>
+    </AdminLayout>
   );
 }
