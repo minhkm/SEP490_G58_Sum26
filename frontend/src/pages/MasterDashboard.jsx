@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Row, Col, Card, Table, Typography, Empty, Space, Spin, Timeline, List, Tag, Alert } from 'antd';
+import { Row, Col, Card, Table, Typography, Empty, Space, Spin, Timeline, List, Tag, Alert, Progress } from 'antd';
 import {
   ProfileOutlined,
   ThunderboltOutlined,
@@ -15,7 +15,8 @@ import {
   RightOutlined,
 } from '@ant-design/icons';
 import MasterLayout from '../components/MasterLayout';
-import { PageContainer, StatCard, StatusTag, notifyError } from '../components/common';
+import { PageContainer, StatCard, ChartCard, StatusTag, notifyError } from '../components/common';
+import { Pie } from '@ant-design/charts';
 import { dashboardService } from '../services/api';
 
 const { Text, Title } = Typography;
@@ -26,6 +27,14 @@ const cargoColumns = [
   { title: 'Cảng xếp', dataIndex: 'loadPort', render: (v) => <Text type="secondary">{v || '--'}</Text> },
   { title: 'Trạng thái', dataIndex: 'status', render: (s) => <StatusTag status={s} /> },
 ];
+
+// % tiến độ tuyến đường theo trạng thái hải trình (thanh Progress).
+const ROUTE_PROGRESS = {
+  Planning: 5, Loading: 15, Loaded: 25, Underway: 55,
+  'At Anchor': 55, Anchored: 55, Arrived: 75, Discharge: 82,
+  Discharged: 90, 'Homeward Bounding': 95, Completed: 100,
+};
+const CHART_PALETTE = ['#0E5FB5', '#47BFFF', '#0F9D6E', '#E8A21C', '#E5484D', '#5B54D6'];
 
 export default function MasterDashboard() {
   const navigate = useNavigate();
@@ -53,6 +62,13 @@ export default function MasterDashboard() {
   const voyage = dashboardData?.voyage;
   const stats = dashboardData?.stats;
   const utc = new Date().toISOString().substring(11, 16);
+  const routePct = ROUTE_PROGRESS[voyage?.status] ?? 0;
+  const cargoWeightData = (voyage?.Cargos || [])
+    .map((c) => ({
+      type: c.cargoName || `Lô #${c.id}`,
+      value: c.totalWeight || (c.CargoItems || []).reduce((s, it) => s + (it.weight || 0), 0),
+    }))
+    .filter((d) => d.value > 0);
 
   const quickActions = [
     { icon: <FileAddOutlined />, label: 'Tạo báo cáo mới', onClick: () => navigate('/reports') },
@@ -150,6 +166,14 @@ export default function MasterDashboard() {
                       <Text type="secondary" style={{ fontSize: 13 }}>ETA: {voyage.arrivalDate}</Text>
                     </Col>
                   </Row>
+                  <div style={{ marginBottom: 16 }}>
+                    <Text type="secondary" style={{ fontSize: 13 }}>Tiến độ tuyến đường</Text>
+                    <Progress
+                      percent={routePct}
+                      status={voyage.status === 'Completed' ? 'success' : 'active'}
+                      strokeColor={{ '0%': '#47BFFF', '100%': '#0E5FB5' }}
+                    />
+                  </div>
                   <Alert
                     type={voyage.issueReason ? 'error' : 'info'}
                     showIcon
@@ -215,6 +239,17 @@ export default function MasterDashboard() {
                 <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="Không có dữ liệu hành trình hiện tại" />
               )}
             </Card>
+
+            <ChartCard title="Phân bổ tải trọng (MT)" empty={cargoWeightData.length === 0} height={240} style={{ marginTop: 20 }}>
+              <Pie
+                data={cargoWeightData}
+                angleField="value"
+                colorField="type"
+                innerRadius={0.6}
+                height={208}
+                scale={{ color: { range: CHART_PALETTE } }}
+              />
+            </ChartCard>
 
             <Card title={<Space><FileTextOutlined /> Báo cáo & Lệnh</Space>} style={{ marginTop: 20 }}>
               <Alert

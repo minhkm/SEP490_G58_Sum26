@@ -17,9 +17,13 @@ import {
 import { Joyride, STATUS } from 'react-joyride';
 import AdminLayout from '../components/AdminLayout';
 import { dashboardService } from '../services/api';
-import { PageHeader, PageContainer, StatCard, StatusTag, notifyError } from '../components/common';
+import { PageHeader, PageContainer, StatCard, ChartCard, StatusTag, notifyError } from '../components/common';
+import { Pie, Column } from '@ant-design/charts';
 
 const { Text, Title } = Typography;
+
+// Bảng màu biểu đồ theo thương hiệu.
+const CHART_PALETTE = ['#0E5FB5', '#47BFFF', '#0F9D6E', '#E8A21C', '#E5484D', '#5B54D6'];
 
 // Cấu hình trạng thái tàu + cột bảng — hằng số, đặt ngoài component (không phụ thuộc state/props).
 const VESSEL_STATUS = {
@@ -149,6 +153,19 @@ export default function AdminDashboard() {
     };
     fetchDashboardData();
   }, []);
+
+  // Dữ liệu biểu đồ — tính từ data API sẵn có
+  const fleetCounts = {};
+  (data.recentVessels || []).forEach((v) => {
+    const key = VESSEL_STATUS[v.status]?.text || v.status || 'Khác';
+    fleetCounts[key] = (fleetCounts[key] || 0) + 1;
+  });
+  const fleetStatusData = Object.entries(fleetCounts).map(([type, value]) => ({ type, value }));
+  const overviewData = [
+    { type: 'Tàu', value: data.totalVessels || 0 },
+    { type: 'Thuyền viên', value: data.totalCrews || 0 },
+    { type: 'Hải trình đang đi', value: data.voyagesInProgress || 0 },
+  ];
 
   return (
     <AdminLayout>
@@ -291,6 +308,35 @@ export default function AdminDashboard() {
               footer="Theo dõi chuyến hải trình"
               onClick={() => navigate('/voyages')}
             />
+          </Col>
+        </Row>
+
+        {/* Biểu đồ tổng quan */}
+        <Row gutter={[20, 20]} style={{ marginBottom: 24 }}>
+          <Col xs={24} md={10}>
+            <ChartCard title="Tình trạng đội tàu" empty={fleetStatusData.length === 0}>
+              <Pie
+                data={fleetStatusData}
+                angleField="value"
+                colorField="type"
+                innerRadius={0.6}
+                height={228}
+                scale={{ color: { range: CHART_PALETTE } }}
+              />
+            </ChartCard>
+          </Col>
+          <Col xs={24} md={14}>
+            <ChartCard title="Số lượng theo hạng mục">
+              <Column
+                data={overviewData}
+                xField="type"
+                yField="value"
+                colorField="type"
+                legend={false}
+                height={228}
+                scale={{ color: { range: CHART_PALETTE } }}
+              />
+            </ChartCard>
           </Col>
         </Row>
 
