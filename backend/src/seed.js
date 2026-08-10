@@ -3,6 +3,22 @@
 const bcrypt = require('bcrypt');
 require('dotenv').config();
 
+// ⚠️ SAFETY GUARD: Ngăn chạy seed nhầm trên production
+// Railway tự inject RAILWAY_ENVIRONMENT=production
+// Muốn seed production phải dùng: npm run seed:prod
+// hoặc truyền flag --confirm khi chạy thủ công
+const isProduction = process.env.RAILWAY_ENVIRONMENT === 'production'
+  || process.env.NODE_ENV === 'production';
+const hasConfirm = process.argv.includes('--confirm');
+
+if (isProduction && !hasConfirm) {
+  console.error('\n🚨 DỪNG LẠI! Đây là môi trường PRODUCTION (Railway)!');
+  console.error('   Chạy seed sẽ XÓA SẠCH toàn bộ dữ liệu thực.');
+  console.error('   Nếu chắc chắn, chạy: node src/seed.js --confirm');
+  console.error('   Hoặc từ local: npm run seed:prod\n');
+  process.exit(1);
+}
+
 const {
   sequelize,
   User, CrewProfile, CrewCertificate,
