@@ -1,17 +1,13 @@
-@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap');
+/* ============================================================
+   index.css — CHỈ chứa reset toàn cục + tiện ích KHÔNG thuộc antd.
+   Mọi styling của component antd (Card/Table/Input/Button/Tag/...)
+   đã chuyển sang theme tokens trong main.jsx. KHÔNG thêm override
+   `!important` cho `.ant-*` ở đây (xem CLAUDE.md mục 6).
+   Font Poppins được nạp ở index.html.
+   ============================================================ */
 
 :root {
   --font-sans: 'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  --color-primary: #0284c7;
-  --color-primary-dark: #0369a1;
-  --color-primary-light: #e0f2fe;
-  --color-navy: #0c2340;
-  --color-text-main: #1e293b;
-  --color-text-muted: #475569;
-  --bg-gradient: #d5e0eb;
-  --card-bg: #ffffff;
-  --card-border: #b4c8db;
-  --card-shadow: 0 4px 16px -2px rgba(12, 35, 64, 0.12), 0 2px 6px 0 rgba(12, 35, 64, 0.08);
 }
 
 * {
@@ -22,181 +18,20 @@ body {
   margin: 0;
   padding: 0;
   font-family: var(--font-sans);
-  color: var(--color-text-main);
-  background: var(--bg-gradient);
+  color: #1e293b;
+  background: #f4f6fa;
   min-height: 100vh;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
 
-/* Base Layout */
-.ant-layout {
-  background: var(--bg-gradient) !important;
-  font-family: var(--font-sans);
-}
-
-/* Modern Maritime Cards with High Contrast */
+/* Elevation mềm cho Card — antd không expose token shadow cho Card.
+   Đây là BỔ SUNG (không "che" token), không dùng !important. */
 .ant-card {
-  background: var(--card-bg) !important;
-  border: 1px solid var(--card-border) !important;
-  box-shadow: var(--card-shadow) !important;
-  border-radius: 12px !important;
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  box-shadow: 0 1px 2px rgba(12, 35, 64, 0.04), 0 2px 8px -2px rgba(12, 35, 64, 0.08);
 }
 
-.ant-card:hover {
-  box-shadow: 0 8px 24px -4px rgba(12, 35, 64, 0.16), 0 4px 8px -2px rgba(12, 35, 64, 0.08) !important;
-}
-
-.ant-card-head {
-  background: transparent !important;
-  border-bottom: 1px solid #dce6f0 !important;
-  padding: 16px 24px !important;
-}
-
-.ant-card-head-title {
-  color: var(--color-navy) !important;
-  font-weight: 600 !important;
-  font-size: 1.05rem !important;
-  letter-spacing: -0.01em;
-}
-
-.ant-card-body {
-  padding: 20px 24px !important;
-}
-
-/* Maritime Tabs Styling */
-.ant-tabs-card > .ant-tabs-nav .ant-tabs-tab {
-  background: #c2d4e5 !important;
-  border: 1px solid #a8c0d6 !important;
-  color: #1e293b !important;
-  font-weight: 500;
-  border-radius: 8px 8px 0 0 !important;
-  margin-right: 4px !important;
-  transition: all 0.2s ease;
-}
-
-.ant-tabs-card > .ant-tabs-nav .ant-tabs-tab:hover {
-  color: #0284c7 !important;
-  background: #d4e3f0 !important;
-}
-
-.ant-tabs-card > .ant-tabs-nav .ant-tabs-tab-active {
-  background: #ffffff !important;
-  border-color: #b4c8db #b4c8db #ffffff !important;
-  color: #0284c7 !important;
-  font-weight: 600 !important;
-}
-
-/* Modern Typography */
-h1, h2, h3, h4, h5, h6,
-.ant-typography h1, .ant-typography h2, .ant-typography h3, .ant-typography h4 {
-  font-family: var(--font-sans) !important;
-  color: var(--color-navy) !important;
-  font-weight: 600;
-  letter-spacing: -0.02em;
-}
-
-/* Tables */
-.ant-table-wrapper {
-  background: transparent;
-}
-
-.ant-table {
-  background: #ffffff !important;
-  border-radius: 12px !important;
-  overflow: hidden;
-  border: 1px solid #b4c8db !important;
-}
-
-.ant-table-thead > tr > th {
-  background-color: #eaf1f7 !important;
-  color: #1e293b !important;
-  font-weight: 600 !important;
-  font-size: 0.8rem !important;
-  text-transform: uppercase;
-  letter-spacing: 0.03em;
-  border-bottom: 1px solid #b4c8db !important;
-  padding: 14px 18px !important;
-}
-
-.ant-table-tbody > tr > td {
-  padding: 14px 18px !important;
-  border-bottom: 1px solid #e8eff5 !important;
-  color: #1e293b !important;
-  font-size: 0.9rem;
-}
-
-.ant-table-tbody > tr:hover > td {
-  background-color: #e2eef8 !important;
-}
-
-/* Inputs & Form Elements - Crisp Borders */
-.ant-input,
-.ant-input-number,
-.ant-select-selector,
-.ant-picker {
-  background-color: #ffffff !important;
-  border: 1.5px solid #94a3b8 !important;
-  border-radius: 8px !important;
-  font-family: var(--font-sans);
-  transition: all 0.2s ease !important;
-}
-
-.ant-input:hover,
-.ant-input-number:hover,
-.ant-select:hover .ant-select-selector,
-.ant-picker:hover {
-  border-color: #0284c7 !important;
-}
-
-.ant-input:focus,
-.ant-input-focused,
-.ant-input-number:focus,
-.ant-select-focused .ant-select-selector,
-.ant-picker-focused {
-  border-color: #0284c7 !important;
-  box-shadow: 0 0 0 3px rgba(2, 132, 199, 0.2) !important;
-}
-
-.ant-form-item-label > label {
-  font-weight: 600 !important;
-  color: var(--color-navy) !important;
-  font-size: 0.875rem;
-}
-
-/* Buttons */
-.ant-btn {
-  font-family: var(--font-sans);
-  font-weight: 500;
-  border-radius: 8px !important;
-  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
-  transition: all 0.2s ease;
-}
-
-.ant-btn-primary {
-  background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%) !important;
-  border: none !important;
-  box-shadow: 0 4px 12px rgba(2, 132, 199, 0.25) !important;
-}
-
-.ant-btn-primary:hover {
-  background: linear-gradient(135deg, #0369a1 0%, #075985 100%) !important;
-  box-shadow: 0 6px 16px rgba(2, 132, 199, 0.35) !important;
-  transform: translateY(-1px);
-}
-
-/* Tag Styles */
-.ant-tag {
-  font-family: var(--font-sans);
-  font-weight: 500;
-  border-radius: 20px !important;
-  padding: 3px 12px !important;
-  font-size: 0.78rem;
-  border: none !important;
-}
-
-/* Custom Sleek Maritime Scrollbar */
+/* Thanh cuộn gọn gàng */
 ::-webkit-scrollbar {
   width: 8px;
   height: 8px;
@@ -215,7 +50,8 @@ h1, h2, h3, h4, h5, h6,
   background: #94a3b8;
 }
 
-/* Antd Image Preview */
+/* Antd Image Preview — phóng to hơn mặc định (override kích thước preview,
+   không phải theming; antd không có token cho việc này). */
 .ant-image-preview-img {
   max-width: 85vw !important;
   max-height: 85vh !important;

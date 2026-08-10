@@ -6,7 +6,7 @@ import MasterLayout from '../components/MasterLayout';
 import AdminLayout from '../components/AdminLayout';
 import { cargoService, voyageService, vesselService } from '../services/api';
 import api from '../services/api';
-import { PageHeader, StatusTag, RowActions, notifySuccess, notifyError, confirmDelete } from '../components/common';
+import { PageHeader, PageContainer, StatusTag, RowActions, notifySuccess, notifyError, confirmDelete } from '../components/common';
 
 const { Text } = Typography;
 
@@ -456,7 +456,7 @@ export default function CargoPage() {
 
   return (
     <Layout>
-      <div style={{ padding: '24px 32px' }}>
+      <PageContainer>
         <PageHeader
           icon={<InboxOutlined />}
           breadcrumb="Tổng quan lô hàng và phân bổ hầm tàu"
@@ -592,7 +592,7 @@ export default function CargoPage() {
             />
           </Card>
         )}
-      </div>
+      </PageContainer>
       <AllocationModal
         open={!!allocatingCargoItem}
         cargo={allocatingCargoItem}

@@ -1,74 +1,45 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { Row, Col, Card, Table, Typography, Empty, Space, Spin, Timeline, List, Tag, Alert } from 'antd';
 import {
-  SearchOutlined,
   ProfileOutlined,
   ThunderboltOutlined,
   TeamOutlined,
-  PlusOutlined,
-  UserOutlined,
-  LogoutOutlined,
   EnvironmentOutlined,
-  GlobalOutlined,
   InboxOutlined,
   NodeIndexOutlined,
-  ClockCircleOutlined,
   FileTextOutlined,
   CheckCircleOutlined,
   FileAddOutlined,
   HistoryOutlined,
   RightOutlined,
-  SyncOutlined,
-  SendOutlined,
-  RollbackOutlined,
-  PushpinOutlined,
-  FlagOutlined,
-  CloseCircleOutlined,
 } from '@ant-design/icons';
-import { Spin } from 'antd';
-import './MasterDashboard.css';
 import MasterLayout from '../components/MasterLayout';
-import NotificationBell from '../components/NotificationBell';
-import HelpButton from '../components/HelpButton';
-import { notifyInfo, notifyError } from '../utils/feedback';
+import { PageContainer, StatCard, StatusTag, notifyError } from '../components/common';
 import { dashboardService } from '../services/api';
-import { translateStatus } from '../components/common/StatusTag';
 
-const statusConfig = {
-  Planning: { color: 'default', icon: <FileTextOutlined />, text: '#475569', bg: '#f1f5f9' },
-  Loading: { color: 'processing', icon: <SyncOutlined spin />, text: '#2563eb', bg: '#eff6ff' },
-  Loaded: { color: 'success', icon: <CheckCircleOutlined />, text: '#16a34a', bg: '#f0fdf4' },
-  Underway: { color: 'processing', icon: <SendOutlined />, text: '#2563eb', bg: '#eff6ff' },
-  Arrived: { color: 'success', icon: <EnvironmentOutlined />, text: '#16a34a', bg: '#f0fdf4' },
-  Discharge: { color: 'warning', icon: <SyncOutlined spin />, text: '#d97706', bg: '#fffbeb' },
-  Discharged: { color: 'success', icon: <CheckCircleOutlined />, text: '#16a34a', bg: '#f0fdf4' },
-  'Homeward Bounding': { color: 'processing', icon: <RollbackOutlined />, text: '#2563eb', bg: '#eff6ff' },
-  Completed: { color: 'success', icon: <FlagOutlined />, text: '#16a34a', bg: '#f0fdf4' },
-  'At Anchor': { color: 'error', icon: <PushpinOutlined />, text: '#dc2626', bg: '#fef2f2' },
-  Cancelled: { color: 'error', icon: <CloseCircleOutlined />, text: '#dc2626', bg: '#fef2f2' },
-};
+const { Text, Title } = Typography;
+
+// Cột bảng hàng hoá — hằng số, đặt ngoài component (không phụ thuộc state/props).
+const cargoColumns = [
+  { title: 'Tên hàng', dataIndex: 'cargoName', render: (v) => <strong>{v}</strong> },
+  { title: 'Cảng xếp', dataIndex: 'loadPort', render: (v) => <Text type="secondary">{v || '--'}</Text> },
+  { title: 'Trạng thái', dataIndex: 'status', render: (s) => <StatusTag status={s} /> },
+];
 
 export default function MasterDashboard() {
   const navigate = useNavigate();
-  const user = JSON.parse(localStorage.getItem('user')) || {
-    fullName: 'Nguyễn Viết Dương',
-    role: 'MASTER',
-    id: '3',
-  };
-
-  const [showDropdown, setShowDropdown] = useState(false);
-  const dropdownRef = useRef(null);
 
   const [dashboardData, setDashboardData] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  // Fetch Dashboard Data
+  // Lấy dữ liệu dashboard theo hải trình đang hoạt động
   useEffect(() => {
     const fetchDashboardData = async () => {
       try {
         const activeVoyageId = localStorage.getItem('activeVoyageId');
         const data = await dashboardService.getMasterDashboardData(activeVoyageId);
-        setDashboardData(data); // data can be null if no active voyage
+        setDashboardData(data); // có thể null nếu không có hải trình đang hoạt động
       } catch (error) {
         console.error('Failed to fetch dashboard data', error);
         notifyError('Lỗi khi tải dữ liệu dashboard.');
@@ -79,337 +50,201 @@ export default function MasterDashboard() {
     fetchDashboardData();
   }, []);
 
-  // Handle click outside to close dropdown
-  useEffect(() => {
-    function handleClickOutside(event) {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
-        setShowDropdown(false);
-      }
-    }
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [dropdownRef]);
-
-  const handleLogout = () => {
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
-    localStorage.removeItem('activeVoyageId');
-    localStorage.removeItem('activeVoyageRole');
-    navigate('/login');
-  };
-
   const voyage = dashboardData?.voyage;
   const stats = dashboardData?.stats;
+  const utc = new Date().toISOString().substring(11, 16);
+
+  const quickActions = [
+    { icon: <FileAddOutlined />, label: 'Tạo báo cáo mới', onClick: () => navigate('/reports') },
+    { icon: <HistoryOutlined />, label: 'Lịch sử lệnh', onClick: () => navigate('/reports') },
+  ];
+
+  if (loading) {
+    return (
+      <MasterLayout>
+        <div style={{ display: 'flex', justifyContent: 'center', marginTop: 100 }}>
+          <Spin size="large" />
+        </div>
+      </MasterLayout>
+    );
+  }
 
   return (
-    <MasterLayout hideTopbar>
-      {/* Header */}
-      <header className="top-header dashboard-header">
-        <div className="header-search">
-          <SearchOutlined className="search-icon" />
-          <input type="text" placeholder="Tìm kiếm mã chuyến đi, hàng..." className="search-input" />
-        </div>
+    <MasterLayout>
+      <PageContainer>
+        {/* Tiêu đề + trạng thái hải trình */}
+        <Row justify="space-between" align="bottom" style={{ marginBottom: 24, rowGap: 12 }}>
+          <Col>
+            <Text type="secondary" style={{ fontSize: 12, fontWeight: 600, letterSpacing: '0.5px', textTransform: 'uppercase' }}>
+              Tổng quan hoạt động
+            </Text>
+            <Title level={3} style={{ margin: '4px 0 0' }}>
+              {voyage
+                ? `Hải trình #${voyage.id}: ${voyage.departurePort || '---'} ➔ ${voyage.destinationPort || '---'}`
+                : 'Chưa có chuyến đi nào đang hoạt động'}
+            </Title>
+          </Col>
+          <Col>
+            <Space>
+              {voyage ? <StatusTag status={voyage.status} /> : <Tag>Chưa có dữ liệu</Tag>}
+              <Tag icon={<EnvironmentOutlined />} style={{ borderRadius: 16 }}>UTC {utc}</Tag>
+            </Space>
+          </Col>
+        </Row>
 
-        <div className="header-center-logo">
-          <span className="center-logo-text">CargoOps</span>
-        </div>
+        {/* Thẻ chỉ số */}
+        <Row gutter={[16, 16]} style={{ marginBottom: 20 }}>
+          <Col xs={24} sm={12} lg={6}>
+            <StatCard
+              title="Tàu hiện tại"
+              value={voyage?.Ship?.shipName || 'Không có dữ liệu'}
+              icon={<ProfileOutlined />}
+              tone="blue"
+            />
+          </Col>
+          <Col xs={24} sm={12} lg={6}>
+            <StatCard
+              title="Tải trọng hàng hóa"
+              value={stats ? `${stats.totalWeight} MT` : 'Trống'}
+              icon={<FileTextOutlined />}
+              tone="cyan"
+            />
+          </Col>
+          <Col xs={24} sm={12} lg={6}>
+            <StatCard
+              title="Tình trạng thiết bị"
+              value={stats?.equipmentStatus || 'Không có dữ liệu'}
+              icon={<ThunderboltOutlined />}
+              tone="gold"
+            />
+          </Col>
+          <Col xs={24} sm={12} lg={6}>
+            <StatCard
+              title="Thuyền viên hải trình"
+              value={stats?.totalCrewCount ? `${stats.totalCrewCount} thuyền viên` : '-- / --'}
+              icon={<TeamOutlined />}
+              tone="green"
+            />
+          </Col>
+        </Row>
 
-        <div className="header-actions">
-          <NotificationBell />
-          <HelpButton className="action-icon" />
+        {/* Lưới nội dung chính */}
+        <Row gutter={[20, 20]}>
+          {/* Cột trái */}
+          <Col xs={24} lg={16}>
+            <Card title={<Space><EnvironmentOutlined /> Vị trí & Hành trình</Space>}>
+              {voyage ? (
+                <>
+                  <Row justify="space-between" align="top" style={{ marginBottom: 16 }}>
+                    <Col>
+                      <Text type="secondary">Cảng khởi hành</Text>
+                      <Title level={5} style={{ margin: '2px 0' }}>{voyage.departurePort}</Title>
+                      <Text type="secondary" style={{ fontSize: 13 }}>{voyage.departureDate}</Text>
+                    </Col>
+                    <Col style={{ color: '#cbd5e1', paddingTop: 8 }}>
+                      <RightOutlined style={{ fontSize: 24 }} />
+                    </Col>
+                    <Col style={{ textAlign: 'right' }}>
+                      <Text type="secondary">Cảng đến</Text>
+                      <Title level={5} style={{ margin: '2px 0' }}>{voyage.destinationPort}</Title>
+                      <Text type="secondary" style={{ fontSize: 13 }}>ETA: {voyage.arrivalDate}</Text>
+                    </Col>
+                  </Row>
+                  <Alert
+                    type={voyage.issueReason ? 'error' : 'info'}
+                    showIcon
+                    message={
+                      <Space size={8}>
+                        <span style={{ textTransform: 'uppercase', fontWeight: 600 }}>Trạng thái hiện tại:</span>
+                        <StatusTag status={voyage.status} />
+                      </Space>
+                    }
+                    description={voyage.issueReason ? `Vấn đề: ${voyage.issueReason}` : undefined}
+                  />
+                </>
+              ) : (
+                <Empty description="Chưa lập kế hoạch hành trình. Hãy khởi tạo lộ trình để theo dõi vị trí và ETA của tàu." />
+              )}
+            </Card>
 
-          <div className="user-profile-wrapper" ref={dropdownRef}>
-            <div className="user-profile" onClick={() => setShowDropdown(!showDropdown)}>
-              <div className="user-info">
-                <span className="user-name">{user.fullName || user.username}</span>
-                <span className="user-role">
-                  {((localStorage.getItem('activeVoyageRole') || user.role) || 'MASTER').toUpperCase()} • ID: {user.employeeId || user.id || '3'}
-                </span>
-              </div>
-              <div className="user-avatar">
-                <img src={`https://ui-avatars.com/api/?name=${encodeURIComponent(user.fullName || user.username || 'User')}&background=0b1a2c&color=fff`} alt="User" />
-              </div>
-            </div>
-
-            {showDropdown && (
-              <div className="user-dropdown">
-                <div className="dropdown-item" onClick={() => {
-                  setShowDropdown(false);
-                  notifyInfo('Trang profile đang được phát triển!');
-                }}>
-                  <UserOutlined />
-                  Xem profile
+            <Card title={<Space><InboxOutlined /> Danh sách Hàng hóa</Space>} style={{ marginTop: 20 }} styles={{ body: { padding: 0 } }}>
+              {voyage?.Cargos?.length > 0 ? (
+                <Table
+                  rowKey="id"
+                  columns={cargoColumns}
+                  dataSource={voyage.Cargos}
+                  pagination={false}
+                  size="middle"
+                />
+              ) : (
+                <div style={{ padding: 24 }}>
+                  <Empty description="Chưa có hàng hóa nào được gán cho chuyến đi này." />
                 </div>
-                <div className="dropdown-item text-danger" onClick={handleLogout}>
-                  <LogoutOutlined />
-                  Đăng xuất
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-      </header>
+              )}
+            </Card>
+          </Col>
 
-      {/* Content Area */}
-      <div className="content-area">
-        {loading ? (
-          <div style={{ display: 'flex', justifyContent: 'center', marginTop: '100px' }}>
-            <Spin size="large" />
-          </div>
-        ) : (
-          <>
-            <div className="dashboard-title-section">
-              <div className="title-left">
-                <span className="subtitle">TỔNG QUAN HOẠT ĐỘNG</span>
-                <h1 className="main-title">
-                  {voyage 
-                    ? `Hải trình #${voyage.id}: ${voyage.departurePort || '---'} ➔ ${voyage.destinationPort || '---'}`
-                    : 'Chưa có chuyến đi nào đang hoạt động'}
-                </h1>
-              </div>
-              <div className="title-right">
-                {voyage ? (
-                  <div style={{ 
-                    display: 'flex', alignItems: 'center', gap: '8px', 
-                    padding: '8px 16px', borderRadius: '24px', 
-                    backgroundColor: statusConfig[voyage.status]?.bg || '#f1f5f9',
-                    color: statusConfig[voyage.status]?.text || '#475569',
-                    fontWeight: 600, fontSize: '14px', border: `1px solid ${statusConfig[voyage.status]?.text || '#cbd5e1'}33`
-                  }}>
-                    {statusConfig[voyage.status]?.icon || <div className="status-dot" style={{ backgroundColor: '#94a3b8' }}></div>}
-                    <span style={{ textTransform: 'uppercase', letterSpacing: '0.5px' }}>{translateStatus(voyage.status)}</span>
-                  </div>
-                ) : (
-                  <div className="status-badge status-waiting">
-                    <span className="status-dot"></span>
-                    Chưa có dữ liệu
-                  </div>
+          {/* Cột phải */}
+          <Col xs={24} lg={8}>
+            <Card title={<Space><NodeIndexOutlined /> Chi tiết hành trình</Space>}>
+              {voyage ? (
+                <Timeline
+                  items={[
+                    {
+                      color: 'green',
+                      children: (
+                        <>
+                          <div style={{ fontWeight: 600 }}>Khởi hành từ {voyage.departurePort}</div>
+                          <Text type="secondary" style={{ fontSize: 13 }}>{voyage.departureDate}</Text>
+                        </>
+                      ),
+                    },
+                    { color: 'gray', children: <Text type="secondary" italic>Đang di chuyển...</Text> },
+                    {
+                      color: 'blue',
+                      children: (
+                        <>
+                          <div style={{ fontWeight: 600 }}>Dự kiến đến {voyage.destinationPort}</div>
+                          <Text type="secondary" style={{ fontSize: 13 }}>{voyage.arrivalDate}</Text>
+                        </>
+                      ),
+                    },
+                  ]}
+                />
+              ) : (
+                <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="Không có dữ liệu hành trình hiện tại" />
+              )}
+            </Card>
+
+            <Card title={<Space><FileTextOutlined /> Báo cáo & Lệnh</Space>} style={{ marginTop: 20 }}>
+              <Alert
+                type="success"
+                showIcon
+                icon={<CheckCircleOutlined />}
+                message="Hệ thống giám sát đang hoạt động bình thường."
+                style={{ marginBottom: 16 }}
+              />
+              <Text type="secondary" style={{ fontSize: 12, fontWeight: 600, textTransform: 'uppercase' }}>
+                Hành động nhanh
+              </Text>
+              <List
+                size="small"
+                dataSource={quickActions}
+                style={{ marginTop: 8 }}
+                renderItem={(item) => (
+                  <List.Item
+                    style={{ cursor: 'pointer', paddingInline: 8, borderRadius: 8 }}
+                    onClick={item.onClick}
+                    actions={[<RightOutlined key="go" style={{ color: '#94a3b8' }} />]}
+                  >
+                    <Space>{item.icon}<span>{item.label}</span></Space>
+                  </List.Item>
                 )}
-                <div className="utc-badge">
-                  UTC {new Date().toISOString().substring(11, 16)}
-                </div>
-              </div>
-            </div>
-
-            {/* Stats Cards */}
-            <div className="stats-grid">
-              <div className="stat-card">
-                <ProfileOutlined className="stat-icon" />
-                <span className="stat-label">TÀU HIỆN TẠI</span>
-                <span className={`stat-value ${!voyage ? 'empty-text' : ''}`}>
-                  {voyage?.Ship?.shipName ? `${voyage.Ship.shipName}` : 'Không có dữ liệu'}
-                </span>
-              </div>
-              <div className="stat-card">
-                <FileTextOutlined className="stat-icon" />
-                <span className="stat-label">TẢI TRỌNG HÀNG HÓA</span>
-                <span className={`stat-value ${!stats ? 'empty-text' : ''}`}>
-                  {stats ? `${stats.totalWeight} MT` : 'Trống'}
-                </span>
-              </div>
-              <div className="stat-card">
-                <ThunderboltOutlined className="stat-icon" />
-                <span className="stat-label">TÌNH TRẠNG THIẾT BỊ</span>
-                <span className={`stat-value ${!stats ? 'empty-text' : ''}`}>
-                  {stats?.equipmentStatus || 'Không có dữ liệu'}
-                </span>
-              </div>
-              <div className="stat-card">
-                <TeamOutlined className="stat-icon" />
-                <span className="stat-label">THUYỀN VIÊN HẢI TRÌNH</span>
-                <span className={`stat-value ${!stats ? 'empty-text' : ''}`}>
-                  {stats?.totalCrewCount ? `${stats.totalCrewCount} thuyền viên` : '-- / --'}
-                </span>
-              </div>
-            </div>
-
-            {/* Dashboard Main Grid */}
-            <div className="dashboard-grid">
-              {/* Left Column */}
-              <div className="grid-col-left">
-
-                {/* Location & Journey */}
-                <div className="dash-panel">
-                  <div className="dash-panel-header">
-                    <h3><EnvironmentOutlined /> Vị trí & Hành trình</h3>
-                  </div>
-                  {voyage ? (
-                    <div className="dash-panel-body" style={{ padding: '24px' }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '16px' }}>
-                        <div>
-                          <p style={{ color: '#64748b', marginBottom: '4px' }}>Cảng khởi hành</p>
-                          <h4 style={{ fontSize: '18px', margin: 0 }}>{voyage.departurePort}</h4>
-                          <p style={{ color: '#94a3b8', fontSize: '13px' }}>{voyage.departureDate}</p>
-                        </div>
-                        <div style={{ textAlign: 'center', color: '#cbd5e1' }}>
-                          <RightOutlined style={{ fontSize: '24px', marginTop: '10px' }}/>
-                        </div>
-                        <div style={{ textAlign: 'right' }}>
-                          <p style={{ color: '#64748b', marginBottom: '4px' }}>Cảng đến</p>
-                          <h4 style={{ fontSize: '18px', margin: 0 }}>{voyage.destinationPort}</h4>
-                          <p style={{ color: '#94a3b8', fontSize: '13px' }}>ETA: {voyage.arrivalDate}</p>
-                        </div>
-                      </div>
-                      <div style={{ 
-                        background: statusConfig[voyage.status]?.bg || '#f8fafc', 
-                        padding: '16px', borderRadius: '8px', 
-                        border: `1px solid ${statusConfig[voyage.status]?.text || '#e2e8f0'}33`,
-                        display: 'flex', alignItems: 'flex-start', gap: '12px',
-                        boxShadow: '0 1px 3px rgba(0,0,0,0.02)'
-                      }}>
-                        <div style={{ 
-                          fontSize: '24px', 
-                          color: statusConfig[voyage.status]?.text || '#64748b',
-                          marginTop: '-2px'
-                        }}>
-                          {statusConfig[voyage.status]?.icon}
-                        </div>
-                        <div>
-                          <p style={{ margin: 0, color: statusConfig[voyage.status]?.text || '#334155', fontWeight: 600, fontSize: '15px', textTransform: 'uppercase' }}>
-                            Trạng thái hiện tại: {voyage.status}
-                          </p>
-                          {voyage.issueReason && (
-                            <p style={{ margin: '8px 0 0 0', color: '#ef4444', fontSize: '13px', fontWeight: 500 }}>
-                              <CloseCircleOutlined style={{ marginRight: '6px' }}/> Vấn đề: {voyage.issueReason}
-                            </p>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="dash-panel-body empty-state-large">
-                      <div className="empty-icon-circle">
-                        <GlobalOutlined style={{ fontSize: 32, color: '#94a3b8' }} />
-                      </div>
-                      <h4>Chưa lập kế hoạch hành trình</h4>
-                      <p>Vui lòng khởi tạo lộ trình để bắt đầu theo dõi vị trí và ETA của tàu.</p>
-                      <button className="btn-text">
-                        <PlusOutlined /> Thiết lập lộ trình mới
-                      </button>
-                    </div>
-                  )}
-                </div>
-
-                {/* Cargo List */}
-                <div className="dash-panel mt-20">
-                  <div className="dash-panel-header">
-                    <h3><InboxOutlined /> Danh sách Hàng hóa</h3>
-                  </div>
-                  {voyage && voyage.Cargos && voyage.Cargos.length > 0 ? (
-                    <div className="dash-panel-body" style={{ padding: 0 }}>
-                      <table className="cargo-table" style={{ width: '100%', borderCollapse: 'collapse' }}>
-                        <thead>
-                          <tr style={{ background: '#f8fafc', borderBottom: '1px solid #e2e8f0', textAlign: 'left' }}>
-                            <th style={{ padding: '12px 24px', color: '#64748b', fontWeight: 600 }}>Tên hàng</th>
-                            <th style={{ padding: '12px 24px', color: '#64748b', fontWeight: 600 }}>Cảng xếp</th>
-                            <th style={{ padding: '12px 24px', color: '#64748b', fontWeight: 600 }}>Trạng thái</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {voyage.Cargos.map(cargo => (
-                            <tr key={cargo.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
-                              <td style={{ padding: '12px 24px', fontWeight: 500, color: '#0f172a' }}>{cargo.cargoName}</td>
-                              <td style={{ padding: '12px 24px', color: '#475569' }}>{cargo.loadPort}</td>
-                              <td style={{ padding: '12px 24px' }}>
-                                <span style={{ padding: '4px 8px', borderRadius: '4px', fontSize: '12px', background: cargo.status === 'Đã giao thành công' ? '#dcfce7' : '#fef9c3', color: cargo.status === 'Đã giao thành công' ? '#166534' : '#854d0e' }}>
-                                  {cargo.status}
-                                </span>
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  ) : (
-                    <div className="dash-panel-body empty-state-large">
-                      <div className="empty-icon-circle">
-                        <InboxOutlined style={{ fontSize: 32, color: '#94a3b8' }} />
-                      </div>
-                      <h4>Chưa có hàng hóa nào được gán</h4>
-                      <p>Tàu hiện tại chưa có danh sách vận đơn cho chuyến đi này.</p>
-                    </div>
-                  )}
-                </div>
-
-              </div>
-
-              {/* Right Column */}
-              <div className="grid-col-right">
-
-                {/* Journey Details */}
-                <div className="dash-panel">
-                  <div className="dash-panel-header">
-                    <h3><NodeIndexOutlined /> Chi tiết hành trình</h3>
-                  </div>
-                  {voyage ? (
-                    <div className="dash-panel-body" style={{ padding: '24px' }}>
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                        <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px' }}>
-                          <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#10b981', marginTop: '6px' }}></div>
-                          <div>
-                            <p style={{ margin: 0, fontWeight: 600, color: '#0f172a' }}>Khởi hành từ {voyage.departurePort}</p>
-                            <p style={{ margin: 0, fontSize: '13px', color: '#64748b' }}>{voyage.departureDate}</p>
-                          </div>
-                        </div>
-                        <div style={{ borderLeft: '2px dashed #e2e8f0', marginLeft: '3px', paddingLeft: '17px', paddingBottom: '16px' }}>
-                          <p style={{ margin: 0, fontSize: '13px', color: '#94a3b8', fontStyle: 'italic' }}>Đang di chuyển...</p>
-                        </div>
-                        <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px' }}>
-                          <div style={{ width: '8px', height: '8px', borderRadius: '50%', border: '2px solid #cbd5e1', marginTop: '6px' }}></div>
-                          <div>
-                            <p style={{ margin: 0, fontWeight: 600, color: '#0f172a' }}>Dự kiến đến {voyage.destinationPort}</p>
-                            <p style={{ margin: 0, fontSize: '13px', color: '#64748b' }}>{voyage.arrivalDate}</p>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="dash-panel-body empty-state-medium">
-                      <ClockCircleOutlined style={{ fontSize: 32, color: '#cbd5e1' }} className="mb-12" />
-                      <p className="italic-text">Không có dữ liệu hành trình hiện tại</p>
-                    </div>
-                  )}
-                </div>
-
-                {/* Reports & Orders */}
-                <div className="dash-panel mt-20">
-                  <div className="dash-panel-header">
-                    <h3><FileTextOutlined /> Báo cáo & Lệnh</h3>
-                  </div>
-                  <div className="dash-panel-body">
-                    <div className="success-box">
-                      <CheckCircleOutlined style={{ fontSize: 24, color: '#10b981' }} className="mb-8" />
-                      <p>Hệ thống giám sát đang hoạt động bình thường.</p>
-                    </div>
-
-                    <div className="quick-actions-section">
-                      <span className="section-label">Hành động nhanh</span>
-                      <ul className="action-list">
-                        <li>
-                          <div className="action-item">
-                            <FileAddOutlined />
-                            <span>Tạo báo cáo mới</span>
-                          </div>
-                          <RightOutlined className="chevron" />
-                        </li>
-                        <li>
-                          <div className="action-item">
-                            <HistoryOutlined />
-                            <span>Lịch sử lệnh</span>
-                          </div>
-                          <RightOutlined className="chevron" />
-                        </li>
-                      </ul>
-                    </div>
-                  </div>
-                </div>
-
-              </div>
-            </div>
-          </>
-        )}
-      </div>
+              />
+            </Card>
+          </Col>
+        </Row>
+      </PageContainer>
     </MasterLayout>
   );
 }
-

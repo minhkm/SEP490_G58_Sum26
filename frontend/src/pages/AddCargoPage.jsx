@@ -14,7 +14,7 @@ import { AppstoreOutlined, SaveOutlined } from '@ant-design/icons';
 import AdminLayout from '../components/AdminLayout';
 import MasterLayout from '../components/MasterLayout';
 import { cargoService, cargoTypeService } from '../services/api';
-import { PageHeader } from '../components/common';
+import { PageHeader, PageContainer } from '../components/common';
 import { notifySuccess, notifyError } from '../utils/feedback';
 
 const { Option } = Select;
@@ -128,7 +128,7 @@ export default function AddCargoPage() {
 
   return (
     <Layout>
-      <div style={{ padding: '24px 32px', maxWidth: '900px', margin: '0 auto' }}>
+      <PageContainer style={{ maxWidth: '900px', margin: '0 auto' }}>
         {/* Header */}
         <PageHeader
           onBack={() => navigate('/cargos')}
@@ -207,7 +207,7 @@ export default function AddCargoPage() {
             </div>
           </Form>
         </Card>
-      </div>
+      </PageContainer>
 
       <Modal
         title="Thêm loại hàng mới"

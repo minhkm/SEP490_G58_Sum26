@@ -4,7 +4,7 @@ import { Button, Switch, DatePicker, Spin, Result, Modal, Descriptions, Tag, Typ
 import { ClockCircleOutlined, LeftOutlined, RightOutlined, EditOutlined, SwapOutlined, StopOutlined, FileTextOutlined, CheckOutlined, DownloadOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import MasterLayout from '../components/MasterLayout';
-import { PageHeader, StatusTag, notifySuccess, notifyError } from '../components/common';
+import { PageHeader, PageContainer, StatusTag, notifySuccess, notifyError } from '../components/common';
 import { shiftService } from '../services/api';
 import { SHIFT_SLOTS, SHIFT_STATUS, DEPARTMENT_STYLE, slotFromStart } from '../config/shifts';
 
@@ -132,7 +132,7 @@ export default function ShiftViewPage() {
 
   return (
     <MasterLayout>
-      <div style={{ padding: '24px 32px' }}>
+      <PageContainer>
         <PageHeader
           icon={<ClockCircleOutlined />}
           breadcrumb={`${ctx.ship?.shipName || ''} · ${ctx.voyage?.departurePort} → ${ctx.voyage?.destinationPort}`}
@@ -234,7 +234,7 @@ export default function ShiftViewPage() {
             })}
           </div>
         </div>
-      </div>
+      </PageContainer>
 
       {/* Modal chi tiết */}
       <Modal open={!!detail} onCancel={() => setDetail(null)} title="Chi tiết ca trực" footer={null}>

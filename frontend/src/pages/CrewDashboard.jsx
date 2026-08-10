@@ -10,6 +10,7 @@ import {
 } from '@ant-design/icons';
 import MasterLayout from '../components/MasterLayout';
 import { profileService } from '../services/api';
+import { PageContainer } from '../components/common';
 import { positionLabel, roleLabel } from '../config/roles';
 
 const { Title, Text } = Typography;
@@ -90,7 +91,7 @@ export default function CrewDashboard() {
 
   return (
     <MasterLayout>
-      <div style={{ padding: '24px 32px' }}>
+      <PageContainer>
         {/* Welcome header */}
         <div
           style={{
@@ -193,7 +194,7 @@ export default function CrewDashboard() {
             </Row>
           </Card>
         )}
-      </div>
+      </PageContainer>
     </MasterLayout>
   );
 }

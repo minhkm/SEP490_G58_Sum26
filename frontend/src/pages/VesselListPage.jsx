@@ -4,7 +4,7 @@ import { Table, Button } from 'antd';
 import { PlusOutlined } from '@ant-design/icons';
 import AdminLayout from '../components/AdminLayout';
 import { vesselService } from '../services/api';
-import { PageHeader, StatusTag, RowActions, confirmDelete, notifyError, notifySuccess } from '../components/common';
+import { PageHeader, PageContainer, StatusTag, RowActions, confirmDelete, notifyError, notifySuccess } from '../components/common';
 
 export default function VesselListPage() {
   const navigate = useNavigate();
@@ -93,7 +93,7 @@ export default function VesselListPage() {
 
   return (
     <AdminLayout>
-      <div style={{ padding: '24px 32px' }}>
+      <PageContainer>
         <PageHeader
           title="Quản lý Đội tàu"
           extra={
@@ -111,7 +111,7 @@ export default function VesselListPage() {
           pagination={{ pageSize: 10, hideOnSinglePage: true }}
           locale={{ emptyText: 'Chưa có tàu nào trong hệ thống. Hãy thêm tàu mới!' }}
         />
-      </div>
+      </PageContainer>
     </AdminLayout>
   );
 }

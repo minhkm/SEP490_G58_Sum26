@@ -8,7 +8,6 @@ import {
   CompassOutlined,
   ContainerOutlined,
   TeamOutlined,
-  ArrowRightOutlined,
   MoreOutlined,
   QuestionCircleOutlined,
   PlayCircleOutlined,
@@ -18,10 +17,57 @@ import {
 import { Joyride, STATUS } from 'react-joyride';
 import AdminLayout from '../components/AdminLayout';
 import { dashboardService } from '../services/api';
-import { PageHeader, StatusTag, notifyError } from '../components/common';
-import './AdminDashboard.css';
+import { PageHeader, PageContainer, StatCard, StatusTag, notifyError } from '../components/common';
 
 const { Text, Title } = Typography;
+
+// Cấu hình trạng thái tàu + cột bảng — hằng số, đặt ngoài component (không phụ thuộc state/props).
+const VESSEL_STATUS = {
+  Active: { color: 'green', text: 'Đang hoạt động' },
+  Maintenance: { color: 'orange', text: 'Bảo trì' },
+  Inactive: { color: 'default', text: 'Ngừng h.động' },
+};
+
+const vesselColumns = [
+  {
+    title: 'TÊN TÀU / IMO',
+    key: 'name',
+    render: (_, v) => (
+      <div>
+        <div><strong>{v.shipName}</strong></div>
+        <Text type="secondary" style={{ fontSize: 12 }}>IMO: {v.imoNumber}</Text>
+      </div>
+    ),
+  },
+  {
+    title: 'LOẠI TÀU',
+    dataIndex: 'type',
+    render: (type) => type || 'Tàu chở hàng',
+  },
+  {
+    title: 'TRẠNG THÁI',
+    dataIndex: 'status',
+    render: (status) => {
+      const cfg = VESSEL_STATUS[status];
+      return (
+        <StatusTag
+          status={status}
+          color={cfg ? cfg.color : 'blue'}
+          text={cfg ? cfg.text : status || 'Bình thường'}
+        />
+      );
+    },
+  },
+  {
+    title: 'VỊ TRÍ',
+    dataIndex: 'flag',
+  },
+  {
+    title: 'THAO TÁC',
+    key: 'actions',
+    render: () => <Button type="text" icon={<MoreOutlined />} />,
+  },
+];
 
 export default function AdminDashboard() {
   const navigate = useNavigate();
@@ -104,53 +150,6 @@ export default function AdminDashboard() {
     fetchDashboardData();
   }, []);
 
-  const VESSEL_STATUS = {
-    Active: { color: 'green', text: 'Đang hoạt động' },
-    Maintenance: { color: 'orange', text: 'Bảo trì' },
-    Inactive: { color: 'default', text: 'Ngừng h.động' },
-  };
-
-  const vesselColumns = [
-    {
-      title: 'TÊN TÀU / IMO',
-      key: 'name',
-      render: (_, v) => (
-        <div>
-          <div><strong>{v.shipName}</strong></div>
-          <Text type="secondary" style={{ fontSize: 12 }}>IMO: {v.imoNumber}</Text>
-        </div>
-      ),
-    },
-    {
-      title: 'LOẠI TÀU',
-      dataIndex: 'type',
-      render: (type) => type || 'Tàu chở hàng',
-    },
-    {
-      title: 'TRẠNG THÁI',
-      dataIndex: 'status',
-      render: (status) => {
-        const cfg = VESSEL_STATUS[status];
-        return (
-          <StatusTag
-            status={status}
-            color={cfg ? cfg.color : 'blue'}
-            text={cfg ? cfg.text : status || 'Bình thường'}
-          />
-        );
-      },
-    },
-    {
-      title: 'VỊ TRÍ',
-      dataIndex: 'flag',
-    },
-    {
-      title: 'THAO TÁC',
-      key: 'actions',
-      render: () => <Button type="text" icon={<MoreOutlined />} />,
-    },
-  ];
-
   return (
     <AdminLayout>
       {/* Joyride Tour Component */}
@@ -176,7 +175,7 @@ export default function AdminDashboard() {
         }}
       />
 
-      <div style={{ padding: '24px 32px' }}>
+      <PageContainer>
         {/* Header */}
         <PageHeader
           title="Bảng điều khiển Quản trị viên"
@@ -264,60 +263,34 @@ export default function AdminDashboard() {
         {/* Stats Cards */}
         <Row gutter={[20, 20]} style={{ marginBottom: 24 }}>
           <Col xs={24} sm={8} lg={8}>
-            <Card
-              className="metric-stat-card clickable-stat-card"
+            <StatCard
+              title="Quản lý đội tàu"
+              value={data.totalVessels}
+              icon={<ContainerOutlined />}
+              tone="blue"
+              footer="Xem danh sách tàu"
               onClick={() => navigate('/vessels')}
-            >
-              <div className="stat-header-row">
-                <span className="metric-title">QUẢN LÝ ĐỘI TÀU</span>
-                <div className="stat-icon-pill blue">
-                  <ContainerOutlined />
-                </div>
-              </div>
-              <div className="metric-value">{data.totalVessels}</div>
-              <div className="stat-footer-link">
-                <span>Xem danh sách tàu</span>
-                <ArrowRightOutlined className="arrow-icon" />
-              </div>
-            </Card>
+            />
           </Col>
-
           <Col xs={24} sm={8} lg={8}>
-            <Card
-              className="metric-stat-card clickable-stat-card"
+            <StatCard
+              title="Thủy thủ đoàn"
+              value={data.totalCrews}
+              icon={<TeamOutlined />}
+              tone="indigo"
+              footer="Xem danh sách thuyền viên"
               onClick={() => navigate('/crews')}
-            >
-              <div className="stat-header-row">
-                <span className="metric-title">THỦY THỦ ĐOÀN</span>
-                <div className="stat-icon-pill indigo">
-                  <TeamOutlined />
-                </div>
-              </div>
-              <div className="metric-value">{data.totalCrews}</div>
-              <div className="stat-footer-link">
-                <span>Xem danh sách thuyền viên</span>
-                <ArrowRightOutlined className="arrow-icon" />
-              </div>
-            </Card>
+            />
           </Col>
-
           <Col xs={24} sm={8} lg={8}>
-            <Card
-              className="metric-stat-card clickable-stat-card"
+            <StatCard
+              title="Hải trình đang đi"
+              value={data.voyagesInProgress}
+              icon={<CompassOutlined />}
+              tone="cyan"
+              footer="Theo dõi chuyến hải trình"
               onClick={() => navigate('/voyages')}
-            >
-              <div className="stat-header-row">
-                <span className="metric-title">HẢI TRÌNH ĐANG ĐI</span>
-                <div className="stat-icon-pill cyan">
-                  <CompassOutlined />
-                </div>
-              </div>
-              <div className="metric-value">{data.voyagesInProgress}</div>
-              <div className="stat-footer-link">
-                <span>Theo dõi chuyến hải trình</span>
-                <ArrowRightOutlined className="arrow-icon" />
-              </div>
-            </Card>
+            />
           </Col>
         </Row>
 
@@ -348,7 +321,7 @@ export default function AdminDashboard() {
             </Card>
           </Col>
         </Row>
-      </div>
+      </PageContainer>
     </AdminLayout>
   );
 }

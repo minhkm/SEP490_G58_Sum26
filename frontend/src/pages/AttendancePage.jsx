@@ -21,7 +21,7 @@ import {
 import { voyageService } from '../services/api';
 import MasterLayout from '../components/MasterLayout';
 import AdminLayout from '../components/AdminLayout';
-import { PageHeader } from '../components/common';
+import { PageHeader, PageContainer } from '../components/common';
 import { notifySuccess, notifyError } from '../utils/feedback';
 
 const { Text } = Typography;
@@ -216,7 +216,7 @@ export default function AttendancePage() {
 
   return (
     <Layout>
-      <div style={{ padding: '24px 32px' }}>
+      <PageContainer>
         <PageHeader
           onBack={() => navigate('/voyages')}
           title={`Điểm danh Thuyền viên - Chuyến VY-${String(id).padStart(4, '0')}`}
@@ -304,7 +304,7 @@ export default function AttendancePage() {
             </Button>
           </div>
         </Card>
-      </div>
+      </PageContainer>
     </Layout>
   );
 }

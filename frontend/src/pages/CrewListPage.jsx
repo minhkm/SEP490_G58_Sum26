@@ -8,7 +8,7 @@ import {
 } from '@ant-design/icons';
 import AdminLayout from '../components/AdminLayout';
 import { crewService } from '../services/api';
-import { PageHeader, StatusTag, RowActions, notifyError, confirmDelete } from '../components/common';
+import { PageHeader, PageContainer, StatusTag, RowActions, notifyError, confirmDelete } from '../components/common';
 
 const { Text } = Typography;
 
@@ -160,7 +160,7 @@ export default function CrewListPage() {
 
   return (
     <AdminLayout>
-      <div style={{ padding: '24px 32px' }}>
+      <PageContainer>
         <PageHeader
           title={
             <>
@@ -200,7 +200,7 @@ export default function CrewListPage() {
             locale={{ emptyText: 'Không tìm thấy thủy thủ nào phù hợp.' }}
           />
         </Card>
-      </div>
+      </PageContainer>
     </AdminLayout>
   );
 }

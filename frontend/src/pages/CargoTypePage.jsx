@@ -16,7 +16,7 @@ import {
 import AdminLayout from '../components/AdminLayout';
 import MasterLayout from '../components/MasterLayout';
 import { cargoTypeService } from '../services/api';
-import { PageHeader, RowActions, notifySuccess, notifyError, confirmDelete } from '../components/common';
+import { PageHeader, PageContainer, RowActions, notifySuccess, notifyError, confirmDelete } from '../components/common';
 
 export default function CargoTypePage() {
   const navigate = useNavigate();
@@ -124,7 +124,7 @@ export default function CargoTypePage() {
 
   return (
     <Layout>
-      <div style={{ padding: '24px 32px', maxWidth: '900px', margin: '0 auto' }}>
+      <PageContainer style={{ maxWidth: '900px', margin: '0 auto' }}>
         {/* Header */}
         <PageHeader
           onBack={() => navigate('/cargos')}
@@ -182,7 +182,7 @@ export default function CargoTypePage() {
             locale={{ emptyText: `Chưa có loại hàng nào.${canEdit ? ' Hãy thêm loại hàng mới ở trên.' : ''}` }}
           />
         </Card>
-      </div>
+      </PageContainer>
 
       <Modal
         title="Sửa loại hàng"

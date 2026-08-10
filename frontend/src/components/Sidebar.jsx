@@ -110,7 +110,7 @@ export default function Sidebar() {
         onClick={() => navigate(dashboardPath)}
         style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '20px 16px', cursor: 'pointer', color: '#fff' }}
       >
-        <span style={{ fontSize: 24, lineHeight: 1 }}>🚢</span>
+        <img src="/favicon.svg" alt="CargoOps" width={32} height={32} style={{ display: 'block', borderRadius: 7 }} />
         <div style={{ display: 'flex', flexDirection: 'column' }}>
           <strong style={{ fontSize: 18 }}>CargoOps</strong>
           <span style={{ fontSize: 12, color: '#94a3b8' }}>Quản lý hàng hải</span>

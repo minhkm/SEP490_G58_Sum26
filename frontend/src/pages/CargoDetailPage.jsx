@@ -24,7 +24,7 @@ import {
 import AdminLayout from '../components/AdminLayout';
 import MasterLayout from '../components/MasterLayout';
 import { cargoService } from '../services/api';
-import { PageHeader, StatusTag } from '../components/common';
+import { PageHeader, PageContainer, StatusTag } from '../components/common';
 
 const { Text } = Typography;
 
@@ -78,7 +78,7 @@ export default function CargoDetailPage() {
 
   return (
     <Layout>
-      <div style={{ padding: '24px 32px' }}>
+      <PageContainer>
         {/* Header */}
         <PageHeader
           onBack={() => navigate('/cargos')}
@@ -162,7 +162,7 @@ export default function CargoDetailPage() {
             </Card>
           </Col>
         </Row>
-      </div>
+      </PageContainer>
     </Layout>
   );
 }

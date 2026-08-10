@@ -4,7 +4,7 @@ import { Form, Input, Select, Button, Card, Row, Col, Space, Spin, Alert, Tabs, 
 import { SaveOutlined, TeamOutlined, WarningOutlined } from '@ant-design/icons';
 import AdminLayout from '../components/AdminLayout';
 import { crewService } from '../services/api';
-import { PageHeader, notifySuccess, notifyError } from '../components/common';
+import { PageHeader, PageContainer, notifySuccess, notifyError } from '../components/common';
 
 export default function AddCrewPage() {
   const navigate = useNavigate();
@@ -143,7 +143,7 @@ export default function AddCrewPage() {
 
   return (
     <AdminLayout>
-      <div style={{ padding: '24px 32px', maxWidth: 1000, margin: '0 auto' }}>
+      <PageContainer style={{ maxWidth: 1000, margin: '0 auto' }}>
         <PageHeader
           onBack={() => navigate('/crews')}
           title={isEditMode ? 'Cập nhật Thủy thủ' : 'Thêm Thủy thủ mới'}
@@ -317,7 +317,7 @@ export default function AddCrewPage() {
             </Button>
           </Space>
         </Form>
-      </div>
+      </PageContainer>
     </AdminLayout>
   );
 }

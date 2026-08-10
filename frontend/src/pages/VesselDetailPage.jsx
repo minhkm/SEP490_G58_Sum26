@@ -9,7 +9,7 @@ import {
 } from '@ant-design/icons';
 import AdminLayout from '../components/AdminLayout';
 import { vesselService } from '../services/api';
-import { PageHeader, StatusTag } from '../components/common';
+import { PageHeader, PageContainer, StatusTag } from '../components/common';
 import { engineNameLabel, engineParameterLabel, engineTypeLabel, isMainEngine, normalizeEngineStatus } from '../utils/engine';
 import {
   cargoHoldNameLabel,
@@ -74,7 +74,7 @@ export default function VesselDetailPage() {
 
   return (
     <AdminLayout>
-      <div style={{ padding: '24px 32px' }}>
+      <PageContainer>
         {/* Header */}
         <PageHeader
           onBack={() => navigate('/vessels')}
@@ -273,7 +273,7 @@ export default function VesselDetailPage() {
             </Space>
           </Col>
         </Row>
-      </div>
+      </PageContainer>
     </AdminLayout>
   );
 }
