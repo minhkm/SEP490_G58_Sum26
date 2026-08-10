@@ -7,7 +7,7 @@ const requireRole = require('../middlewares/roleMiddleware');
 const router = express.Router();
 
 // Lấy dữ liệu cho bảng điều khiển Admin
-router.get('/admin', authMiddleware, requireRole('Admin'), async (req, res) => {
+const getAdminDashboard = async (req, res) => {
   try {
     const totalVessels = await Ship.count();
     const totalCrews = await CrewProfile.count();
@@ -39,7 +39,10 @@ router.get('/admin', authMiddleware, requireRole('Admin'), async (req, res) => {
     console.error('Lỗi khi lấy dữ liệu bảng điều khiển Admin:', error);
     res.status(500).json({ message: 'Lỗi server khi tải dữ liệu tổng quan.', error: error.message, stack: error.stack });
   }
-});
+};
+
+router.get('/admin', authMiddleware, requireRole('Admin'), getAdminDashboard);
+router.get('/agency', getAdminDashboard);
 
 // Lấy dữ liệu cho Master Dashboard
 router.get('/master', authMiddleware, async (req, res) => {

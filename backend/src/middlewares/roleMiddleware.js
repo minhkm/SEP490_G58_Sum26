@@ -13,7 +13,12 @@ const requireRole = (...allowedRoles) => {
       return res.status(401).json({ message: 'Chưa xác thực người dùng.' });
     }
 
-    if (!allowedRoles.includes(role)) {
+    const normalizedRole = String(role).trim().toLowerCase();
+    const isAllowed = allowedRoles.some(
+      (r) => String(r).trim().toLowerCase() === normalizedRole
+    );
+
+    if (!isAllowed) {
       return res.status(403).json({ message: 'Bạn không có quyền truy cập chức năng này.' });
     }
 
