@@ -1,7 +1,7 @@
 /* Font Poppins nạp toàn cục ở index.html — không @import Inter riêng nữa. */
 
 .cargo-page {
-  font-family: 'Inter', sans-serif;
+  font-family: var(--font-sans);
   background-color: #f8fafc;
   box-sizing: border-box;
   height: 100vh;
@@ -87,7 +87,7 @@
 
 .search-box:focus-within {
   border-color: #93c5fd;
-  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.12);
+  box-shadow: 0 0 0 3px rgba(14, 95, 181, 0.12);
 }
 
 .search-box input {
@@ -302,7 +302,7 @@
 
 .act-edit:hover {
   background-color: #e0f2fe;
-  color: #0284c7;
+  color: var(--brand);
 }
 
 .act-delete:hover {
@@ -393,5 +393,5 @@
 
 .form-group input:focus,
 .form-group select:focus {
-  border-color: #3b82f6;
+  border-color: var(--brand);
 }

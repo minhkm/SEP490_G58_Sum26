@@ -5,12 +5,11 @@ import {
   Card,
   Button,
   Descriptions,
-  Row,
-  Col,
   Empty,
   Typography,
   Space,
   Tooltip,
+  Tabs,
 } from 'antd';
 import {
   AppstoreOutlined,
@@ -109,59 +108,62 @@ export default function CargoDetailPage() {
           }
         />
 
-        {/* Content */}
-        <Row gutter={[24, 24]}>
-          {/* Card: Thông tin lô hàng */}
-          <Col xs={24} md={12}>
-            <Card
-              title={<Space><InfoCircleOutlined style={{ color: '#0ea5e9' }} /> Thông tin lô hàng</Space>}
-              styles={{ body: { paddingTop: 0 } }}
-            >
-              <Descriptions column={1} colon={false}>
-                <Descriptions.Item label="Tên hàng hóa"><strong>{cargo.cargoName || 'Chưa cập nhật'}</strong></Descriptions.Item>
-                <Descriptions.Item label="Loại hàng"><strong>{cargo.cargoType || 'Chưa cập nhật'}</strong></Descriptions.Item>
-                <Descriptions.Item label="Tổng khối lượng"><strong>{formatNumber(cargo.totalWeight)} Tấn</strong></Descriptions.Item>
-                <Descriptions.Item label="Tổng thể tích"><strong>{formatNumber(cargo.totalVolume)} m³</strong></Descriptions.Item>
-                <Descriptions.Item label="Trạng thái"><strong>{cargo.status || 'Chưa cập nhật'}</strong></Descriptions.Item>
-              </Descriptions>
-            </Card>
-          </Col>
-
-          {/* Card: Hành trình */}
-          <Col xs={24} md={12}>
-            <Card title={<Space><CompassOutlined style={{ color: '#f59e0b' }} /> Thông tin hành trình</Space>}>
-              {cargo.Voyage ? (
-                <Descriptions column={1} colon={false}>
-                  <Descriptions.Item label="Tàu"><strong>{cargo.Voyage.Ship?.shipName || 'Chưa xác định'}</strong></Descriptions.Item>
-                  <Descriptions.Item label="Cảng đi"><strong>{cargo.Voyage.departurePort || 'N/A'}</strong></Descriptions.Item>
-                  <Descriptions.Item label="Cảng đến"><strong>{cargo.Voyage.destinationPort || 'N/A'}</strong></Descriptions.Item>
-                  <Descriptions.Item label="Ngày đi (ETD)"><strong>{cargo.Voyage.departureDate || 'Chưa có'}</strong></Descriptions.Item>
-                  <Descriptions.Item label="Ngày đến (ETA)"><strong>{cargo.Voyage.arrivalDate || 'Chưa có'}</strong></Descriptions.Item>
-                </Descriptions>
-              ) : (
-                <Text type="secondary" italic>Lô hàng chưa được xếp vào hải trình nào.</Text>
-              )}
-            </Card>
-          </Col>
-
-          {/* Card: Phân bổ hầm tàu */}
-          <Col span={24}>
-            <Card title={<Space><InboxOutlined style={{ color: '#10b981' }} /> Phân bổ hầm tàu (Cargo Allocation)</Space>}>
-              {cargo.CargoAllocations && cargo.CargoAllocations.length > 0 ? (
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: '12px' }}>
-                  {cargo.CargoAllocations.map((a, idx) => (
-                    <div key={idx} style={{ padding: '12px', background: '#f0fdf4', borderRadius: '6px', border: '1px solid #bbf7d0', fontSize: '0.9rem' }}>
-                      <strong style={{ color: '#166534', display: 'block' }}>{a.CargoHold?.holdName || `Hầm #${a.cargoHoldId}`}</strong>
-                      <span style={{ color: '#15803d' }}>Khối lượng: {formatNumber(a.allocatedWeight)} T</span>
+        {/* Content: gom các nhóm vào Tabs trong một Card */}
+        <Card styles={{ body: { paddingTop: 8 } }}>
+          <Tabs
+            defaultActiveKey="info"
+            items={[
+              {
+                key: 'info',
+                label: <Space><InfoCircleOutlined style={{ color: '#0ea5e9' }} /> Thông tin lô hàng</Space>,
+                children: (
+                  <Descriptions column={1} colon={false}>
+                    <Descriptions.Item label="Tên hàng hóa"><strong>{cargo.cargoName || 'Chưa cập nhật'}</strong></Descriptions.Item>
+                    <Descriptions.Item label="Loại hàng"><strong>{cargo.cargoType || 'Chưa cập nhật'}</strong></Descriptions.Item>
+                    <Descriptions.Item label="Tổng khối lượng"><strong>{formatNumber(cargo.totalWeight)} Tấn</strong></Descriptions.Item>
+                    <Descriptions.Item label="Tổng thể tích"><strong>{formatNumber(cargo.totalVolume)} m³</strong></Descriptions.Item>
+                    <Descriptions.Item label="Trạng thái"><strong>{cargo.status || 'Chưa cập nhật'}</strong></Descriptions.Item>
+                  </Descriptions>
+                ),
+              },
+              {
+                key: 'voyage',
+                label: <Space><CompassOutlined style={{ color: '#f59e0b' }} /> Thông tin hành trình</Space>,
+                children: (
+                  cargo.Voyage ? (
+                    <Descriptions column={1} colon={false}>
+                      <Descriptions.Item label="Tàu"><strong>{cargo.Voyage.Ship?.shipName || 'Chưa xác định'}</strong></Descriptions.Item>
+                      <Descriptions.Item label="Cảng đi"><strong>{cargo.Voyage.departurePort || 'N/A'}</strong></Descriptions.Item>
+                      <Descriptions.Item label="Cảng đến"><strong>{cargo.Voyage.destinationPort || 'N/A'}</strong></Descriptions.Item>
+                      <Descriptions.Item label="Ngày đi (ETD)"><strong>{cargo.Voyage.departureDate || 'Chưa có'}</strong></Descriptions.Item>
+                      <Descriptions.Item label="Ngày đến (ETA)"><strong>{cargo.Voyage.arrivalDate || 'Chưa có'}</strong></Descriptions.Item>
+                    </Descriptions>
+                  ) : (
+                    <Text type="secondary" italic>Lô hàng chưa được xếp vào hải trình nào.</Text>
+                  )
+                ),
+              },
+              {
+                key: 'allocation',
+                label: <Space><InboxOutlined style={{ color: '#10b981' }} /> Phân bổ hầm tàu</Space>,
+                children: (
+                  cargo.CargoAllocations && cargo.CargoAllocations.length > 0 ? (
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: '12px' }}>
+                      {cargo.CargoAllocations.map((a, idx) => (
+                        <div key={idx} style={{ padding: '12px', background: '#f0fdf4', borderRadius: '6px', border: '1px solid #bbf7d0', fontSize: '0.9rem' }}>
+                          <strong style={{ color: '#166534', display: 'block' }}>{a.CargoHold?.holdName || `Hầm #${a.cargoHoldId}`}</strong>
+                          <span style={{ color: '#15803d' }}>Khối lượng: {formatNumber(a.allocatedWeight)} T</span>
+                        </div>
+                      ))}
                     </div>
-                  ))}
-                </div>
-              ) : (
-                <Text type="secondary" italic>Lô hàng chưa được phân bổ vào hầm tàu nào.</Text>
-              )}
-            </Card>
-          </Col>
-        </Row>
+                  ) : (
+                    <Text type="secondary" italic>Lô hàng chưa được phân bổ vào hầm tàu nào.</Text>
+                  )
+                ),
+              },
+            ]}
+          />
+        </Card>
       </PageContainer>
     </Layout>
   );

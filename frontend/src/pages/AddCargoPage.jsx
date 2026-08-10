@@ -9,6 +9,8 @@ import {
   Card,
   Alert,
   Modal,
+  Row,
+  Col,
 } from 'antd';
 import { AppstoreOutlined, SaveOutlined } from '@ant-design/icons';
 import AdminLayout from '../components/AdminLayout';
@@ -179,13 +181,13 @@ export default function AddCargoPage() {
           <Alert type="error" showIcon message={error} style={{ marginBottom: 20 }} />
         )}
 
-        <Card>
-          <Form
-            form={form}
-            layout="vertical"
-            onFinish={handleSubmit}
-            initialValues={{ status: 'Đã ở cảng' }}
-          >
+        <Form
+          form={form}
+          layout="vertical"
+          onFinish={handleSubmit}
+          initialValues={{ status: 'Đã ở cảng' }}
+        >
+          <Card title="Thông tin cơ bản" style={{ marginBottom: 16 }}>
             <Form.Item
               label="Tên Lô Hàng"
               name="cargoName"
@@ -194,66 +196,71 @@ export default function AddCargoPage() {
               <Input placeholder="VD: Vietnam White Rice 5% Broken..." />
             </Form.Item>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
-              <Form.Item label="Loại Hàng" name="cargoType">
-                <Select
-                  placeholder="-- Chọn loại hàng --"
-                  allowClear
-                  onChange={handleCargoTypeChange}
+            <Row gutter={16}>
+              <Col xs={24} md={12}>
+                <Form.Item label="Loại Hàng" name="cargoType">
+                  <Select
+                    placeholder="-- Chọn loại hàng --"
+                    allowClear
+                    onChange={handleCargoTypeChange}
+                  >
+                    {cargoTypes.map(t => (
+                      <Option key={t.id} value={t.name}>{t.name}</Option>
+                    ))}
+                    {canEdit && <Option value={ADD_CARGO_TYPE}>➕ Tạo loại hàng mới…</Option>}
+                  </Select>
+                </Form.Item>
+              </Col>
+              <Col xs={24} md={12}>
+                <Form.Item label="Trạng Thái" name="status">
+                  <Input readOnly disabled />
+                </Form.Item>
+              </Col>
+            </Row>
+          </Card>
+
+          <Card title="Khối lượng & Thể tích" style={{ marginBottom: 16 }}>
+            <Row gutter={16}>
+              <Col xs={24} md={12}>
+                <Form.Item
+                  label="Tổng Khối Lượng (Tấn)"
+                  name="totalWeight"
+                  rules={[
+                    { required: true, message: 'Vui lòng nhập tổng khối lượng' },
+                    { type: 'number', min: 0.01, message: 'Khối lượng phải lớn hơn 0' }
+                  ]}
                 >
-                  {cargoTypes.map(t => (
-                    <Option key={t.id} value={t.name}>
-                      <span>{t.name}</span>
-                      <span style={{ color: '#8c8c8c', fontSize: '12px', marginLeft: 8 }}>
-                        (SF: {t.stowageFactor ?? 1.0} m³/MT)
-                      </span>
-                    </Option>
-                  ))}
-                  {canEdit && <Option value={ADD_CARGO_TYPE}>➕ Tạo loại hàng mới…</Option>}
-                </Select>
-              </Form.Item>
-              <Form.Item label="Trạng Thái" name="status">
-                <Input readOnly disabled />
-              </Form.Item>
-            </div>
+                  <InputNumber
+                    step={0.01}
+                    min={0}
+                    placeholder="VD: 2750"
+                    style={{ width: '100%' }}
+                    onChange={handleWeightChange}
+                  />
+                </Form.Item>
+              </Col>
+              <Col xs={24} md={12}>
+                <Form.Item
+                  label="Tổng Thể Tích Chiếm Chỗ (m³)"
+                  name="totalVolume"
+                  extra="Tự động ước tính: Thể tích = Khối lượng × Hệ số SF của loại hàng"
+                  rules={[
+                    { type: 'number', min: 0.01, message: 'Thể tích phải lớn hơn 0' }
+                  ]}
+                >
+                  <InputNumber step={0.01} min={0} placeholder="VD: 3200" style={{ width: '100%' }} />
+                </Form.Item>
+              </Col>
+            </Row>
+          </Card>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
-              <Form.Item
-                label="Tổng Khối Lượng (Tấn)"
-                name="totalWeight"
-                rules={[
-                  { required: true, message: 'Vui lòng nhập tổng khối lượng' },
-                  { type: 'number', min: 0.01, message: 'Khối lượng phải lớn hơn 0' }
-                ]}
-              >
-                <InputNumber
-                  step={0.01}
-                  min={0}
-                  placeholder="VD: 2750"
-                  style={{ width: '100%' }}
-                  onChange={handleWeightChange}
-                />
-              </Form.Item>
-              <Form.Item 
-                label="Tổng Thể Tích Chiếm Chỗ (m³)" 
-                name="totalVolume"
-                extra="Tự động ước tính: Thể tích = Khối lượng × Hệ số SF của loại hàng"
-                rules={[
-                  { type: 'number', min: 0.01, message: 'Thể tích phải lớn hơn 0' }
-                ]}
-              >
-                <InputNumber step={0.01} min={0} placeholder="VD: 3200" style={{ width: '100%' }} />
-              </Form.Item>
-            </div>
-
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 12, borderTop: '1px solid #f0f0f0', paddingTop: 20 }}>
-              <Button onClick={() => navigate('/cargos')}>Hủy</Button>
-              <Button type="primary" htmlType="submit" loading={loading} icon={<SaveOutlined />}>
-                {isEditMode ? 'Cập nhật' : 'Thêm mới'}
-              </Button>
-            </div>
-          </Form>
-        </Card>
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 12, borderTop: '1px solid #f0f0f0', paddingTop: 20 }}>
+            <Button onClick={() => navigate('/cargos')}>Hủy</Button>
+            <Button type="primary" htmlType="submit" loading={loading} icon={<SaveOutlined />}>
+              {isEditMode ? 'Cập nhật' : 'Thêm mới'}
+            </Button>
+          </div>
+        </Form>
       </PageContainer>
 
       <Modal

@@ -1,14 +1,16 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Table, Button, Tag, Input, Card, Avatar, Space, Typography, Tooltip } from 'antd';
+import { Table, Button, Tag, Input, Card, Avatar, Space, Typography, Tooltip, Row, Col } from 'antd';
 import {
   TeamOutlined,
   PlusOutlined,
   SafetyCertificateOutlined,
+  CompassOutlined,
+  ToolOutlined,
 } from '@ant-design/icons';
 import AdminLayout from '../components/AdminLayout';
 import { crewService } from '../services/api';
-import { PageHeader, PageContainer, StatusTag, RowActions, notifyError, confirmDelete } from '../components/common';
+import { PageHeader, PageContainer, StatCard, StatusTag, RowActions, notifyError, confirmDelete } from '../components/common';
 
 const { Text } = Typography;
 
@@ -73,6 +75,13 @@ export default function CrewListPage() {
       (c) => c.fullName && c.fullName.toLowerCase().includes(keyword)
     );
   }, [crews, searchTerm]);
+
+  const stats = useMemo(() => {
+    const total = crews.length;
+    const deck = crews.filter((c) => c.department === 'Deck').length;
+    const engine = crews.filter((c) => c.department === 'Engine').length;
+    return { total, deck, engine };
+  }, [crews]);
 
   const columns = [
     {
@@ -177,6 +186,18 @@ export default function CrewListPage() {
             </Button>
           }
         />
+
+        <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
+          <Col xs={24} sm={8}>
+            <StatCard title="Tổng thuyền viên" value={stats.total} icon={<TeamOutlined />} tone="blue" />
+          </Col>
+          <Col xs={24} sm={8}>
+            <StatCard title="Bộ phận Boong" value={stats.deck} icon={<CompassOutlined />} tone="cyan" />
+          </Col>
+          <Col xs={24} sm={8}>
+            <StatCard title="Bộ phận Máy" value={stats.engine} icon={<ToolOutlined />} tone="gold" />
+          </Col>
+        </Row>
 
         <Card
           extra={
