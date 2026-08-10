@@ -20,6 +20,8 @@ import {
   Upload,
   Tabs,
   Modal,
+  Progress,
+  Tag,
   message,
 } from 'antd';
 import {
@@ -32,6 +34,9 @@ import {
   ToolOutlined,
   DownloadOutlined,
   UploadOutlined,
+  CheckCircleOutlined,
+  WarningOutlined,
+  ExclamationCircleOutlined,
 } from '@ant-design/icons';
 import MasterLayout from '../components/MasterLayout';
 import AdminLayout from '../components/AdminLayout';
@@ -138,18 +143,57 @@ export default function CreateVoyagePage() {
     fetchData();
   }, []);
 
+  const selectedShip = useMemo(() => {
+    return availableShips.find((item) => item.id === Number(shipId));
+  }, [shipId, availableShips]);
+
   const selectedShipCapacity = useMemo(() => {
-    const ship = availableShips.find((item) => item.id === Number(shipId));
-    const capacity = ship?.ShipCapacity || ship?.ShipCapacities?.[0];
-    if (!capacity) return { maxWeight: 0, maxVolume: 0, minCrew: 0, maxCrew: 0 };
+    const capacity = selectedShip?.ShipCapacity || selectedShip?.ShipCapacities?.[0];
+    if (!capacity) return { maxWeight: 0, maxVolume: 0, minCrew: 10, maxCrew: 15 };
 
     return {
       maxWeight: capacity.maxCargoWeight || 0,
       maxVolume: capacity.maxCargoVolume || 0,
       minCrew: capacity.minCrew || 10,
-      maxCrew: capacity.maxCrew || 25,
+      maxCrew: capacity.maxCrew || 15,
     };
-  }, [shipId, availableShips]);
+  }, [selectedShip]);
+
+  const validCrews = useMemo(() => {
+    return crewList.filter((c) => c.crewId && c.role);
+  }, [crewList]);
+
+  const crewStats = useMemo(() => {
+    const count = validCrews.length;
+    const min = selectedShipCapacity.minCrew || 10;
+    const max = selectedShipCapacity.maxCrew || 15;
+    const percent = max > 0 ? Math.min(100, Math.round((count / max) * 100)) : 0;
+    const isUnderMin = count < min;
+    const isOverMax = count > max;
+    const isValid = count >= min && count <= max;
+
+    const selectedRoles = validCrews.map((c) => c.role);
+    const hasCaptain = selectedRoles.includes('Captain (CAPT)');
+    const hasChiefOfficer = selectedRoles.includes('Đại phó (Chief Officer)');
+    const hasDeckOfficer = selectedRoles.includes('Sĩ quan boong (Deck Officer)');
+    const hasChiefEngineer = selectedRoles.includes('Máy trưởng (Chief Engineer)');
+    const allCoreRoles = hasCaptain && hasChiefOfficer && hasDeckOfficer && hasChiefEngineer;
+
+    return {
+      count,
+      min,
+      max,
+      percent,
+      isUnderMin,
+      isOverMax,
+      isValid,
+      hasCaptain,
+      hasChiefOfficer,
+      hasDeckOfficer,
+      hasChiefEngineer,
+      allCoreRoles,
+    };
+  }, [validCrews, selectedShipCapacity]);
 
   const currentCargoTotal = useMemo(() => {
     let tWeight = 0;
@@ -705,75 +749,180 @@ export default function CreateVoyagePage() {
               },
               {
                 key: 'crew',
-                label: 'Nhân sự',
-                children: (
-              <Card
-                title="Nhân sự dự kiến"
-                extra={
-                  <Button type="link" icon={<PlusOutlined />} onClick={addCrew}>
-                    Thêm Nhân sự
-                  </Button>
-                }
-              >
-                {crewList.length === 0 ? (
-                  <Empty
-                    image={<TeamOutlined style={{ fontSize: 32, color: '#94a3b8' }} />}
-                    description={
-                      <div>
-                        <p style={{ margin: 0 }}>Chưa phân bổ nhân sự cho chuyến đi này.</p>
-                        <Text type="secondary">
-                          Chọn Thuyền trưởng và các thuyền viên quan trọng.
-                        </Text>
-                      </div>
-                    }
-                  />
-                ) : (
-                  <Space direction="vertical" style={{ width: '100%' }} size={12}>
-                    {crewList.map((crew) => (
-                      <Row key={crew.id} gutter={8} align="bottom" >
-                        <Col flex="1.5">
-                          <Form.Item label="Chọn Nhân sự" required style={{ marginBottom: 0 }}>
-                            <Select
-                              showSearch
-                              optionFilterProp="label"
-                              placeholder="Chọn thủy thủ..."
-                              value={crew.crewId || undefined}
-                              onChange={(value) => handleCrewChange(crew.id, 'crewId', value)}
-                              options={availableCrews.map((ac) => ({
-                                value: ac.id,
-                                label: `${ac.fullName} (${ac.email}) - ${positionLabel(ac.position)}`,
-                                disabled: crewList.some(c => c.crewId === ac.id && c.id !== crew.id)
-                              }))}
-                            />
-                          </Form.Item>
-                        </Col>
-                        <Col flex="1">
-                          <Form.Item label="Chức danh cho chuyến đi" required style={{ marginBottom: 0 }}>
-                            <Select
-                              placeholder="Chọn chức danh..."
-                              value={crew.role || undefined}
-                              onChange={(value) => handleCrewChange(crew.id, 'role', value)}
-                              options={CREW_ROLE_OPTIONS.map(opt => ({
-                                ...opt,
-                                disabled: !MULTI_ALLOWED_ROLES.includes(opt.value) && crewList.some(c => c.role === opt.value && c.id !== crew.id)
-                              }))}
-                            />
-                          </Form.Item>
-                        </Col>
-                        <Col flex="0 0 auto">
-                          <Button
-                            danger
-                            type="text"
-                            icon={<DeleteOutlined />}
-                            onClick={() => removeCrew(crew.id)}
-                          />
-                        </Col>
-                      </Row>
-                    ))}
+                label: (
+                  <Space size={6}>
+                    <span>Nhân sự</span>
+                    {shipId && (
+                      <Tag
+                        color={crewStats.isOverMax ? 'error' : crewStats.isValid ? 'success' : 'warning'}
+                        style={{ margin: 0, borderRadius: 10, fontSize: 11, padding: '0 6px' }}
+                      >
+                        {crewStats.count}/{crewStats.max}
+                      </Tag>
+                    )}
                   </Space>
-                )}
-              </Card>
+                ),
+                children: (
+                  <>
+                    {/* Thanh theo dõi định biên & khả năng chở nhân sự của tàu đã chọn */}
+                    {!shipId ? (
+                      <Alert
+                        type="warning"
+                        showIcon
+                        message="Chưa chọn tàu vận chuyển"
+                        description="Vui lòng quay lại tab 'Định danh & Tuyến đường' để chọn tàu. Hệ thống sẽ tự động tải định biên an toàn tối thiểu và sức chứa thuyền viên tối đa của tàu đó."
+                        style={{ marginBottom: 20, borderRadius: 8 }}
+                      />
+                    ) : (
+                      <Card
+                        style={{
+                          marginBottom: 20,
+                          borderRadius: 10,
+                          background: '#f8fafc',
+                          borderColor: crewStats.isOverMax ? '#fca5a5' : crewStats.isValid ? '#86efac' : '#fde047',
+                          boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
+                        }}
+                        styles={{ body: { padding: '16px 20px' } }}
+                      >
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12, flexWrap: 'wrap', gap: 8 }}>
+                          <div>
+                            <Space>
+                              <TeamOutlined style={{ fontSize: 18, color: '#6366f1' }} />
+                              <Text strong style={{ fontSize: 15, color: '#1e293b' }}>
+                                Định biên Thuyền viên: {selectedShip?.shipName} (IMO: {selectedShip?.imoNumber})
+                              </Text>
+                            </Space>
+                          </div>
+                          <div>
+                            {crewStats.isOverMax ? (
+                              <Tag color="error" icon={<ExclamationCircleOutlined />} style={{ padding: '4px 10px', fontSize: 13, borderRadius: 6, fontWeight: 500 }}>
+                                Vượt sức chứa ({crewStats.count}/{crewStats.max} người - Vượt {crewStats.count - crewStats.max} người)
+                              </Tag>
+                            ) : crewStats.isUnderMin ? (
+                              <Tag color="warning" icon={<WarningOutlined />} style={{ padding: '4px 10px', fontSize: 13, borderRadius: 6, fontWeight: 500 }}>
+                                Chưa đủ định biên tối thiểu ({crewStats.count}/{crewStats.min} người - Thiếu {crewStats.min - crewStats.count} người)
+                              </Tag>
+                            ) : (
+                              <Tag color="success" icon={<CheckCircleOutlined />} style={{ padding: '4px 10px', fontSize: 13, borderRadius: 6, fontWeight: 500 }}>
+                                Đạt chuẩn an toàn ({crewStats.count}/{crewStats.max} người)
+                              </Tag>
+                            )}
+                          </div>
+                        </div>
 
+                        {/* Thanh Tiến Trình / Progress Bar Thuyền Viên */}
+                        <div style={{ margin: '14px 0 8px' }}>
+                          <Progress
+                            percent={crewStats.percent}
+                            status={crewStats.isOverMax ? 'exception' : crewStats.isUnderMin ? 'active' : 'success'}
+                            strokeColor={
+                              crewStats.isOverMax ? '#ef4444' : crewStats.isUnderMin ? '#eab308' : '#22c55e'
+                            }
+                            format={() => `${crewStats.count} / ${crewStats.max} Thuyền viên`}
+                          />
+                        </div>
+
+                        {/* Các chỉ số Min / Max */}
+                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: '#64748b', marginBottom: 12 }}>
+                          <span>
+                            Tối thiểu an toàn (Safe Manning): <strong>{crewStats.min} người</strong>
+                          </span>
+                          <span>
+                            Đã phân công: <strong style={{ color: crewStats.isOverMax ? '#dc2626' : crewStats.isUnderMin ? '#d97706' : '#16a34a', fontSize: 13 }}>{crewStats.count} người</strong>
+                          </span>
+                          <span>
+                            Sức chứa tối đa (Max Capacity): <strong>{crewStats.max} người</strong>
+                          </span>
+                        </div>
+
+                        {/* 4 Chức danh Sĩ quan bắt buộc */}
+                        <div style={{ borderTop: '1px dashed #cbd5e1', paddingTop: 10, display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '8px 12px' }}>
+                          <Text type="secondary" style={{ fontSize: 12 }}>
+                            <strong>Sĩ quan cốt lõi bắt buộc:</strong>
+                          </Text>
+                          <Tag color={crewStats.hasCaptain ? 'success' : 'default'} style={{ borderRadius: 4 }}>
+                            {crewStats.hasCaptain ? '✓' : '○'} Thuyền trưởng
+                          </Tag>
+                          <Tag color={crewStats.hasChiefOfficer ? 'success' : 'default'} style={{ borderRadius: 4 }}>
+                            {crewStats.hasChiefOfficer ? '✓' : '○'} Đại phó
+                          </Tag>
+                          <Tag color={crewStats.hasDeckOfficer ? 'success' : 'default'} style={{ borderRadius: 4 }}>
+                            {crewStats.hasDeckOfficer ? '✓' : '○'} Sĩ quan boong
+                          </Tag>
+                          <Tag color={crewStats.hasChiefEngineer ? 'success' : 'default'} style={{ borderRadius: 4 }}>
+                            {crewStats.hasChiefEngineer ? '✓' : '○'} Máy trưởng
+                          </Tag>
+                        </div>
+                      </Card>
+                    )}
+
+                    <Card
+                      title="Danh sách Nhân sự được phân công"
+                      extra={
+                        <Button type="primary" ghost icon={<PlusOutlined />} onClick={addCrew}>
+                          Thêm Nhân sự
+                        </Button>
+                      }
+                    >
+                      {crewList.length === 0 ? (
+                        <Empty
+                          image={<TeamOutlined style={{ fontSize: 32, color: '#94a3b8' }} />}
+                          description={
+                            <div>
+                              <p style={{ margin: 0 }}>Chưa phân bổ nhân sự cho chuyến đi này.</p>
+                              <Text type="secondary">
+                                Bấm nút "+ Thêm Nhân sự" ở trên để chọn Thuyền trưởng và các thuyền viên.
+                              </Text>
+                            </div>
+                          }
+                        />
+                      ) : (
+                        <Space direction="vertical" style={{ width: '100%' }} size={12}>
+                          {crewList.map((crew) => (
+                            <Row key={crew.id} gutter={8} align="bottom" >
+                              <Col flex="1.5">
+                                <Form.Item label="Chọn Nhân sự" required style={{ marginBottom: 0 }}>
+                                  <Select
+                                    showSearch
+                                    optionFilterProp="label"
+                                    placeholder="Chọn thủy thủ..."
+                                    value={crew.crewId || undefined}
+                                    onChange={(value) => handleCrewChange(crew.id, 'crewId', value)}
+                                    options={availableCrews.map((ac) => ({
+                                      value: ac.id,
+                                      label: `${ac.fullName} (${ac.email}) - ${positionLabel(ac.position)}`,
+                                      disabled: crewList.some(c => c.crewId === ac.id && c.id !== crew.id)
+                                    }))}
+                                  />
+                                </Form.Item>
+                              </Col>
+                              <Col flex="1">
+                                <Form.Item label="Chức danh cho chuyến đi" required style={{ marginBottom: 0 }}>
+                                  <Select
+                                    placeholder="Chọn chức danh..."
+                                    value={crew.role || undefined}
+                                    onChange={(value) => handleCrewChange(crew.id, 'role', value)}
+                                    options={CREW_ROLE_OPTIONS.map(opt => ({
+                                      ...opt,
+                                      disabled: !MULTI_ALLOWED_ROLES.includes(opt.value) && crewList.some(c => c.role === opt.value && c.id !== crew.id)
+                                    }))}
+                                  />
+                                </Form.Item>
+                              </Col>
+                              <Col flex="0 0 auto">
+                                <Button
+                                  danger
+                                  type="text"
+                                  icon={<DeleteOutlined />}
+                                  onClick={() => removeCrew(crew.id)}
+                                />
+                              </Col>
+                            </Row>
+                          ))}
+                        </Space>
+                      )}
+                    </Card>
+                  </>
                 ),
               },
               {

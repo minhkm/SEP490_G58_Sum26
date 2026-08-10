@@ -4,7 +4,7 @@ import { Form, Input, Select, Button, Card, Row, Col, Space, Spin, Alert, Tabs, 
 import { SaveOutlined, TeamOutlined, WarningOutlined } from '@ant-design/icons';
 import AdminLayout from '../components/AdminLayout';
 import { crewService } from '../services/api';
-import { PageHeader, notifySuccess, notifyError } from '../components/common';
+import { PageHeader, PageContainer, notifySuccess, notifyError } from '../components/common';
 
 export default function AddCrewPage() {
   const navigate = useNavigate();
@@ -14,41 +14,47 @@ export default function AddCrewPage() {
 
   const [loading, setLoading] = useState(isEditMode);
   const [submitting, setSubmitting] = useState(false);
+  const [isOnVoyage, setIsOnVoyage] = useState(false);
   // Theo dõi role để khóa/mở các trường phụ thuộc
   const [role, setRole] = useState('Sailor');
   // Tab đang mở
   const [activeTab, setActiveTab] = useState('personal');
 
   useEffect(() => {
-    if (isEditMode) {
-      fetchCrew();
-    }
-  }, [id]);
-
-  const fetchCrew = async () => {
-    try {
-      const data = await crewService.getById(id);
-      const nextRole = data.User?.role || 'Sailor';
-      setRole(nextRole);
-      form.setFieldsValue({
-        fullName: data.fullName || '',
-        email: data.email || '',
-        phone: data.phone || '',
-        cccd: data.cccd || '',
-        department: data.department || 'Deck',
-        position: data.position || '',
-        role: nextRole,
-        status: data.User?.status || 'Available',
+    if (!isEditMode) return;
+    let isMounted = true;
+    crewService.getById(id)
+      .then((data) => {
+        if (!isMounted) return;
+        const nextRole = data.User?.role || 'Sailor';
+        const onVoyage = Boolean(data.isOnVoyage || data.User?.status === 'OnVoyage');
+        setIsOnVoyage(onVoyage);
+        setRole(nextRole);
+        form.setFieldsValue({
+          fullName: data.fullName || '',
+          email: data.email || '',
+          phone: data.phone || '',
+          cccd: data.cccd || '',
+          department: data.department || 'Deck',
+          position: data.position || '',
+          role: nextRole,
+          status: data.User?.status || 'Available',
+        });
+      })
+      .catch((error) => {
+        console.error('Lỗi khi lấy thông tin:', error);
+        notifyError('Không thể tải thông tin thủy thủ.');
+      })
+      .finally(() => {
+        if (isMounted) setLoading(false);
       });
-    } catch (error) {
-      console.error('Lỗi khi lấy thông tin:', error);
-      notifyError('Không thể tải thông tin thủy thủ.');
-    } finally {
-      setLoading(false);
-    }
-  };
 
-  const isLockedRole = role === 'Master' || role === 'ChiefOfficer';
+    return () => {
+      isMounted = false;
+    };
+  }, [id, isEditMode, form]);
+
+  const isLockedRole = role === 'Master' || role === 'ChiefOfficer' || isOnVoyage;
 
   const handleRoleChange = (value) => {
     setRole(value);
@@ -68,6 +74,11 @@ export default function AddCrewPage() {
   };
 
   const handleSubmit = async (values) => {
+    if (isOnVoyage) {
+      notifyError('Không thể chỉnh sửa thông tin của thuyền viên đang tham gia hải trình!');
+      return;
+    }
+
     if (values.cccd) {
       if (!values.cccd.startsWith('0') || values.cccd.length !== 12 || !/^\d+$/.test(values.cccd)) {
         setActiveTab('personal');
@@ -143,16 +154,27 @@ export default function AddCrewPage() {
 
   return (
     <AdminLayout>
-      <div style={{ padding: '24px 32px', maxWidth: 1000, margin: '0 auto' }}>
+      <PageContainer style={{ maxWidth: 1000, margin: '0 auto' }}>
         <PageHeader
           onBack={() => navigate('/crews')}
           title={isEditMode ? 'Cập nhật Thủy thủ' : 'Thêm Thủy thủ mới'}
           breadcrumb="Điền thông tin hồ sơ và tài khoản đăng nhập"
         />
 
+        {isOnVoyage && (
+          <Alert
+            type="error"
+            showIcon
+            message="Thuyền viên đang tham gia hải trình hoạt động"
+            description="Hồ sơ nhân sự này đang được phân công trong một hải trình chưa hoàn thành. Hệ thống tạm khóa chỉnh sửa để đảm bảo tính toàn vẹn dữ liệu cho đến khi chuyến đi kết thúc."
+            style={{ marginBottom: 20, borderRadius: 8 }}
+          />
+        )}
+
         <Form
           form={form}
           layout="vertical"
+          disabled={isOnVoyage}
           onFinish={handleSubmit}
           onFinishFailed={handleFinishFailed}
           initialValues={{
@@ -194,12 +216,12 @@ export default function AddCrewPage() {
                   <Input placeholder="Ví dụ: Nguyễn Văn A" disabled={isEditMode} />
                 </Form.Item>
                 <Row gutter={16}>
-                  <Col span={12}>
+                  <Col xs={24} md={12}>
                     <Form.Item label="CCCD" name="cccd">
                       <Input placeholder="Mã định danh" disabled={isEditMode} />
                     </Form.Item>
                   </Col>
-                  <Col span={12}>
+                  <Col xs={24} md={12}>
                     <Form.Item label="Số điện thoại" name="phone">
                       <Input placeholder="+84..." />
                     </Form.Item>
@@ -222,7 +244,7 @@ export default function AddCrewPage() {
                 }
               >
                 <Row gutter={16}>
-                  <Col span={12}>
+                  <Col xs={24} md={12}>
                     <Form.Item label="Bộ phận" name="department">
                       <Select disabled={isLockedRole}>
                         <Select.Option value="None">Không thuộc bộ phận (None)</Select.Option>
@@ -231,14 +253,14 @@ export default function AddCrewPage() {
                       </Select>
                     </Form.Item>
                   </Col>
-                  <Col span={12}>
+                  <Col xs={24} md={12}>
                     <Form.Item label="Chức vụ (Position)" name="position">
                       <Input placeholder="Ví dụ: Máy trưởng" readOnly={isLockedRole} />
                     </Form.Item>
                   </Col>
                 </Row>
                 <Row gutter={16}>
-                  <Col span={12}>
+                  <Col xs={24} md={12}>
                     <Form.Item label="Quyền hệ thống (Role)" name="role">
                       <Select onChange={handleRoleChange}>
                         <Select.Option value="Master">Thuyền trưởng (Master)</Select.Option>
@@ -250,7 +272,7 @@ export default function AddCrewPage() {
                       </Select>
                     </Form.Item>
                   </Col>
-                  <Col span={12}>
+                  <Col xs={24} md={12}>
                     <Form.Item label="Trạng thái" name="status">
                       <Select>
                         <Select.Option value="Available">Sẵn sàng (Available)</Select.Option>
@@ -312,12 +334,12 @@ export default function AddCrewPage() {
 
           <Space style={{ justifyContent: 'flex-end', width: '100%', marginTop: 16 }}>
             <Button onClick={() => navigate('/crews')}>Hủy bỏ</Button>
-            <Button type="primary" htmlType="submit" icon={<SaveOutlined />} loading={submitting}>
+            <Button type="primary" htmlType="submit" icon={<SaveOutlined />} loading={submitting} disabled={isOnVoyage}>
               {isEditMode ? 'Lưu thay đổi' : 'Khởi tạo Thủy thủ'}
             </Button>
           </Space>
         </Form>
-      </div>
+      </PageContainer>
     </AdminLayout>
   );
 }

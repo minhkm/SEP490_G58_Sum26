@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Card, Button, Input, DatePicker, Form, Space, Typography, Spin, Empty, Row, Col, Layout } from 'antd';
+import { Card, Button, Input, DatePicker, Form, Space, Typography, Spin, Empty, Row, Col, Layout, Tabs } from 'antd';
 import {
   UserOutlined,
   SafetyCertificateOutlined,
@@ -229,6 +229,18 @@ export default function CrewProfilePage() {
           }
         />
 
+        <Tabs
+          defaultActiveKey="profile"
+          items={[
+            {
+              key: 'profile',
+              label: (
+                <Space>
+                  <UserOutlined /> Hồ sơ
+                </Space>
+              ),
+              children: (
+                <>
         {/* PROFILE CARD */}
         <Card
           style={{ marginBottom: 24 }}
@@ -296,6 +308,18 @@ export default function CrewProfilePage() {
           )}
         </Card>
 
+                </>
+              ),
+            },
+            {
+              key: 'certificates',
+              label: (
+                <Space>
+                  <SafetyCertificateOutlined /> Chứng chỉ ({certs.length})
+                </Space>
+              ),
+              children: (
+                <>
         {/* CERTIFICATES */}
         {!editing && (
         <Card
@@ -501,6 +525,11 @@ export default function CrewProfilePage() {
           )}
         </Card>
         )}
+                </>
+              ),
+            },
+          ]}
+        />
       </Content>
     </Layout>
   );

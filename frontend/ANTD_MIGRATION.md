@@ -17,15 +17,20 @@ Chiến lược: **chuyển đổi tăng dần, song song** — antd chạy cạ
 Đặt tại [src/components/common/](src/components/common/). Import gọn qua barrel:
 
 ```js
-import { PageHeader, StatusTag, RowActions, notifySuccess, confirmDelete } from '../components/common';
+import { PageHeader, PageContainer, StatCard, StatusTag, RowActions, notifySuccess, confirmDelete } from '../components/common';
 ```
 
 | Component / helper | Dùng cho | Ví dụ |
 |---|---|---|
 | `PageHeader` | Tiêu đề trang: (tùy chọn) nút quay lại `onBack` + breadcrumb + tiêu đề lớn + nút hành động `extra` | List: `<PageHeader icon={<CompassOutlined/>} breadcrumb="Voyages" title="..." extra={<Button.../>} />` · Chi tiết/Thêm: `<PageHeader onBack={() => navigate('/vessels')} title="..." />` |
-| `StatusTag` | Hiển thị trạng thái → `<Tag>` màu thống nhất (KHÔNG tự viết `getStatusColor` nữa) | `<StatusTag status={v.status} />` hoặc ghi đè `<StatusTag status={s} text="Đang hoạt động" color="green" />` |
+| `PageContainer` | Khung nội dung chuẩn (padding `24px 32px`) — thay cho `<div style={{ padding: '24px 32px' }}>` lặp ở mọi trang | `<PageContainer><PageHeader .../> ...</PageContainer>` |
+| `StatCard` | Thẻ chỉ số (KPI) dashboard/tổng quan — thay stat-card CSS tay | `<StatCard title="ĐỘI TÀU" value={12} icon={<ContainerOutlined/>} tone="blue" footer="Xem" onClick={...} />` |
+| `AppTopbar` | Thanh trên cùng (chuông + trợ giúp + user) — dùng trong layout, không cần gọi ở page | (đã gắn sẵn trong `MasterLayout`/`AdminLayout`) |
+| `StatusTag` | Hiển thị trạng thái → `<Tag>` màu thống nhất (KHÔNG tự viết `getStatusColor`/`statusConfig`/`VESSEL_STATUS` nữa) | `<StatusTag status={v.status} />` hoặc ghi đè `<StatusTag status={s} text="Đang hoạt động" color="green" />` |
 | `RowActions` | Cụm nút Xem/Sửa/Xoá trên dòng bảng | `<RowActions onView={...} onEdit={...} onDelete={...} />` |
 | `notify*` / `confirmDelete` / `confirmAction` | Toast & hộp xác nhận (từ `utils/feedback.js`) | `if (await confirmDelete({ content: name })) {...}` |
+
+> **Theme (Ocean Professional):** mọi màu/bo góc/typography đặt ở `maritimeTheme` trong [src/main.jsx](src/main.jsx). **KHÔNG** thêm override `!important` cho `.ant-*` trong CSS (đó là lý do UI từng lệch). Primary `#0E5FB5`, nền `#F4F6FA`, Sider navy `#0B1A2C`, font Poppins.
 
 Page tham khảo dùng đủ bộ này: [src/pages/VoyageListPage.jsx](src/pages/VoyageListPage.jsx).
 Nếu thiếu component chung cho một pattern lặp lại, hãy bổ sung vào thư mục này (kèm cập nhật bảng trên) thay vì copy-paste.

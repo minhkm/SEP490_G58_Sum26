@@ -7,7 +7,9 @@ import { Tag } from 'antd';
  * Nếu một page cần màu khác với mặc định, truyền prop `color` để ghi đè.
  */
 const GROUPS = [
-  { color: 'red', keys: ['cancel', 'hủy', 'huỷ', 'delay', 'chậm', 'expired', 'hết hạn', 'inactive', 'ngừng', 'reject', 'từ chối', 'urgent', 'khẩn'] },
+  { color: 'red', keys: ['cancel', 'hủy', 'huỷ', 'delay', 'chậm', 'expired', 'hết hạn', 'reject', 'từ chối', 'urgent', 'khẩn'] },
+  // Trạng thái tàu "ngừng hoạt động / inactive" là trung tính (không phải lỗi) -> xám 'default'.
+  { color: 'default', keys: ['inactive', 'ngừng hoạt động', 'ngừng h', 'decommission'] },
   { color: 'gold', keys: ['maintenance', 'sửa chữa', 'bảo trì', 'loading', 'đang xếp', 'expiring', 'sắp hết'] },
   { color: 'blue', keys: ['completed', 'hoàn thành', 'transit', 'resolved', 'đã xử lý'] },
   { color: 'geekblue', keys: ['loaded', 'đã xếp'] },
@@ -46,6 +48,8 @@ export const STATUS_TRANSLATIONS = {
   'Operational': 'Hoạt động tốt',
   'Standby': 'Đang chờ',
   'Under Maintenance': 'Đang bảo trì',
+  'Maintenance': 'Bảo trì',
+  'Inactive': 'Ngừng hoạt động',
   'Pending': 'Chờ xử lý',
   'Resolved': 'Đã xử lý',
   'Closed': 'Đã đóng',

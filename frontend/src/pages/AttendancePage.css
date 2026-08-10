@@ -29,7 +29,7 @@
 }
 
 .v-breadcrumb:hover {
-  color: #2563eb;
+  color: var(--brand);
 }
 
 .attendance-card {
@@ -62,8 +62,8 @@
 }
 
 .attendance-tab.active {
-  color: #2563eb;
-  border-bottom-color: #2563eb;
+  color: var(--brand);
+  border-bottom-color: var(--brand);
   background-color: white;
 }
 
@@ -103,7 +103,7 @@
 }
 
 .date-input:focus {
-  border-color: #2563eb;
+  border-color: var(--brand);
   box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
 }
 
@@ -153,7 +153,7 @@
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  background-color: #2563eb;
+  background-color: var(--brand);
   color: white;
   padding: 10px 20px;
   border-radius: 6px;
@@ -165,7 +165,7 @@
 }
 
 .btn-primary:hover:not(:disabled) {
-  background-color: #1d4ed8;
+  background-color: var(--brand-dark);
 }
 
 .btn-primary:disabled {
@@ -191,7 +191,7 @@
 .radio-label input[type="radio"] {
   width: 16px;
   height: 16px;
-  accent-color: #2563eb;
+  accent-color: var(--brand);
   cursor: inherit;
 }
 

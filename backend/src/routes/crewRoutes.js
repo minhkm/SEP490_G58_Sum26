@@ -205,7 +205,25 @@ router.get('/:id', async (req, res) => {
       ]
     });
     if (!crew) return res.status(404).json({ message: 'Không tìm thấy thủy thủ' });
-    res.json(crew);
+
+    const { Op } = require('sequelize');
+    const { VoyageCrew, Voyage } = require('../models');
+    const activeAssignment = await VoyageCrew.findOne({
+      where: { crewId: req.params.id },
+      include: [{
+        model: Voyage,
+        where: { status: { [Op.notIn]: ['Completed', 'Cancelled'] } },
+        required: true
+      }]
+    });
+
+    const plain = crew.toJSON();
+    if (activeAssignment && plain.User) {
+      plain.User.status = 'OnVoyage';
+      plain.isOnVoyage = true;
+    }
+
+    res.json(plain);
   } catch (error) {
     console.error('Lỗi lấy chi tiết thủy thủ:', error);
     res.status(500).json({ message: 'Lỗi server' });
@@ -317,6 +335,28 @@ router.put('/:id', async (req, res) => {
 
     const crew = await CrewProfile.findByPk(crewId);
     if (!crew) return res.status(404).json({ message: 'Không tìm thấy hồ sơ thủy thủ' });
+
+    // Kiểm tra nếu thuyền viên đang tham gia hải trình hoạt động thì KHÔNG cho chỉnh sửa
+    const { Op } = require('sequelize');
+    const { VoyageCrew, Voyage } = require('../models');
+    const activeAssignment = await VoyageCrew.findOne({
+      where: { crewId },
+      include: [{
+        model: Voyage,
+        where: {
+          status: {
+            [Op.notIn]: ['Completed', 'Cancelled']
+          }
+        },
+        required: true
+      }]
+    });
+
+    if (activeAssignment) {
+      return res.status(400).json({
+        message: 'Không thể chỉnh sửa thông tin của thuyền viên đang tham gia hải trình hoạt động!'
+      });
+    }
 
     // Check email tồn tại (trừ user hiện tại)
     const existingUser = await User.findOne({ where: { username: email } });

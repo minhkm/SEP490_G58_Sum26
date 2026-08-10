@@ -1,9 +1,8 @@
 import { Layout } from 'antd';
 import { useLocation } from 'react-router-dom';
 import AdminSidebar from './AdminSidebar';
-import NotificationBell from './NotificationBell';
-import HelpButton from './HelpButton';
-import './AppTopbar.css';
+import { AppTopbar } from './common';
+import { roleLabel } from '../config/roles';
 
 const { Content } = Layout;
 
@@ -11,6 +10,7 @@ export default function AdminLayout({ children }) {
   const location = useLocation();
   const user = JSON.parse(localStorage.getItem('user') || '{}');
   const displayName = user.fullName || user.username || 'Admin';
+  const displayRole = roleLabel(user.role || 'Admin');
   // Các trang này đã tự quản lý thanh cuộn bên trong (để giữ Header đứng im)
   const isSharedPage = location.pathname.includes('/voyages') || location.pathname.includes('/cargos');
 
@@ -18,22 +18,7 @@ export default function AdminLayout({ children }) {
     <Layout style={{ height: '100vh' }}>
       <AdminSidebar />
       <Content style={{ overflowY: isSharedPage ? 'hidden' : 'auto', overflowX: 'hidden', display: 'flex', flexDirection: 'column' }}>
-        <div className="app-topbar">
-          <NotificationBell />
-          <HelpButton />
-          <div className="app-topbar-user">
-            <div className="app-topbar-user-info">
-              <span className="app-topbar-user-name">{displayName}</span>
-              <span className="app-topbar-user-role">{user.role || 'Admin'}</span>
-            </div>
-            <div className="app-topbar-avatar">
-              <img
-                src={`https://ui-avatars.com/api/?name=${encodeURIComponent(displayName)}&background=0b1a2c&color=fff`}
-                alt={displayName}
-              />
-            </div>
-          </div>
-        </div>
+        <AppTopbar name={displayName} role={displayRole} />
         {children}
       </Content>
     </Layout>

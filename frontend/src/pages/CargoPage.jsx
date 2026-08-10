@@ -1,36 +1,69 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Table, Button, Input, Card, Space, Typography, Tooltip, Modal, Select, Checkbox, Popconfirm, Tag, Row, Col, Progress, Empty, Spin, message } from 'antd';
-import { AppstoreOutlined, PlusOutlined, SaveOutlined, InboxOutlined } from '@ant-design/icons';
+import {
+  Table,
+  Button,
+  Input,
+  Card,
+  Space,
+  Typography,
+  Tooltip,
+  Modal,
+  Checkbox,
+  Popconfirm,
+  Tag,
+  Row,
+  Col,
+  Progress,
+  Empty,
+  Spin,
+  message,
+  Alert,
+} from 'antd';
+import {
+  AppstoreOutlined,
+  PlusOutlined,
+  SaveOutlined,
+  InboxOutlined,
+  CalculatorOutlined,
+  ContainerOutlined,
+  CheckCircleOutlined,
+} from '@ant-design/icons';
 import MasterLayout from '../components/MasterLayout';
 import AdminLayout from '../components/AdminLayout';
-import { cargoService, voyageService, vesselService } from '../services/api';
+import { cargoService, voyageService, vesselService, cargoTypeService } from '../services/api';
 import api from '../services/api';
-import { PageHeader, StatusTag, RowActions, notifySuccess, notifyError, confirmDelete } from '../components/common';
+import {
+  PageHeader,
+  PageContainer,
+  StatCard,
+  RowActions,
+  notifySuccess,
+  notifyError,
+  notifyWarning,
+  confirmDelete,
+} from '../components/common';
 
 const { Text } = Typography;
 
-const formatNumber = (num) => {
-  if (num === null || num === undefined || num === '') return '—';
-  return new Intl.NumberFormat('en-US').format(num);
-};
+const AllocationModal = ({ open, cargo, holds, cargoList, onClose, onSave }) => {
+  const sf = Number(cargo?.stowageFactor || 1.0);
+  const targetWeight = Number(cargo?.weight || 0);
+  const targetVolume = Math.round(targetWeight * sf * 100) / 100;
 
-const AllocationModal = ({ open, cargo, holds, onClose, onSave }) => {
-  const [allocations, setAllocations] = useState([]);
-
-  useEffect(() => {
-    if (open && cargo && holds.length > 0) {
-      const initialAllo = holds.map(h => {
-        const existing = (cargo.allocations || []).find(a => String(a.holdId) === String(h.id));
-        return {
-          holdId: h.id,
-          holdName: h.holdName,
-          weight: existing ? existing.weight : ''
-        };
-      });
-      setAllocations(initialAllo);
-    }
-  }, [open, cargo, holds]);
+  const [allocations, setAllocations] = useState(() => {
+    if (!cargo || !holds || holds.length === 0) return [];
+    return holds.map((h) => {
+      const existing = (cargo.allocations || []).find((a) => String(a.holdId) === String(h.id));
+      return {
+        holdId: h.id,
+        holdName: h.holdName,
+        maxCapacity: h.maxCapacity || 0,
+        currentUsage: h.currentUsage || 0,
+        weight: existing ? existing.weight : '',
+      };
+    });
+  });
 
   const handleChange = (idx, value) => {
     const newAllo = [...allocations];
@@ -38,54 +71,201 @@ const AllocationModal = ({ open, cargo, holds, onClose, onSave }) => {
     setAllocations(newAllo);
   };
 
-  const totalAllocated = allocations.reduce((sum, a) => sum + Number(a.weight || 0), 0);
-  const isOver = totalAllocated > (cargo?.weight || 0);
+  const totalAllocatedWeight = allocations.reduce((sum, a) => sum + Number(a.weight || 0), 0);
+  const totalAllocatedVolume = Math.round(totalAllocatedWeight * sf * 100) / 100;
+  const isOverWeight = totalAllocatedWeight > targetWeight;
+
+  // Tính thể tích các hầm xem có hầm nào bị tràn thể tích m3 không
+  const holdVolumeChecks = allocations.map((allo) => {
+    const hold = holds.find((h) => String(h.id) === String(allo.holdId));
+    const maxCap = hold?.maxCapacity || 0;
+    
+    // Tính thể tích hàng khác đang trong hầm (ngoại trừ phân bổ cũ của lô hàng này)
+    let otherUsageVolume = 0;
+    (cargoList || []).forEach((c) => {
+      if (c.itemId !== cargo?.itemId && c.isLoaded && !c.isDischarged) {
+        const cSf = Number(c.stowageFactor || 1.0);
+        const alloc = (c.allocations || []).find((a) => String(a.holdId) === String(allo.holdId));
+        if (alloc) {
+          otherUsageVolume += Number(alloc.weight || 0) * cSf;
+        }
+      }
+    });
+
+    const thisAllocVolume = Number(allo.weight || 0) * sf;
+    const totalSimulatedHoldVolume = Math.round((otherUsageVolume + thisAllocVolume) * 100) / 100;
+    const isHoldOver = maxCap > 0 && totalSimulatedHoldVolume > maxCap;
+
+    return {
+      holdId: allo.holdId,
+      totalSimulatedHoldVolume,
+      maxCap,
+      isHoldOver,
+      percent: maxCap > 0 ? (totalSimulatedHoldVolume / maxCap) * 100 : 0,
+    };
+  });
+
+  const hasHoldOverCapacity = holdVolumeChecks.some((c) => c.isHoldOver);
 
   return (
     <Modal
       open={open}
-      title={`Phân bổ: ${cargo?.itemName || ''} (${cargo?.weight} MT)`}
+      title={
+        <Space>
+          <CalculatorOutlined style={{ color: '#2563eb' }} />
+          <span>Phân bổ hầm hàng: {cargo?.itemName || ''}</span>
+        </Space>
+      }
       onCancel={onClose}
       onOk={() => {
-        if (isOver) return;
-        const valid = allocations.filter((a) => a.holdId && Number(a.weight) > 0);
+        if (isOverWeight || hasHoldOverCapacity) return;
+        const valid = allocations
+          .filter((a) => a.holdId && Number(a.weight) > 0)
+          .map((a) => ({
+            holdId: a.holdId,
+            weight: Number(a.weight),
+            volume: Math.round(Number(a.weight) * sf * 100) / 100,
+          }));
         onSave(cargo.itemId, valid);
       }}
-      okButtonProps={{ disabled: isOver }}
-      width={500}
+      okButtonProps={{ disabled: isOverWeight || hasHoldOverCapacity }}
+      width={720}
+      okText="Xác nhận phân bổ"
+      cancelText="Hủy"
     >
-      <div style={{ marginBottom: 16 }}>
-        <Text strong>Tổng khối lượng: {cargo?.weight} MT</Text>
-        <br />
-        <Text type={isOver ? 'danger' : 'success'}>
-          Đã phân bổ: {totalAllocated} MT
-        </Text>
+      <div
+        style={{
+          marginBottom: 16,
+          padding: '12px 16px',
+          background: '#f8fafc',
+          borderRadius: 8,
+          border: '1px solid #e2e8f0',
+        }}
+      >
+        <Row gutter={16}>
+          <Col span={12}>
+            <div>
+              <Text type="secondary">Mặt hàng:</Text>{' '}
+              <Text strong>{cargo?.itemName} ({cargo?.cargoType || 'Hàng hóa'})</Text>
+            </div>
+            <div style={{ marginTop: 4 }}>
+              <Text type="secondary">Khối lượng:</Text>{' '}
+              <Text strong style={{ color: '#2563eb' }}>{targetWeight.toLocaleString()} MT</Text>
+            </div>
+          </Col>
+          <Col span={12}>
+            <div>
+              <Text type="secondary">Hệ số chất xếp (SF):</Text>{' '}
+              <Tag color="cyan" style={{ fontWeight: 600 }}>{sf} m³/MT</Tag>
+            </div>
+            <div style={{ marginTop: 4 }}>
+              <Text type="secondary">Thể tích chiếm dụng:</Text>{' '}
+              <Text strong style={{ color: '#0284c7' }}>{targetVolume.toLocaleString()} m³</Text>
+            </div>
+          </Col>
+        </Row>
       </div>
+
+      <div style={{ marginBottom: 12, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <span>
+          <Text strong>Trạng thái phân bổ: </Text>
+          <Text type={isOverWeight ? 'danger' : totalAllocatedWeight === targetWeight ? 'success' : 'warning'}>
+            {totalAllocatedWeight.toLocaleString()} / {targetWeight.toLocaleString()} MT
+            {' '}({totalAllocatedVolume.toLocaleString()} / {targetVolume.toLocaleString()} m³)
+          </Text>
+        </span>
+        {totalAllocatedWeight === targetWeight && (
+          <Tag color="success">✅ Đã phân bổ 100%</Tag>
+        )}
+      </div>
+
+      {hasHoldOverCapacity && (
+        <Alert
+          type="error"
+          showIcon
+          message="Vượt quá dung tích thể tích hầm tàu!"
+          description="Một hoặc nhiều khoang hàng bị vượt quá dung tích tối đa (m³). Vui lòng giảm số lượng hoặc chia sang khoang khác."
+          style={{ marginBottom: 16 }}
+        />
+      )}
 
       <Table
         dataSource={allocations}
         pagination={false}
         rowKey="holdId"
         size="small"
+        bordered
         columns={[
           {
-            title: 'Khoang',
+            title: 'Khoang hàng',
             dataIndex: 'holdName',
-            render: (text) => <Text strong>{text}</Text>
+            width: 150,
+            render: (text) => <Text strong>{text}</Text>,
+          },
+          {
+            title: 'Dung tích hầm (m³)',
+            width: 130,
+            render: (_, record) => {
+              const check = holdVolumeChecks.find((c) => String(c.holdId) === String(record.holdId));
+              return (
+                <div>
+                  <Text strong>{record.maxCapacity.toLocaleString()} m³</Text>
+                  <div style={{ fontSize: 11, color: '#64748b' }}>
+                    Sau PB: {check ? check.totalSimulatedHoldVolume.toLocaleString() : 0} m³
+                  </div>
+                </div>
+              );
+            },
           },
           {
             title: 'Khối lượng (MT)',
             dataIndex: 'weight',
-            width: 150,
+            width: 130,
             render: (_, record, idx) => (
               <Input
                 type="number"
                 min={0}
-                placeholder="MT"
+                placeholder="0 MT"
                 value={record.weight}
                 onChange={(e) => handleChange(idx, e.target.value)}
               />
             ),
+          },
+          {
+            title: 'Thể tích chiếm (m³)',
+            width: 130,
+            render: (_, record) => {
+              const vol = Math.round(Number(record.weight || 0) * sf * 100) / 100;
+              return <span style={{ color: '#0284c7', fontWeight: 600 }}>{vol.toLocaleString()} m³</span>;
+            },
+          },
+          {
+            title: 'Tỷ lệ lấp đầy',
+            width: 140,
+            render: (_, record) => {
+              const check = holdVolumeChecks.find((c) => String(c.holdId) === String(record.holdId));
+              const percent = check ? check.percent : 0;
+              const isOver = check?.isHoldOver;
+              let strokeColor = '#10b981';
+              if (percent > 95 || isOver) strokeColor = '#ef4444';
+              else if (percent > 75) strokeColor = '#f59e0b';
+
+              return (
+                <div>
+                  <Progress
+                    percent={Math.min(percent, 100)}
+                    size="small"
+                    strokeColor={strokeColor}
+                    format={() => (
+                      <span style={{ fontSize: 11, color: strokeColor, fontWeight: 600 }}>
+                        {percent.toFixed(1)}%
+                      </span>
+                    )}
+                  />
+                  {isOver && <Tag color="error" style={{ fontSize: 10, marginTop: 2 }}>Tràn hầm!</Tag>}
+                </div>
+              );
+            },
           },
         ]}
       />
@@ -98,11 +278,10 @@ export default function CargoPage() {
   const [cargos, setCargos] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
-  
+
   // Voyage states
   const [activeVoyage, setActiveVoyage] = useState(null);
   const [cargoList, setCargoList] = useState([]);
-  const [originalCargoList, setOriginalCargoList] = useState([]);
   const [holds, setHolds] = useState([]);
   const [fetchingCargo, setFetchingCargo] = useState(false);
   const [fetchingHolds, setFetchingHolds] = useState(false);
@@ -117,60 +296,9 @@ export default function CargoPage() {
   const activeVoyageRole = localStorage.getItem('activeVoyageRole');
   const userRole = (activeVoyageRole || user.role || '').replace(/\s+/g, '').toLowerCase();
 
-  const isShipStaff = userRole === 'chiefofficer' || userRole === 'master';
   const isChiefOfficer = userRole === 'chiefofficer';
 
-  const fetchActiveVoyage = async () => {
-    if (!activeVoyageId) return;
-    try {
-      setFetchingCargo(true);
-      // Fallback workaround: backend on production might not have GET /:id yet
-      const res = await api.get('/voyages');
-      const voyageData = (res.data || []).find(v => String(v.id) === String(activeVoyageId));
-      
-      if (!voyageData) {
-        throw new Error('Voyage not found');
-      }
-      
-      setActiveVoyage(voyageData);
-
-      const data = await voyageService.getVoyageCargo(activeVoyageId);
-      const formattedData = (data || []).map((c) => ({
-        ...c,
-        allocations: c.allocations || (c.holdId ? [{ holdId: c.holdId, weight: c.weight }] : []),
-      }));
-      setCargoList(formattedData);
-      setOriginalCargoList(JSON.parse(JSON.stringify(formattedData)));
-      
-      if (voyageData && voyageData.shipId) {
-        fetchHolds(voyageData.shipId);
-      }
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setFetchingCargo(false);
-    }
-  };
-
-  const fetchData = async () => {
-    try {
-      setLoading(true);
-      if (activeVoyageId) {
-        await fetchActiveVoyage();
-      } else {
-        const cargoRes = await cargoService.getAllCargos(activeVoyageId);
-        if (cargoRes.success) {
-          setCargos(cargoRes.data);
-        }
-      }
-    } catch (error) {
-      console.error("Failed to fetch data:", error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const fetchHolds = async (shipId) => {
+  const fetchHolds = useCallback(async (shipId) => {
     if (!shipId) return;
     try {
       setFetchingHolds(true);
@@ -181,10 +309,146 @@ export default function CargoPage() {
     } finally {
       setFetchingHolds(false);
     }
-  };
+  }, []);
+
+  const fetchActiveVoyage = useCallback(async () => {
+    if (!activeVoyageId) return;
+    try {
+      setFetchingCargo(true);
+      const res = await api.get('/voyages');
+      const voyages = Array.isArray(res.data) ? res.data : (res.data?.data || []);
+      const voyageData = voyages.find((v) => String(v.id) === String(activeVoyageId));
+
+      if (!voyageData) {
+        throw new Error('Voyage not found');
+      }
+
+      setActiveVoyage(voyageData);
+
+      const typesRes = await cargoTypeService.getAll().catch(() => []);
+      const typeList = Array.isArray(typesRes) ? typesRes : (typesRes?.data || []);
+      const sfMap = {};
+      typeList.forEach((ct) => {
+        sfMap[ct.name] = ct.stowageFactor || 1.0;
+      });
+
+      const rawCargoData = await voyageService.getVoyageCargo(activeVoyageId).catch(() => []);
+      const cargoData = Array.isArray(rawCargoData) ? rawCargoData : (rawCargoData?.data || []);
+      const formattedData = cargoData.map((c) => {
+        const sf = Number(c.stowageFactor || sfMap[c.cargoType] || 1.0);
+        const weight = Number(c.weight || 0);
+        const volume = Number(c.volume || Math.round(weight * sf * 100) / 100);
+        return {
+          ...c,
+          stowageFactor: sf,
+          weight,
+          volume,
+          allocations: (c.allocations || (c.holdId ? [{ holdId: c.holdId, weight }] : [])).map((a) => ({
+            ...a,
+            weight: Number(a.weight || 0),
+            volume: Number(a.volume || Math.round(Number(a.weight || 0) * sf * 100) / 100),
+          })),
+        };
+      });
+      setCargoList(formattedData);
+
+      if (voyageData && voyageData.shipId) {
+        fetchHolds(voyageData.shipId);
+      }
+    } catch (err) {
+      console.error('Lỗi khi tải thông tin hàng hải trình:', err);
+    } finally {
+      setFetchingCargo(false);
+    }
+  }, [activeVoyageId, fetchHolds]);
+
+  const fetchData = useCallback(async () => {
+    try {
+      setLoading(true);
+      if (activeVoyageId) {
+        await fetchActiveVoyage();
+      } else {
+        const cargoRes = await cargoService.getAllCargos();
+        if (cargoRes?.success) {
+          setCargos(cargoRes.data || []);
+        } else if (Array.isArray(cargoRes)) {
+          setCargos(cargoRes);
+        }
+      }
+    } catch (error) {
+      console.error('Failed to fetch data:', error);
+    } finally {
+      setLoading(false);
+    }
+  }, [activeVoyageId, fetchActiveVoyage]);
 
   useEffect(() => {
-    fetchData();
+    let isMounted = true;
+    if (activeVoyageId) {
+      Promise.all([
+        api.get('/voyages'),
+        cargoTypeService.getAll().catch(() => []),
+        voyageService.getVoyageCargo(activeVoyageId).catch(() => []),
+      ])
+        .then(async ([voyagesRes, typesRes, rawCargoData]) => {
+          if (!isMounted) return;
+          const voyages = Array.isArray(voyagesRes.data) ? voyagesRes.data : (voyagesRes.data?.data || []);
+          const voyageData = voyages.find((v) => String(v.id) === String(activeVoyageId));
+          setActiveVoyage(voyageData || null);
+
+          const typeList = Array.isArray(typesRes) ? typesRes : (typesRes?.data || []);
+          const sfMap = {};
+          typeList.forEach((ct) => {
+            sfMap[ct.name] = ct.stowageFactor || 1.0;
+          });
+
+          const cargoData = Array.isArray(rawCargoData) ? rawCargoData : (rawCargoData?.data || []);
+          const formattedData = cargoData.map((c) => {
+            const sf = Number(c.stowageFactor || sfMap[c.cargoType] || 1.0);
+            const weight = Number(c.weight || 0);
+            const volume = Number(c.volume || Math.round(weight * sf * 100) / 100);
+            return {
+              ...c,
+              stowageFactor: sf,
+              weight,
+              volume,
+              allocations: (c.allocations || (c.holdId ? [{ holdId: c.holdId, weight }] : [])).map((a) => ({
+                ...a,
+                weight: Number(a.weight || 0),
+                volume: Number(a.volume || Math.round(Number(a.weight || 0) * sf * 100) / 100),
+              })),
+            };
+          });
+          setCargoList(formattedData);
+
+          if (voyageData?.shipId) {
+            const ship = await vesselService.getById(voyageData.shipId);
+            if (isMounted) setHolds(ship?.CargoHolds || ship?.cargoHolds || []);
+          }
+        })
+        .catch((err) => console.error('Lỗi Promise.all CargoPage:', err))
+        .finally(() => {
+          if (isMounted) setLoading(false);
+        });
+    } else {
+      cargoService.getAllCargos()
+        .then((cargoRes) => {
+          if (!isMounted) return;
+          if (cargoRes?.success) {
+            setCargos(cargoRes.data || []);
+          } else if (Array.isArray(cargoRes)) {
+            setCargos(cargoRes);
+          }
+        })
+        .catch((error) => console.error('Failed to fetch data:', error))
+        .finally(() => {
+          if (isMounted) setLoading(false);
+        });
+    }
+
+    return () => {
+      isMounted = false;
+    };
   }, [activeVoyageId]);
 
   const handleDelete = async (cargo) => {
@@ -214,7 +478,7 @@ export default function CargoPage() {
       await voyageService.dischargeCargoItem(activeVoyageId, itemId, true);
       message.success('Đã dỡ hàng thành công!');
       await fetchActiveVoyage();
-    } catch (err) {
+    } catch {
       message.error('Lỗi khi dỡ hàng!');
     } finally {
       setLoading(false);
@@ -229,26 +493,27 @@ export default function CargoPage() {
   };
 
   const handleSaveVoyageCargoConfig = async () => {
-    // Validate hold capacities
+    // Validate hold capacities in volume (m³)
     let hasOverload = false;
     for (const hold of holds) {
       const maxCap = hold.maxCapacity || 0;
-      let simulatedUsage = hold.currentUsage || 0;
-      
+      let simulatedUsageVolume = 0;
+
       cargoList.forEach((c) => {
-        const orig = originalCargoList.find((o) => o.itemId === c.itemId);
-        const origWeight = orig?.isLoaded && !orig?.isDischarged
-          ? (orig.allocations || []).filter((a) => String(a.holdId) === String(hold.id)).reduce((s, a) => s + Number(a.weight), 0)
-          : 0;
-        const newWeight = c.isLoaded && !c.isDischarged
-          ? (c.allocations || []).filter((a) => String(a.holdId) === String(hold.id)).reduce((s, a) => s + Number(a.weight), 0)
-          : 0;
-        simulatedUsage += (newWeight - origWeight);
+        const sf = Number(c.stowageFactor || 1.0);
+        if (c.isLoaded && !c.isDischarged) {
+          const alloc = (c.allocations || []).find((a) => String(a.holdId) === String(hold.id));
+          if (alloc) {
+            simulatedUsageVolume += Number(alloc.weight || 0) * sf;
+          }
+        }
       });
-      
-      if (simulatedUsage > maxCap) {
+
+      if (maxCap > 0 && simulatedUsageVolume > maxCap) {
         hasOverload = true;
-        notifyWarning(`Khoang "${hold.holdName}" vượt quá sức chứa (${simulatedUsage}/${maxCap} tấn). Vui lòng điều chỉnh phân bổ.`);
+        notifyWarning(
+          `Khoang "${hold.holdName}" vượt quá dung tích thể tích (${simulatedUsageVolume.toFixed(1)} / ${maxCap} m³). Vui lòng điều chỉnh phân bổ.`
+        );
         break;
       }
     }
@@ -256,9 +521,6 @@ export default function CargoPage() {
 
     try {
       setSavingConfig(true);
-      // Constructing minimal payload to not override other voyage data
-      // Although updateVoyage typically takes the whole voyage payload, 
-      // let's construct it exactly as it used to be: combining activeVoyage and cargoList
       const payload = {
         cargoList: cargoList.map((c) => ({
           itemId: c.itemId,
@@ -270,7 +532,7 @@ export default function CargoPage() {
       await voyageService.updateVoyage(activeVoyageId, payload);
       notifySuccess('Lưu cấu hình hàng hóa thành công!');
       fetchActiveVoyage();
-    } catch (error) {
+    } catch {
       notifyError('Có lỗi xảy ra khi lưu cấu hình hàng hóa.');
     } finally {
       setSavingConfig(false);
@@ -286,6 +548,13 @@ export default function CargoPage() {
     );
   }, [searchTerm, cargos]);
 
+  const cargoStats = useMemo(() => {
+    const total = cargos.length;
+    const scheduled = cargos.filter((c) => c.Voyage).length;
+    const pending = total - scheduled;
+    return { total, scheduled, pending };
+  }, [cargos]);
+
   const columns = [
     {
       title: 'ID Lô hàng',
@@ -299,40 +568,35 @@ export default function CargoPage() {
         <Space>
           <AppstoreOutlined style={{ color: '#6366f1' }} />
           <div>
-            <div style={{ fontWeight: 600 }}>{cargo.cargoName || 'Chưa cập nhật'}</div>
-            <Text type="secondary" style={{ fontSize: 12 }}>{cargo.cargoType || 'N/A'}</Text>
+            <strong>{cargo.cargoName}</strong>
+            <div style={{ fontSize: '0.8rem', color: '#6b7280' }}>
+              {cargo.cargoType || 'Chưa phân loại'}
+            </div>
           </div>
         </Space>
       ),
     },
     {
-      title: 'Khối lượng',
+      title: 'Khối lượng (MT)',
       dataIndex: 'totalWeight',
-      render: (w) => `${formatNumber(w)} T`,
+      render: (w) => `${w?.toLocaleString() || 0} MT`,
     },
     {
-      title: 'Thể tích',
+      title: 'Thể tích (m³)',
       dataIndex: 'totalVolume',
-      render: (v) => `${formatNumber(v)} m³`,
+      render: (v) => `${v?.toLocaleString() || 0} m³`,
     },
     {
-      title: 'Hành trình',
-      key: 'route',
-      render: (_, cargo) =>
-        cargo.Voyage ? (
-          <Space size={6}>
-            <span>{cargo.Voyage.departurePort || '?'}</span>
-            <span style={{ color: '#94a3b8' }}>→</span>
-            <span>{cargo.Voyage.destinationPort || '?'}</span>
-          </Space>
+      title: 'Chuyến đi',
+      dataIndex: 'Voyage',
+      render: (v) =>
+        v ? (
+          <Tag color="blue">
+            VY-{String(v.id).padStart(4, '0')} ({v.departurePort} ➔ {v.destinationPort})
+          </Tag>
         ) : (
-          <Text type="secondary">Chưa xếp lịch</Text>
+          <Tag color="default">Chưa gán</Tag>
         ),
-    },
-    {
-      title: 'Trạng thái',
-      dataIndex: 'status',
-      render: (status) => <StatusTag status={status} text={status || 'Chờ xử lý'} />,
     },
     {
       title: 'Thao tác',
@@ -357,19 +621,40 @@ export default function CargoPage() {
   ];
 
   const voyageCargoColumns = [
-    { title: 'STT', key: 'stt', width: 60, render: (_, __, idx) => idx + 1 },
-    { title: 'Lô hàng', dataIndex: 'cargoName', key: 'cargoName' },
-    { title: 'Chi tiết / Quy cách', dataIndex: 'itemName', key: 'itemName' },
-    { title: 'Số lượng', dataIndex: 'quantity', key: 'quantity' },
+    { title: 'STT', key: 'stt', width: 50, render: (_, __, idx) => idx + 1 },
+    { title: 'Lô hàng', dataIndex: 'cargoName', key: 'cargoName', width: 140 },
+    { title: 'Chi tiết / Quy cách', dataIndex: 'itemName', key: 'itemName', width: 160 },
     {
-      title: 'Khối lượng',
-      key: 'weight',
-      render: (_, cargo) => `${cargo.weight} MT`,
+      title: 'Loại hàng & SF',
+      key: 'cargoType',
+      width: 160,
+      render: (_, cargo) => (
+        <Space direction="vertical" size={2}>
+          <Text strong>{cargo.cargoType || 'Hàng rời'}</Text>
+          <Tag color="cyan" style={{ fontSize: 11 }}>
+            SF: {cargo.stowageFactor || 1.0} m³/MT
+          </Tag>
+        </Space>
+      ),
+    },
+    {
+      title: 'Khối lượng & Thể tích',
+      key: 'weightVolume',
+      width: 170,
+      render: (_, cargo) => {
+        const sf = Number(cargo.stowageFactor || 1.0);
+        const weight = Number(cargo.weight || 0);
+        const vol = Math.round(weight * sf * 100) / 100;
+        return (
+          <div>
+            <div><Text strong>{weight.toLocaleString()} MT</Text></div>
+            <div style={{ fontSize: 12, color: '#0284c7' }}>~ {vol.toLocaleString()} m³</div>
+          </div>
+        );
+      },
     },
   ];
 
-  // Trạng thái Loaded nhưng cờ hàng chưa hoàn tất chỉ có thể xuất hiện từ dữ liệu
-  // cũ. Cho phép Đại phó hoàn thiện dữ liệu đó để hải trình không bị mắc kẹt.
   const isCargoLoadAllowed = isChiefOfficer && (
     activeVoyage?.status === 'Loading' ||
     (activeVoyage?.status === 'Loaded' && !activeVoyage?.isCargoLoaded)
@@ -404,20 +689,27 @@ export default function CargoPage() {
         {
           title: 'Phân bổ khoang',
           key: 'allocations',
-          width: 180,
+          width: 200,
           render: (_, cargo) => {
-            const totalAllocated = (cargo.allocations || []).reduce((sum, a) => sum + Number(a.weight), 0);
+            const sf = Number(cargo.stowageFactor || 1.0);
+            const totalAllocated = (cargo.allocations || []).reduce((sum, a) => sum + Number(a.weight || 0), 0);
+            const totalVol = Math.round(totalAllocated * sf * 100) / 100;
             return (
-              <Space direction="vertical" size="small">
+              <Space direction="vertical" size={2}>
                 <Button
                   size="small"
                   type="primary"
                   disabled={!cargo.itemId || !isCargoLoadAllowed}
                   onClick={() => setAllocatingCargoItem(cargo)}
+                  style={{ background: '#2563eb', borderColor: '#2563eb' }}
                 >
                   Phân bổ ({(cargo.allocations || []).length} khoang)
                 </Button>
-                {totalAllocated > 0 && <Text type="secondary" style={{ fontSize: 12 }}>Đã PB: {totalAllocated} MT</Text>}
+                {totalAllocated > 0 && (
+                  <div style={{ fontSize: 11, color: '#64748b' }}>
+                    Đã PB: <strong>{totalAllocated} MT</strong> ({totalVol} m³)
+                  </div>
+                )}
               </Space>
             );
           },
@@ -428,9 +720,9 @@ export default function CargoPage() {
           align: 'center',
           width: 100,
           render: (_, cargo) => {
-            const totalAllocated = (cargo.allocations || []).reduce((sum, a) => sum + Number(a.weight), 0);
+            const totalAllocated = (cargo.allocations || []).reduce((sum, a) => sum + Number(a.weight || 0), 0);
             const isFullyAllocated = totalAllocated === Number(cargo.weight);
-            
+
             if (!isChiefOfficer) {
               return cargo.isLoaded ? (
                 <Tag color="success">Đã lên tàu</Tag>
@@ -456,7 +748,7 @@ export default function CargoPage() {
 
   return (
     <Layout>
-      <div style={{ padding: '24px 32px' }}>
+      <PageContainer>
         <PageHeader
           icon={<InboxOutlined />}
           breadcrumb="Tổng quan lô hàng và phân bổ hầm tàu"
@@ -499,7 +791,7 @@ export default function CargoPage() {
             </Card>
 
             {userRole !== 'admin' && (
-              <Card title="Bản đồ Hầm hàng (Stowage Plan)">
+              <Card title="Bản đồ Hầm hàng (Stowage Plan) - Sức chứa tính theo Thể tích (m³)">
                 {fetchingHolds ? (
                   <div style={{ textAlign: 'center', padding: '40px' }}><Spin size="large" /></div>
                 ) : holds.length === 0 ? (
@@ -507,24 +799,27 @@ export default function CargoPage() {
                 ) : (
                   <Row gutter={[20, 20]}>
                     {holds.map((hold) => {
-                      const maxCap = hold.maxCapacity || 0;
-                      let simulatedUsage = hold.currentUsage || 0;
-                      cargoList.forEach((c) => {
-                        const orig = originalCargoList.find((o) => o.itemId === c.itemId);
-                        const origWeight = orig?.isLoaded && !orig?.isDischarged
-                          ? (orig.allocations || []).filter((a) => String(a.holdId) === String(hold.id)).reduce((s, a) => s + Number(a.weight), 0)
-                          : 0;
-                        const newWeight = c.isLoaded && !c.isDischarged
-                          ? (c.allocations || []).filter((a) => String(a.holdId) === String(hold.id)).reduce((s, a) => s + Number(a.weight), 0)
-                          : 0;
-                        simulatedUsage += (newWeight - origWeight);
-                      });
-                      if (simulatedUsage < 0) simulatedUsage = 0;
+                      const maxCapVolume = hold.maxCapacity || 0;
+                      let simulatedUsageVolume = 0;
+                      let simulatedUsageWeight = 0;
 
-                      const percentage = maxCap > 0 ? (simulatedUsage / maxCap) * 100 : 0;
+                      cargoList.forEach((c) => {
+                        const sf = Number(c.stowageFactor || 1.0);
+                        if (c.isLoaded && !c.isDischarged) {
+                          const alloc = (c.allocations || []).find((a) => String(a.holdId) === String(hold.id));
+                          if (alloc) {
+                            const allocWeight = Number(alloc.weight || 0);
+                            simulatedUsageWeight += allocWeight;
+                            simulatedUsageVolume += allocWeight * sf;
+                          }
+                        }
+                      });
+
+                      simulatedUsageVolume = Math.round(simulatedUsageVolume * 100) / 100;
+                      const percentage = maxCapVolume > 0 ? (simulatedUsageVolume / maxCapVolume) * 100 : 0;
                       let strokeColor = '#10b981';
-                      if (percentage > 90) strokeColor = '#ef4444';
-                      else if (percentage > 70) strokeColor = '#f59e0b';
+                      if (percentage > 95) strokeColor = '#ef4444';
+                      else if (percentage > 75) strokeColor = '#f59e0b';
 
                       return (
                         <Col xs={24} sm={12} md={8} key={hold.id}>
@@ -535,15 +830,21 @@ export default function CargoPage() {
                               boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -1px rgba(0,0,0,0.06)',
                               background: 'linear-gradient(135deg, #ffffff 0%, #f8fafc 100%)',
                               borderRadius: 16,
-                              border: '1px solid #e2e8f0'
+                              border: percentage > 100 ? '1px solid #ef4444' : '1px solid #e2e8f0'
                             }}
                           >
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-                              <Text strong style={{ fontSize: 16, color: '#1e293b' }}>{hold.holdName}</Text>
-                              <Text type="secondary" style={{ fontSize: 13, background: '#f1f5f9', padding: '4px 10px', borderRadius: 16, fontWeight: 500, color: '#64748b' }}>
-                                {simulatedUsage.toLocaleString('en-US')} / {maxCap.toLocaleString('en-US')} MT
-                              </Text>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                              <Text strong style={{ fontSize: 16, color: '#1e293b' }}>🚢 {hold.holdName}</Text>
+                              <Tag color={percentage > 100 ? 'error' : 'blue'} style={{ fontWeight: 600 }}>
+                                {simulatedUsageVolume.toLocaleString()} / {maxCapVolume.toLocaleString()} m³
+                              </Tag>
                             </div>
+                            
+                            <div style={{ fontSize: 12, color: '#64748b', marginBottom: 10 }}>
+                              <div>⚖️ Khối lượng hàng trong hầm: <strong>{simulatedUsageWeight.toLocaleString()} MT</strong></div>
+                              <div>📦 Thể tích còn trống: <strong>{Math.max(0, maxCapVolume - simulatedUsageVolume).toLocaleString()} m³</strong></div>
+                            </div>
+
                             <Progress
                               percent={Math.min(percentage, 100)}
                               strokeColor={strokeColor}
@@ -561,6 +862,18 @@ export default function CargoPage() {
             )}
           </>
         ) : (
+          <>
+          <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
+            <Col xs={24} sm={8}>
+              <StatCard title="Tổng lô hàng" value={cargoStats.total} icon={<ContainerOutlined />} tone="blue" />
+            </Col>
+            <Col xs={24} sm={8}>
+              <StatCard title="Đã xếp lịch" value={cargoStats.scheduled} icon={<CheckCircleOutlined />} tone="green" />
+            </Col>
+            <Col xs={24} sm={8}>
+              <StatCard title="Chưa xếp lịch" value={cargoStats.pending} icon={<InboxOutlined />} tone="gold" />
+            </Col>
+          </Row>
           <Card
             title="Danh sách lô hàng"
             extra={
@@ -591,15 +904,20 @@ export default function CargoPage() {
               locale={{ emptyText: searchTerm ? 'Không tìm thấy lô hàng phù hợp' : 'Chưa có lô hàng nào' }}
             />
           </Card>
+          </>
         )}
-      </div>
-      <AllocationModal
-        open={!!allocatingCargoItem}
-        cargo={allocatingCargoItem}
-        holds={holds}
-        onClose={() => setAllocatingCargoItem(null)}
-        onSave={handleSaveAllocations}
-      />
+      </PageContainer>
+      {allocatingCargoItem && (
+        <AllocationModal
+          key={allocatingCargoItem.itemId}
+          open={!!allocatingCargoItem}
+          cargo={allocatingCargoItem}
+          holds={holds}
+          cargoList={cargoList}
+          onClose={() => setAllocatingCargoItem(null)}
+          onSave={handleSaveAllocations}
+        />
+      )}
     </Layout>
   );
 }

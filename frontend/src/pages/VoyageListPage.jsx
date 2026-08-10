@@ -5,7 +5,7 @@ import { PlusOutlined, ReloadOutlined, TeamOutlined, ArrowRightOutlined, Compass
 import MasterLayout from '../components/MasterLayout';
 import AdminLayout from '../components/AdminLayout';
 import UpdateVoyageModal from '../components/UpdateVoyageModal';
-import { PageHeader, StatusTag, RowActions, notifyError } from '../components/common';
+import { PageHeader, PageContainer, StatusTag, RowActions, notifyError } from '../components/common';
 import { voyageService } from '../services/api';
 
 const { Text } = Typography;
@@ -234,7 +234,7 @@ export default function VoyageListPage() {
 
   return (
     <Layout>
-      <div style={{ padding: '24px 32px' }}>
+      <PageContainer>
         <PageHeader
           icon={<CompassOutlined />}
           breadcrumb="Hải trình"
@@ -276,7 +276,7 @@ export default function VoyageListPage() {
             locale={{ emptyText: searchTerm ? 'Không tìm thấy hải trình phù hợp' : 'Chưa có hải trình nào' }}
           />
         </Card>
-      </div>
+      </PageContainer>
 
       {selectedVoyage && (
         <UpdateVoyageModal
