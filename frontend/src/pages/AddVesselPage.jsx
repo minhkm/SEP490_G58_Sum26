@@ -34,7 +34,7 @@ import {
   DownloadOutlined,
   UploadOutlined,
 } from '@ant-design/icons';
-import AgencyLayout from '../components/AgencyLayout';
+import AdminLayout from '../components/AdminLayout';
 import { vesselService } from '../services/api';
 import { notifyError, notifySuccess, notifyWarning } from '../utils/feedback';
 import * as XLSX from 'xlsx';
@@ -599,43 +599,62 @@ export default function AddVesselPage() {
       notifyWarning('Tất cả thiết bị phải có tên. Vui lòng kiểm tra lại!');
       return;
     }
+    const invalidQuantityEqs = shipEquipments.filter((equipment) => {
+      const quantity = Number(equipment.quantity);
+      return !Number.isInteger(quantity) || quantity <= 0;
+    });
+    if (invalidQuantityEqs.length > 0) {
+      setActiveTab('equipment');
+      notifyWarning('Số lượng của tất cả thiết bị phải là số nguyên dương. Vui lòng kiểm tra lại!');
+      return;
+    }
 
     try {
-      const payload = { basicInfo, capacity, mainEngine, generatorEngines, holds };
+      const normalizedEquipments = shipEquipments.map(e => ({
+        equipmentName: e.equipmentName.trim(),
+        equipmentType: e.equipmentType || 'Khác',
+        location: e.location || 'Boong',
+        quantity: Number(e.quantity),
+        expiryNote: e.expiryNote || null,
+      }));
+      const payload = {
+        basicInfo,
+        capacity,
+        mainEngine,
+        generatorEngines,
+        holds,
+        equipmentList: normalizedEquipments,
+      };
 
       if (isEditMode) {
         await vesselService.update(id, payload);
-        // Cập nhật equipment (chỉ tạo mới nếu có điền vào)
-        const validEqs = shipEquipments.filter(e => e.equipmentName && e.equipmentName.trim() && e.quantity >= 1);
-        if (validEqs.length > 0) {
-          await vesselService.createShipEquipments(id, validEqs.map(e => ({
+        // Thiết bị đã có `id` đang tồn tại trong DB, không gửi lại vào API tạo mới
+        // để tránh nhân đôi toàn bộ danh sách mỗi lần cập nhật hồ sơ tàu.
+        const newEquipments = shipEquipments.filter(
+          e => !e.id && e.equipmentName && e.equipmentName.trim()
+        );
+        if (newEquipments.length > 0) {
+          await vesselService.createShipEquipments(id, newEquipments.map(e => ({
             equipmentName: e.equipmentName,
             equipmentType: e.equipmentType || 'Khác',
             location: e.location || 'Boong',
-            quantity: Number(e.quantity) || 1,
+            quantity: Number(e.quantity),
             expiryNote: e.expiryNote || null,
           })));
         }
         notifySuccess('Cập nhật thông tin tàu thành công!');
       } else {
-        const created = await vesselService.create(payload);
-        // Tạo equipment cho tàu mới
-        const validEqs = shipEquipments.filter(e => e.equipmentName && e.equipmentName.trim() && e.quantity >= 1);
-        if (validEqs.length > 0 && created?.ship?.id) {
-          await vesselService.createShipEquipments(created.ship.id, validEqs.map(e => ({
-            equipmentName: e.equipmentName,
-            equipmentType: e.equipmentType || 'Khác',
-            location: e.location || 'Boong',
-            quantity: Number(e.quantity) || 1,
-            expiryNote: e.expiryNote || null,
-          })));
-        }
+        await vesselService.create(payload);
         notifySuccess('Thêm tàu mới thành công!');
       }
       navigate('/vessels');
     } catch (error) {
       console.error('Lỗi lưu tàu:', error);
-      notifyError('Có lỗi hệ thống xảy ra khi lưu thông tin tàu. Vui lòng thử lại sau.');
+      notifyError(
+        error?.response?.data?.message
+        || error?.message
+        || 'Có lỗi hệ thống xảy ra khi lưu thông tin tàu. Vui lòng thử lại sau.'
+      );
     }
   };
 
@@ -750,7 +769,7 @@ export default function AddVesselPage() {
   );
 
   return (
-    <AgencyLayout>
+    <AdminLayout>
       <div style={{ padding: '16px' }}>
         <Title level={3} style={{ marginTop: 0, marginBottom: 24 }}>
           {isEditMode ? 'Cập nhật Thông tin Tàu' : 'Thêm Tàu Mới'}
@@ -1095,7 +1114,7 @@ export default function AddVesselPage() {
                   </div>
                   <div style={{ flex: '0 1 90px', minWidth: 80 }}>
                     <div style={{ fontSize: 11, color: '#64748b', marginBottom: 2 }}>Số lượng <span style={{ color: 'red' }}>*</span></div>
-                    <InputNumber min={1} style={{ width: '100%' }} value={eq.quantity || 1}
+                    <InputNumber min={1} step={1} precision={0} style={{ width: '100%' }} value={eq.quantity || 1}
                       onChange={v => handleShipEquipChange(eq._uid, 'quantity', v)} />
                   </div>
                   <div style={{ flex: '1 1 150px', minWidth: 120 }}>
@@ -1124,6 +1143,6 @@ export default function AddVesselPage() {
           </Button>
         </div>
       </div>
-    </AgencyLayout>
+    </AdminLayout>
   );
 }

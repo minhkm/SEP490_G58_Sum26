@@ -25,12 +25,12 @@ export default function Sidebar() {
   const role = getEffectiveRole();
 
   const isMasterOrChief = role === 'Master' || role === 'ChiefOfficer';
-  const isCrewRole = !isMasterOrChief && role !== 'Admin' && role !== 'Agency';
+  const isCrewRole = !isMasterOrChief && role !== 'Admin';
   const isEngineOfficer = role === 'EngineOfficer';
   const isEngine = role === 'EngineCrew';
   const isDeck = role === 'Sailor';
   
-  const isGlobalRoleNonAdmin = user.role !== 'Admin' && user.role !== 'Agency';
+  const isGlobalRoleNonAdmin = user.role !== 'Admin';
 
   const [activeVoyageStatus, setActiveVoyageStatus] = useState(null);
 

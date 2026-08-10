@@ -7,10 +7,11 @@ const { notifyCrewAssignedToVoyage, notifyAttendanceUpdated, notifyVoyageUpdated
 const { SHIP_STATUS, normalizeEquipmentLocation, normalizeEquipmentName } = require('../utils/vessel');
 const { canonicalVoyageRole } = require('../utils/voyageRole');
 const authMiddleware = require('../middlewares/authMiddleware');
+const requireRole = require('../middlewares/roleMiddleware');
 
 const router = express.Router();
 
-router.post('/', async (req, res) => {
+router.post('/', authMiddleware, requireRole('Admin'), async (req, res) => {
   const t = await sequelize.transaction();
   try {
     const { shipId, routeInfo, cargoList, crewList, equipmentList } = req.body;
@@ -214,7 +215,7 @@ router.get("/", authMiddleware, async (req, res) => {
     const userRole = req.user.role;
     let whereClause = {};
 
-    if (userRole !== 'Admin' && userRole !== 'Agency') {
+    if (userRole !== 'Admin') {
       const profileId = req.user.profileId;
       if (!profileId) {
         return res.json([]); // Thủy thủ chưa có hồ sơ -> Không xem được gì
@@ -251,7 +252,7 @@ router.get("/", authMiddleware, async (req, res) => {
     });
 
     let resultVoyages = voyages;
-    if (userRole !== 'Admin' && userRole !== 'Agency' && req.voyageRoleMap) {
+    if (userRole !== 'Admin' && req.voyageRoleMap) {
        resultVoyages = voyages.map(v => {
           const vJson = v.toJSON();
           vJson.userRoleInVoyage = req.voyageRoleMap[v.id];
@@ -396,7 +397,7 @@ router.put('/:id', authMiddleware, async (req, res) => {
     };
 
     // Check authorization
-    if (userRole !== 'admin' && userRole !== 'agency') {
+    if (userRole !== 'admin') {
       const isAssigned = await VoyageCrew.findOne({
         where: { voyageId: id, crewId: profileId }
       });
@@ -549,6 +550,30 @@ router.put('/:id', authMiddleware, async (req, res) => {
          nextIsCrewSufficient = req.body.isCrewSufficient;
          voyage.isCrewSufficient = req.body.isCrewSufficient;
       }
+    }
+
+    // Chỉ được xác nhận đã làm hàng xong khi toàn bộ hàng thực tế đã lên tàu.
+    // Việc kiểm tra ở đây ngăn hải trình bị mắc kẹt ở trạng thái Loaded trong khi
+    // trang phân bổ hàng đã bị khóa.
+    if (nextStatus === 'Loaded' && voyage.status !== 'Loaded') {
+      const cargosInVoyage = await Cargo.findAll({
+        where: { voyageId: id },
+        include: [{ model: CargoItem }]
+      });
+
+      const allLoaded = cargosInVoyage.length > 0 && cargosInVoyage.every((cargo) =>
+        Array.isArray(cargo.CargoItems) &&
+        cargo.CargoItems.length > 0 &&
+        cargo.CargoItems.every((item) => item.isLoaded)
+      );
+
+      if (!allLoaded) {
+        return res.status(400).json({
+          message: 'Chưa bốc xếp hàng hóa xong, không thể chuyển sang trạng thái đã làm hàng xong!'
+        });
+      }
+
+      voyage.isCargoLoaded = true;
     }
 
     // Business Logic Validation: Cannot transition to Underway if captain hasn't taken attendance or crew is not sufficient
@@ -860,7 +885,7 @@ router.get('/:id/attendances', authMiddleware, async (req, res) => {
 
     // Lấy danh sách thuyền viên của chuyến đi
     const viewerRole = String(req.user.role || '').replace(/\s+/g, '').toLowerCase();
-    if (!['admin', 'agency'].includes(viewerRole)) {
+    if (viewerRole !== 'admin') {
       const assignment = await VoyageCrew.findOne({ where: { voyageId: id, crewId: req.user.profileId } });
       if (!assignment) {
         return res.status(403).json({ message: 'Bạn không được phân công vào hải trình này' });
@@ -1047,37 +1072,6 @@ router.post('/:id/attendances', authMiddleware, async (req, res) => {
   } catch (error) {
     console.error('Lỗi khi lưu điểm danh:', error);
     res.status(500).json({ message: 'Lỗi máy chủ khi lưu điểm danh' });
-  }
-});
-
-// PATCH /api/voyages/equipments/:equipmentId/status — Cập nhật trạng thái thiết bị (chỉ EngineOfficer)
-router.patch('/equipments/:equipmentId/status', authMiddleware, async (req, res) => {
-  if (req.user?.role !== 'EngineOfficer') {
-    return res.status(403).json({ message: 'Chỉ Sĩ quan máy mới được đổi trạng thái thiết bị' });
-  }
-
-  const { status } = req.body;
-  const statusAliases = {
-    Operational: 'Hoạt động',
-    'Hoạt động': 'Hoạt động',
-    Broken: 'Hỏng',
-    Hỏng: 'Hỏng',
-    Lost: 'Mất',
-    Mất: 'Mất',
-  };
-  const normalizedStatus = statusAliases[status];
-  if (!normalizedStatus) {
-    return res.status(400).json({ message: 'Trạng thái không hợp lệ. Chỉ chấp nhận: Hoạt động, Hỏng, Mất' });
-  }
-
-  try {
-    const equipment = await Equipment.findByPk(req.params.equipmentId);
-    if (!equipment) return res.status(404).json({ message: 'Không tìm thấy thiết bị' });
-    await equipment.update({ status: normalizedStatus });
-    res.json({ message: 'Cập nhật trạng thái thiết bị thành công', equipment });
-  } catch (error) {
-    console.error('Lỗi cập nhật trạng thái thiết bị:', error);
-    res.status(500).json({ message: 'Lỗi máy chủ khi cập nhật trạng thái vật tư' });
   }
 });
 

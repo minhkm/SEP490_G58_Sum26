@@ -2,7 +2,7 @@
 import LandingPage from "./pages/LandingPage";
 import LoginPage from "./pages/LoginPage";
 import MasterDashboard from "./pages/MasterDashboard";
-import AgencyDashboard from "./pages/AgencyDashboard";
+import AdminDashboard from "./pages/AdminDashboard";
 import VesselListPage from "./pages/VesselListPage";
 import AddVesselPage from "./pages/AddVesselPage";
 import VesselDetailPage from "./pages/VesselDetailPage";
@@ -41,13 +41,13 @@ function App() {
         <Route path="/login" element={<LoginPage />} />
         <Route path="/my-voyages" element={<RequireRole allow={ONBOARD_ROLES}><MyVoyagesPage /></RequireRole>} />
         <Route path="/master-dashboard" element={<RequireRole allow={['Master', 'ChiefOfficer']}><MasterDashboard /></RequireRole>} />
-        <Route path="/agency-dashboard" element={<RequireRole allow={['Admin', 'Agency']}><AgencyDashboard /></RequireRole>} />
-        <Route path="/vessels" element={<RequireRole allow={['Admin', 'Agency']}><VesselListPage /></RequireRole>} />
-        <Route path="/vessels/new" element={<RequireRole allow={['Admin', 'Agency']}><AddVesselPage /></RequireRole>} />
-        <Route path="/vessels/edit/:id" element={<RequireRole allow={['Admin', 'Agency']}><AddVesselPage /></RequireRole>} />
-        <Route path="/vessels/view/:id" element={<RequireRole allow={['Admin', 'Agency']}><VesselDetailPage /></RequireRole>} />
+        <Route path="/admin-dashboard" element={<RequireRole allow={['Admin']}><AdminDashboard /></RequireRole>} />
+        <Route path="/vessels" element={<RequireRole allow={['Admin']}><VesselListPage /></RequireRole>} />
+        <Route path="/vessels/new" element={<RequireRole allow={['Admin']}><AddVesselPage /></RequireRole>} />
+        <Route path="/vessels/edit/:id" element={<RequireRole allow={['Admin']}><AddVesselPage /></RequireRole>} />
+        <Route path="/vessels/view/:id" element={<RequireRole allow={['Admin']}><VesselDetailPage /></RequireRole>} />
         <Route path="/voyages" element={<RequireRole allow="any"><VoyageListPage /></RequireRole>} />
-        <Route path="/voyages/new" element={<RequireRole allow={['Admin', 'Agency']}><CreateVoyagePage /></RequireRole>} />
+        <Route path="/voyages/new" element={<RequireRole allow={['Admin']}><CreateVoyagePage /></RequireRole>} />
         <Route path="/voyages/:id/attendance" element={<RequireRole allow={['Master', 'ChiefOfficer']}><AttendancePage /></RequireRole>} />
         <Route path="/route-planner" element={<RequireRole allow={['Master', 'ChiefOfficer']}><RoutePlannerPage /></RequireRole>} />
         <Route
@@ -98,9 +98,9 @@ function App() {
             </RequireRole>
           }
         />
-        <Route path="/crews" element={<RequireRole allow={['Admin', 'Agency']}><CrewListPage /></RequireRole>} />
-        <Route path="/crews/new" element={<RequireRole allow={['Admin', 'Agency']}><AddCrewPage /></RequireRole>} />
-        <Route path="/crews/edit/:id" element={<RequireRole allow={['Admin', 'Agency']}><AddCrewPage /></RequireRole>} />
+        <Route path="/crews" element={<RequireRole allow={['Admin']}><CrewListPage /></RequireRole>} />
+        <Route path="/crews/new" element={<RequireRole allow={['Admin']}><AddCrewPage /></RequireRole>} />
+        <Route path="/crews/edit/:id" element={<RequireRole allow={['Admin']}><AddCrewPage /></RequireRole>} />
         <Route path="/crew-dashboard" element={<RequireRole allow={CREW_DASHBOARD_ROLES}><CrewDashboard /></RequireRole>} />
         <Route path="/crew-profile" element={<RequireRole allow={ONBOARD_ROLES}><CrewProfilePage /></RequireRole>} />
         <Route path="/engine-logs" element={

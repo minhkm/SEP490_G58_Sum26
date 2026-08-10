@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const sewageController = require('../controllers/sewageController');
 const authMiddleware = require('../middlewares/authMiddleware');
-const upload = require('../middleware/upload');
+const upload = require('../middlewares/upload');
 
 router.use(authMiddleware);
 

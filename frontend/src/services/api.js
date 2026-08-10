@@ -84,10 +84,6 @@ export const voyageService = {
     const response = await api.get(`/voyages/${id}/equipments`);
     return response.data;
   },
-  updateEquipmentStatus: async (equipmentId, status) => {
-    const response = await api.patch(`/voyages/equipments/${equipmentId}/status`, { status });
-    return response.data;
-  },
   updateEquipmentBrokenCount: async (equipmentId, brokenCount) => {
     const response = await api.patch(`/voyages/equipments/${equipmentId}/broken-count`, { brokenCount });
     return response.data;
@@ -139,8 +135,8 @@ export const cargoTypeService = {
 };
 
 export const dashboardService = {
-  getAgencyDashboardData: async () => {
-    const response = await api.get('/dashboard/agency');
+  getAdminDashboardData: async () => {
+    const response = await api.get('/dashboard/admin');
     return response.data;
   },
   getMasterDashboardData: async (voyageId) => {

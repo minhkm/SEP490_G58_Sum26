@@ -8,7 +8,7 @@ exports.getAllCargos = async (req, res) => {
 
     const { Op } = require("sequelize");
 
-    if (userRole !== 'Admin' && userRole !== 'Agency') {
+    if (userRole !== 'Admin') {
       const profileId = req.user.profileId;
       if (!profileId) {
          return res.json({ success: true, stats: { totalWeight: 0, inTransit: 0, remainingCapacity: 0, remainingCapacityPercent: 0, delayed: 0 }, data: [] });
@@ -81,7 +81,7 @@ exports.getAllCargos = async (req, res) => {
     let holdWhereClause = {};
     if (shipIds.length > 0) {
       holdWhereClause = { shipId: shipIds };
-    } else if (userRole !== 'Admin' && userRole !== 'Agency') {
+    } else if (userRole !== 'Admin') {
       // Nếu không phải admin và cũng ko có shipIds (do chưa gán tàu), cho maxCap = 0
       holdWhereClause = { id: -1 }; 
     }

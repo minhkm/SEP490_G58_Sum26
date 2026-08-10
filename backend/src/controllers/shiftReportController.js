@@ -12,7 +12,7 @@ async function authorizeVoyage(req, voyageId, allowedRoles) {
   const voyage = await Voyage.findByPk(voyageId);
   if (!voyage) return { ok: false, status: 404, message: "Không tìm thấy hải trình." };
 
-  if (!["admin", "agency"].includes(role)) {
+  if (role !== "admin") {
     if (!req.user.profileId) return { ok: false, status: 403, message: "Tài khoản chưa có hồ sơ thuyền viên." };
     const assignment = await VoyageCrew.findOne({ where: { voyageId, crewId: req.user.profileId } });
     if (!assignment) return { ok: false, status: 403, message: "Bạn không được phân công vào hải trình này." };
@@ -23,7 +23,7 @@ async function authorizeVoyage(req, voyageId, allowedRoles) {
 // GET /api/shift-reports/:voyageId/export/deck — sĩ quan boong xuất Excel nhật ký trực boong
 exports.exportDeck = async (req, res) => {
   try {
-    const permit = await authorizeVoyage(req, req.params.voyageId, ["admin", "agency", "master", "chiefofficer", "deckofficer"]);
+    const permit = await authorizeVoyage(req, req.params.voyageId, ["admin", "master", "chiefofficer", "deckofficer"]);
     if (!permit.ok) return res.status(permit.status).json({ message: permit.message });
 
     const data = await buildDeckReport(req.params.voyageId);

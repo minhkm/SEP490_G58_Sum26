@@ -2,11 +2,12 @@ const express = require('express');
 const { Ship, CrewProfile, Voyage, User, VoyageCrew, Cargo, CargoItem, Equipment, VoyageOperationReport } = require('../models');
 const { Op } = require('sequelize');
 const authMiddleware = require('../middlewares/authMiddleware');
+const requireRole = require('../middlewares/roleMiddleware');
 
 const router = express.Router();
 
-// Lấy dữ liệu cho Agency Dashboard
-router.get('/agency', async (req, res) => {
+// Lấy dữ liệu cho bảng điều khiển Admin
+router.get('/admin', authMiddleware, requireRole('Admin'), async (req, res) => {
   try {
     const totalVessels = await Ship.count();
     const totalCrews = await CrewProfile.count();
@@ -35,7 +36,7 @@ router.get('/agency', async (req, res) => {
       recentVessels
     });
   } catch (error) {
-    console.error('Lỗi khi lấy dữ liệu Agency Dashboard:', error);
+    console.error('Lỗi khi lấy dữ liệu bảng điều khiển Admin:', error);
     res.status(500).json({ message: 'Lỗi server khi tải dữ liệu tổng quan.', error: error.message, stack: error.stack });
   }
 });

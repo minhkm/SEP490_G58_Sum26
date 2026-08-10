@@ -11,7 +11,7 @@ import {
   Modal,
 } from 'antd';
 import { AppstoreOutlined, SaveOutlined } from '@ant-design/icons';
-import AgencyLayout from '../components/AgencyLayout';
+import AdminLayout from '../components/AdminLayout';
 import MasterLayout from '../components/MasterLayout';
 import { cargoService, cargoTypeService } from '../services/api';
 import { PageHeader } from '../components/common';
@@ -27,7 +27,7 @@ export default function AddCargoPage() {
   const isEditMode = Boolean(id);
 
   const user = JSON.parse(localStorage.getItem('user')) || {};
-  const Layout = (user.role === 'Admin' || user.role === 'Agency') ? AgencyLayout : MasterLayout;
+  const Layout = user.role === 'Admin' ? AdminLayout : MasterLayout;
   const canEdit = user.role === 'Admin';
 
   const [form] = Form.useForm();

@@ -4,7 +4,7 @@ const cargoController = require('../controllers/cargoController');
 const authMiddleware = require('../middlewares/authMiddleware');
 const requireRole = require('../middlewares/roleMiddleware');
 
-const editRoles = requireRole('Admin', 'Agency');
+const editRoles = requireRole('Admin');
 
 router.get('/', authMiddleware, cargoController.getAllCargos);
 router.get('/:id', authMiddleware, cargoController.getCargoById);

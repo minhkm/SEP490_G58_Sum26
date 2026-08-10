@@ -7,7 +7,7 @@ import {
   InboxOutlined,
   ToolOutlined,
 } from '@ant-design/icons';
-import AgencyLayout from '../components/AgencyLayout';
+import AdminLayout from '../components/AdminLayout';
 import { vesselService } from '../services/api';
 import { PageHeader, StatusTag } from '../components/common';
 import { engineNameLabel, engineParameterLabel, engineTypeLabel, isMainEngine, normalizeEngineStatus } from '../utils/engine';
@@ -49,31 +49,31 @@ export default function VesselDetailPage() {
 
   if (loading) {
     return (
-      <AgencyLayout>
+      <AdminLayout>
         <div style={{ padding: '40px', textAlign: 'center' }}>
           <Spin size="large" tip="Đang tải dữ liệu...">
             <div style={{ minHeight: 80 }} />
           </Spin>
         </div>
-      </AgencyLayout>
+      </AdminLayout>
     );
   }
 
   if (!vessel) {
     return (
-      <AgencyLayout>
+      <AdminLayout>
         <div style={{ padding: '40px', textAlign: 'center' }}>
           <Empty description="Không tìm thấy tàu" />
           <Button type="primary" style={{ marginTop: 16 }} onClick={() => navigate('/vessels')}>
             Quay lại danh sách
           </Button>
         </div>
-      </AgencyLayout>
+      </AdminLayout>
     );
   }
 
   return (
-    <AgencyLayout>
+    <AdminLayout>
       <div style={{ padding: '24px 32px' }}>
         {/* Header */}
         <PageHeader
@@ -274,6 +274,6 @@ export default function VesselDetailPage() {
           </Col>
         </Row>
       </div>
-    </AgencyLayout>
+    </AdminLayout>
   );
 }

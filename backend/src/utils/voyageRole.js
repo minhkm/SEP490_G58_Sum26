@@ -40,8 +40,6 @@ const canonicalVoyageRole = (role) => {
   if (isEngineLogRole(role)) return 'EngineCrew';
   if (isDeckLogRole(role)) return 'Sailor';
   if (normalized === 'admin') return 'Admin';
-  if (normalized === 'agency') return 'Agency';
-
   return role || '';
 };
 

@@ -38,7 +38,7 @@ export default function LoginPage() {
       localStorage.setItem("token", response.token);
       localStorage.setItem("user", JSON.stringify(response.user));
 
-      if (response.user.role === 'Admin' || response.user.role === 'Agency') {
+      if (response.user.role === 'Admin') {
         navigate(getDashboardPath(response.user.role));
       } else {
         navigate('/my-voyages');
@@ -77,7 +77,7 @@ export default function LoginPage() {
       localStorage.setItem("token", tempUser.token);
       localStorage.setItem("user", JSON.stringify(tempUser.user));
 
-      if (tempUser.user.role === 'Admin' || tempUser.user.role === 'Agency') {
+      if (tempUser.user.role === 'Admin') {
         navigate(getDashboardPath(tempUser.user.role));
       } else {
         navigate('/my-voyages');
