@@ -4,7 +4,7 @@
   height: 100%;
   overflow: hidden;
   background: #f4f7fb;
-  font-family: 'Inter', sans-serif;
+  font-family: var(--font-sans);
 }
 
 .voyage-list-header {
@@ -234,7 +234,7 @@
 
 .voyage-status.completed {
   background: #eff6ff;
-  color: #1d4ed8;
+  color: var(--brand-dark);
 }
 
 .voyage-status.cancelled {

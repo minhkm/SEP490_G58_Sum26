@@ -2,7 +2,7 @@
   padding: 32px 40px;
   background-color: #f0f9ff;
   min-height: calc(100vh - 64px);
-  font-family: 'Inter', sans-serif;
+  font-family: var(--font-sans);
   padding-bottom: 100px; /* Nhường chỗ cho bottom bar */
 }
 
@@ -30,7 +30,7 @@
   font-size: 24px;
   font-weight: 700;
   margin: 0;
-  background: linear-gradient(135deg, #0f172a 0%, #0284c7 100%);
+  background: linear-gradient(135deg, #0f172a 0%, var(--brand) 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
 }
@@ -61,7 +61,7 @@
 .crew-card {
   background: #ffffff;
   border-radius: 16px;
-  box-shadow: 0 10px 25px -5px rgba(2, 132, 199, 0.05);
+  box-shadow: 0 10px 25px -5px rgba(14, 95, 181, 0.05);
   border: 1px solid rgba(226, 232, 240, 0.8);
   overflow: hidden;
 }
@@ -73,7 +73,7 @@
   align-items: center;
   gap: 10px;
   border-bottom: 1px solid #e2e8f0;
-  color: #0ea5e9;
+  color: var(--brand);
 }
 
 .crew-card-header h2 {
@@ -126,8 +126,8 @@
 .form-group input:focus,
 .form-group select:focus {
   outline: none;
-  border-color: #0ea5e9;
-  box-shadow: 0 0 0 3px rgba(14, 165, 233, 0.15);
+  border-color: var(--brand);
+  box-shadow: 0 0 0 3px rgba(14, 95, 181, 0.15);
 }
 
 .form-group input:disabled {
@@ -175,19 +175,19 @@
   align-items: center;
   gap: 8px;
   padding: 12px 32px;
-  background: linear-gradient(135deg, #0284c7 0%, #2563eb 100%);
+  background: linear-gradient(135deg, var(--brand) 0%, var(--brand) 100%);
   border: none;
   color: #ffffff;
   font-weight: 600;
   border-radius: 8px;
   cursor: pointer;
-  box-shadow: 0 4px 12px rgba(2, 132, 199, 0.2);
+  box-shadow: 0 4px 12px rgba(14, 95, 181, 0.2);
   transition: all 0.3s;
 }
 
 .c-btn-save:hover {
   transform: translateY(-1px);
-  box-shadow: 0 6px 16px rgba(2, 132, 199, 0.3);
+  box-shadow: 0 6px 16px rgba(14, 95, 181, 0.3);
 }
 
 /* Modals */

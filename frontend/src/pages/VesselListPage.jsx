@@ -1,10 +1,10 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Table, Button } from 'antd';
-import { PlusOutlined } from '@ant-design/icons';
+import { Table, Button, Row, Col } from 'antd';
+import { PlusOutlined, DatabaseOutlined, CompassOutlined, CheckCircleOutlined } from '@ant-design/icons';
 import AdminLayout from '../components/AdminLayout';
 import { vesselService } from '../services/api';
-import { PageHeader, PageContainer, StatusTag, RowActions, confirmDelete, notifyError, notifySuccess } from '../components/common';
+import { PageHeader, PageContainer, StatCard, StatusTag, RowActions, confirmDelete, notifyError, notifySuccess } from '../components/common';
 
 export default function VesselListPage() {
   const navigate = useNavigate();
@@ -27,6 +27,15 @@ export default function VesselListPage() {
   useEffect(() => {
     fetchVessels();
   }, []);
+
+  const stats = useMemo(() => {
+    const total = vessels.length;
+    const onVoyage = vessels.filter((v) => v.status === 'OnVoyage').length;
+    const available = vessels.filter(
+      (v) => v.status === 'Active' || v.status === 'Hoạt động'
+    ).length;
+    return { total, onVoyage, available };
+  }, [vessels]);
 
   const handleDelete = async (id, name) => {
     const ok = await confirmDelete({
@@ -102,6 +111,18 @@ export default function VesselListPage() {
             </Button>
           }
         />
+
+        <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
+          <Col xs={24} sm={8}>
+            <StatCard title="Tổng số tàu" value={stats.total} icon={<DatabaseOutlined />} tone="blue" />
+          </Col>
+          <Col xs={24} sm={8}>
+            <StatCard title="Đang trên hải trình" value={stats.onVoyage} icon={<CompassOutlined />} tone="cyan" />
+          </Col>
+          <Col xs={24} sm={8}>
+            <StatCard title="Sẵn sàng" value={stats.available} icon={<CheckCircleOutlined />} tone="green" />
+          </Col>
+        </Row>
 
         <Table
           rowKey="id"

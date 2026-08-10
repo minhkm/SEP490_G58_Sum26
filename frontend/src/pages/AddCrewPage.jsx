@@ -216,12 +216,12 @@ export default function AddCrewPage() {
                   <Input placeholder="Ví dụ: Nguyễn Văn A" disabled={isEditMode} />
                 </Form.Item>
                 <Row gutter={16}>
-                  <Col span={12}>
+                  <Col xs={24} md={12}>
                     <Form.Item label="CCCD" name="cccd">
                       <Input placeholder="Mã định danh" disabled={isEditMode} />
                     </Form.Item>
                   </Col>
-                  <Col span={12}>
+                  <Col xs={24} md={12}>
                     <Form.Item label="Số điện thoại" name="phone">
                       <Input placeholder="+84..." />
                     </Form.Item>
@@ -244,7 +244,7 @@ export default function AddCrewPage() {
                 }
               >
                 <Row gutter={16}>
-                  <Col span={12}>
+                  <Col xs={24} md={12}>
                     <Form.Item label="Bộ phận" name="department">
                       <Select disabled={isLockedRole}>
                         <Select.Option value="None">Không thuộc bộ phận (None)</Select.Option>
@@ -253,14 +253,14 @@ export default function AddCrewPage() {
                       </Select>
                     </Form.Item>
                   </Col>
-                  <Col span={12}>
+                  <Col xs={24} md={12}>
                     <Form.Item label="Chức vụ (Position)" name="position">
                       <Input placeholder="Ví dụ: Máy trưởng" readOnly={isLockedRole} />
                     </Form.Item>
                   </Col>
                 </Row>
                 <Row gutter={16}>
-                  <Col span={12}>
+                  <Col xs={24} md={12}>
                     <Form.Item label="Quyền hệ thống (Role)" name="role">
                       <Select onChange={handleRoleChange}>
                         <Select.Option value="Master">Thuyền trưởng (Master)</Select.Option>
@@ -272,7 +272,7 @@ export default function AddCrewPage() {
                       </Select>
                     </Form.Item>
                   </Col>
-                  <Col span={12}>
+                  <Col xs={24} md={12}>
                     <Form.Item label="Trạng thái" name="status">
                       <Select>
                         <Select.Option value="Available">Sẵn sàng (Available)</Select.Option>

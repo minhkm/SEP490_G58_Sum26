@@ -26,6 +26,8 @@ import {
   SaveOutlined,
   InboxOutlined,
   CalculatorOutlined,
+  ContainerOutlined,
+  CheckCircleOutlined,
 } from '@ant-design/icons';
 import MasterLayout from '../components/MasterLayout';
 import AdminLayout from '../components/AdminLayout';
@@ -34,6 +36,7 @@ import api from '../services/api';
 import {
   PageHeader,
   PageContainer,
+  StatCard,
   RowActions,
   notifySuccess,
   notifyError,
@@ -545,6 +548,13 @@ export default function CargoPage() {
     );
   }, [searchTerm, cargos]);
 
+  const cargoStats = useMemo(() => {
+    const total = cargos.length;
+    const scheduled = cargos.filter((c) => c.Voyage).length;
+    const pending = total - scheduled;
+    return { total, scheduled, pending };
+  }, [cargos]);
+
   const columns = [
     {
       title: 'ID Lô hàng',
@@ -852,6 +862,18 @@ export default function CargoPage() {
             )}
           </>
         ) : (
+          <>
+          <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
+            <Col xs={24} sm={8}>
+              <StatCard title="Tổng lô hàng" value={cargoStats.total} icon={<ContainerOutlined />} tone="blue" />
+            </Col>
+            <Col xs={24} sm={8}>
+              <StatCard title="Đã xếp lịch" value={cargoStats.scheduled} icon={<CheckCircleOutlined />} tone="green" />
+            </Col>
+            <Col xs={24} sm={8}>
+              <StatCard title="Chưa xếp lịch" value={cargoStats.pending} icon={<InboxOutlined />} tone="gold" />
+            </Col>
+          </Row>
           <Card
             title="Danh sách lô hàng"
             extra={
@@ -882,6 +904,7 @@ export default function CargoPage() {
               locale={{ emptyText: searchTerm ? 'Không tìm thấy lô hàng phù hợp' : 'Chưa có lô hàng nào' }}
             />
           </Card>
+          </>
         )}
       </PageContainer>
       {allocatingCargoItem && (
