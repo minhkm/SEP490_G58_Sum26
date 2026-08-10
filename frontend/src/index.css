@@ -1,237 +1,221 @@
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap');
+
 :root {
-
-
-  --text: #6b6375;
-  --text-h: #08060d;
-  --bg: #fff;
-  --border: #e5e4e7;
-  --code-bg: #f4f3ec;
-  --accent: #aa3bff;
-  --accent-bg: rgba(170, 59, 255, 0.1);
-  --accent-border: rgba(170, 59, 255, 0.5);
-  --social-bg: rgba(244, 243, 236, 0.5);
-  --shadow:
-    rgba(0, 0, 0, 0.1) 0 10px 15px -3px, rgba(0, 0, 0, 0.05) 0 4px 6px -2px;
-
-  --sans: system-ui, 'Segoe UI', Roboto, sans-serif;
-  --heading: system-ui, 'Segoe UI', Roboto, sans-serif;
-  --mono: ui-monospace, Consolas, monospace;
-
-  font: 18px/145% var(--sans);
-  letter-spacing: 0.18px;
-  color-scheme: light ;
-  color: var(--text);
-  background: var(--bg);
-  font-synthesis: none;
-  text-rendering: optimizeLegibility;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-  color-scheme: light;
-
-  @media (max-width: 1024px) {
-    font-size: 16px;
-  }
+  --font-sans: 'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --color-primary: #0284c7;
+  --color-primary-dark: #0369a1;
+  --color-primary-light: #e0f2fe;
+  --color-navy: #0c2340;
+  --color-text-main: #1e293b;
+  --color-text-muted: #475569;
+  --bg-gradient: #d5e0eb;
+  --card-bg: #ffffff;
+  --card-border: #b4c8db;
+  --card-shadow: 0 4px 16px -2px rgba(12, 35, 64, 0.12), 0 2px 6px 0 rgba(12, 35, 64, 0.08);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --text: #9ca3af;
-    --text-h: #f3f4f6;
-    --bg: #16171d;
-    --border: #2e303a;
-    --code-bg: #1f2028;
-    --accent: #c084fc;
-    --accent-bg: rgba(192, 132, 252, 0.15);
-    --accent-border: rgba(192, 132, 252, 0.5);
-    --social-bg: rgba(47, 48, 58, 0.5);
-    --shadow:
-      rgba(0, 0, 0, 0.4) 0 10px 15px -3px, rgba(0, 0, 0, 0.25) 0 4px 6px -2px;
-  }
-
-  #social .button-icon {
-    filter: invert(1) brightness(2);
-  }
+* {
+  box-sizing: border-box;
 }
 
 body {
   margin: 0;
-  background-color: #dbeafe; /* Blue 100 - Nautical layout background */
-}
-
-.ant-layout {
-  background-color: #dbeafe !important;
-}
-
-.ant-card {
-  background-color: #f0f9ff !important; /* Sky 50 - Anti-glare soft blue tint */
-  box-shadow: 0 4px 6px -1px rgba(30, 58, 138, 0.1), 0 2px 4px -2px rgba(30, 58, 138, 0.05) !important;
-  border: 1px solid #93c5fd !important; /* Blue 300 border */
-  border-radius: 12px;
-}
-
-.ant-card-head {
-  background-color: #bfdbfe !important; /* Blue 200 header */
-  border-bottom: 2px solid #93c5fd !important;
-  border-radius: 12px 12px 0 0 !important;
-}
-
-.ant-input, .ant-input-number, .ant-select-selector, .ant-picker {
-  background-color: #ffffff !important;
-  border: 1px solid #60a5fa !important; /* Blue 400 input borders */
-  border-radius: 6px !important;
-}
-
-.ant-input:focus, .ant-input-number:focus, .ant-select-selector:focus, .ant-picker:focus {
-  background-color: #e0f2fe !important;
-  border-color: #2563eb !important;
-  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.2) !important;
-}
-:root {
-
-
-  --text: #6b6375;
-  --text-h: #08060d;
-  --bg: #fff;
-  --border: #e5e4e7;
-  --code-bg: #f4f3ec;
-  --accent: #aa3bff;
-  --accent-bg: rgba(170, 59, 255, 0.1);
-  --accent-border: rgba(170, 59, 255, 0.5);
-  --social-bg: rgba(244, 243, 236, 0.5);
-  --shadow:
-    rgba(0, 0, 0, 0.1) 0 10px 15px -3px, rgba(0, 0, 0, 0.05) 0 4px 6px -2px;
-
-  --sans: system-ui, 'Segoe UI', Roboto, sans-serif;
-  --heading: system-ui, 'Segoe UI', Roboto, sans-serif;
-  --mono: ui-monospace, Consolas, monospace;
-
-  font: 18px/145% var(--sans);
-  letter-spacing: 0.18px;
-  color-scheme: light ;
-  color: var(--text);
-  background: var(--bg);
-  font-synthesis: none;
-  text-rendering: optimizeLegibility;
+  padding: 0;
+  font-family: var(--font-sans);
+  color: var(--color-text-main);
+  background: var(--bg-gradient);
+  min-height: 100vh;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  color-scheme: light;
-
-  @media (max-width: 1024px) {
-    font-size: 16px;
-  }
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --text: #9ca3af;
-    --text-h: #f3f4f6;
-    --bg: #16171d;
-    --border: #2e303a;
-    --code-bg: #1f2028;
-    --accent: #c084fc;
-    --accent-bg: rgba(192, 132, 252, 0.15);
-    --accent-border: rgba(192, 132, 252, 0.5);
-    --social-bg: rgba(47, 48, 58, 0.5);
-    --shadow:
-      rgba(0, 0, 0, 0.4) 0 10px 15px -3px, rgba(0, 0, 0, 0.25) 0 4px 6px -2px;
-  }
-
-  #social .button-icon {
-    filter: invert(1) brightness(2);
-  }
-}
-
-body {
-  margin: 0;
-  background-color: #dbeafe; /* Blue 100 - Nautical layout background */
-}
-
+/* Base Layout */
 .ant-layout {
-  background-color: #dbeafe !important;
+  background: var(--bg-gradient) !important;
+  font-family: var(--font-sans);
 }
 
+/* Modern Maritime Cards with High Contrast */
 .ant-card {
-  background-color: #f0f9ff !important; /* Sky 50 - Anti-glare soft blue tint */
-  box-shadow: 0 4px 6px -1px rgba(30, 58, 138, 0.1), 0 2px 4px -2px rgba(30, 58, 138, 0.05) !important;
-  border: 1px solid #93c5fd !important; /* Blue 300 border */
-  border-radius: 12px;
+  background: var(--card-bg) !important;
+  border: 1px solid var(--card-border) !important;
+  box-shadow: var(--card-shadow) !important;
+  border-radius: 12px !important;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.ant-card:hover {
+  box-shadow: 0 8px 24px -4px rgba(12, 35, 64, 0.16), 0 4px 8px -2px rgba(12, 35, 64, 0.08) !important;
 }
 
 .ant-card-head {
-  background-color: #bfdbfe !important; /* Blue 200 header */
-  border-bottom: 2px solid #93c5fd !important;
-  border-radius: 12px 12px 0 0 !important;
+  background: transparent !important;
+  border-bottom: 1px solid #dce6f0 !important;
+  padding: 16px 24px !important;
 }
 
-.ant-input, .ant-input-number, .ant-select-selector, .ant-picker {
+.ant-card-head-title {
+  color: var(--color-navy) !important;
+  font-weight: 600 !important;
+  font-size: 1.05rem !important;
+  letter-spacing: -0.01em;
+}
+
+.ant-card-body {
+  padding: 20px 24px !important;
+}
+
+/* Maritime Tabs Styling */
+.ant-tabs-card > .ant-tabs-nav .ant-tabs-tab {
+  background: #c2d4e5 !important;
+  border: 1px solid #a8c0d6 !important;
+  color: #1e293b !important;
+  font-weight: 500;
+  border-radius: 8px 8px 0 0 !important;
+  margin-right: 4px !important;
+  transition: all 0.2s ease;
+}
+
+.ant-tabs-card > .ant-tabs-nav .ant-tabs-tab:hover {
+  color: #0284c7 !important;
+  background: #d4e3f0 !important;
+}
+
+.ant-tabs-card > .ant-tabs-nav .ant-tabs-tab-active {
+  background: #ffffff !important;
+  border-color: #b4c8db #b4c8db #ffffff !important;
+  color: #0284c7 !important;
+  font-weight: 600 !important;
+}
+
+/* Modern Typography */
+h1, h2, h3, h4, h5, h6,
+.ant-typography h1, .ant-typography h2, .ant-typography h3, .ant-typography h4 {
+  font-family: var(--font-sans) !important;
+  color: var(--color-navy) !important;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+
+/* Tables */
+.ant-table-wrapper {
+  background: transparent;
+}
+
+.ant-table {
+  background: #ffffff !important;
+  border-radius: 12px !important;
+  overflow: hidden;
+  border: 1px solid #b4c8db !important;
+}
+
+.ant-table-thead > tr > th {
+  background-color: #eaf1f7 !important;
+  color: #1e293b !important;
+  font-weight: 600 !important;
+  font-size: 0.8rem !important;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  border-bottom: 1px solid #b4c8db !important;
+  padding: 14px 18px !important;
+}
+
+.ant-table-tbody > tr > td {
+  padding: 14px 18px !important;
+  border-bottom: 1px solid #e8eff5 !important;
+  color: #1e293b !important;
+  font-size: 0.9rem;
+}
+
+.ant-table-tbody > tr:hover > td {
+  background-color: #e2eef8 !important;
+}
+
+/* Inputs & Form Elements - Crisp Borders */
+.ant-input,
+.ant-input-number,
+.ant-select-selector,
+.ant-picker {
   background-color: #ffffff !important;
-  border: 1px solid #60a5fa !important; /* Blue 400 input borders */
-  border-radius: 6px !important;
+  border: 1.5px solid #94a3b8 !important;
+  border-radius: 8px !important;
+  font-family: var(--font-sans);
+  transition: all 0.2s ease !important;
 }
 
-.ant-input:focus, .ant-input-number:focus, .ant-select-selector:focus, .ant-picker:focus {
-  background-color: #e0f2fe !important;
-  border-color: #2563eb !important;
-  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.2) !important;
+.ant-input:hover,
+.ant-input-number:hover,
+.ant-select:hover .ant-select-selector,
+.ant-picker:hover {
+  border-color: #0284c7 !important;
+}
+
+.ant-input:focus,
+.ant-input-focused,
+.ant-input-number:focus,
+.ant-select-focused .ant-select-selector,
+.ant-picker-focused {
+  border-color: #0284c7 !important;
+  box-shadow: 0 0 0 3px rgba(2, 132, 199, 0.2) !important;
 }
 
 .ant-form-item-label > label {
-  font-weight: 700 !important;
-  color: #1e3a8a !important; /* Deep Navy Blue 900 */
+  font-weight: 600 !important;
+  color: var(--color-navy) !important;
+  font-size: 0.875rem;
 }
 
-#root {
-}
-
-h1,
-h2 {
-  font-family: var(--heading);
+/* Buttons */
+.ant-btn {
+  font-family: var(--font-sans);
   font-weight: 500;
-  color: var(--text-h);
+  border-radius: 8px !important;
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  transition: all 0.2s ease;
 }
 
-h1 {
-  font-size: 56px;
-  letter-spacing: -1.68px;
-  margin: 32px 0;
-
-  @media (max-width: 1024px) {
-    font-size: 36px;
-    margin: 20px 0;
-  }
+.ant-btn-primary {
+  background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%) !important;
+  border: none !important;
+  box-shadow: 0 4px 12px rgba(2, 132, 199, 0.25) !important;
 }
 
-h2 {
-  font-size: 24px;
-  line-height: 118%;
-  letter-spacing: -0.24px;
-  margin: 0 0 8px;
-
-  @media (max-width: 1024px) {
-    font-size: 20px;
-  }
+.ant-btn-primary:hover {
+  background: linear-gradient(135deg, #0369a1 0%, #075985 100%) !important;
+  box-shadow: 0 6px 16px rgba(2, 132, 199, 0.35) !important;
+  transform: translateY(-1px);
 }
 
-p {
-  margin: 0;
+/* Tag Styles */
+.ant-tag {
+  font-family: var(--font-sans);
+  font-weight: 500;
+  border-radius: 20px !important;
+  padding: 3px 12px !important;
+  font-size: 0.78rem;
+  border: none !important;
 }
 
-code,
-.counter {
-  font-family: var(--mono);
-  display: inline-flex;
+/* Custom Sleek Maritime Scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #f1f5f9;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
   border-radius: 4px;
-  color: var(--text-h);
 }
 
-code {
-  font-size: 15px;
-  line-height: 135%;
-  padding: 4px 8px;
-  background: var(--code-bg);
+::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
 }
 
-/* ===== Antd Image Preview — kích thước lớn hơn ===== */
+/* Antd Image Preview */
 .ant-image-preview-img {
   max-width: 85vw !important;
   max-height: 85vh !important;

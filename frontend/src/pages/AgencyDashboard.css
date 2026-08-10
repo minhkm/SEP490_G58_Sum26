@@ -489,3 +489,105 @@
 .bar.light {
   background-color: #cbd5e1;
 }
+
+/* Maritime Metric Cards - Clean Real-World Dashboard */
+.metric-stat-card {
+  padding: 20px 24px !important;
+  border-radius: 14px !important;
+  background: rgba(255, 255, 255, 0.95) !important;
+  border: 1px solid rgba(226, 232, 240, 0.85) !important;
+  box-shadow: 0 4px 20px -2px rgba(12, 43, 77, 0.05) !important;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+.clickable-stat-card {
+  cursor: pointer;
+}
+
+.clickable-stat-card:hover {
+  transform: translateY(-3px);
+  border-color: #93c5fd !important;
+  box-shadow: 0 12px 28px -4px rgba(2, 132, 199, 0.12) !important;
+}
+
+.stat-header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.metric-title {
+  font-size: 0.76rem;
+  font-weight: 600;
+  color: #64748b;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.stat-icon-pill {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  transition: transform 0.2s ease;
+}
+
+.clickable-stat-card:hover .stat-icon-pill {
+  transform: scale(1.08);
+}
+
+.stat-icon-pill.blue {
+  background: #e0f2fe;
+  color: #0284c7;
+}
+
+.stat-icon-pill.indigo {
+  background: #e0e7ff;
+  color: #4f46e5;
+}
+
+.stat-icon-pill.cyan {
+  background: #cffafe;
+  color: #0891b2;
+}
+
+.metric-value {
+  font-size: 2.2rem;
+  font-weight: 700;
+  color: #0c2340;
+  line-height: 1.1;
+  font-family: var(--font-sans);
+  margin-bottom: 12px;
+}
+
+.stat-footer-link {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: #0284c7;
+  padding-top: 10px;
+  border-top: 1px solid #f1f5f9;
+  transition: gap 0.2s ease;
+}
+
+.clickable-stat-card:hover .stat-footer-link {
+  color: #0369a1;
+  gap: 10px;
+}
+
+.stat-footer-link .arrow-icon {
+  font-size: 11px;
+  transition: transform 0.2s ease;
+}
+
+.clickable-stat-card:hover .stat-footer-link .arrow-icon {
+  transform: translateX(3px);
+}
+
+

@@ -1,14 +1,14 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Row, Col, Card, Statistic, Table, Button, Tag, Input, Space, Typography, Steps } from 'antd';
+import { Row, Col, Card, Table, Button, Input, Space, Typography, Steps } from 'antd';
 import {
   CalendarOutlined,
   PlusOutlined,
   UserAddOutlined,
-  DashboardOutlined,
-  TeamOutlined,
   CompassOutlined,
-  ProfileOutlined,
+  ContainerOutlined,
+  TeamOutlined,
+  ArrowRightOutlined,
   MoreOutlined,
   QuestionCircleOutlined,
   PlayCircleOutlined,
@@ -262,52 +262,71 @@ export default function AgencyDashboard() {
         </Card>
 
         {/* Stats Cards */}
-        <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
-          <Col xs={24} sm={12} lg={6}>
-            <Card>
-              <Statistic
-                title="TỔNG SỐ TÀU"
-                value={data.totalVessels}
-                prefix={<DashboardOutlined />}
-              />
+        <Row gutter={[20, 20]} style={{ marginBottom: 24 }}>
+          <Col xs={24} sm={8} lg={8}>
+            <Card
+              className="metric-stat-card clickable-stat-card"
+              onClick={() => navigate('/vessels')}
+            >
+              <div className="stat-header-row">
+                <span className="metric-title">QUẢN LÝ ĐỘI TÀU</span>
+                <div className="stat-icon-pill blue">
+                  <ContainerOutlined />
+                </div>
+              </div>
+              <div className="metric-value">{data.totalVessels}</div>
+              <div className="stat-footer-link">
+                <span>Xem danh sách tàu</span>
+                <ArrowRightOutlined className="arrow-icon" />
+              </div>
             </Card>
           </Col>
-          <Col xs={24} sm={12} lg={6}>
-            <Card>
-              <Statistic
-                title="TỔNG THUYỀN VIÊN"
-                value={data.totalCrews}
-                prefix={<TeamOutlined />}
-              />
+
+          <Col xs={24} sm={8} lg={8}>
+            <Card
+              className="metric-stat-card clickable-stat-card"
+              onClick={() => navigate('/crews')}
+            >
+              <div className="stat-header-row">
+                <span className="metric-title">THỦY THỦ ĐOÀN</span>
+                <div className="stat-icon-pill indigo">
+                  <TeamOutlined />
+                </div>
+              </div>
+              <div className="metric-value">{data.totalCrews}</div>
+              <div className="stat-footer-link">
+                <span>Xem danh sách thuyền viên</span>
+                <ArrowRightOutlined className="arrow-icon" />
+              </div>
             </Card>
           </Col>
-          <Col xs={24} sm={12} lg={6}>
-            <Card>
-              <Statistic
-                title="CHUYẾN ĐANG ĐI"
-                value={data.voyagesInProgress}
-                prefix={<CompassOutlined />}
-              />
-            </Card>
-          </Col>
-          <Col xs={24} sm={12} lg={6}>
-            <Card>
-              <Statistic
-                title="CHỜ PHÊ DUYỆT"
-                value={data.pendingApprovals}
-                valueStyle={{ color: '#cf1322' }}
-                prefix={<ProfileOutlined />}
-              />
+
+          <Col xs={24} sm={8} lg={8}>
+            <Card
+              className="metric-stat-card clickable-stat-card"
+              onClick={() => navigate('/voyages')}
+            >
+              <div className="stat-header-row">
+                <span className="metric-title">HẢI TRÌNH ĐANG ĐI</span>
+                <div className="stat-icon-pill cyan">
+                  <CompassOutlined />
+                </div>
+              </div>
+              <div className="metric-value">{data.voyagesInProgress}</div>
+              <div className="stat-footer-link">
+                <span>Theo dõi chuyến hải trình</span>
+                <ArrowRightOutlined className="arrow-icon" />
+              </div>
             </Card>
           </Col>
         </Row>
 
-        {/* Main Content Grid */}
-        <Row gutter={[16, 16]}>
-          <Col xs={24} lg={16}>
+        {/* Main Content Grid - Vessel Overview */}
+        <Row gutter={[20, 20]}>
+          <Col xs={24}>
             <Card
               title="Tổng quan Đội tàu"
-              extra={<Input.Search placeholder="Tìm kiếm tàu..." allowClear style={{ width: 220 }} />}
+              extra={<Input.Search placeholder="Tìm kiếm tàu..." allowClear style={{ width: 260 }} />}
             >
               <Table
                 rowKey="id"
@@ -321,26 +340,11 @@ export default function AgencyDashboard() {
                 }}
                 locale={{ emptyText: 'Chưa có dữ liệu tàu' }}
                 footer={() => (
-                  <Text type="secondary">
+                  <Text type="secondary" style={{ fontSize: 13 }}>
                     Hiển thị {data.recentVessels.length} trong số {data.totalVessels} tàu
                   </Text>
                 )}
               />
-            </Card>
-
-            <Card
-              title="Lưu lượng hàng hóa hàng tháng"
-              extra={<Text type="secondary">Năm 2024</Text>}
-              style={{ marginTop: 16 }}
-            >
-              <Text type="secondary">Dữ liệu tổng hợp từ các chuyến hải hành</Text>
-            </Card>
-          </Col>
-
-          <Col xs={24} lg={8}>
-            <Card title="Báo cáo Hệ thống">
-              <p>Mọi dịch vụ đang vận hành bình thường. Tốc độ đồng bộ hóa dữ liệu vệ tinh ổn định.</p>
-              <Tag color="green">ĐANG KẾT NỐI</Tag>
             </Card>
           </Col>
         </Row>

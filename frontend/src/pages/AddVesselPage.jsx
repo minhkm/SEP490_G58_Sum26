@@ -668,7 +668,7 @@ export default function AddVesselPage() {
     const fixedParams = params.filter((p) => p.fixed);
     const extraParams = params.filter((p) => !p.fixed);
     return (
-      <div style={{ background: '#f8fafc', padding: 12, borderRadius: 6, border: '1px solid #e2e8f0' }}>
+      <div style={{ background: '#edf4fa', padding: 16, borderRadius: 8, border: '1px solid #b8cde2' }}>
         <Text strong>Hạn mức chỉ số an toàn (Bắt buộc)</Text>
         <Row gutter={12} style={{ marginTop: 8 }}>
           {fixedParams.map((param) => (
