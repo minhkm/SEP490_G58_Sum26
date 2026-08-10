@@ -36,20 +36,20 @@ export default function CrewListPage() {
   const [searchTerm, setSearchTerm] = useState('');
 
   useEffect(() => {
-    fetchCrews();
-  }, []);
+    let isMounted = true;
+    crewService.getAll()
+      .then((data) => {
+        if (isMounted) setCrews(Array.isArray(data) ? data : []);
+      })
+      .catch((error) => console.error('Lỗi khi lấy danh sách thủy thủ:', error))
+      .finally(() => {
+        if (isMounted) setLoading(false);
+      });
 
-  const fetchCrews = async () => {
-    try {
-      setLoading(true);
-      const data = await crewService.getAll();
-      setCrews(Array.isArray(data) ? data : []);
-    } catch (error) {
-      console.error('Lỗi khi lấy danh sách thủy thủ:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   const handleDelete = async (id, name) => {
     if (
@@ -150,8 +150,11 @@ export default function CrewListPage() {
         return (
           <RowActions
             onEdit={() => navigate(`/crews/edit/${crew.id}`)}
-            onDelete={isOnVoyage ? undefined : () => handleDelete(crew.id, crew.fullName)}
-            deleteTitle="Xóa"
+            editDisabled={isOnVoyage}
+            editDisabledTooltip="Thuyền viên đang tham gia hải trình, không thể chỉnh sửa"
+            onDelete={() => handleDelete(crew.id, crew.fullName)}
+            deleteDisabled={isOnVoyage}
+            deleteDisabledTooltip="Thuyền viên đang tham gia hải trình, không thể xóa"
           />
         );
       },

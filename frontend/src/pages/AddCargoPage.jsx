@@ -79,18 +79,53 @@ export default function AddCargoPage() {
       // Bỏ chọn giá trị giả rồi mở modal tạo loại hàng mới
       form.setFieldValue('cargoType', undefined);
       typeForm.resetFields();
+      typeForm.setFieldsValue({ defaultUnit: 'MT', stowageFactor: 1.0 });
       setTypeModalOpen(true);
+      return;
+    }
+
+    // Tự động tính thể tích chiếm chỗ theo SF của loại hàng được chọn
+    const selectedType = cargoTypes.find(t => t.name === value);
+    const weight = form.getFieldValue('totalWeight');
+    if (selectedType && selectedType.stowageFactor && weight !== undefined && weight !== null && weight !== '') {
+      const sf = Number(selectedType.stowageFactor) || 1.0;
+      const numWeight = Number(weight) || 0;
+      if (numWeight > 0) {
+        form.setFieldValue('totalVolume', Number((numWeight * sf).toFixed(2)));
+      }
+    }
+  };
+
+  const handleWeightChange = (weight) => {
+    const currentType = form.getFieldValue('cargoType');
+    const selectedType = cargoTypes.find(t => t.name === currentType);
+    if (selectedType && selectedType.stowageFactor && weight !== undefined && weight !== null) {
+      const sf = Number(selectedType.stowageFactor) || 1.0;
+      const numWeight = Number(weight) || 0;
+      if (numWeight > 0) {
+        form.setFieldValue('totalVolume', Number((numWeight * sf).toFixed(2)));
+      }
     }
   };
 
   const handleCreateCargoType = async () => {
     try {
       const values = await typeForm.validateFields();
-      const payload = { name: values.name.trim(), description: (values.description || '').trim() };
+      const payload = {
+        name: values.name.trim(),
+        defaultUnit: values.defaultUnit || 'MT',
+        stowageFactor: values.stowageFactor ?? 1.0,
+        description: (values.description || '').trim(),
+      };
       setCreatingType(true);
       const res = await cargoTypeService.create(payload);
       await loadCargoTypes();
       form.setFieldValue('cargoType', res.data?.name || payload.name);
+      // Tự động tính volume theo SF mới tạo
+      const weight = form.getFieldValue('totalWeight');
+      if (weight && payload.stowageFactor) {
+        form.setFieldValue('totalVolume', Number((weight * payload.stowageFactor).toFixed(2)));
+      }
       setTypeModalOpen(false);
       notifySuccess('Loại hàng mới đã được tạo.');
     } catch (err) {
@@ -167,7 +202,12 @@ export default function AddCargoPage() {
                   onChange={handleCargoTypeChange}
                 >
                   {cargoTypes.map(t => (
-                    <Option key={t.id} value={t.name}>{t.name}</Option>
+                    <Option key={t.id} value={t.name}>
+                      <span>{t.name}</span>
+                      <span style={{ color: '#8c8c8c', fontSize: '12px', marginLeft: 8 }}>
+                        (SF: {t.stowageFactor ?? 1.0} m³/MT)
+                      </span>
+                    </Option>
                   ))}
                   {canEdit && <Option value={ADD_CARGO_TYPE}>➕ Tạo loại hàng mới…</Option>}
                 </Select>
@@ -186,11 +226,18 @@ export default function AddCargoPage() {
                   { type: 'number', min: 0.01, message: 'Khối lượng phải lớn hơn 0' }
                 ]}
               >
-                <InputNumber step={0.01} min={0} placeholder="VD: 2750" style={{ width: '100%' }} />
+                <InputNumber
+                  step={0.01}
+                  min={0}
+                  placeholder="VD: 2750"
+                  style={{ width: '100%' }}
+                  onChange={handleWeightChange}
+                />
               </Form.Item>
               <Form.Item 
-                label="Tổng Thể Tích (m³)" 
+                label="Tổng Thể Tích Chiếm Chỗ (m³)" 
                 name="totalVolume"
+                extra="Tự động ước tính: Thể tích = Khối lượng × Hệ số SF của loại hàng"
                 rules={[
                   { type: 'number', min: 0.01, message: 'Thể tích phải lớn hơn 0' }
                 ]}
@@ -219,14 +266,47 @@ export default function AddCargoPage() {
         confirmLoading={creatingType}
         destroyOnHidden
       >
-        <Form form={typeForm} layout="vertical">
+        <Form
+          form={typeForm}
+          layout="vertical"
+          initialValues={{ defaultUnit: 'MT', stowageFactor: 1.0 }}
+        >
           <Form.Item
             label="Tên loại hàng"
             name="name"
             rules={[{ required: true, message: 'Vui lòng nhập tên loại hàng' }]}
           >
-            <Input placeholder="Tên loại hàng (VD: Rice)" />
+            <Input placeholder="Tên loại hàng (VD: Gạo, Than đá, Sắt thép, Bông sợi...)" />
           </Form.Item>
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+            <Form.Item
+              label="Đơn vị tính"
+              name="defaultUnit"
+              rules={[{ required: true, message: 'Vui lòng chọn đơn vị tính' }]}
+            >
+              <Select placeholder="Chọn đơn vị">
+                <Option value="MT">MT (Tấn)</Option>
+                <Option value="CBM">CBM (m³)</Option>
+                <Option value="TEU">TEU (Cont 20ft)</Option>
+                <Option value="BAG">BAG (Bao)</Option>
+                <Option value="PCS">PCS (Kiện/Cái)</Option>
+                <Option value="BBL">BBL (Thùng phuy)</Option>
+              </Select>
+            </Form.Item>
+
+            <Form.Item
+              label="Hệ số chất xếp (SF - m³/MT)"
+              name="stowageFactor"
+              rules={[
+                { required: true, message: 'Vui lòng nhập hệ số SF' },
+                { type: 'number', min: 0.05, max: 20, message: 'Hệ số phải từ 0.05 đến 20' }
+              ]}
+            >
+              <InputNumber step={0.05} min={0.05} max={20} style={{ width: '100%' }} />
+            </Form.Item>
+          </div>
+
           <Form.Item label="Mô tả" name="description">
             <Input placeholder="Mô tả (tuỳ chọn)" />
           </Form.Item>

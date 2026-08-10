@@ -1,7 +1,7 @@
 const express = require('express');
 const bcrypt = require('bcrypt');
 const crypto = require('crypto');
-const { sequelize, Voyage, User, CrewProfile, VoyageCrew, Ship, Attendance, Cargo, CargoItem, CargoOperation, ShipCapacity, CargoHold, CargoAllocation, Equipment } = require('../models');
+const { sequelize, Voyage, User, CrewProfile, VoyageCrew, Ship, Attendance, Cargo, CargoItem, CargoOperation, ShipCapacity, CargoHold, CargoAllocation, Equipment, CargoType } = require('../models');
 const { sendCrewCredentialsEmail, sendRouteApprovalEmail } = require('../services/emailService');
 const { notifyCrewAssignedToVoyage, notifyAttendanceUpdated, notifyVoyageUpdated } = require('../services/notificationService');
 const { SHIP_STATUS, normalizeEquipmentLocation, normalizeEquipmentName } = require('../utils/vessel');
@@ -303,7 +303,7 @@ router.get('/:id/crew', authMiddleware, async (req, res) => {
   }
 });
 
-// Lấy danh sách hàng hóa của một chuyến đi
+// Lấy danh sách hàng hóa của một chuyến đi kèm thông số SF và thể tích m3
 router.get('/:id/cargo', authMiddleware, async (req, res) => {
   try {
     const { id } = req.params;
@@ -312,46 +312,63 @@ router.get('/:id/cargo', authMiddleware, async (req, res) => {
       include: [
         {
           model: CargoItem,
-          attributes: ['id', 'itemName', 'quantity', 'weight', 'isLoaded', 'isDischarged', 'holdId', 'allocations']
+          attributes: ['id', 'itemName', 'quantity', 'weight', 'volume', 'isLoaded', 'isDischarged', 'holdId', 'allocations']
         }
       ]
     });
 
+    const cargoTypes = await CargoType.findAll();
+    const sfMap = {};
+    cargoTypes.forEach((ct) => {
+      sfMap[ct.name] = ct.stowageFactor || 1.0;
+    });
+
     let result = [];
     for (const cargo of cargos) {
+      const sf = sfMap[cargo.cargoType] || 1.0;
       if (cargo.CargoItems && cargo.CargoItems.length > 0) {
-         cargo.CargoItems.forEach(item => {
-           result.push({
-             cargoId: cargo.id,
-             cargoName: cargo.cargoName,
-             cargoType: cargo.cargoType,
-             itemId: item.id,
-             itemName: item.itemName,
-             quantity: item.quantity,
-             weight: item.weight,
-             isLoaded: item.isLoaded,
-             isDischarged: item.isDischarged,
-             holdId: null,
-             allocations: item.allocations || []
-           });
-         });
+        cargo.CargoItems.forEach((item) => {
+          const itemWeight = Number(item.weight || 0);
+          const itemVol = item.volume ? Number(item.volume) : Math.round(itemWeight * sf * 100) / 100;
+          result.push({
+            cargoId: cargo.id,
+            cargoName: cargo.cargoName,
+            cargoType: cargo.cargoType,
+            stowageFactor: sf,
+            itemId: item.id,
+            itemName: item.itemName,
+            quantity: item.quantity,
+            weight: itemWeight,
+            volume: itemVol,
+            isLoaded: item.isLoaded,
+            isDischarged: item.isDischarged,
+            holdId: null,
+            allocations: (item.allocations || []).map((a) => ({
+              ...a,
+              volume: a.volume ? Number(a.volume) : Math.round(Number(a.weight || 0) * sf * 100) / 100,
+            })),
+          });
+        });
       } else {
-         result.push({
-           cargoId: cargo.id,
-           cargoName: cargo.cargoName,
-           cargoType: cargo.cargoType,
-           itemId: null,
-           itemName: 'Chưa có chi tiết',
-           quantity: 0,
-           weight: cargo.totalWeight,
-           isLoaded: false,
-           isDischarged: false,
-           holdId: null,
-           allocations: []
-         });
+        const totalWeight = Number(cargo.totalWeight || 0);
+        result.push({
+          cargoId: cargo.id,
+          cargoName: cargo.cargoName,
+          cargoType: cargo.cargoType,
+          stowageFactor: sf,
+          itemId: null,
+          itemName: 'Chưa có chi tiết',
+          quantity: 0,
+          weight: totalWeight,
+          volume: Math.round(totalWeight * sf * 100) / 100,
+          isLoaded: false,
+          isDischarged: false,
+          holdId: null,
+          allocations: [],
+        });
       }
     }
-    
+
     res.json(result);
   } catch (error) {
     console.error('Lỗi khi lấy danh sách hàng hóa:', error);
@@ -650,27 +667,40 @@ router.put('/:id', authMiddleware, async (req, res) => {
     // Process cargoList if provided and allowed
     if (isShipStaff && cargoList && Array.isArray(cargoList)) {
       if (cargoList.length > 0) {
-        // PRE-VALIDATE HOLD CAPACITIES
+        // PRE-VALIDATE HOLD CAPACITIES IN VOLUME (m³)
         const allHolds = await CargoHold.findAll({ where: { shipId: voyage.shipId } });
         const holdMap = {};
-        allHolds.forEach(h => {
-          holdMap[h.id] = { maxCap: h.maxCapacity || 0, usage: h.currentUsage || 0, name: h.holdName };
+        allHolds.forEach((h) => {
+          holdMap[h.id] = { maxCapVolume: h.maxCapacity || 0, usageVolume: h.currentUsage || 0, name: h.holdName };
+        });
+
+        const allCargoTypes = await CargoType.findAll();
+        const sfLookup = {};
+        allCargoTypes.forEach((ct) => {
+          sfLookup[ct.name] = ct.stowageFactor || 1.0;
         });
 
         for (const item of cargoList) {
           if (item.itemId) {
-            const cargoItem = await CargoItem.findByPk(item.itemId);
+            const cargoItem = await CargoItem.findByPk(item.itemId, {
+              include: [{ model: Cargo }]
+            });
             if (cargoItem) {
+              const sf = cargoItem.Cargo ? (sfLookup[cargoItem.Cargo.cargoType] || 1.0) : 1.0;
               // revert old
               if (cargoItem.isLoaded && !cargoItem.isDischarged) {
                 for (const a of (cargoItem.allocations || [])) {
-                  if (a.holdId && holdMap[a.holdId]) holdMap[a.holdId].usage -= Number(a.weight || 0);
+                  const allocWeight = Number(a.weight || 0);
+                  const allocVol = a.volume ? Number(a.volume) : (allocWeight * sf);
+                  if (a.holdId && holdMap[a.holdId]) holdMap[a.holdId].usageVolume -= allocVol;
                 }
               }
               // apply new
               if (item.isLoaded && !cargoItem.isDischarged) {
                 for (const a of (item.allocations || [])) {
-                  if (a.holdId && holdMap[a.holdId]) holdMap[a.holdId].usage += Number(a.weight || 0);
+                  const allocWeight = Number(a.weight || 0);
+                  const allocVol = a.volume ? Number(a.volume) : (allocWeight * sf);
+                  if (a.holdId && holdMap[a.holdId]) holdMap[a.holdId].usageVolume += allocVol;
                 }
               }
             }
@@ -678,8 +708,10 @@ router.put('/:id', authMiddleware, async (req, res) => {
         }
 
         for (const hid of Object.keys(holdMap)) {
-          if (holdMap[hid].usage > holdMap[hid].maxCap) {
-            return res.status(400).json({ message: `Khoang "${holdMap[hid].name}" vượt quá sức chứa (${holdMap[hid].usage}/${holdMap[hid].maxCap} tấn). Vui lòng điều chỉnh lại.` });
+          if (holdMap[hid].usageVolume > holdMap[hid].maxCapVolume) {
+            return res.status(400).json({ 
+              message: `Khoang "${holdMap[hid].name}" vượt quá dung tích thể tích (${holdMap[hid].usageVolume.toFixed(1)}/${holdMap[hid].maxCapVolume} m³). Vui lòng điều chỉnh lại.` 
+            });
           }
         }
 
@@ -688,16 +720,21 @@ router.put('/:id', authMiddleware, async (req, res) => {
           if (!item.isLoaded) allCargoLoaded = false;
           
            if (item.itemId) {
-             const cargoItem = await CargoItem.findByPk(item.itemId);
+             const cargoItem = await CargoItem.findByPk(item.itemId, {
+               include: [{ model: Cargo }]
+             });
              if (cargoItem) {
+               const sf = cargoItem.Cargo ? (sfLookup[cargoItem.Cargo.cargoType] || 1.0) : 1.0;
                const wasLoaded = Boolean(cargoItem.isLoaded);
-               // 1. Revert old allocations from hold currentUsage
+               // 1. Revert old allocations from hold currentUsage (m³)
                if (cargoItem.isLoaded && !cargoItem.isDischarged) {
                  for (const a of (cargoItem.allocations || [])) {
                    if (a.holdId) {
                      const h = await CargoHold.findByPk(a.holdId);
                      if (h) {
-                       h.currentUsage -= Number(a.weight || 0);
+                       const allocWeight = Number(a.weight || 0);
+                       const allocVol = a.volume ? Number(a.volume) : (allocWeight * sf);
+                       h.currentUsage -= allocVol;
                        if (h.currentUsage < 0) h.currentUsage = 0;
                        await h.save();
                      }
@@ -705,13 +742,15 @@ router.put('/:id', authMiddleware, async (req, res) => {
                  }
                }
 
-               // 2. Apply new allocations
+               // 2. Apply new allocations (m³)
                if (item.isLoaded && !cargoItem.isDischarged) {
                  for (const a of (item.allocations || [])) {
                    if (a.holdId) {
                      const h = await CargoHold.findByPk(a.holdId);
                      if (h) {
-                       h.currentUsage += Number(a.weight || 0);
+                       const allocWeight = Number(a.weight || 0);
+                       const allocVol = a.volume ? Number(a.volume) : (allocWeight * sf);
+                       h.currentUsage += allocVol;
                        await h.save();
                      }
                    }
@@ -720,7 +759,10 @@ router.put('/:id', authMiddleware, async (req, res) => {
 
                cargoItem.isLoaded = item.isLoaded;
                cargoItem.holdId = null;
-                cargoItem.allocations = item.allocations || [];
+               cargoItem.allocations = (item.allocations || []).map((a) => ({
+                 ...a,
+                 volume: a.volume ? Number(a.volume) : Math.round(Number(a.weight || 0) * sf * 100) / 100,
+               }));
                 await cargoItem.save();
 
                 if (!wasLoaded && item.isLoaded) {

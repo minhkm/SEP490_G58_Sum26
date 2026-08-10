@@ -12,7 +12,7 @@ exports.getAllCargoTypes = async (req, res) => {
 
 exports.createCargoType = async (req, res) => {
   try {
-    const { name, description } = req.body;
+    const { name, category, defaultUnit, stowageFactor, description } = req.body;
 
     if (!name || !name.trim()) {
       return res.status(400).json({ success: false, message: "Vui lòng nhập tên loại hàng" });
@@ -23,7 +23,13 @@ exports.createCargoType = async (req, res) => {
       return res.status(409).json({ success: false, message: "Loại hàng này đã tồn tại" });
     }
 
-    const newType = await CargoType.create({ name: name.trim(), description });
+    const newType = await CargoType.create({
+      name: name.trim(),
+      category: category || "Bulk",
+      defaultUnit: defaultUnit || "MT",
+      stowageFactor: stowageFactor !== undefined && stowageFactor !== null && !isNaN(Number(stowageFactor)) ? Number(stowageFactor) : 1.0,
+      description,
+    });
     res.json({ success: true, message: "Thêm loại hàng thành công", data: newType });
   } catch (error) {
     console.error("Error creating cargo type:", error);
@@ -33,7 +39,7 @@ exports.createCargoType = async (req, res) => {
 
 exports.updateCargoType = async (req, res) => {
   try {
-    const { name, description } = req.body;
+    const { name, category, defaultUnit, stowageFactor, description } = req.body;
     const cargoType = await CargoType.findByPk(req.params.id);
     if (!cargoType) {
       return res.status(404).json({ success: false, message: "Không tìm thấy loại hàng" });
@@ -51,6 +57,11 @@ exports.updateCargoType = async (req, res) => {
 
     await cargoType.update({
       name: name !== undefined ? name.trim() : cargoType.name,
+      category: category !== undefined ? category : cargoType.category,
+      defaultUnit: defaultUnit !== undefined ? defaultUnit : cargoType.defaultUnit,
+      stowageFactor: stowageFactor !== undefined && stowageFactor !== null && !isNaN(Number(stowageFactor))
+        ? Number(stowageFactor)
+        : cargoType.stowageFactor,
       description: description !== undefined ? description : cargoType.description,
     });
 
