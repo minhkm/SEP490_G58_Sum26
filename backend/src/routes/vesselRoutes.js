@@ -19,7 +19,11 @@ const {
   normalizeEquipmentType,
   normalizeShipStatus,
 } = require('../utils/vessel');
-const { canonicalVoyageRole, isEngineOfficerRole } = require('../utils/voyageRole');
+const {
+  canonicalVoyageRole,
+  isEngineOfficerRole,
+  isSupplyManagerRole,
+} = require('../utils/voyageRole');
 
 const router = express.Router();
 
@@ -571,8 +575,8 @@ router.patch('/equipments/:equipmentId/broken-count', authMiddleware, async (req
     const effectiveRole = assignment
       ? canonicalVoyageRole(assignment.role)
       : (voyage ? '' : canonicalVoyageRole(req.user?.role));
-    if (!['EngineOfficer', 'Master', 'ChiefOfficer'].includes(effectiveRole)) {
-      return res.status(403).json({ message: 'Chỉ Máy trưởng, Thuyền trưởng hoặc Đại phó mới được cập nhật số thiết bị hỏng' });
+    if (!isSupplyManagerRole(effectiveRole)) {
+      return res.status(403).json({ message: 'Chỉ Thuyền trưởng hoặc Đại phó mới được cập nhật số thiết bị hỏng' });
     }
 
     const currentBrokenCount = Number(equipment.brokenCount) || 0;

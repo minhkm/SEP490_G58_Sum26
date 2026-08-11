@@ -120,7 +120,6 @@ const getAdminDashboard = async (req, res) => {
 };
 
 router.get('/admin', authMiddleware, requireRole('Admin'), getAdminDashboard);
-router.get('/agency', getAdminDashboard);
 
 // Lấy dữ liệu cho Master Dashboard
 router.get('/master', authMiddleware, async (req, res) => {

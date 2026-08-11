@@ -136,16 +136,8 @@ export const cargoTypeService = {
 
 export const dashboardService = {
   getAdminDashboardData: async () => {
-    try {
-      const response = await api.get('/dashboard/admin');
-      return response.data;
-    } catch (error) {
-      if (error.response && error.response.status === 404) {
-        const fallback = await api.get('/dashboard/agency');
-        return fallback.data;
-      }
-      throw error;
-    }
+    const response = await api.get('/dashboard/admin');
+    return response.data;
   },
   getMasterDashboardData: async (voyageId) => {
     let url = '/dashboard/master';
