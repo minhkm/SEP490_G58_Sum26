@@ -9,7 +9,7 @@ const Equipment = sequelize.define("Equipment", {
   equipmentType: { type: DataTypes.STRING },
   location:      { type: DataTypes.STRING },
   quantity:      { type: DataTypes.INTEGER, defaultValue: 1 },
-  expiryNote:    { type: DataTypes.STRING, allowNull: true },    // ghi chú hạn sử dụng (text tự do)
+  expiryNote:    { type: DataTypes.STRING, allowNull: true },    // ngày hết hạn YYYY-MM-DD; null = không có hạn
   brokenCount:   { type: DataTypes.INTEGER, defaultValue: 0 },   // số lượng hỏng
   status:        { type: DataTypes.STRING, defaultValue: "Hoạt động" },
 }, { tableName: "Equipment", timestamps: false });

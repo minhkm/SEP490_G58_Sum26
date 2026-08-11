@@ -14,7 +14,13 @@ import {
   isMainEngine,
   normalizeEngineStatus,
 } from '../utils/engine';
-import { equipmentLocationLabel, equipmentNameLabel, equipmentTypeLabel } from '../utils/vessel';
+import {
+  equipmentLocationLabel,
+  equipmentNameLabel,
+  equipmentTypeLabel,
+  formatEquipmentExpiryDate,
+  isEquipmentExpired,
+} from '../utils/vessel';
 
 const { Text } = Typography;
 
@@ -39,6 +45,15 @@ const normalizeSearchText = (value) => String(value || '')
 
 const isPositiveIntegerWithin = (value, maximum) => (
   Number.isInteger(value) && value > 0 && value <= maximum
+);
+
+const remainingQuantity = (equipment) => Math.max(
+  0,
+  Number(equipment?.quantity || 0) - Number(equipment?.brokenCount || 0),
+);
+
+const isExpiredWithStock = (equipment) => (
+  remainingQuantity(equipment) > 0 && isEquipmentExpired(equipment?.expiryNote)
 );
 
 // Màu viền card theo status
@@ -77,6 +92,7 @@ export default function EngineManagePage() {
 
   // Modal cập nhật số đã dùng (vật tư y tế)
   const [medModal, setMedModal] = useState({ open: false, equip: null, newUsed: 1 });
+  const canUpdateSupplies = selectedVoyage?.status === 'Underway';
 
   // Tự động load hải trình đang hoạt động
   useEffect(() => {
@@ -176,6 +192,14 @@ export default function EngineManagePage() {
   // Cập nhật brokenCount cho thiết bị tàu
   const confirmBrokenCount = async () => {
     const { equip, newBroken } = brokenModal;
+    if (!canUpdateSupplies) {
+      notifyError('Chỉ được cập nhật thiết bị khi hải trình đang di chuyển.');
+      return;
+    }
+    if (isExpiredWithStock(equip)) {
+      notifyError(`${equip.equipmentName} đã hết hạn sử dụng.`);
+      return;
+    }
     const remainingGood = (equip?.quantity || 0) - (equip?.brokenCount || 0);
     if (!isPositiveIntegerWithin(newBroken, remainingGood)) {
       notifyError(`Số lượng hỏng mới phải là số nguyên dương và không vượt quá ${remainingGood}.`);
@@ -195,6 +219,14 @@ export default function EngineManagePage() {
   // Cập nhật số đã dùng cho vật tư y tế (dùng brokenCount làm usedCount)
   const confirmMedUsed = async () => {
     const { equip, newUsed } = medModal;
+    if (!canUpdateSupplies) {
+      notifyError('Chỉ được cập nhật vật tư y tế khi hải trình đang di chuyển.');
+      return;
+    }
+    if (isExpiredWithStock(equip)) {
+      notifyError(`${equip.equipmentName} đã hết hạn sử dụng.`);
+      return;
+    }
     const remaining = (equip?.quantity || 0) - (equip?.brokenCount || 0);
     if (!isPositiveIntegerWithin(newUsed, remaining)) {
       notifyError(`Số lượng sử dụng thêm phải là số nguyên dương và không vượt quá ${remaining}.`);
@@ -278,6 +310,8 @@ export default function EngineManagePage() {
     !normalizedMedicalSearch
     || normalizeSearchText(equipment.equipmentName).includes(normalizedMedicalSearch)
   ));
+  const expiredItemsWithStock = [...shipEquipments, ...voyageEquipments]
+    .filter(isExpiredWithStock);
 
   const renderShipEquipmentCard = (eq) => {
     const good   = (eq.quantity || 1) - (eq.brokenCount || 0);
@@ -286,14 +320,18 @@ export default function EngineManagePage() {
     const brokenPct = Math.round((broken / total) * 100);
     const allGood   = broken === 0;
     const allBroken = broken === total;
+    const expired = isExpiredWithStock(eq);
+    const updateDisabled = allBroken || expired || !canUpdateSupplies;
 
     return (
       <Card
         key={eq.id}
         size="small"
         style={{
-          borderLeft: `4px solid ${allBroken ? '#ef4444' : allGood ? '#22c55e' : '#f59e0b'}`,
+          borderLeft: `4px solid ${expired || allBroken ? '#ef4444' : allGood ? '#22c55e' : '#f59e0b'}`,
           marginBottom: 8,
+          background: expired ? '#f3f4f6' : undefined,
+          opacity: expired ? 0.62 : 1,
         }}
         bodyStyle={{ padding: '10px 14px' }}
       >
@@ -305,9 +343,16 @@ export default function EngineManagePage() {
               <Tag style={{ fontSize: 11 }}>{equipmentTypeLabel(eq.equipmentType)}</Tag>
               <Text type="secondary" style={{ fontSize: 11 }}>{equipmentLocationLabel(eq.location)}</Text>
               {eq.expiryNote && (
-                <Tooltip title={`Hạn sử dụng: ${eq.expiryNote}`}>
-                  <Tag color="orange" style={{ fontSize: 10, marginLeft: 4 }}>HSD: {eq.expiryNote}</Tag>
+                <Tooltip title={`Hạn sử dụng: ${formatEquipmentExpiryDate(eq.expiryNote)}`}>
+                  <Tag color={expired ? 'red' : 'orange'} style={{ fontSize: 10, marginLeft: 4 }}>
+                    HSD: {formatEquipmentExpiryDate(eq.expiryNote)}
+                  </Tag>
                 </Tooltip>
+              )}
+              {expired && (
+                <div style={{ color: '#dc2626', fontSize: 12, fontWeight: 600, marginTop: 4 }}>
+                  {equipmentNameLabel(eq.equipmentName)} đã hết hạn sử dụng
+                </div>
               )}
             </div>
           </div>
@@ -334,14 +379,18 @@ export default function EngineManagePage() {
           </div>
 
           {/* Nút cập nhật */}
-          <Button
-            size="small"
-            icon={<ExclamationCircleOutlined />}
-            disabled={allBroken}
-            onClick={() => setBrokenModal({ open: true, equip: eq, newBroken: 1 })}
-          >
-            {allBroken ? 'Đã hỏng toàn bộ' : 'Ghi nhận hỏng'}
-          </Button>
+          <Tooltip title={!canUpdateSupplies
+            ? 'Chỉ được cập nhật khi hải trình đang di chuyển'
+            : (expired ? 'Thiết bị đã hết hạn sử dụng' : '')}>
+            <Button
+              size="small"
+              icon={<ExclamationCircleOutlined />}
+              disabled={updateDisabled}
+              onClick={() => !updateDisabled && setBrokenModal({ open: true, equip: eq, newBroken: 1 })}
+            >
+              {allBroken ? 'Đã hỏng toàn bộ' : expired ? 'Đã hết hạn' : 'Ghi nhận hỏng'}
+            </Button>
+          </Tooltip>
         </div>
       </Card>
     );
@@ -393,6 +442,30 @@ export default function EngineManagePage() {
             </span>
           }
         />
+
+        {canManageSupplies && !canUpdateSupplies && (
+          <Alert
+            style={{ marginBottom: 16 }}
+            type="warning"
+            showIcon
+            message="Hải trình chưa ở trạng thái Đang hành trình"
+            description="Thiết bị và vật tư y tế chỉ được cập nhật khi tàu đang di chuyển."
+          />
+        )}
+
+        {canManageSupplies && expiredItemsWithStock.length > 0 && (
+          <Alert
+            style={{ marginBottom: 16 }}
+            type="error"
+            showIcon
+            message="Có thiết bị hoặc vật tư đã hết hạn sử dụng"
+            description={expiredItemsWithStock.map((equipment) => (
+              <div key={`${equipment.voyageId || 'ship'}-${equipment.id}`}>
+                {equipmentNameLabel(equipment.equipmentName)} đã hết hạn sử dụng
+              </div>
+            ))}
+          />
+        )}
 
         <Tabs
           defaultActiveKey={isEngineOfficer ? 'engines' : 'ship-equipments'}
@@ -465,7 +538,9 @@ export default function EngineManagePage() {
                         const usedPct = Math.round((used / total) * 100);
                         const isEmpty = remain === 0;
                         const isLow   = remain > 0 && remain < total / 3;
-                        const borderColor = isEmpty ? '#ef4444' : isLow ? '#f59e0b' : '#22c55e';
+                        const expired = isExpiredWithStock(eq);
+                        const updateDisabled = isEmpty || expired || !canUpdateSupplies;
+                        const borderColor = expired || isEmpty ? '#ef4444' : isLow ? '#f59e0b' : '#22c55e';
 
                         return (
                           <Card
@@ -474,6 +549,8 @@ export default function EngineManagePage() {
                             style={{
                               borderLeft: `4px solid ${borderColor}`,
                               marginBottom: 8,
+                              background: expired ? '#f3f4f6' : undefined,
+                              opacity: expired ? 0.62 : 1,
                             }}
                             bodyStyle={{ padding: '10px 14px' }}
                           >
@@ -484,11 +561,18 @@ export default function EngineManagePage() {
                                 <div style={{ marginTop: 2 }}>
                                   <Tag color="blue" style={{ fontSize: 11 }}>Vật tư y tế</Tag>
                                   {eq.expiryNote ? (
-                                    <Tooltip title={`Hạn sử dụng: ${eq.expiryNote}`}>
-                                      <Tag color="orange" style={{ fontSize: 10, marginLeft: 2 }}>HSD: {eq.expiryNote}</Tag>
+                                    <Tooltip title={`Hạn sử dụng: ${formatEquipmentExpiryDate(eq.expiryNote)}`}>
+                                      <Tag color={expired ? 'red' : 'orange'} style={{ fontSize: 10, marginLeft: 2 }}>
+                                        HSD: {formatEquipmentExpiryDate(eq.expiryNote)}
+                                      </Tag>
                                     </Tooltip>
                                   ) : (
                                     <Text type="secondary" style={{ fontSize: 11 }}>Không có hạn SD</Text>
+                                  )}
+                                  {expired && (
+                                    <div style={{ color: '#dc2626', fontSize: 12, fontWeight: 600, marginTop: 4 }}>
+                                      {eq.equipmentName} đã hết hạn sử dụng
+                                    </div>
                                   )}
                                 </div>
                               </div>
@@ -515,14 +599,18 @@ export default function EngineManagePage() {
                               </div>
 
                               {/* Nút cập nhật */}
-                              <Button
-                                size="small"
-                                icon={<MedicineBoxOutlined />}
-                                disabled={isEmpty}
-                                onClick={() => setMedModal({ open: true, equip: eq, newUsed: 1 })}
-                              >
-                                {isEmpty ? 'Đã dùng hết' : 'Ghi nhận sử dụng'}
-                              </Button>
+                              <Tooltip title={!canUpdateSupplies
+                                ? 'Chỉ được cập nhật khi hải trình đang di chuyển'
+                                : (expired ? 'Vật tư đã hết hạn sử dụng' : '')}>
+                                <Button
+                                  size="small"
+                                  icon={<MedicineBoxOutlined />}
+                                  disabled={updateDisabled}
+                                  onClick={() => !updateDisabled && setMedModal({ open: true, equip: eq, newUsed: 1 })}
+                                >
+                                  {isEmpty ? 'Đã dùng hết' : expired ? 'Đã hết hạn' : 'Ghi nhận sử dụng'}
+                                </Button>
+                              </Tooltip>
                             </div>
                           </Card>
                         );

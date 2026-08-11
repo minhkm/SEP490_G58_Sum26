@@ -4,7 +4,15 @@ const crypto = require('crypto');
 const { sequelize, Voyage, User, CrewProfile, VoyageCrew, Ship, Attendance, Cargo, CargoItem, CargoOperation, ShipCapacity, CargoHold, CargoAllocation, Equipment, CargoType } = require('../models');
 const { sendCrewCredentialsEmail, sendRouteApprovalEmail } = require('../services/emailService');
 const { notifyCrewAssignedToVoyage, notifyAttendanceUpdated, notifyVoyageUpdated } = require('../services/notificationService');
-const { SHIP_STATUS, normalizeEquipmentLocation, normalizeEquipmentName } = require('../utils/vessel');
+const {
+  SHIP_STATUS,
+  normalizeEquipmentLocation,
+  normalizeEquipmentName,
+  findDuplicateEquipment,
+  normalizeEquipmentExpiryDate,
+  isEquipmentExpired,
+  isEquipmentExpiryAllowed,
+} = require('../utils/vessel');
 const { canonicalVoyageRole, isSupplyManagerRole } = require('../utils/voyageRole');
 const authMiddleware = require('../middlewares/authMiddleware');
 const requireRole = require('../middlewares/roleMiddleware');
@@ -61,8 +69,25 @@ router.post('/', authMiddleware, requireRole('Admin'), async (req, res) => {
     const medicalSupplyTypes = new Set(
       validMedicalSupplies.map((item) => item.name.trim().toLocaleLowerCase('vi-VN')),
     );
+    const duplicateMedicalSupply = findDuplicateEquipment(validMedicalSupplies, false);
+    if (duplicateMedicalSupply) {
+      errors.push(`Vật tư y tế "${duplicateMedicalSupply.name.trim()}" bị trùng tên.`);
+    }
     if (medicalSupplyTypes.size < 5) {
       errors.push('Hải trình bắt buộc phải có ít nhất 5 loại vật tư y tế hợp lệ.');
+    }
+    const invalidExpirySupply = validMedicalSupplies.find(
+      (item) => normalizeEquipmentExpiryDate(item?.expiryNote) === undefined,
+    );
+    if (invalidExpirySupply) {
+      errors.push(`Hạn sử dụng của vật tư "${invalidExpirySupply.name.trim()}" không hợp lệ. Vui lòng dùng định dạng YYYY-MM-DD hoặc chọn Không có hạn sử dụng.`);
+    }
+    const nonFutureExpirySupply = validMedicalSupplies.find(
+      (item) => normalizeEquipmentExpiryDate(item?.expiryNote) !== undefined
+        && !isEquipmentExpiryAllowed(item?.expiryNote),
+    );
+    if (nonFutureExpirySupply) {
+      errors.push(`Hạn sử dụng của vật tư "${nonFutureExpirySupply.name.trim()}" phải sau ngày hiện tại hoặc chọn Không có hạn sử dụng.`);
     }
 
     if (errors.length > 0) {
@@ -193,7 +218,7 @@ router.post('/', authMiddleware, requireRole('Admin'), async (req, res) => {
           equipmentType: 'Vật tư y tế',   // Chỉ cho phép loại vật tư y tế trong hải trình
           location: normalizeEquipmentLocation(e.location),
           quantity: Number(e.quantity) || 1,
-          expiryNote: e.expiryNote || null,
+          expiryNote: normalizeEquipmentExpiryDate(e.expiryNote),
           brokenCount: 0,
           status: 'Hoạt động'
         }));
@@ -1137,8 +1162,19 @@ router.patch('/equipments/:equipmentId/broken-count', authMiddleware, async (req
     if (!isSupplyManagerRole(effectiveRole)) {
       return res.status(403).json({ message: 'Chỉ Thuyền trưởng hoặc Đại phó mới được cập nhật vật tư y tế' });
     }
+    const voyage = await Voyage.findByPk(equipment.voyageId);
+    if (!voyage) {
+      return res.status(404).json({ message: 'Không tìm thấy hải trình của vật tư y tế.' });
+    }
+    if (voyage.status !== 'Underway') {
+      return res.status(400).json({ message: 'Chỉ được cập nhật vật tư y tế khi hải trình đang di chuyển.' });
+    }
 
     const currentUsedCount = Number(equipment.brokenCount) || 0;
+    const remaining = Math.max(0, Number(equipment.quantity) - currentUsedCount);
+    if (remaining > 0 && isEquipmentExpired(equipment.expiryNote)) {
+      return res.status(400).json({ message: `${equipment.equipmentName} đã hết hạn sử dụng.` });
+    }
     const nextUsedCount = currentUsedCount + additionalUsedCount;
     if (nextUsedCount > equipment.quantity) {
       const remaining = Math.max(0, equipment.quantity - currentUsedCount);
