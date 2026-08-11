@@ -411,7 +411,7 @@ export default function DeckLogPage() {
     return (
       <MasterLayout>
         <div style={{ padding: 'clamp(12px, 4vw, 32px)' }}>
-          <PageHeader icon={<FileTextOutlined style={{ color: '#2563eb' }} />} breadcrumb="Nhật ký boong" title="Nhật ký Trực boong" />
+          <PageHeader icon={<FileTextOutlined />} breadcrumb="Nhật ký boong" title="Nhật ký Trực boong" />
           <Card><Empty description={<div><p>Không có hải trình nào.</p></div>} /></Card>
         </div>
       </MasterLayout>
@@ -488,7 +488,7 @@ export default function DeckLogPage() {
   return (
     <MasterLayout>
       <div style={{ padding: 'clamp(12px, 4vw, 32px)' }}>
-        <PageHeader icon={<FileTextOutlined style={{ color: '#2563eb' }} />} breadcrumb="Nhật ký boong" title="Nhật ký Trực boong" />
+        <PageHeader icon={<FileTextOutlined />} breadcrumb="Nhật ký boong" title="Nhật ký Trực boong" />
 
         {/* Chọn Hải trình, Ngày, Ca trực */}
         <Card style={{ marginBottom: 16 }}>

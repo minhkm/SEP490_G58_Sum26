@@ -1,237 +1,68 @@
+/* ============================================================
+   index.css — CHỈ chứa reset toàn cục + tiện ích KHÔNG thuộc antd.
+   Mọi styling của component antd (Card/Table/Input/Button/Tag/...)
+   đã chuyển sang theme tokens trong main.jsx. KHÔNG thêm override
+   `!important` cho `.ant-*` ở đây (xem CLAUDE.md mục 6).
+   Font Poppins được nạp ở index.html.
+   ============================================================ */
+
 :root {
+  --font-sans: 'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 
-
-  --text: #6b6375;
-  --text-h: #08060d;
-  --bg: #fff;
-  --border: #e5e4e7;
-  --code-bg: #f4f3ec;
-  --accent: #aa3bff;
-  --accent-bg: rgba(170, 59, 255, 0.1);
-  --accent-border: rgba(170, 59, 255, 0.5);
-  --social-bg: rgba(244, 243, 236, 0.5);
-  --shadow:
-    rgba(0, 0, 0, 0.1) 0 10px 15px -3px, rgba(0, 0, 0, 0.05) 0 4px 6px -2px;
-
-  --sans: system-ui, 'Segoe UI', Roboto, sans-serif;
-  --heading: system-ui, 'Segoe UI', Roboto, sans-serif;
-  --mono: ui-monospace, Consolas, monospace;
-
-  font: 18px/145% var(--sans);
-  letter-spacing: 0.18px;
-  color-scheme: light ;
-  color: var(--text);
-  background: var(--bg);
-  font-synthesis: none;
-  text-rendering: optimizeLegibility;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-  color-scheme: light;
-
-  @media (max-width: 1024px) {
-    font-size: 16px;
-  }
+  /* Bảng màu thương hiệu Ocean Professional — dùng chung cho CSS trang lẻ,
+     khớp theme tokens trong main.jsx (tránh mỗi trang một tông xanh). */
+  --brand: #0E5FB5;
+  --brand-dark: #0A4A93;
+  --brand-light: #47BFFF;
+  --brand-050: #E6F0FB;
+  --brand-100: #CFE3F6;
+  --ink: #0C2340;
+  --muted: #64748b;
+  --line: #E6EBF1;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --text: #9ca3af;
-    --text-h: #f3f4f6;
-    --bg: #16171d;
-    --border: #2e303a;
-    --code-bg: #1f2028;
-    --accent: #c084fc;
-    --accent-bg: rgba(192, 132, 252, 0.15);
-    --accent-border: rgba(192, 132, 252, 0.5);
-    --social-bg: rgba(47, 48, 58, 0.5);
-    --shadow:
-      rgba(0, 0, 0, 0.4) 0 10px 15px -3px, rgba(0, 0, 0, 0.25) 0 4px 6px -2px;
-  }
-
-  #social .button-icon {
-    filter: invert(1) brightness(2);
-  }
+* {
+  box-sizing: border-box;
 }
 
 body {
   margin: 0;
-  background-color: #dbeafe; /* Blue 100 - Nautical layout background */
-}
-
-.ant-layout {
-  background-color: #dbeafe !important;
-}
-
-.ant-card {
-  background-color: #f0f9ff !important; /* Sky 50 - Anti-glare soft blue tint */
-  box-shadow: 0 4px 6px -1px rgba(30, 58, 138, 0.1), 0 2px 4px -2px rgba(30, 58, 138, 0.05) !important;
-  border: 1px solid #93c5fd !important; /* Blue 300 border */
-  border-radius: 12px;
-}
-
-.ant-card-head {
-  background-color: #bfdbfe !important; /* Blue 200 header */
-  border-bottom: 2px solid #93c5fd !important;
-  border-radius: 12px 12px 0 0 !important;
-}
-
-.ant-input, .ant-input-number, .ant-select-selector, .ant-picker {
-  background-color: #ffffff !important;
-  border: 1px solid #60a5fa !important; /* Blue 400 input borders */
-  border-radius: 6px !important;
-}
-
-.ant-input:focus, .ant-input-number:focus, .ant-select-selector:focus, .ant-picker:focus {
-  background-color: #e0f2fe !important;
-  border-color: #2563eb !important;
-  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.2) !important;
-}
-:root {
-
-
-  --text: #6b6375;
-  --text-h: #08060d;
-  --bg: #fff;
-  --border: #e5e4e7;
-  --code-bg: #f4f3ec;
-  --accent: #aa3bff;
-  --accent-bg: rgba(170, 59, 255, 0.1);
-  --accent-border: rgba(170, 59, 255, 0.5);
-  --social-bg: rgba(244, 243, 236, 0.5);
-  --shadow:
-    rgba(0, 0, 0, 0.1) 0 10px 15px -3px, rgba(0, 0, 0, 0.05) 0 4px 6px -2px;
-
-  --sans: system-ui, 'Segoe UI', Roboto, sans-serif;
-  --heading: system-ui, 'Segoe UI', Roboto, sans-serif;
-  --mono: ui-monospace, Consolas, monospace;
-
-  font: 18px/145% var(--sans);
-  letter-spacing: 0.18px;
-  color-scheme: light ;
-  color: var(--text);
-  background: var(--bg);
-  font-synthesis: none;
-  text-rendering: optimizeLegibility;
+  padding: 0;
+  font-family: var(--font-sans);
+  color: #1e293b;
+  background: #f4f6fa;
+  min-height: 100vh;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  color-scheme: light;
-
-  @media (max-width: 1024px) {
-    font-size: 16px;
-  }
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --text: #9ca3af;
-    --text-h: #f3f4f6;
-    --bg: #16171d;
-    --border: #2e303a;
-    --code-bg: #1f2028;
-    --accent: #c084fc;
-    --accent-bg: rgba(192, 132, 252, 0.15);
-    --accent-border: rgba(192, 132, 252, 0.5);
-    --social-bg: rgba(47, 48, 58, 0.5);
-    --shadow:
-      rgba(0, 0, 0, 0.4) 0 10px 15px -3px, rgba(0, 0, 0, 0.25) 0 4px 6px -2px;
-  }
-
-  #social .button-icon {
-    filter: invert(1) brightness(2);
-  }
-}
-
-body {
-  margin: 0;
-  background-color: #dbeafe; /* Blue 100 - Nautical layout background */
-}
-
-.ant-layout {
-  background-color: #dbeafe !important;
-}
-
+/* Elevation mềm cho Card — antd không expose token shadow cho Card.
+   Đây là BỔ SUNG (không "che" token), không dùng !important. */
 .ant-card {
-  background-color: #f0f9ff !important; /* Sky 50 - Anti-glare soft blue tint */
-  box-shadow: 0 4px 6px -1px rgba(30, 58, 138, 0.1), 0 2px 4px -2px rgba(30, 58, 138, 0.05) !important;
-  border: 1px solid #93c5fd !important; /* Blue 300 border */
-  border-radius: 12px;
+  box-shadow: 0 1px 2px rgba(12, 35, 64, 0.04), 0 2px 8px -2px rgba(12, 35, 64, 0.08);
 }
 
-.ant-card-head {
-  background-color: #bfdbfe !important; /* Blue 200 header */
-  border-bottom: 2px solid #93c5fd !important;
-  border-radius: 12px 12px 0 0 !important;
+/* Thanh cuộn gọn gàng */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
 }
 
-.ant-input, .ant-input-number, .ant-select-selector, .ant-picker {
-  background-color: #ffffff !important;
-  border: 1px solid #60a5fa !important; /* Blue 400 input borders */
-  border-radius: 6px !important;
+::-webkit-scrollbar-track {
+  background: #f1f5f9;
 }
 
-.ant-input:focus, .ant-input-number:focus, .ant-select-selector:focus, .ant-picker:focus {
-  background-color: #e0f2fe !important;
-  border-color: #2563eb !important;
-  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.2) !important;
-}
-
-.ant-form-item-label > label {
-  font-weight: 700 !important;
-  color: #1e3a8a !important; /* Deep Navy Blue 900 */
-}
-
-#root {
-}
-
-h1,
-h2 {
-  font-family: var(--heading);
-  font-weight: 500;
-  color: var(--text-h);
-}
-
-h1 {
-  font-size: 56px;
-  letter-spacing: -1.68px;
-  margin: 32px 0;
-
-  @media (max-width: 1024px) {
-    font-size: 36px;
-    margin: 20px 0;
-  }
-}
-
-h2 {
-  font-size: 24px;
-  line-height: 118%;
-  letter-spacing: -0.24px;
-  margin: 0 0 8px;
-
-  @media (max-width: 1024px) {
-    font-size: 20px;
-  }
-}
-
-p {
-  margin: 0;
-}
-
-code,
-.counter {
-  font-family: var(--mono);
-  display: inline-flex;
+::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
   border-radius: 4px;
-  color: var(--text-h);
 }
 
-code {
-  font-size: 15px;
-  line-height: 135%;
-  padding: 4px 8px;
-  background: var(--code-bg);
+::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
 }
 
-/* ===== Antd Image Preview — kích thước lớn hơn ===== */
+/* Antd Image Preview — phóng to hơn mặc định (override kích thước preview,
+   không phải theming; antd không có token cho việc này). */
 .ant-image-preview-img {
   max-width: 85vw !important;
   max-height: 85vh !important;

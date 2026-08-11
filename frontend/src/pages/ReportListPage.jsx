@@ -7,7 +7,7 @@ import { PlusOutlined, BarChartOutlined, ReloadOutlined, SearchOutlined, LinkOut
 import dayjs from 'dayjs';
 import MasterLayout from '../components/MasterLayout';
 import { reportService, profileService } from '../services/api';
-import { PageHeader, StatusTag, RowActions, notifySuccess, notifyError } from '../components/common';
+import { PageHeader, PageContainer, StatusTag, RowActions, notifySuccess, notifyError } from '../components/common';
 import { roleLabel, canCreateReport, canHandleReport, reportTypeOptions } from '../config/roles';
 
 const { TextArea } = Input;
@@ -257,7 +257,7 @@ export default function ReportListPage() {
 
   return (
     <MasterLayout>
-      <div style={{ padding: '24px 32px' }}>
+      <PageContainer>
         <PageHeader
           title={<><BarChartOutlined style={{ color: '#6366f1', marginRight: 8 }} />Quản lý Báo cáo</>}
           extra={canCreate && <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>Tạo báo cáo</Button>}
@@ -340,7 +340,7 @@ export default function ReportListPage() {
             locale={{ emptyText: scope === 'inbox' ? 'Không có báo cáo nào cần bạn xử lý.' : 'Bạn chưa tạo báo cáo nào.' }}
           />
         </Card>
-      </div>
+      </PageContainer>
 
       <Modal
         title="Tạo báo cáo mới"

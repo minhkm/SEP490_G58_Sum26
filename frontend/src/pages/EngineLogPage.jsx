@@ -370,7 +370,7 @@ export default function EngineLogPage() {
     return (
       <MasterLayout>
         <div style={{ padding: 'clamp(12px, 4vw, 32px)' }}>
-          <PageHeader icon={<DashboardOutlined style={{ color: '#2563eb' }} />} breadcrumb="Nhật ký máy" title="Nhật ký Kiểm tra Máy" />
+          <PageHeader icon={<DashboardOutlined />} breadcrumb="Nhật ký máy" title="Nhật ký Kiểm tra Máy" />
           <Card>
             <Empty description={<div><p>Không có hải trình nào.</p></div>} />
           </Card>
@@ -422,7 +422,7 @@ export default function EngineLogPage() {
   return (
     <MasterLayout>
       <div style={{ padding: 'clamp(12px, 4vw, 32px)' }}>
-        <PageHeader icon={<DashboardOutlined style={{ color: '#2563eb' }} />} breadcrumb="Nhật ký máy" title="Nhật ký Kiểm tra Máy" />
+        <PageHeader icon={<DashboardOutlined />} breadcrumb="Nhật ký máy" title="Nhật ký Kiểm tra Máy" />
 
         {/* Chọn Hải trình, Ngày, Ca trực */}
         <Card style={{ marginBottom: 16 }}>

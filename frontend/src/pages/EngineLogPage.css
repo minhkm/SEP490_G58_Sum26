@@ -16,7 +16,7 @@
 .el-info-card {
   flex: 1; background: white; border-radius: 8px;
   padding: 16px 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-  border-left: 4px solid #2563eb;
+  border-left: 4px solid var(--brand);
 }
 .el-info-card.shift { border-left-color: #16a34a; }
 .el-info-card-label {
@@ -48,8 +48,8 @@
   cursor: pointer; transition: all 0.2s;
   border: 2px solid transparent;
 }
-.el-engine-card:hover { border-color: #2563eb; transform: translateY(-2px); }
-.el-engine-card.active { border-color: #2563eb; background: #eff6ff; }
+.el-engine-card:hover { border-color: var(--brand); transform: translateY(-2px); }
+.el-engine-card.active { border-color: var(--brand); background: #eff6ff; }
 .el-engine-card-header {
   padding: 16px; border-bottom: 1px solid #e2e8f0;
   display: flex; justify-content: space-between; align-items: center;
@@ -101,7 +101,7 @@
   border-radius: 6px; font-size: 16px; font-weight: 600;
   text-align: center; color: #1e293b;
 }
-.el-param-input:focus { border-color: #2563eb; outline: none; box-shadow: 0 0 0 3px rgba(37,99,235,0.1); }
+.el-param-input:focus { border-color: var(--brand); outline: none; box-shadow: 0 0 0 3px rgba(37,99,235,0.1); }
 .el-param-input.warning { border-color: #f59e0b; background: #fffbeb; }
 .el-param-input.danger { border-color: #ef4444; background: #fef2f2; }
 .el-param-range {
@@ -117,8 +117,8 @@
   display: flex; justify-content: flex-end; gap: 12px;
 }
 .btn-cancel { background: white; border: 1px solid #cbd5e1; color: #475569; padding: 10px 20px; border-radius: 6px; cursor: pointer; }
-.btn-save { background: #2563eb; color: white; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; font-weight: 500; display: flex; align-items: center; gap: 8px; }
-.btn-save:hover { background: #1d4ed8; }
+.btn-save { background: var(--brand); color: white; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; font-weight: 500; display: flex; align-items: center; gap: 8px; }
+.btn-save:hover { background: var(--brand-dark); }
 
 /* History Table */
 .el-history-card {

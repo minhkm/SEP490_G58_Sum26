@@ -9,9 +9,14 @@ const JWT_SECRET = process.env.JWT_SECRET || 'super_secret_key';
 // Login
 router.post('/login', async (req, res) => {
   try {
-    const { email, password } = req.body;
+    const identifier = req.body.email || req.body.username;
+    const { password } = req.body;
 
-    const user = await User.findOne({ where: { username: email } });
+    if (!identifier || !password) {
+      return res.status(400).json({ message: 'Vui lòng nhập đầy đủ tài khoản và mật khẩu.' });
+    }
+
+    const user = await User.findOne({ where: { username: identifier } });
     if (!user) {
       return res.status(400).json({ message: 'Tài khoản không tồn tại.' });
     }

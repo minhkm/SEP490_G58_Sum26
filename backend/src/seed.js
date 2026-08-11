@@ -3,6 +3,22 @@
 const bcrypt = require('bcrypt');
 require('dotenv').config();
 
+// ⚠️ SAFETY GUARD: Ngăn chạy seed nhầm trên production
+// Railway tự inject RAILWAY_ENVIRONMENT=production
+// Muốn seed production phải dùng: npm run seed:prod
+// hoặc truyền flag --confirm khi chạy thủ công
+const isProduction = process.env.RAILWAY_ENVIRONMENT === 'production'
+  || process.env.NODE_ENV === 'production';
+const hasConfirm = process.argv.includes('--confirm');
+
+if (isProduction && !hasConfirm) {
+  console.error('\n🚨 DỪNG LẠI! Đây là môi trường PRODUCTION (Railway)!');
+  console.error('   Chạy seed sẽ XÓA SẠCH toàn bộ dữ liệu thực.');
+  console.error('   Nếu chắc chắn, chạy: node src/seed.js --confirm');
+  console.error('   Hoặc từ local: npm run seed:prod\n');
+  process.exit(1);
+}
+
 const {
   sequelize,
   User, CrewProfile, CrewCertificate,
@@ -266,38 +282,35 @@ async function seed() {
     // CARGO TYPES (loại hàng cấu hình được)
     // ================================================================
     await CargoType.bulkCreate([
-      { name: 'Rice', description: 'Gạo' },
-      { name: 'Coal', description: 'Than đá' },
-      { name: 'Stores', description: 'Vật tư, lương thực' },
-      { name: 'Container', description: 'Hàng container' },
-      { name: 'Steel', description: 'Sắt thép' },
-      { name: 'Cement', description: 'Xi măng' },
+      { name: 'Sắt thép', defaultUnit: 'MT', stowageFactor: 0.45, description: 'Sắt thép cuộn, thép tấm, phôi thép (Hàng nặng)' },
+      { name: 'Quặng sắt', defaultUnit: 'MT', stowageFactor: 0.48, description: 'Quặng sắt, bauxite, khoáng sản thô (Hàng nặng)' },
+      { name: 'Xi măng', defaultUnit: 'MT', stowageFactor: 0.80, description: 'Xi măng bao 50kg / xi măng rời (Cần chống ẩm)' },
+      { name: 'Phân bón', defaultUnit: 'MT', stowageFactor: 1.18, description: 'Phân bón Ure, NPK đóng bao hoặc xá' },
+      { name: 'Than đá', defaultUnit: 'MT', stowageFactor: 1.30, description: 'Than đá cám, than nhiệt điện công nghiệp' },
+      { name: 'Ngũ cốc', defaultUnit: 'MT', stowageFactor: 1.35, description: 'Ngũ cốc, bắp ngô, lúa mì chở xá' },
+      { name: 'Gạo', defaultUnit: 'MT', stowageFactor: 1.45, description: 'Gạo xuất khẩu đóng bao 50kg (Cần thông gió hầm)' },
+      { name: 'Gỗ xẻ', defaultUnit: 'CBM', stowageFactor: 1.90, description: 'Gỗ xẻ thanh, ván ép, dăm gỗ xuất khẩu' },
+      { name: 'Hàng Container', defaultUnit: 'TEU', stowageFactor: 2.20, description: 'Hàng đóng trong container tiêu chuẩn 20ft/40ft' },
+      { name: 'Bông sợi', defaultUnit: 'MT', stowageFactor: 2.60, description: 'Bông sợi dệt may ép kiện (Hàng nhẹ cồng kềnh)' },
     ], { transaction: t });
     console.log('✅ Loại hàng xong');
 
     // ================================================================
-    // COMMIT
+    // COMMIT (Không tạo hải trình mẫu - để trống 0 hải trình)
     // ================================================================
     await t.commit();
     console.log('✅ Đã xác nhận giao dịch thành công!');
 
-    console.log('\n🎉 Hoàn tất tạo dữ liệu mẫu (Đã xoá hải trình theo yêu cầu)!\n');
-    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+    console.log('\n🎉 Hoàn tất tạo dữ liệu mẫu (0 hải trình - sẵn sàng tạo mới)!\n');
+    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
     console.log('📋 TÀI KHOẢN MẪU');
-    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-    console.log('  [Quản trị viên] admin@vinhquang.vn → Admin@CargoOps2026');
-    console.log('  [Thuyền trưởng]  nvduong@star66.vn  → CargoOps@2026  (STAR 66)');
-    console.log('  [Đại phó]         tvtuong@star66.vn  → CargoOps@2026');
-    console.log('  [Máy trưởng]      pcduc@star66.vn    → CargoOps@2026');
-    console.log('  [Thợ máy]  ntlong@star66.vn    → CargoOps@2026  (STAR 66)');
-    console.log('  [Thuyền trưởng]  nqminh@vqs.vn       CargoOps@2026  (VINH QUANG SUN)');
-    console.log('  [Đại phó]         tvhung@vqs.vn       CargoOps@2026');
-    console.log('  [Thợ máy]  ldkhoa@vqs.vn         CargoOps@2026  (VQS)');
-    console.log('  [Thủy thủ] tqviet@vqs.vn         CargoOps@2026  (VQS)');
-    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-    console.log('🚢 TÀU:  MV VINH QUANG SUN (IMO 9215672)  |  MV STAR 66 (IMO 9588548)');
-    console.log('🗺️  HÀNH TRÌNH: 0 (Đã xoá toàn bộ hải trình)');
-    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n');
+    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+    console.log('  Quản trị viên (Admin): admin@vinhquang.vn → Admin@CargoOps2026');
+    console.log('  Thuyền trưởng / Thuyền viên: mật khẩu chung CargoOps@2026');
+    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+    console.log('🚢 TÀU:  MV VINH QUANG SUN (IMO 9215672) | MV STAR 66 (IMO 9588548)');
+    console.log('🗺️  HẢI TRÌNH: 0 (Chưa có hải trình nào)');
+    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n');
 
   } catch (err) {
     await t.rollback();

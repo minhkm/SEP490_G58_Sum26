@@ -18,6 +18,10 @@ export default function RowActions({
   viewTitle = 'Xem chi tiết',
   editTitle = 'Chỉnh sửa',
   deleteTitle = 'Xoá',
+  editDisabled = false,
+  editDisabledTooltip = 'Không thể chỉnh sửa',
+  deleteDisabled = false,
+  deleteDisabledTooltip = 'Không thể xoá',
   stopPropagation = false,
   children,
 }) {
@@ -30,13 +34,24 @@ export default function RowActions({
         </Tooltip>
       )}
       {onEdit && (
-        <Tooltip title={editTitle}>
-          <Button type="text" icon={<EditOutlined />} onClick={onEdit} />
+        <Tooltip title={editDisabled ? editDisabledTooltip : editTitle}>
+          <Button
+            type="text"
+            icon={<EditOutlined />}
+            onClick={editDisabled ? undefined : onEdit}
+            disabled={editDisabled}
+          />
         </Tooltip>
       )}
       {onDelete && (
-        <Tooltip title={deleteTitle}>
-          <Button type="text" danger icon={<DeleteOutlined />} onClick={onDelete} />
+        <Tooltip title={deleteDisabled ? deleteDisabledTooltip : deleteTitle}>
+          <Button
+            type="text"
+            danger
+            icon={<DeleteOutlined />}
+            onClick={deleteDisabled ? undefined : onDelete}
+            disabled={deleteDisabled}
+          />
         </Tooltip>
       )}
     </Space>

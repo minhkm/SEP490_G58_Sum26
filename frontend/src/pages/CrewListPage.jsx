@@ -1,14 +1,16 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Table, Button, Tag, Input, Card, Avatar, Space, Typography, Tooltip } from 'antd';
+import { Table, Button, Tag, Input, Card, Avatar, Space, Typography, Tooltip, Row, Col } from 'antd';
 import {
   TeamOutlined,
   PlusOutlined,
   SafetyCertificateOutlined,
+  CompassOutlined,
+  ToolOutlined,
 } from '@ant-design/icons';
 import AdminLayout from '../components/AdminLayout';
 import { crewService } from '../services/api';
-import { PageHeader, StatusTag, RowActions, notifyError, confirmDelete } from '../components/common';
+import { PageHeader, PageContainer, StatCard, StatusTag, RowActions, notifyError, confirmDelete } from '../components/common';
 
 const { Text } = Typography;
 
@@ -36,20 +38,20 @@ export default function CrewListPage() {
   const [searchTerm, setSearchTerm] = useState('');
 
   useEffect(() => {
-    fetchCrews();
-  }, []);
+    let isMounted = true;
+    crewService.getAll()
+      .then((data) => {
+        if (isMounted) setCrews(Array.isArray(data) ? data : []);
+      })
+      .catch((error) => console.error('Lỗi khi lấy danh sách thủy thủ:', error))
+      .finally(() => {
+        if (isMounted) setLoading(false);
+      });
 
-  const fetchCrews = async () => {
-    try {
-      setLoading(true);
-      const data = await crewService.getAll();
-      setCrews(Array.isArray(data) ? data : []);
-    } catch (error) {
-      console.error('Lỗi khi lấy danh sách thủy thủ:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   const handleDelete = async (id, name) => {
     if (
@@ -73,6 +75,13 @@ export default function CrewListPage() {
       (c) => c.fullName && c.fullName.toLowerCase().includes(keyword)
     );
   }, [crews, searchTerm]);
+
+  const stats = useMemo(() => {
+    const total = crews.length;
+    const deck = crews.filter((c) => c.department === 'Deck').length;
+    const engine = crews.filter((c) => c.department === 'Engine').length;
+    return { total, deck, engine };
+  }, [crews]);
 
   const columns = [
     {
@@ -150,8 +159,11 @@ export default function CrewListPage() {
         return (
           <RowActions
             onEdit={() => navigate(`/crews/edit/${crew.id}`)}
-            onDelete={isOnVoyage ? undefined : () => handleDelete(crew.id, crew.fullName)}
-            deleteTitle="Xóa"
+            editDisabled={isOnVoyage}
+            editDisabledTooltip="Thuyền viên đang tham gia hải trình, không thể chỉnh sửa"
+            onDelete={() => handleDelete(crew.id, crew.fullName)}
+            deleteDisabled={isOnVoyage}
+            deleteDisabledTooltip="Thuyền viên đang tham gia hải trình, không thể xóa"
           />
         );
       },
@@ -160,7 +172,7 @@ export default function CrewListPage() {
 
   return (
     <AdminLayout>
-      <div style={{ padding: '24px 32px' }}>
+      <PageContainer>
         <PageHeader
           title={
             <>
@@ -174,6 +186,18 @@ export default function CrewListPage() {
             </Button>
           }
         />
+
+        <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
+          <Col xs={24} sm={8}>
+            <StatCard title="Tổng thuyền viên" value={stats.total} icon={<TeamOutlined />} tone="blue" />
+          </Col>
+          <Col xs={24} sm={8}>
+            <StatCard title="Bộ phận Boong" value={stats.deck} icon={<CompassOutlined />} tone="cyan" />
+          </Col>
+          <Col xs={24} sm={8}>
+            <StatCard title="Bộ phận Máy" value={stats.engine} icon={<ToolOutlined />} tone="gold" />
+          </Col>
+        </Row>
 
         <Card
           extra={
@@ -200,7 +224,7 @@ export default function CrewListPage() {
             locale={{ emptyText: 'Không tìm thấy thủy thủ nào phù hợp.' }}
           />
         </Card>
-      </div>
+      </PageContainer>
     </AdminLayout>
   );
 }

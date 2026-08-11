@@ -1,27 +1,38 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Row, Col, Card, Statistic, Table, Button, Tag, Input, Space, Typography, Steps } from 'antd';
+import { Row, Col, Card, Table, Button, Input, Space, Typography, Steps, Tag, Progress, Empty, Tooltip } from 'antd';
 import {
   CalendarOutlined,
   PlusOutlined,
   UserAddOutlined,
-  DashboardOutlined,
-  TeamOutlined,
   CompassOutlined,
-  ProfileOutlined,
-  MoreOutlined,
+  ContainerOutlined,
+  TeamOutlined,
   QuestionCircleOutlined,
   PlayCircleOutlined,
   DatabaseOutlined,
   InboxOutlined,
+  ArrowRightOutlined,
+  SearchOutlined,
+  EyeOutlined,
 } from '@ant-design/icons';
 import { Joyride, STATUS } from 'react-joyride';
 import AdminLayout from '../components/AdminLayout';
 import { dashboardService } from '../services/api';
-import { PageHeader, StatusTag, notifyError } from '../components/common';
-import './AdminDashboard.css';
+import { PageHeader, PageContainer, StatCard, StatusTag, notifyError } from '../components/common';
 
 const { Text, Title } = Typography;
+
+// Cấu hình trạng thái hải trình
+const VOYAGE_STATUS_MAP = {
+  Underway: { color: 'blue', text: 'Đang hành trình' },
+  Loaded: { color: 'cyan', text: 'Đã xếp hàng' },
+  Draft: { color: 'gold', text: 'Bản nháp' },
+  Planning: { color: 'orange', text: 'Lập kế hoạch' },
+  Approved: { color: 'purple', text: 'Đã phê duyệt' },
+  Completed: { color: 'green', text: 'Đã hoàn thành' },
+  Cancelled: { color: 'default', text: 'Đã hủy' },
+};
 
 export default function AdminDashboard() {
   const navigate = useNavigate();
@@ -38,12 +49,14 @@ export default function AdminDashboard() {
     totalCrews: 0,
     voyagesInProgress: 0,
     pendingApprovals: 0,
-    recentVessels: [],
-    newCrews: [],
+    activeVoyages: [],
   });
 
+  const [loading, setLoading] = useState(true);
+  const [searchVoyage, setSearchVoyage] = useState('');
+
   // --- Joyride State ---
-  const [runTour, setRunTour] = useState(false);
+  const [runTour, setRunTour] = useState(() => !localStorage.getItem('hasSeenTour'));
   const [tourSteps] = useState([
     {
       target: '.tour-quick-actions',
@@ -73,81 +86,216 @@ export default function AdminDashboard() {
     }
   ]);
 
-  const handleJoyrideCallback = (data) => {
-    const { status } = data;
+  const handleJoyrideCallback = (tourData) => {
+    const { status } = tourData;
     const finishedStatuses = [STATUS.FINISHED, STATUS.SKIPPED];
     if (finishedStatuses.includes(status)) {
       setRunTour(false);
-    }
-  };
-
-  useEffect(() => {
-    // Tự động bật tour nếu là lần đầu đăng nhập
-    const hasSeenTour = localStorage.getItem('hasSeenTour');
-    if (!hasSeenTour) {
-      setRunTour(true);
       localStorage.setItem('hasSeenTour', 'true');
     }
-  }, []);
-  // ---------------------
-
-  useEffect(() => {
-    const fetchDashboardData = async () => {
-      try {
-        const result = await dashboardService.getAdminDashboardData();
-        setData(result);
-      } catch (error) {
-        console.error('Lỗi khi tải dữ liệu dashboard:', error);
-        notifyError('Không thể tải dữ liệu bảng điều khiển.');
-      }
-    };
-    fetchDashboardData();
-  }, []);
-
-  const VESSEL_STATUS = {
-    Active: { color: 'green', text: 'Đang hoạt động' },
-    Maintenance: { color: 'orange', text: 'Bảo trì' },
-    Inactive: { color: 'default', text: 'Ngừng h.động' },
   };
 
-  const vesselColumns = [
+  useEffect(() => {
+    let isMounted = true;
+    dashboardService.getAdminDashboardData()
+      .then((result) => {
+        if (isMounted) setData(result);
+      })
+      .catch((error) => {
+        console.error('Lỗi khi tải dữ liệu dashboard:', error);
+        notifyError('Không thể tải dữ liệu bảng điều khiển.');
+      })
+      .finally(() => {
+        if (isMounted) setLoading(false);
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  // Lọc hải trình theo ô tìm kiếm
+  const filteredVoyages = useMemo(() => {
+    const voyages = data.activeVoyages || [];
+    if (!searchVoyage.trim()) return voyages;
+    const q = searchVoyage.toLowerCase().trim();
+    return voyages.filter(
+      (v) =>
+        (v.shipName && v.shipName.toLowerCase().includes(q)) ||
+        (v.departurePort && v.departurePort.toLowerCase().includes(q)) ||
+        (v.destinationPort && v.destinationPort.toLowerCase().includes(q)) ||
+        (v.captainName && v.captainName.toLowerCase().includes(q)) ||
+        (v.imoNumber && v.imoNumber.includes(q)) ||
+        v.cargoList?.some((c) => (c.name && c.name.toLowerCase().includes(q)) || (c.type && c.type.toLowerCase().includes(q)))
+    );
+  }, [data.activeVoyages, searchVoyage]);
+
+  // Cấu hình bảng Giám sát Hải trình
+  const voyageColumns = [
     {
-      title: 'TÊN TÀU / IMO',
-      key: 'name',
+      title: 'TÀU & HẢI TRÌNH',
+      key: 'vessel',
+      width: 220,
       render: (_, v) => (
         <div>
-          <div><strong>{v.shipName}</strong></div>
-          <Text type="secondary" style={{ fontSize: 12 }}>IMO: {v.imoNumber}</Text>
+          <div style={{ fontWeight: 600, color: '#1e293b', fontSize: 14 }}>
+            {v.shipName}
+          </div>
+          <Text type="secondary" style={{ fontSize: 12 }}>
+            Hải trình #{v.id} {v.imoNumber ? `• IMO: ${v.imoNumber}` : ''}
+          </Text>
         </div>
       ),
     },
     {
-      title: 'LOẠI TÀU',
-      dataIndex: 'type',
-      render: (type) => type || 'Tàu chở hàng',
+      title: 'TUYẾN ĐƯỜNG VẬN TẢI',
+      key: 'route',
+      width: 260,
+      render: (_, v) => (
+        <div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontWeight: 500 }}>
+            <span>📍 {v.departurePort}</span>
+            <ArrowRightOutlined style={{ color: '#6366f1', fontSize: 12 }} />
+            <span>🏁 {v.destinationPort}</span>
+          </div>
+          <Text type="secondary" style={{ fontSize: 12 }}>
+            {v.departureDate ? new Date(v.departureDate).toLocaleDateString('vi-VN') : '—'}
+            {' ➔ '}
+            {v.arrivalDate ? new Date(v.arrivalDate).toLocaleDateString('vi-VN') : '—'}
+          </Text>
+        </div>
+      ),
+    },
+    {
+      title: 'TIẾN ĐỘ HÀNH TRÌNH',
+      key: 'progress',
+      width: 180,
+      render: (_, v) => {
+        const isCompleted = v.status === 'Completed';
+        const strokeColor = isCompleted ? '#22c55e' : v.status === 'Underway' ? '#3b82f6' : '#eab308';
+        return (
+          <div style={{ minWidth: 140 }}>
+            <Progress
+              percent={v.progressPercent || 0}
+              size="small"
+              strokeColor={strokeColor}
+              format={(p) => `${p}%`}
+            />
+            <div style={{ fontSize: 11, color: '#64748b', marginTop: 2 }}>
+              {isCompleted
+                ? 'Đã cập cảng đích'
+                : v.status === 'Underway'
+                ? 'Đang hành trình trên biển'
+                : v.status === 'Loaded'
+                ? 'Đã xếp hàng, sẵn sàng rời cảng'
+                : 'Đang chuẩn bị chuyến'}
+            </div>
+          </div>
+        );
+      },
+    },
+    {
+      title: 'HÀNG HÓA TRÊN TÀU',
+      key: 'cargo',
+      width: 250,
+      render: (_, v) => {
+        const list = v.cargoList && v.cargoList.length > 0 
+          ? v.cargoList 
+          : (v.cargoTypes || []).map((t) => ({ name: t, type: t }));
+
+        return (
+          <div>
+            {v.cargoCount > 0 || list.length > 0 ? (
+              <>
+                <div style={{ fontWeight: 700, color: '#0f172a', marginBottom: 4, fontSize: 13 }}>
+                  {(v.totalWeight || 0).toLocaleString('vi-VN')} <span style={{ fontSize: 12, fontWeight: 500 }}>tấn</span>
+                  {v.totalVolume > 0 && (
+                    <span style={{ color: '#64748b', fontSize: 12, fontWeight: 400, marginLeft: 4 }}>
+                      ({(v.totalVolume || 0).toLocaleString('vi-VN')} m³)
+                    </span>
+                  )}
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                  {list.map((cargo, idx) => (
+                    <div
+                      key={cargo.id || idx}
+                      style={{
+                        fontSize: 12,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        gap: 6,
+                        background: '#eff6ff',
+                        border: '1px solid #bfdbfe',
+                        padding: '3px 8px',
+                        borderRadius: 6,
+                      }}
+                    >
+                      <span style={{ fontWeight: 600, color: '#1d4ed8', display: 'flex', alignItems: 'center', gap: 4 }}>
+                        📦 {cargo.name}
+                      </span>
+                      {cargo.type && (
+                        <Tag color="blue" style={{ fontSize: 10, borderRadius: 3, margin: 0, padding: '0 4px', lineHeight: '16px' }}>
+                          {cargo.type}
+                        </Tag>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </>
+            ) : (
+              <Text type="secondary" style={{ fontStyle: 'italic', fontSize: 12 }}>
+                Chưa gán hàng
+              </Text>
+            )}
+          </div>
+        );
+      },
+    },
+    {
+      title: 'THUYỀN TRƯỞNG & BIÊN CHẾ',
+      key: 'crew',
+      width: 200,
+      render: (_, v) => (
+        <div>
+          <div style={{ fontWeight: 500, color: '#334155' }}>
+            👨‍✈️ {v.captainName}
+          </div>
+          <Text type="secondary" style={{ fontSize: 12 }}>
+            Biên chế: <strong>{v.crewCount}</strong> thuyền viên
+          </Text>
+        </div>
+      ),
     },
     {
       title: 'TRẠNG THÁI',
       dataIndex: 'status',
+      width: 140,
       render: (status) => {
-        const cfg = VESSEL_STATUS[status];
+        const cfg = VOYAGE_STATUS_MAP[status] || { color: 'default', text: status || 'Không rõ' };
         return (
           <StatusTag
             status={status}
-            color={cfg ? cfg.color : 'blue'}
-            text={cfg ? cfg.text : status || 'Bình thường'}
+            color={cfg.color}
+            text={cfg.text}
           />
         );
       },
     },
     {
-      title: 'VỊ TRÍ',
-      dataIndex: 'flag',
-    },
-    {
       title: 'THAO TÁC',
       key: 'actions',
-      render: () => <Button type="text" icon={<MoreOutlined />} />,
+      align: 'center',
+      width: 90,
+      render: () => (
+        <Tooltip title="Xem chi tiết danh sách hải trình">
+          <Button
+            type="text"
+            icon={<EyeOutlined />}
+            onClick={() => navigate('/voyages')}
+          />
+        </Tooltip>
+      ),
     },
   ];
 
@@ -176,7 +324,7 @@ export default function AdminDashboard() {
         }}
       />
 
-      <div style={{ padding: '24px 32px' }}>
+      <PageContainer>
         {/* Header */}
         <PageHeader
           title="Bảng điều khiển Quản trị viên"
@@ -196,10 +344,10 @@ export default function AdminDashboard() {
           }
         />
 
-        {/* Workflow Steps (Quy trình chuẩn) */}
-        <Card className="tour-quick-actions" style={{ marginBottom: 24, background: '#f8fafc', border: '1px solid #e2e8f0' }}>
-          <div style={{ marginBottom: 24, textAlign: 'center' }}>
-            <Title level={4} style={{ margin: 0 }}>🛤️ Quy trình Vận hành Chuẩn (SOP)</Title>
+        {/* Workflow Steps (Quy trình chuẩn SOP) */}
+        <Card className="tour-quick-actions" style={{ marginBottom: 24, background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 10 }}>
+          <div style={{ marginBottom: 20, textAlign: 'center' }}>
+            <Title level={4} style={{ margin: 0, color: '#0f172a' }}>🛤️ Quy trình Vận hành Chuẩn (SOP)</Title>
             <Text type="secondary">Vui lòng đảm bảo bạn đã tạo Tàu và Hàng hóa trước khi Lập Kế hoạch Hải trình.</Text>
           </div>
           
@@ -262,89 +410,90 @@ export default function AdminDashboard() {
         </Card>
 
         {/* Stats Cards */}
-        <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
-          <Col xs={24} sm={12} lg={6}>
-            <Card>
-              <Statistic
-                title="TỔNG SỐ TÀU"
-                value={data.totalVessels}
-                prefix={<DashboardOutlined />}
-              />
-            </Card>
+        <Row gutter={[20, 20]} style={{ marginBottom: 24 }}>
+          <Col xs={24} sm={8} lg={8} className="tour-vessels">
+            <StatCard
+              title="Quản lý đội tàu"
+              value={data.totalVessels}
+              icon={<ContainerOutlined />}
+              tone="blue"
+              footer="Xem danh sách tàu"
+              onClick={() => navigate('/vessels')}
+            />
           </Col>
-          <Col xs={24} sm={12} lg={6}>
-            <Card>
-              <Statistic
-                title="TỔNG THUYỀN VIÊN"
-                value={data.totalCrews}
-                prefix={<TeamOutlined />}
-              />
-            </Card>
+          <Col xs={24} sm={8} lg={8} className="tour-crews">
+            <StatCard
+              title="Thủy thủ đoàn"
+              value={data.totalCrews}
+              icon={<TeamOutlined />}
+              tone="indigo"
+              footer="Xem danh sách thuyền viên"
+              onClick={() => navigate('/crews')}
+            />
           </Col>
-          <Col xs={24} sm={12} lg={6}>
-            <Card>
-              <Statistic
-                title="CHUYẾN ĐANG ĐI"
-                value={data.voyagesInProgress}
-                prefix={<CompassOutlined />}
-              />
-            </Card>
-          </Col>
-          <Col xs={24} sm={12} lg={6}>
-            <Card>
-              <Statistic
-                title="CHỜ PHÊ DUYỆT"
-                value={data.pendingApprovals}
-                valueStyle={{ color: '#cf1322' }}
-                prefix={<ProfileOutlined />}
-              />
-            </Card>
+          <Col xs={24} sm={8} lg={8} className="tour-voyages">
+            <StatCard
+              title="Hải trình đang đi"
+              value={data.voyagesInProgress}
+              icon={<CompassOutlined />}
+              tone="cyan"
+              footer="Theo dõi chuyến hải trình"
+              onClick={() => navigate('/voyages')}
+            />
           </Col>
         </Row>
 
-        {/* Main Content Grid */}
-        <Row gutter={[16, 16]}>
-          <Col xs={24} lg={16}>
-            <Card
-              title="Tổng quan Đội tàu"
-              extra={<Input.Search placeholder="Tìm kiếm tàu..." allowClear style={{ width: 220 }} />}
-            >
-              <Table
-                rowKey="id"
-                columns={vesselColumns}
-                dataSource={data.recentVessels}
-                pagination={{
-                  defaultPageSize: 10,
-                  showSizeChanger: true,
-                  pageSizeOptions: ['10', '20', '50'],
-                  showTotal: (total, range) => `Hiển thị ${range[0]}-${range[1]} trong số ${total} tàu`,
-                }}
-                locale={{ emptyText: 'Chưa có dữ liệu tàu' }}
-                footer={() => (
-                  <Text type="secondary">
-                    Hiển thị {data.recentVessels.length} trong số {data.totalVessels} tàu
+        {/* Live Voyage & Fleet Operations Tracking */}
+        <Card
+          style={{ borderRadius: 10, boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}
+          title={
+            <Space>
+              <CompassOutlined style={{ color: '#6366f1', fontSize: 18 }} />
+              <span style={{ fontSize: 16, fontWeight: 600 }}>Giám sát Hải trình & Hoạt động Vận tải</span>
+            </Space>
+          }
+          extra={
+            <Input
+              placeholder="Tìm theo cảng, tàu, thuyền trưởng..."
+              prefix={<SearchOutlined style={{ color: '#94a3b8' }} />}
+              value={searchVoyage}
+              onChange={(e) => setSearchVoyage(e.target.value)}
+              allowClear
+              style={{ width: 280 }}
+            />
+          }
+        >
+          {filteredVoyages.length === 0 ? (
+            <Empty
+              image={<CompassOutlined style={{ fontSize: 48, color: '#94a3b8', margin: '20px 0 10px' }} />}
+              description={
+                <div style={{ padding: '10px 0' }}>
+                  <Title level={5} style={{ color: '#334155', marginBottom: 6 }}>
+                    Hiện chưa có hải trình nào đang hoạt động
+                  </Title>
+                  <Text type="secondary" style={{ display: 'block', maxWidth: 500, margin: '0 auto' }}>
+                    Toàn bộ đội tàu và thuyền viên đang ở trạng thái sẵn sàng.
                   </Text>
-                )}
-              />
-            </Card>
-
-            <Card
-              title="Lưu lượng hàng hóa hàng tháng"
-              extra={<Text type="secondary">Năm 2024</Text>}
-              style={{ marginTop: 16 }}
-            >
-              <Text type="secondary">Dữ liệu tổng hợp từ các chuyến hải hành</Text>
-            </Card>
-          </Col>
-
-          <Col xs={24} lg={8}>
-            <Card title="Báo cáo Hệ thống">
-              <p>Mọi dịch vụ đang vận hành bình thường. Tốc độ đồng bộ hóa dữ liệu vệ tinh ổn định.</p>
-              <Tag color="green">ĐANG KẾT NỐI</Tag>
-            </Card>
-          </Col>
-        </Row>
-      </div>
+                </div>
+              }
+            />
+          ) : (
+            <Table
+              rowKey="id"
+              columns={voyageColumns}
+              dataSource={filteredVoyages}
+              loading={loading}
+              pagination={{
+                defaultPageSize: 5,
+                showSizeChanger: true,
+                pageSizeOptions: ['5', '10', '20'],
+                showTotal: (total, range) => `Hiển thị ${range[0]}-${range[1]} trong số ${total} hải trình`,
+              }}
+              locale={{ emptyText: 'Không tìm thấy hải trình nào phù hợp' }}
+            />
+          )}
+        </Card>
+      </PageContainer>
     </AdminLayout>
   );
 }

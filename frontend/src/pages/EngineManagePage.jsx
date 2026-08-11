@@ -3,7 +3,7 @@ import { Card, Tag, Button, Modal, Space, Spin, Empty, Typography, Tabs, Row, Co
 import { ToolOutlined, SettingOutlined, ExclamationCircleOutlined, MedicineBoxOutlined, SearchOutlined } from '@ant-design/icons';
 import MasterLayout from '../components/MasterLayout';
 import { voyageService, vesselService } from '../services/api';
-import { PageHeader, notifySuccess, notifyError } from '../components/common';
+import { PageHeader, PageContainer, notifySuccess, notifyError } from '../components/common';
 import { getEffectiveRole } from '../config/roles';
 import { Select } from 'antd';
 import {
@@ -362,7 +362,7 @@ export default function EngineManagePage() {
     return (
       <MasterLayout>
         <div style={{ padding: 'clamp(12px, 4vw, 32px)' }}>
-          <PageHeader icon={<ToolOutlined style={{ color: '#f59e0b' }} />}
+          <PageHeader icon={<ToolOutlined />}
             breadcrumb={pageTitle} title={pageTitle} />
           <Card><Empty description="Hiện không có hải trình nào đang hoạt động." /></Card>
         </div>
@@ -372,9 +372,9 @@ export default function EngineManagePage() {
 
   return (
     <MasterLayout>
-      <div style={{ padding: '24px 32px' }}>
+      <PageContainer>
         <PageHeader
-          icon={<ToolOutlined style={{ color: '#f59e0b' }} />}
+          icon={<ToolOutlined />}
           breadcrumb={pageTitle}
           title={pageTitle}
         />
@@ -534,7 +534,7 @@ export default function EngineManagePage() {
             }
           ].filter(Boolean)}
         />
-      </div>
+      </PageContainer>
 
       {/* Modal đổi trạng thái Máy */}
       <Modal

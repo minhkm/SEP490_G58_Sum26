@@ -17,21 +17,16 @@ export default function AdminSidebar() {
   const navigate = useNavigate();
   const location = useLocation();
 
-  const user = JSON.parse(localStorage.getItem('user')) || {
-    fullName: 'Admin',
-    username: 'admin@vinhquang.vn',
-    role: 'ADMIN',
-  };
-
-  const role = user.role || '';
+  const user = JSON.parse(localStorage.getItem('user') || '{}');
+  const role = user.role || 'Admin';
 
   const items = [
     { key: '/admin-dashboard', icon: <DashboardOutlined />, label: 'Bảng điều khiển', className: 'tour-dashboard' },
     { key: '/vessels', icon: <ContainerOutlined />, label: 'Quản lý Đội tàu', className: 'tour-vessels' },
     { key: '/crews', icon: <TeamOutlined />, label: 'Quản lý Thủy thủ đoàn', className: 'tour-crews' },
     { key: '/voyages', icon: <CompassOutlined />, label: 'Chuyến hải trình', className: 'tour-voyages' },
-    CARGO_ROLES.includes(role) && { key: '/cargos', icon: <InboxOutlined />, label: 'Hàng hóa', className: 'tour-cargos' },
-    role === 'Admin' && { key: '/settings', icon: <SettingOutlined />, label: 'Cài đặt' },
+    (CARGO_ROLES.includes(role) || role.toLowerCase() === 'admin') && { key: '/cargos', icon: <InboxOutlined />, label: 'Hàng hóa', className: 'tour-cargos' },
+    role.toLowerCase() === 'admin' && { key: '/settings', icon: <SettingOutlined />, label: 'Cài đặt' },
   ].filter(Boolean);
 
   const selectedKey =
@@ -53,10 +48,10 @@ export default function AdminSidebar() {
         onClick={() => navigate('/admin-dashboard')}
         style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '20px 16px', cursor: 'pointer', color: '#fff' }}
       >
-        <span style={{ fontSize: 24, lineHeight: 1 }}>🚢</span>
+        <img src="/favicon.svg" alt="CargoOps" width={32} height={32} style={{ display: 'block', borderRadius: 7 }} />
         <div style={{ display: 'flex', flexDirection: 'column' }}>
           <strong style={{ fontSize: 18 }}>CargoOps</strong>
-          <span style={{ fontSize: 12, color: '#94a3b8' }}>Logistics Hàng hải</span>
+          <span style={{ fontSize: 12, color: '#94a3b8' }}>Quản lý hàng hải</span>
         </div>
       </div>
 

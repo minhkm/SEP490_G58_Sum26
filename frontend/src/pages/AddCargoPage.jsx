@@ -9,12 +9,14 @@ import {
   Card,
   Alert,
   Modal,
+  Row,
+  Col,
 } from 'antd';
 import { AppstoreOutlined, SaveOutlined } from '@ant-design/icons';
 import AdminLayout from '../components/AdminLayout';
 import MasterLayout from '../components/MasterLayout';
 import { cargoService, cargoTypeService } from '../services/api';
-import { PageHeader } from '../components/common';
+import { PageHeader, PageContainer } from '../components/common';
 import { notifySuccess, notifyError } from '../utils/feedback';
 
 const { Option } = Select;
@@ -79,18 +81,53 @@ export default function AddCargoPage() {
       // Bỏ chọn giá trị giả rồi mở modal tạo loại hàng mới
       form.setFieldValue('cargoType', undefined);
       typeForm.resetFields();
+      typeForm.setFieldsValue({ defaultUnit: 'MT', stowageFactor: 1.0 });
       setTypeModalOpen(true);
+      return;
+    }
+
+    // Tự động tính thể tích chiếm chỗ theo SF của loại hàng được chọn
+    const selectedType = cargoTypes.find(t => t.name === value);
+    const weight = form.getFieldValue('totalWeight');
+    if (selectedType && selectedType.stowageFactor && weight !== undefined && weight !== null && weight !== '') {
+      const sf = Number(selectedType.stowageFactor) || 1.0;
+      const numWeight = Number(weight) || 0;
+      if (numWeight > 0) {
+        form.setFieldValue('totalVolume', Number((numWeight * sf).toFixed(2)));
+      }
+    }
+  };
+
+  const handleWeightChange = (weight) => {
+    const currentType = form.getFieldValue('cargoType');
+    const selectedType = cargoTypes.find(t => t.name === currentType);
+    if (selectedType && selectedType.stowageFactor && weight !== undefined && weight !== null) {
+      const sf = Number(selectedType.stowageFactor) || 1.0;
+      const numWeight = Number(weight) || 0;
+      if (numWeight > 0) {
+        form.setFieldValue('totalVolume', Number((numWeight * sf).toFixed(2)));
+      }
     }
   };
 
   const handleCreateCargoType = async () => {
     try {
       const values = await typeForm.validateFields();
-      const payload = { name: values.name.trim(), description: (values.description || '').trim() };
+      const payload = {
+        name: values.name.trim(),
+        defaultUnit: values.defaultUnit || 'MT',
+        stowageFactor: values.stowageFactor ?? 1.0,
+        description: (values.description || '').trim(),
+      };
       setCreatingType(true);
       const res = await cargoTypeService.create(payload);
       await loadCargoTypes();
       form.setFieldValue('cargoType', res.data?.name || payload.name);
+      // Tự động tính volume theo SF mới tạo
+      const weight = form.getFieldValue('totalWeight');
+      if (weight && payload.stowageFactor) {
+        form.setFieldValue('totalVolume', Number((weight * payload.stowageFactor).toFixed(2)));
+      }
       setTypeModalOpen(false);
       notifySuccess('Loại hàng mới đã được tạo.');
     } catch (err) {
@@ -128,7 +165,7 @@ export default function AddCargoPage() {
 
   return (
     <Layout>
-      <div style={{ padding: '24px 32px', maxWidth: '900px', margin: '0 auto' }}>
+      <PageContainer style={{ maxWidth: '900px', margin: '0 auto' }}>
         {/* Header */}
         <PageHeader
           onBack={() => navigate('/cargos')}
@@ -144,13 +181,13 @@ export default function AddCargoPage() {
           <Alert type="error" showIcon message={error} style={{ marginBottom: 20 }} />
         )}
 
-        <Card>
-          <Form
-            form={form}
-            layout="vertical"
-            onFinish={handleSubmit}
-            initialValues={{ status: 'Đã ở cảng' }}
-          >
+        <Form
+          form={form}
+          layout="vertical"
+          onFinish={handleSubmit}
+          initialValues={{ status: 'Đã ở cảng' }}
+        >
+          <Card title="Thông tin cơ bản" style={{ marginBottom: 16 }}>
             <Form.Item
               label="Tên Lô Hàng"
               name="cargoName"
@@ -159,55 +196,72 @@ export default function AddCargoPage() {
               <Input placeholder="VD: Vietnam White Rice 5% Broken..." />
             </Form.Item>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
-              <Form.Item label="Loại Hàng" name="cargoType">
-                <Select
-                  placeholder="-- Chọn loại hàng --"
-                  allowClear
-                  onChange={handleCargoTypeChange}
+            <Row gutter={16}>
+              <Col xs={24} md={12}>
+                <Form.Item label="Loại Hàng" name="cargoType">
+                  <Select
+                    placeholder="-- Chọn loại hàng --"
+                    allowClear
+                    onChange={handleCargoTypeChange}
+                  >
+                    {cargoTypes.map(t => (
+                      <Option key={t.id} value={t.name}>{t.name}</Option>
+                    ))}
+                    {canEdit && <Option value={ADD_CARGO_TYPE}>➕ Tạo loại hàng mới…</Option>}
+                  </Select>
+                </Form.Item>
+              </Col>
+              <Col xs={24} md={12}>
+                <Form.Item label="Trạng Thái" name="status">
+                  <Input readOnly disabled />
+                </Form.Item>
+              </Col>
+            </Row>
+          </Card>
+
+          <Card title="Khối lượng & Thể tích" style={{ marginBottom: 16 }}>
+            <Row gutter={16}>
+              <Col xs={24} md={12}>
+                <Form.Item
+                  label="Tổng Khối Lượng (Tấn)"
+                  name="totalWeight"
+                  rules={[
+                    { required: true, message: 'Vui lòng nhập tổng khối lượng' },
+                    { type: 'number', min: 0.01, message: 'Khối lượng phải lớn hơn 0' }
+                  ]}
                 >
-                  {cargoTypes.map(t => (
-                    <Option key={t.id} value={t.name}>{t.name}</Option>
-                  ))}
-                  {canEdit && <Option value={ADD_CARGO_TYPE}>➕ Tạo loại hàng mới…</Option>}
-                </Select>
-              </Form.Item>
-              <Form.Item label="Trạng Thái" name="status">
-                <Input readOnly disabled />
-              </Form.Item>
-            </div>
+                  <InputNumber
+                    step={0.01}
+                    min={0}
+                    placeholder="VD: 2750"
+                    style={{ width: '100%' }}
+                    onChange={handleWeightChange}
+                  />
+                </Form.Item>
+              </Col>
+              <Col xs={24} md={12}>
+                <Form.Item
+                  label="Tổng Thể Tích Chiếm Chỗ (m³)"
+                  name="totalVolume"
+                  extra="Tự động ước tính: Thể tích = Khối lượng × Hệ số SF của loại hàng"
+                  rules={[
+                    { type: 'number', min: 0.01, message: 'Thể tích phải lớn hơn 0' }
+                  ]}
+                >
+                  <InputNumber step={0.01} min={0} placeholder="VD: 3200" style={{ width: '100%' }} />
+                </Form.Item>
+              </Col>
+            </Row>
+          </Card>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
-              <Form.Item
-                label="Tổng Khối Lượng (Tấn)"
-                name="totalWeight"
-                rules={[
-                  { required: true, message: 'Vui lòng nhập tổng khối lượng' },
-                  { type: 'number', min: 0.01, message: 'Khối lượng phải lớn hơn 0' }
-                ]}
-              >
-                <InputNumber step={0.01} min={0} placeholder="VD: 2750" style={{ width: '100%' }} />
-              </Form.Item>
-              <Form.Item 
-                label="Tổng Thể Tích (m³)" 
-                name="totalVolume"
-                rules={[
-                  { type: 'number', min: 0.01, message: 'Thể tích phải lớn hơn 0' }
-                ]}
-              >
-                <InputNumber step={0.01} min={0} placeholder="VD: 3200" style={{ width: '100%' }} />
-              </Form.Item>
-            </div>
-
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 12, borderTop: '1px solid #f0f0f0', paddingTop: 20 }}>
-              <Button onClick={() => navigate('/cargos')}>Hủy</Button>
-              <Button type="primary" htmlType="submit" loading={loading} icon={<SaveOutlined />}>
-                {isEditMode ? 'Cập nhật' : 'Thêm mới'}
-              </Button>
-            </div>
-          </Form>
-        </Card>
-      </div>
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 12, borderTop: '1px solid #f0f0f0', paddingTop: 20 }}>
+            <Button onClick={() => navigate('/cargos')}>Hủy</Button>
+            <Button type="primary" htmlType="submit" loading={loading} icon={<SaveOutlined />}>
+              {isEditMode ? 'Cập nhật' : 'Thêm mới'}
+            </Button>
+          </div>
+        </Form>
+      </PageContainer>
 
       <Modal
         title="Thêm loại hàng mới"
@@ -219,14 +273,47 @@ export default function AddCargoPage() {
         confirmLoading={creatingType}
         destroyOnHidden
       >
-        <Form form={typeForm} layout="vertical">
+        <Form
+          form={typeForm}
+          layout="vertical"
+          initialValues={{ defaultUnit: 'MT', stowageFactor: 1.0 }}
+        >
           <Form.Item
             label="Tên loại hàng"
             name="name"
             rules={[{ required: true, message: 'Vui lòng nhập tên loại hàng' }]}
           >
-            <Input placeholder="Tên loại hàng (VD: Rice)" />
+            <Input placeholder="Tên loại hàng (VD: Gạo, Than đá, Sắt thép, Bông sợi...)" />
           </Form.Item>
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+            <Form.Item
+              label="Đơn vị tính"
+              name="defaultUnit"
+              rules={[{ required: true, message: 'Vui lòng chọn đơn vị tính' }]}
+            >
+              <Select placeholder="Chọn đơn vị">
+                <Option value="MT">MT (Tấn)</Option>
+                <Option value="CBM">CBM (m³)</Option>
+                <Option value="TEU">TEU (Cont 20ft)</Option>
+                <Option value="BAG">BAG (Bao)</Option>
+                <Option value="PCS">PCS (Kiện/Cái)</Option>
+                <Option value="BBL">BBL (Thùng phuy)</Option>
+              </Select>
+            </Form.Item>
+
+            <Form.Item
+              label="Hệ số chất xếp (SF - m³/MT)"
+              name="stowageFactor"
+              rules={[
+                { required: true, message: 'Vui lòng nhập hệ số SF' },
+                { type: 'number', min: 0.05, max: 20, message: 'Hệ số phải từ 0.05 đến 20' }
+              ]}
+            >
+              <InputNumber step={0.05} min={0.05} max={20} style={{ width: '100%' }} />
+            </Form.Item>
+          </div>
+
           <Form.Item label="Mô tả" name="description">
             <Input placeholder="Mô tả (tuỳ chọn)" />
           </Form.Item>

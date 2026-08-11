@@ -4,7 +4,7 @@ import { Button, DatePicker, Select, Spin, Result, Card, Space, Typography, Tool
 import { ClockCircleOutlined, LeftOutlined, RightOutlined, PlusOutlined, SaveOutlined, EditOutlined, DeleteOutlined, CloseOutlined, CheckOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import MasterLayout from '../components/MasterLayout';
-import { PageHeader, StatusTag, notifySuccess, notifyError, notifyInfo, confirmDelete } from '../components/common';
+import { PageHeader, PageContainer, StatusTag, notifySuccess, notifyError, notifyInfo, confirmDelete } from '../components/common';
 import { shiftService } from '../services/api';
 import { SHIFT_SLOTS, SHIFT_STATUS, POSITIONS_BY_DEPT, DEPARTMENT_STYLE, slotFromStart } from '../config/shifts';
 
@@ -135,7 +135,7 @@ export default function ShiftSchedulePage() {
 
   return (
     <MasterLayout>
-      <div style={{ padding: '24px 32px' }}>
+      <PageContainer>
         <PageHeader
           onBack={() => navigate('/shifts')}
           icon={<ClockCircleOutlined />}
@@ -229,7 +229,7 @@ export default function ShiftSchedulePage() {
         <Text type="secondary" style={{ display: 'block', fontSize: 12, marginTop: 14 }}>
           * Chỉ gán được thủy thủ/thợ máy cấp dưới cùng bộ phận. Ca đã bắt đầu hoặc thuộc bộ phận khác không thể sửa/xóa.
         </Text>
-      </div>
+      </PageContainer>
     </MasterLayout>
   );
 }

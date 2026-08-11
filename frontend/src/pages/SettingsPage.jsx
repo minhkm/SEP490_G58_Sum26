@@ -3,6 +3,7 @@ import { Card, Row, Col, Typography, Space } from 'antd';
 import { SettingOutlined, TagOutlined, RightOutlined } from '@ant-design/icons';
 import AdminLayout from '../components/AdminLayout';
 import MasterLayout from '../components/MasterLayout';
+import { PageContainer } from '../components/common';
 
 const { Title, Text } = Typography;
 
@@ -24,7 +25,7 @@ export default function SettingsPage() {
 
   return (
     <Layout>
-      <div style={{ padding: '24px 32px', maxWidth: 900, margin: '0 auto' }}>
+      <PageContainer style={{ maxWidth: 900, margin: '0 auto' }}>
         {/* Header */}
         <Space align="center" size={12} style={{ marginBottom: 4 }}>
           <SettingOutlined style={{ fontSize: 26, color: '#6366f1' }} />
@@ -64,7 +65,7 @@ export default function SettingsPage() {
             </Col>
           ))}
         </Row>
-      </div>
+      </PageContainer>
     </Layout>
   );
 }
