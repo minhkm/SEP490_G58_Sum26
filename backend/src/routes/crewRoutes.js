@@ -279,14 +279,21 @@ router.post('/', async (req, res) => {
       position
     });
 
-    // Gửi qua Resend HTTPS API ở chế độ nền để không làm chậm request tạo tài khoản.
-    sendCrewCredentialsEmail(email, generatedPassword, role || 'Sailor', {
+    // Chờ Gmail API phản hồi để API có thể báo chính xác trạng thái gửi email.
+    const emailSent = await sendCrewCredentialsEmail(email, generatedPassword, role || 'Sailor', {
       fullName,
       department,
       position
-    }).catch(err => console.error('Lỗi gửi email Resend:', err));
+    });
 
-    res.status(201).json({ message: 'Thêm thủy thủ thành công', crew: newCrew, temporaryPassword: generatedPassword });
+    res.status(201).json({
+      message: emailSent
+        ? 'Thêm thủy thủ và gửi email thành công'
+        : 'Thêm thủy thủ thành công nhưng gửi email thất bại',
+      crew: newCrew,
+      temporaryPassword: generatedPassword,
+      emailSent
+    });
   } catch (error) {
     console.error('Lỗi tạo mới thủy thủ:', error);
     res.status(500).json({ message: 'Lỗi server khi tạo mới' });
