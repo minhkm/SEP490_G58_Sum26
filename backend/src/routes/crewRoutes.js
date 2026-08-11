@@ -1,6 +1,6 @@
 const express = require('express');
 const bcrypt = require('bcrypt');
-const nodemailer = require('nodemailer');
+const { sendCrewCredentialsEmail } = require('../services/emailService');
 const { CrewProfile, User, CrewCertificate, Voyage, VoyageCrew } = require('../models');
 const { Op } = require('sequelize');
 const authMiddleware = require('../middlewares/authMiddleware');
@@ -279,46 +279,12 @@ router.post('/', async (req, res) => {
       position
     });
 
-    // Gửi email tự động
-    try {
-      const transporter = nodemailer.createTransport({
-        host: 'smtp.gmail.com',
-        port: 465,
-        secure: true,
-        auth: {
-          user: process.env.EMAIL_USER,
-          pass: process.env.EMAIL_PASS
-        },
-        family: 4 // Bắt buộc dùng IPv4 để tránh lỗi chặn mạng IPv6 trên Railway
-      });
-
-      const mailOptions = {
-        from: `"CargoOps System" <${process.env.EMAIL_USER}>`,
-        to: email,
-        subject: 'Tài khoản đăng nhập hệ thống CargoOps',
-        html: `
-          <h3>Chào mừng ${fullName || 'bạn'} gia nhập đội ngũ CargoOps,</h3>
-          <p>Tài khoản đăng nhập hệ thống nội bộ của bạn đã được khởi tạo thành công với các thông tin công tác như sau:</p>
-          <ul style="color: #334155; line-height: 1.6;">
-            <li><strong>Bộ phận công tác:</strong> ${department === 'Deck' ? 'Boong (Deck)' : (department === 'Engine' ? 'Máy (Engine)' : (department === 'None' ? 'Không thuộc bộ phận' : department))}</li>
-            <li><strong>Chức danh:</strong> ${position || 'Chưa cập nhật'}</li>
-            <li><strong>Quyền hệ thống:</strong> ${role || 'Sailor'}</li>
-          </ul>
-          <div style="background-color: #f1f5f9; padding: 15px; border-radius: 8px; margin: 15px 0;">
-            <p style="margin-top: 0;"><strong>Tên đăng nhập (Email):</strong> ${email}</p>
-            <p style="margin-bottom: 0;"><strong>Mật khẩu tạm thời:</strong> <span style="color: #0284c7; font-weight: bold; letter-spacing: 1px;">${generatedPassword}</span></p>
-          </div>
-          <p style="color: #dc2626;"><strong>Lưu ý quan trọng:</strong> Vì lý do bảo mật, hệ thống sẽ yêu cầu bạn đổi mật khẩu ngay trong lần đăng nhập đầu tiên.</p>
-          <br>
-          <p>Trân trọng,<br>CargoOps System</p>
-        `
-      };
-
-      // Chạy ngầm không await để tránh treo request nếu SMTP phản hồi chậm
-      transporter.sendMail(mailOptions).catch(err => console.error('Lỗi gửi email ngầm:', err));
-    } catch (mailError) {
-      console.error('Lỗi cấu hình email:', mailError);
-    }
+    // Gửi qua Resend HTTPS API ở chế độ nền để không làm chậm request tạo tài khoản.
+    sendCrewCredentialsEmail(email, generatedPassword, role || 'Sailor', {
+      fullName,
+      department,
+      position
+    }).catch(err => console.error('Lỗi gửi email Resend:', err));
 
     res.status(201).json({ message: 'Thêm thủy thủ thành công', crew: newCrew, temporaryPassword: generatedPassword });
   } catch (error) {
