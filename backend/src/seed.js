@@ -289,9 +289,11 @@ async function seed() {
       { name: 'Than đá', defaultUnit: 'MT', stowageFactor: 1.30, description: 'Than đá cám, than nhiệt điện công nghiệp' },
       { name: 'Ngũ cốc', defaultUnit: 'MT', stowageFactor: 1.35, description: 'Ngũ cốc, bắp ngô, lúa mì chở xá' },
       { name: 'Gạo', defaultUnit: 'MT', stowageFactor: 1.45, description: 'Gạo xuất khẩu đóng bao 50kg (Cần thông gió hầm)' },
-      { name: 'Gỗ xẻ', defaultUnit: 'CBM', stowageFactor: 1.90, description: 'Gỗ xẻ thanh, ván ép, dăm gỗ xuất khẩu' },
+      { name: 'Cà phê', defaultUnit: 'BAG', stowageFactor: 1.80, description: 'Cà phê nhân đóng bao 60kg xuất khẩu' },
       { name: 'Hàng Container', defaultUnit: 'TEU', stowageFactor: 2.20, description: 'Hàng đóng trong container tiêu chuẩn 20ft/40ft' },
       { name: 'Bông sợi', defaultUnit: 'MT', stowageFactor: 2.60, description: 'Bông sợi dệt may ép kiện (Hàng nhẹ cồng kềnh)' },
+      { name: 'Thiết bị điện', defaultUnit: 'PCS', stowageFactor: 3.50, description: 'Máy móc, thiết bị điện tử đóng trong thùng carton' },
+      { name: 'Dầu nhờn', defaultUnit: 'BBL', stowageFactor: 1.15, description: 'Dầu bôi trơn đóng thùng phuy tiêu chuẩn' },
     ], { transaction: t });
     console.log('✅ Loại hàng xong');
 
