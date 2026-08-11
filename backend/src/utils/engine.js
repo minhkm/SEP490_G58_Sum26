@@ -54,6 +54,23 @@ const normalizeEngineName = (name) => String(name || '')
   .replace(/^Generator Engine\s*(?:No\.?\s*)?/i, 'Máy phụ số ')
   .trim();
 
+const engineIdentityKey = (engine) => normalizeEngineName(engine?.engineName ?? engine)
+  .normalize('NFKC')
+  .replace(/\s+/g, ' ')
+  .trim()
+  .toLocaleLowerCase('vi-VN');
+
+const findDuplicateEngine = (engines) => {
+  const seen = new Set();
+  for (const engine of engines || []) {
+    const key = engineIdentityKey(engine);
+    if (!key) continue;
+    if (seen.has(key)) return engine;
+    seen.add(key);
+  }
+  return null;
+};
+
 const ENGINE_PARAMETER_NAMES = new Map([
   ['Fuel Oil Pressure', 'Áp suất dầu nhiên liệu (kg/cm²)'],
   ['Fuel Oil Pressure (kg/cm²)', 'Áp suất dầu nhiên liệu (kg/cm²)'],
@@ -81,5 +98,7 @@ module.exports = {
   isOperationalEngineStatus,
   isMainEngine,
   normalizeEngineName,
+  engineIdentityKey,
+  findDuplicateEngine,
   normalizeEngineParameterName,
 };

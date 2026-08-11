@@ -222,12 +222,12 @@ async function seed() {
       // Thiết bị cứu sinh
       { equipmentName: 'Xuồng cứu sinh số 1 (Mạn trái)', equipmentType: 'Thiết bị cứu sinh', location: 'Boong', quantity: 1, expiryNote: null },
       { equipmentName: 'Xuồng cứu sinh số 2 (Mạn phải)', equipmentType: 'Thiết bị cứu sinh', location: 'Boong', quantity: 1, expiryNote: null },
-      { equipmentName: 'Bè cứu sinh tự thổi', equipmentType: 'Thiết bị cứu sinh', location: 'Boong', quantity: 2, expiryNote: '12/2027' },
+      { equipmentName: 'Bè cứu sinh tự thổi', equipmentType: 'Thiết bị cứu sinh', location: 'Boong', quantity: 2, expiryNote: '2027-12-31' },
       { equipmentName: 'Áo phao cá nhân', equipmentType: 'Thiết bị cứu sinh', location: 'Boong', quantity: 25, expiryNote: null },
       { equipmentName: 'Phao tròn', equipmentType: 'Thiết bị cứu sinh', location: 'Boong', quantity: 8, expiryNote: null },
       // Thiết bị chữa cháy
-      { equipmentName: 'Bình chữa cháy CO2 (Buồng máy)', equipmentType: 'Thiết bị chữa cháy', location: 'Buồng máy', quantity: 4, expiryNote: '06/2027' },
-      { equipmentName: 'Bình chữa cháy bột xách tay', equipmentType: 'Thiết bị chữa cháy', location: 'Boong', quantity: 6, expiryNote: '06/2027' },
+      { equipmentName: 'Bình chữa cháy CO2 (Buồng máy)', equipmentType: 'Thiết bị chữa cháy', location: 'Buồng máy', quantity: 4, expiryNote: '2027-06-30' },
+      { equipmentName: 'Bình chữa cháy bột xách tay', equipmentType: 'Thiết bị chữa cháy', location: 'Boong', quantity: 6, expiryNote: '2027-06-30' },
       { equipmentName: 'Hệ thống chữa cháy bằng bọt cố định', equipmentType: 'Thiết bị chữa cháy', location: 'Boong', quantity: 1, expiryNote: null },
       // Dụng cụ sửa chữa
       { equipmentName: 'Nồi hơi', equipmentType: 'Dụng cụ sửa chữa', location: 'Buồng máy', quantity: 1, expiryNote: null },
@@ -242,8 +242,8 @@ async function seed() {
       // Thiết bị liên lạc
       { equipmentName: 'Máy vô tuyến VHF', equipmentType: 'Thiết bị liên lạc', location: 'Buồng lái', quantity: 2, expiryNote: null },
       { equipmentName: 'Hệ thống liên lạc vệ tinh (Inmarsat)', equipmentType: 'Thiết bị liên lạc', location: 'Buồng lái', quantity: 1, expiryNote: null },
-      { equipmentName: 'Phao vô tuyến chỉ báo vị trí (EPIRB)', equipmentType: 'Thiết bị liên lạc', location: 'Buồng lái', quantity: 1, expiryNote: '08/2028' },
-      { equipmentName: 'Thiết bị phát đáp radar (SART)', equipmentType: 'Thiết bị liên lạc', location: 'Buồng lái', quantity: 2, expiryNote: '08/2028' },
+      { equipmentName: 'Phao vô tuyến chỉ báo vị trí (EPIRB)', equipmentType: 'Thiết bị liên lạc', location: 'Buồng lái', quantity: 1, expiryNote: '2028-08-31' },
+      { equipmentName: 'Thiết bị phát đáp radar (SART)', equipmentType: 'Thiết bị liên lạc', location: 'Buồng lái', quantity: 2, expiryNote: '2028-08-31' },
       // Khác (boong)
       { equipmentName: 'Mỏ neo và máy tời neo', equipmentType: 'Khác', location: 'Boong', quantity: 1, expiryNote: null },
       { equipmentName: 'Dây buộc tàu', equipmentType: 'Khác', location: 'Boong', quantity: 8, expiryNote: null },

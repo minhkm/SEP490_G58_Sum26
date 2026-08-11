@@ -3,6 +3,7 @@ const { Ship, CrewProfile, Voyage, User, VoyageCrew, Cargo, CargoItem, Equipment
 const { Op } = require('sequelize');
 const authMiddleware = require('../middlewares/authMiddleware');
 const requireRole = require('../middlewares/roleMiddleware');
+const { isEquipmentExpired } = require('../utils/vessel');
 
 const router = express.Router();
 
@@ -180,10 +181,25 @@ router.get('/master', authMiddleware, async (req, res) => {
       });
     });
 
-    // Tính trạng thiết bị (Ví dụ: số thiết bị "Hoạt động" / tổng số)
-    const equipments = activeVoyage.Equipment || [];
-    const operationalEquipments = equipments.filter(eq => eq.status === 'Hoạt động' || eq.status === 'Operational').length;
-    const equipmentStatus = equipments.length > 0 ? `${operationalEquipments}/${equipments.length} Tốt` : 'Không có dữ liệu';
+    // Tách thiết bị cố định của tàu và vật tư y tế của hải trình nhưng vẫn dùng
+    // chung một thẻ KPI trên giao diện.
+    const medicalSupplies = activeVoyage.Equipment || [];
+    const vesselEquipments = await Equipment.findAll({
+      where: { shipId: activeVoyage.shipId },
+    });
+    const isAvailable = (equipment) => {
+      const remaining = Number(equipment.quantity || 0) - Number(equipment.brokenCount || 0);
+      return remaining > 0 && !isEquipmentExpired(equipment.expiryNote);
+    };
+    const availableVesselEquipmentTypes = vesselEquipments.filter(isAvailable).length;
+    const availableMedicalSupplyTypes = medicalSupplies.filter(isAvailable).length;
+    const vesselEquipmentStatus = vesselEquipments.length > 0
+      ? `${availableVesselEquipmentTypes}/${vesselEquipments.length} thiết bị tốt`
+      : 'Không có thiết bị tàu';
+    const medicalSupplyStatus = medicalSupplies.length > 0
+      ? `${availableMedicalSupplyTypes}/${medicalSupplies.length} vật tư còn lại`
+      : 'Không có vật tư y tế';
+    const equipmentStatus = `${vesselEquipmentStatus} · ${medicalSupplyStatus}`;
 
     // Số nhân sự
     const totalCrewCount = (activeVoyage.VoyageCrews || []).length;
@@ -202,6 +218,8 @@ router.get('/master', authMiddleware, async (req, res) => {
         totalWeight,
         totalVolume,
         equipmentStatus,
+        vesselEquipmentStatus,
+        medicalSupplyStatus,
         totalCrewCount
       },
       latestOperationReport

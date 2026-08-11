@@ -23,6 +23,7 @@ import {
   Progress,
   Tag,
   message,
+  Checkbox,
 } from 'antd';
 import {
   PlusOutlined,
@@ -45,10 +46,29 @@ import { PageHeader, notifySuccess, notifyError, notifyWarning } from '../compon
 import { SEAPORTS } from '../data/ports';
 import { positionLabel } from '../config/roles';
 import * as XLSX from 'xlsx';
+import {
+  equipmentIdentityKey,
+  findDuplicateEquipment,
+  normalizeEquipmentExpiryDate,
+  isEquipmentExpiryAllowed,
+} from '../utils/vessel';
 
 const { Text } = Typography;
 const DATE_FORMAT = 'YYYY-MM-DD';
 const toDayjs = (value) => (value ? dayjs(value, DATE_FORMAT) : null);
+
+const parseExcelExpiryDate = (value) => {
+  if (value == null || String(value).trim() === '') return null;
+  if (typeof value === 'number') {
+    const parsed = XLSX.SSF.parse_date_code(value);
+    if (!parsed) return undefined;
+    return `${parsed.y}-${String(parsed.m).padStart(2, '0')}-${String(parsed.d).padStart(2, '0')}`;
+  }
+  if (value instanceof Date && !Number.isNaN(value.getTime())) {
+    return dayjs(value).format(DATE_FORMAT);
+  }
+  return normalizeEquipmentExpiryDate(value);
+};
 
 const CREW_ROLE_OPTIONS = [
   { value: 'Captain (CAPT)', label: 'Thuyền trưởng' },
@@ -250,35 +270,35 @@ export default function CreateVoyagePage() {
   // ===== Excel Import helpers =====
   const downloadTemplate = () => {
     const rows = [
-      ['Tên thuốc / vật tư', 'Số lượng', 'Hạn sử dụng (ghi chú)'],
+      ['Tên thuốc / vật tư', 'Số lượng', 'Hạn sử dụng (YYYY-MM-DD hoặc Không có hạn sử dụng)'],
       // Thuốc thông thường
-      ['Paracetamol 500mg (viên)', 100, '06/2027'],
-      ['Ibuprofen 400mg (viên)', 50, '12/2027'],
-      ['Amoxicillin 500mg (viên)', 60, '06/2027'],
-      ['Metronidazole 250mg (viên)', 40, '12/2027'],
-      ['Omeprazole 20mg (viên)', 30, '12/2027'],
-      ['Loperamide - viên tiêu chảy', 30, '12/2027'],
-      ['Vitamin C 1000mg (viên)', 100, '12/2028'],
-      ['Thuốc say sóng Dimenhydrinate', 50, '06/2028'],
-      ['Dung dịch nhỏ mắt', 5, '06/2027'],
+      ['Paracetamol 500mg (viên)', 100, '2027-06-30'],
+      ['Ibuprofen 400mg (viên)', 50, '2027-12-31'],
+      ['Amoxicillin 500mg (viên)', 60, '2027-06-30'],
+      ['Metronidazole 250mg (viên)', 40, '2027-12-31'],
+      ['Omeprazole 20mg (viên)', 30, '2027-12-31'],
+      ['Loperamide - viên tiêu chảy', 30, '2027-12-31'],
+      ['Vitamin C 1000mg (viên)', 100, '2028-12-31'],
+      ['Thuốc say sóng Dimenhydrinate', 50, '2028-06-30'],
+      ['Dung dịch nhỏ mắt', 5, '2027-06-30'],
       // Vật tư băng bó
-      ['Băng gạc vô trùng 10x10cm', 50, 'Không có hạn'],
-      ['Băng cuộn y tế 5cm', 20, 'Không có hạn'],
-      ['Băng dán cá nhân (hộp 100 cái)', 3, 'Không có hạn'],
-      ['Bông y tế (gói 100g)', 5, 'Không có hạn'],
-      ['Cồn 70° (chai 500ml)', 5, '12/2027'],
-      ['Povidone Iodine (chai 60ml)', 5, '12/2027'],
-      ['Oxy già (chai 100ml)', 5, '12/2027'],
-      ['Nước muối sinh lý (gói 10ml)', 30, '06/2027'],
+      ['Băng gạc vô trùng 10x10cm', 50, 'Không có hạn sử dụng'],
+      ['Băng cuộn y tế 5cm', 20, 'Không có hạn sử dụng'],
+      ['Băng dán cá nhân (hộp 100 cái)', 3, 'Không có hạn sử dụng'],
+      ['Bông y tế (gói 100g)', 5, 'Không có hạn sử dụng'],
+      ['Cồn 70° (chai 500ml)', 5, '2027-12-31'],
+      ['Povidone Iodine (chai 60ml)', 5, '2027-12-31'],
+      ['Oxy già (chai 100ml)', 5, '2027-12-31'],
+      ['Nước muối sinh lý (gói 10ml)', 30, '2027-06-30'],
       // Dụng cụ sơ cứu
-      ['Kéo y tế', 2, 'Không có hạn'],
-      ['Nhíp y tế', 2, 'Không có hạn'],
-      ['Nhiệt kế điện tử', 2, 'Không có hạn'],
-      ['Băng ép cầm máu khẩn cấp', 3, 'Không có hạn'],
-      ['Găng tay y tế (hộp 100 cái)', 2, '12/2027'],
-      ['Khẩu trang y tế (hộp 50 cái)', 2, '12/2027'],
-      ['Mặt nạ hô hấp nhân tạo', 2, '12/2027'],
-      ['Túi chườm lạnh khẩn cấp', 5, '12/2027'],
+      ['Kéo y tế', 2, 'Không có hạn sử dụng'],
+      ['Nhíp y tế', 2, 'Không có hạn sử dụng'],
+      ['Nhiệt kế điện tử', 2, 'Không có hạn sử dụng'],
+      ['Băng ép cầm máu khẩn cấp', 3, 'Không có hạn sử dụng'],
+      ['Găng tay y tế (hộp 100 cái)', 2, '2027-12-31'],
+      ['Khẩu trang y tế (hộp 50 cái)', 2, '2027-12-31'],
+      ['Mặt nạ hô hấp nhân tạo', 2, '2027-12-31'],
+      ['Túi chườm lạnh khẩn cấp', 5, '2027-12-31'],
     ];
     const ws = XLSX.utils.aoa_to_sheet(rows);
     ws['!cols'] = [{ wch: 38 }, { wch: 12 }, { wch: 28 }];
@@ -307,6 +327,9 @@ export default function CreateVoyagePage() {
         const errors = [];
         const imported = [];
         const startId = equipmentList.length > 0 ? Math.max(...equipmentList.map(e => e.id)) + 1 : 1;
+        const seenSupplyKeys = new Set(
+          equipmentList.map((equipment) => equipmentIdentityKey(equipment, false)),
+        );
 
         nonEmptyRows.forEach((r, i) => {
           const rowNum = i + 2; // +2 vì dòng 1 là header
@@ -332,15 +355,23 @@ export default function CreateVoyagePage() {
             }
           }
 
-          // --- Cột C: Ghi chú hạn sử dụng (tùy chọn, tối đa 500 ký tự) ---
-          const expiryNote = String(r[2] || '').trim();
-          if (expiryNote.length > 500) {
-            rowErrors.push('Ghi chú hạn sử dụng quá dài (tối đa 500 ký tự)');
+          // --- Cột C: Hạn sử dụng YYYY-MM-DD hoặc "Không có hạn sử dụng" ---
+          const expiryNote = parseExcelExpiryDate(r[2]);
+          if (expiryNote === undefined) {
+            rowErrors.push('Hạn sử dụng không hợp lệ (dùng YYYY-MM-DD hoặc Không có hạn sử dụng)');
+          } else if (!isEquipmentExpiryAllowed(expiryNote)) {
+            rowErrors.push('Hạn sử dụng phải sau ngày hiện tại hoặc chọn Không có hạn sử dụng');
+          }
+
+          const supplyKey = equipmentIdentityKey({ name }, false);
+          if (name && seenSupplyKeys.has(supplyKey)) {
+            rowErrors.push('Tên vật tư y tế bị trùng với dòng khác');
           }
 
           if (rowErrors.length > 0) {
             errors.push({ rowNum, rowErrors });
           } else {
+            seenSupplyKeys.add(supplyKey);
             imported.push({ id: startId + imported.length, name, type: VOYAGE_EQ_TYPE, location: '', quantity, expiryNote });
           }
         });
@@ -380,7 +411,7 @@ export default function CreateVoyagePage() {
   // Equipment handlers
   const addEquipment = () => {
     const newId = equipmentList.length > 0 ? Math.max(...equipmentList.map((e) => e.id)) + 1 : 1;
-    setEquipmentList([...equipmentList, { id: newId, name: '', type: VOYAGE_EQ_TYPE, location: '', quantity: 1, expiryNote: '' }]);
+    setEquipmentList([...equipmentList, { id: newId, name: '', type: VOYAGE_EQ_TYPE, location: '', quantity: 1, expiryNote: null }]);
   };
 
   const removeEquipment = (eqId) => {
@@ -407,10 +438,33 @@ export default function CreateVoyagePage() {
       ),
     },
     {
-      title: 'Ghi chú hạn sử dụng', dataIndex: 'expiryNote', width: 200,
+      title: 'Hạn sử dụng', dataIndex: 'expiryNote', width: 245,
       render: (value, record) => (
-        <Input placeholder="VD: 12/2027 hoặc Hết hạn tháng 6/2025" value={value || ''}
-          onChange={(e) => handleEquipmentChange(record.id, 'expiryNote', e.target.value)} />
+        <Space direction="vertical" size={2} style={{ width: '100%' }}>
+          <DatePicker
+            style={{ width: '100%' }}
+            format="DD/MM/YYYY"
+            placeholder="Chọn ngày hết hạn"
+            value={value ? dayjs(value, DATE_FORMAT) : null}
+            disabled={!value}
+            disabledDate={(current) => current && !current.isAfter(dayjs(), 'day')}
+            onChange={(date) => handleEquipmentChange(
+              record.id,
+              'expiryNote',
+              date ? date.format(DATE_FORMAT) : null,
+            )}
+          />
+          <Checkbox
+            checked={!value}
+            onChange={(event) => handleEquipmentChange(
+              record.id,
+              'expiryNote',
+              event.target.checked ? null : dayjs().add(1, 'year').format(DATE_FORMAT),
+            )}
+          >
+            Không có hạn sử dụng
+          </Checkbox>
+        </Space>
       ),
     },
     {
@@ -486,6 +540,27 @@ export default function CreateVoyagePage() {
       );
     }
 
+    const duplicateMedicalSupply = findDuplicateEquipment(equipmentList, false);
+    if (duplicateMedicalSupply) {
+      setActiveTab('supplies');
+      return notifyWarning(`Vật tư y tế "${duplicateMedicalSupply.name.trim()}" bị trùng tên.`);
+    }
+
+    const invalidExpirySupply = equipmentList.find(
+      (equipment) => normalizeEquipmentExpiryDate(equipment.expiryNote) === undefined,
+    );
+    if (invalidExpirySupply) {
+      setActiveTab('supplies');
+      return notifyWarning(`Hạn sử dụng của vật tư "${invalidExpirySupply.name.trim()}" không hợp lệ.`);
+    }
+    const nonFutureExpirySupply = equipmentList.find(
+      (equipment) => !isEquipmentExpiryAllowed(equipment.expiryNote),
+    );
+    if (nonFutureExpirySupply) {
+      setActiveTab('supplies');
+      return notifyWarning(`Hạn sử dụng của vật tư "${nonFutureExpirySupply.name.trim()}" phải sau ngày hiện tại hoặc chọn Không có hạn sử dụng.`);
+    }
+
     // Mỗi tên vật tư hợp lệ được tính là một loại.
     const validMedicalTypes = new Set(
       equipmentList
@@ -509,7 +584,11 @@ export default function CreateVoyagePage() {
     }
 
     try {
-      const data = { shipId, routeInfo, cargoList, crewList, equipmentList };
+      const normalizedEquipmentList = equipmentList.map((equipment) => ({
+        ...equipment,
+        expiryNote: normalizeEquipmentExpiryDate(equipment.expiryNote),
+      }));
+      const data = { shipId, routeInfo, cargoList, crewList, equipmentList: normalizedEquipmentList };
       console.log('Dữ liệu tạo hải trình:', data);
       await voyageService.createVoyage(data);
       notifySuccess('Khởi tạo Hải trình thành công!');

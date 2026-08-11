@@ -11,6 +11,7 @@ const {
   normalizeEngineParameterName,
   normalizeEngineStatus,
   isMainEngine,
+  findDuplicateEngine,
 } = require('../utils/engine');
 const {
   normalizeCargoHoldName,
@@ -18,6 +19,11 @@ const {
   normalizeEquipmentName,
   normalizeEquipmentType,
   normalizeShipStatus,
+  equipmentIdentityKey,
+  findDuplicateEquipment,
+  normalizeEquipmentExpiryDate,
+  isEquipmentExpired,
+  isEquipmentExpiryAllowed,
 } = require('../utils/vessel');
 const {
   canonicalVoyageRole,
@@ -104,6 +110,28 @@ router.post('/', authMiddleware, requireRole('Admin'), async (req, res) => {
         message: 'Tên thiết bị là bắt buộc và số lượng phải là số nguyên dương.',
       });
     }
+    const duplicateEquipment = findDuplicateEquipment(equipmentList, true);
+    if (duplicateEquipment) {
+      return res.status(400).json({
+        message: `Thiết bị "${String(duplicateEquipment.equipmentName || '').trim()}" bị trùng tên và loại thiết bị.`,
+      });
+    }
+    const invalidExpiryEquipment = equipmentList.find(
+      (equipment) => normalizeEquipmentExpiryDate(equipment?.expiryNote) === undefined,
+    );
+    if (invalidExpiryEquipment) {
+      return res.status(400).json({
+        message: `Hạn sử dụng của thiết bị "${String(invalidExpiryEquipment.equipmentName || '').trim()}" không hợp lệ. Vui lòng dùng định dạng YYYY-MM-DD hoặc chọn Không có hạn sử dụng.`,
+      });
+    }
+    const nonFutureExpiryEquipment = equipmentList.find(
+      (equipment) => !isEquipmentExpiryAllowed(equipment?.expiryNote),
+    );
+    if (nonFutureExpiryEquipment) {
+      return res.status(400).json({
+        message: `Hạn sử dụng của thiết bị "${String(nonFutureExpiryEquipment.equipmentName || '').trim()}" phải sau ngày hiện tại hoặc chọn Không có hạn sử dụng.`,
+      });
+    }
 
     if (!holds || holds.length === 0) {
       return res.status(400).json({ message: 'Tàu phải có ít nhất một khoang chứa hàng.' });
@@ -118,6 +146,15 @@ router.post('/', authMiddleware, requireRole('Admin'), async (req, res) => {
       return res.status(400).json({ message: 'Máy chính mới bắt buộc phải ở trạng thái Hoạt động.' });
     }
     const newAuxiliaryEngines = (generatorEngines || []).filter((engine) => engine?.engineName);
+    const duplicateEngine = findDuplicateEngine([
+      ...(mainEngine?.engineName ? [mainEngine] : []),
+      ...newAuxiliaryEngines,
+    ]);
+    if (duplicateEngine) {
+      return res.status(400).json({
+        message: `Tên máy "${String(duplicateEngine.engineName || '').trim()}" bị trùng. Mỗi máy trên tàu phải có tên riêng.`,
+      });
+    }
     if (newAuxiliaryEngines.some((engine) => parseEngineStatus(engine.status) === ENGINE_STATUS.MAINTENANCE)) {
       return res.status(400).json({
         message: 'Máy phụ mới chỉ được khai báo ở trạng thái Hoạt động hoặc Dự phòng.',
@@ -203,7 +240,7 @@ router.post('/', authMiddleware, requireRole('Admin'), async (req, res) => {
       equipmentType: normalizeEquipmentType(equipment.equipmentType),
       location: normalizeEquipmentLocation(equipment.location),
       quantity: Number(equipment.quantity),
-      expiryNote: equipment.expiryNote || null,
+      expiryNote: normalizeEquipmentExpiryDate(equipment.expiryNote),
       brokenCount: 0,
       status: 'Hoạt động',
     }));
@@ -223,7 +260,26 @@ router.post('/', authMiddleware, requireRole('Admin'), async (req, res) => {
 router.put('/:id', async (req, res) => {
   try {
     const vesselId = req.params.id;
-    const { basicInfo, capacity, mainEngine, generatorEngines, holds } = req.body;
+    const { basicInfo, capacity, mainEngine, generatorEngines, holds, equipmentList } = req.body;
+
+    if (Array.isArray(equipmentList)) {
+      const invalidExpiryEquipment = equipmentList.find(
+        (equipment) => normalizeEquipmentExpiryDate(equipment?.expiryNote) === undefined,
+      );
+      if (invalidExpiryEquipment) {
+        return res.status(400).json({
+          message: `Hạn sử dụng của thiết bị "${String(invalidExpiryEquipment.equipmentName || '').trim()}" không hợp lệ. Vui lòng dùng định dạng YYYY-MM-DD hoặc chọn Không có hạn sử dụng.`,
+        });
+      }
+      const nonFutureExpiryEquipment = equipmentList.find(
+        (equipment) => !isEquipmentExpiryAllowed(equipment?.expiryNote),
+      );
+      if (nonFutureExpiryEquipment) {
+        return res.status(400).json({
+          message: `Hạn sử dụng của thiết bị "${String(nonFutureExpiryEquipment.equipmentName || '').trim()}" phải sau ngày hiện tại hoặc chọn Không có hạn sử dụng.`,
+        });
+      }
+    }
 
     if (!holds || holds.length === 0) {
       return res.status(400).json({ message: 'Tàu phải có ít nhất một khoang chứa hàng.' });
@@ -240,6 +296,15 @@ router.put('/:id', async (req, res) => {
     }
     const newAuxiliaryEngines = (generatorEngines || [])
       .filter((engine) => !engine.id && engine.engineName);
+    const duplicateEngine = findDuplicateEngine([
+      ...(mainEngine?.engineName ? [mainEngine] : []),
+      ...(generatorEngines || []).filter((engine) => engine?.engineName),
+    ]);
+    if (duplicateEngine) {
+      return res.status(400).json({
+        message: `Tên máy "${String(duplicateEngine.engineName || '').trim()}" bị trùng. Mỗi máy trên tàu phải có tên riêng.`,
+      });
+    }
     if (newAuxiliaryEngines.some((engine) => parseEngineStatus(engine.status) === ENGINE_STATUS.MAINTENANCE)) {
       return res.status(400).json({
         message: 'Máy phụ mới chỉ được khai báo ở trạng thái Hoạt động hoặc Dự phòng.',
@@ -447,13 +512,19 @@ router.patch('/engines/:engineId/status', async (req, res) => {
     if (voyage && voyage.shipId != null && Number(voyage.shipId) !== Number(engine.shipId)) {
       return res.status(400).json({ message: 'Hải trình không thuộc tàu đang quản lý máy.' });
     }
+    if (!voyage) {
+      return res.status(400).json({ message: 'Không tìm thấy hải trình đang hoạt động của tàu.' });
+    }
+    if (!['Underway', 'Anchored'].includes(voyage.status)) {
+      return res.status(400).json({
+        message: 'Chỉ được đổi trạng thái máy khi hải trình đang di chuyển hoặc đang neo đậu.',
+      });
+    }
 
     const assignment = voyage && decoded.profileId
       ? await VoyageCrew.findOne({ where: { voyageId: voyage.id, crewId: decoded.profileId } })
       : null;
-    const effectiveRole = assignment
-      ? canonicalVoyageRole(assignment.role)
-      : (voyage ? '' : canonicalVoyageRole(decoded.role));
+    const effectiveRole = assignment ? canonicalVoyageRole(assignment.role) : '';
     if (!isEngineOfficerRole(effectiveRole)) {
       return res.status(403).json({ message: 'Chỉ Máy trưởng được phân công trong hải trình mới được đổi trạng thái máy' });
     }
@@ -535,6 +606,40 @@ router.post('/:id/equipments', authMiddleware, async (req, res) => {
       });
     }
 
+    const duplicateEquipment = findDuplicateEquipment(equipmentList, true);
+    if (duplicateEquipment) {
+      return res.status(400).json({
+        message: `Thiết bị "${String(duplicateEquipment.equipmentName || '').trim()}" bị trùng tên và loại thiết bị.`,
+      });
+    }
+    const invalidExpiryEquipment = equipmentList.find(
+      (equipment) => normalizeEquipmentExpiryDate(equipment?.expiryNote) === undefined,
+    );
+    if (invalidExpiryEquipment) {
+      return res.status(400).json({
+        message: `Hạn sử dụng của thiết bị "${String(invalidExpiryEquipment.equipmentName || '').trim()}" không hợp lệ. Vui lòng dùng định dạng YYYY-MM-DD hoặc chọn Không có hạn sử dụng.`,
+      });
+    }
+    const nonFutureExpiryEquipment = equipmentList.find(
+      (equipment) => !isEquipmentExpiryAllowed(equipment?.expiryNote),
+    );
+    if (nonFutureExpiryEquipment) {
+      return res.status(400).json({
+        message: `Hạn sử dụng của thiết bị "${String(nonFutureExpiryEquipment.equipmentName || '').trim()}" phải sau ngày hiện tại hoặc chọn Không có hạn sử dụng.`,
+      });
+    }
+
+    const existingEquipments = await Equipment.findAll({ where: { shipId: ship.id } });
+    const existingKeys = new Set(existingEquipments.map((equipment) => equipmentIdentityKey(equipment, true)));
+    const existingDuplicate = equipmentList.find(
+      (equipment) => existingKeys.has(equipmentIdentityKey(equipment, true)),
+    );
+    if (existingDuplicate) {
+      return res.status(409).json({
+        message: `Thiết bị "${String(existingDuplicate.equipmentName || '').trim()}" cùng loại đã tồn tại trên tàu.`,
+      });
+    }
+
     const eqData = equipmentList.map(e => ({
       shipId: ship.id,
       voyageId: null,
@@ -542,7 +647,7 @@ router.post('/:id/equipments', authMiddleware, async (req, res) => {
       equipmentType: normalizeEquipmentType(e.equipmentType),
       location: normalizeEquipmentLocation(e.location),
       quantity: Number(e.quantity),
-      expiryNote: e.expiryNote || null,
+      expiryNote: normalizeEquipmentExpiryDate(e.expiryNote),
       brokenCount: 0,
       status: 'Hoạt động'
     }));
@@ -578,8 +683,18 @@ router.patch('/equipments/:equipmentId/broken-count', authMiddleware, async (req
     if (!isSupplyManagerRole(effectiveRole)) {
       return res.status(403).json({ message: 'Chỉ Thuyền trưởng hoặc Đại phó mới được cập nhật số thiết bị hỏng' });
     }
+    if (!voyage) {
+      return res.status(400).json({ message: 'Chỉ được cập nhật thiết bị khi tàu đang trong hải trình.' });
+    }
+    if (voyage.status !== 'Underway') {
+      return res.status(400).json({ message: 'Chỉ được cập nhật thiết bị khi hải trình đang di chuyển.' });
+    }
 
     const currentBrokenCount = Number(equipment.brokenCount) || 0;
+    const remainingGood = Math.max(0, Number(equipment.quantity) - currentBrokenCount);
+    if (remainingGood > 0 && isEquipmentExpired(equipment.expiryNote)) {
+      return res.status(400).json({ message: `${equipment.equipmentName} đã hết hạn sử dụng.` });
+    }
     const nextBrokenCount = currentBrokenCount + additionalBrokenCount;
     if (nextBrokenCount > equipment.quantity) {
       const remaining = Math.max(0, equipment.quantity - currentBrokenCount);

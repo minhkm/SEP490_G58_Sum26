@@ -127,8 +127,13 @@ export default function MasterDashboard() {
           </Col>
           <Col xs={24} sm={12} lg={6}>
             <StatCard
-              title="Tình trạng thiết bị"
-              value={stats?.equipmentStatus || 'Không có dữ liệu'}
+              title="Thiết bị và vật tư"
+              value={stats ? (
+                <div style={{ fontSize: 16, lineHeight: 1.45 }}>
+                  <div>{stats.vesselEquipmentStatus || 'Không có thiết bị tàu'}</div>
+                  <div>{stats.medicalSupplyStatus || 'Không có vật tư y tế'}</div>
+                </div>
+              ) : 'Không có dữ liệu'}
               icon={<ThunderboltOutlined />}
               tone="gold"
             />

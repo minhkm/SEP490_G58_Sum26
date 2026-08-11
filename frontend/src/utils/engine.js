@@ -56,6 +56,23 @@ export const engineNameLabel = (name) => String(name || '')
   .replace(/^Generator Engine\s*(?:No\.?\s*)?/i, 'Máy phụ số ')
   .trim();
 
+export const engineIdentityKey = (engine) => engineNameLabel(engine?.engineName ?? engine)
+  .normalize('NFKC')
+  .replace(/\s+/g, ' ')
+  .trim()
+  .toLocaleLowerCase('vi-VN');
+
+export const findDuplicateEngine = (engines) => {
+  const seen = new Set();
+  for (const engine of engines || []) {
+    const key = engineIdentityKey(engine);
+    if (!key) continue;
+    if (seen.has(key)) return engine;
+    seen.add(key);
+  }
+  return null;
+};
+
 export const ENGINE_STATUS_OPTIONS = [
   { value: ENGINE_STATUS.OPERATIONAL, label: ENGINE_STATUS.OPERATIONAL, color: '#22c55e', textColor: '#16a34a' },
   { value: ENGINE_STATUS.STANDBY, label: ENGINE_STATUS.STANDBY, color: '#3b82f6', textColor: '#2563eb' },

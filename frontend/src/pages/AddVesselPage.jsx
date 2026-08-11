@@ -19,7 +19,10 @@ import {
   Tabs,
   Modal,
   message,
+  DatePicker,
+  Checkbox,
 } from 'antd';
+import dayjs from 'dayjs';
 import {
   PlusOutlined,
   DeleteOutlined,
@@ -45,6 +48,7 @@ import {
   ENGINE_STATUS_OPTIONS,
   engineNameLabel,
   engineParameterLabel,
+  findDuplicateEngine,
   isMainEngine,
   normalizeEngineStatus,
 } from '../utils/engine';
@@ -54,6 +58,10 @@ import {
   equipmentNameLabel,
   equipmentTypeLabel,
   normalizeShipStatus,
+  equipmentIdentityKey,
+  findDuplicateEquipment,
+  normalizeEquipmentExpiryDate,
+  isEquipmentExpiryAllowed,
 } from '../utils/vessel';
 
 const { Title, Text } = Typography;
@@ -63,6 +71,19 @@ const REQUIRED_PARAMS = [
   'Nhiệt độ khí xả XL2 (°C)',
   'Nhiệt độ nước làm mát (°C)',
 ];
+
+const parseExcelExpiryDate = (value) => {
+  if (value == null || String(value).trim() === '') return null;
+  if (typeof value === 'number') {
+    const parsed = XLSX.SSF.parse_date_code(value);
+    if (!parsed) return undefined;
+    return `${parsed.y}-${String(parsed.m).padStart(2, '0')}-${String(parsed.d).padStart(2, '0')}`;
+  }
+  if (value instanceof Date && !Number.isNaN(value.getTime())) {
+    return dayjs(value).format('YYYY-MM-DD');
+  }
+  return normalizeEquipmentExpiryDate(value);
+};
 
 export default function AddVesselPage() {
   const navigate = useNavigate();
@@ -247,7 +268,7 @@ export default function AddVesselPage() {
                 equipmentType: equipmentTypeLabel(e.equipmentType),
                 location: equipmentLocationLabel(e.location),
                 quantity: e.quantity,
-                expiryNote: e.expiryNote || '',
+                expiryNote: normalizeEquipmentExpiryDate(e.expiryNote) ?? null,
               })));
             }
           } catch (e) { console.error(e); }
@@ -347,33 +368,33 @@ export default function AddVesselPage() {
   // ===== Excel Import cho Thiết bị tàu =====
   const downloadVesselEqTemplate = () => {
     const rows = [
-      ['Tên thiết bị', 'Loại thiết bị', 'Vị trí', 'Số lượng', 'Hạn sử dụng (ghi chú)'],
+      ['Tên thiết bị', 'Loại thiết bị', 'Vị trí', 'Số lượng', 'Hạn sử dụng (YYYY-MM-DD hoặc Không có hạn sử dụng)'],
       // Thiết bị cứu sinh
-      ['Áo phao cá nhân', 'Thiết bị cứu sinh', 'Boong', 20, '12/2028'],
-      ['Phao tròn cứu sinh', 'Thiết bị cứu sinh', 'Boong', 6, '12/2028'],
-      ['Bè cứu sinh tự bơm', 'Thiết bị cứu sinh', 'Boong', 2, '06/2027'],
-      ['Pháo hiệu tín hiệu', 'Thiết bị cứu sinh', 'Buồng lái', 12, '06/2026'],
-      ['Đèn cứu sinh cá nhân', 'Thiết bị cứu sinh', 'Boong', 20, '12/2028'],
+      ['Áo phao cá nhân', 'Thiết bị cứu sinh', 'Boong', 20, '2028-12-31'],
+      ['Phao tròn cứu sinh', 'Thiết bị cứu sinh', 'Boong', 6, '2028-12-31'],
+      ['Bè cứu sinh tự bơm', 'Thiết bị cứu sinh', 'Boong', 2, '2027-06-30'],
+      ['Pháo hiệu tín hiệu', 'Thiết bị cứu sinh', 'Buồng lái', 12, '2027-06-30'],
+      ['Đèn cứu sinh cá nhân', 'Thiết bị cứu sinh', 'Boong', 20, '2028-12-31'],
       // Thiết bị chữa cháy
-      ['Bình chữa cháy CO2', 'Thiết bị chữa cháy', 'Buồng máy', 4, '06/2026'],
-      ['Bình chữa cháy bột BC', 'Thiết bị chữa cháy', 'Boong', 6, '06/2026'],
-      ['Bình chữa cháy bột AFFF', 'Thiết bị chữa cháy', 'Buồng máy', 2, '06/2026'],
-      ['Vòi rồng chữa cháy 15m', 'Thiết bị chữa cháy', 'Boong', 4, 'Không có hạn'],
-      ['Bộ đồ phòng cháy chữa cháy', 'Thiết bị chữa cháy', 'Buồng lái', 2, 'Không có hạn'],
+      ['Bình chữa cháy CO2', 'Thiết bị chữa cháy', 'Buồng máy', 4, '2027-06-30'],
+      ['Bình chữa cháy bột BC', 'Thiết bị chữa cháy', 'Boong', 6, '2027-06-30'],
+      ['Bình chữa cháy bột AFFF', 'Thiết bị chữa cháy', 'Buồng máy', 2, '2027-06-30'],
+      ['Vòi rồng chữa cháy 15m', 'Thiết bị chữa cháy', 'Boong', 4, 'Không có hạn sử dụng'],
+      ['Bộ đồ phòng cháy chữa cháy', 'Thiết bị chữa cháy', 'Buồng lái', 2, 'Không có hạn sử dụng'],
       // Thiết bị hàng hải
-      ['La bàn từ', 'Thiết bị hàng hải', 'Buồng lái', 1, 'Kiểm định 5 năm'],
-      ['Ra-đa hàng hải ARPA', 'Thiết bị hàng hải', 'Buồng lái', 1, 'Kiểm định 5 năm'],
-      ['Hệ thống AIS', 'Thiết bị hàng hải', 'Buồng lái', 1, 'Kiểm định 5 năm'],
-      ['GPS định vị', 'Thiết bị hàng hải', 'Buồng lái', 2, 'Không có hạn'],
+      ['La bàn từ', 'Thiết bị hàng hải', 'Buồng lái', 1, '2031-12-31'],
+      ['Ra-đa hàng hải ARPA', 'Thiết bị hàng hải', 'Buồng lái', 1, '2031-12-31'],
+      ['Hệ thống AIS', 'Thiết bị hàng hải', 'Buồng lái', 1, '2031-12-31'],
+      ['GPS định vị', 'Thiết bị hàng hải', 'Buồng lái', 2, 'Không có hạn sử dụng'],
       // Thiết bị liên lạc
-      ['Máy thu phát VHF cầm tay', 'Thiết bị liên lạc', 'Buồng lái', 4, '12/2029'],
-      ['Hệ thống GMDSS', 'Thiết bị liên lạc', 'Buồng lái', 1, 'Kiểm định 5 năm'],
-      ['Còi tín hiệu điện', 'Thiết bị liên lạc', 'Buồng lái', 1, 'Không có hạn'],
+      ['Máy thu phát VHF cầm tay', 'Thiết bị liên lạc', 'Buồng lái', 4, '2029-12-31'],
+      ['Hệ thống GMDSS', 'Thiết bị liên lạc', 'Buồng lái', 1, '2031-12-31'],
+      ['Còi tín hiệu điện', 'Thiết bị liên lạc', 'Buồng lái', 1, 'Không có hạn sử dụng'],
       // Dụng cụ sửa chữa
-      ['Bộ dụng cụ cơ khí (búa, cờ lê, tua vít...)', 'Dụng cụ sửa chữa', 'Buồng máy', 2, 'Không có hạn'],
-      ['Máy hàn điện', 'Dụng cụ sửa chữa', 'Buồng máy', 1, 'Không có hạn'],
-      ['Bơm tay chống đắm', 'Dụng cụ sửa chữa', 'Buồng máy', 2, 'Không có hạn'],
-      ['Bộ vá lỗ khẩn cấp', 'Dụng cụ sửa chữa', 'Buồng máy', 1, 'Không có hạn'],
+      ['Bộ dụng cụ cơ khí (búa, cờ lê, tua vít...)', 'Dụng cụ sửa chữa', 'Buồng máy', 2, 'Không có hạn sử dụng'],
+      ['Máy hàn điện', 'Dụng cụ sửa chữa', 'Buồng máy', 1, 'Không có hạn sử dụng'],
+      ['Bơm tay chống đắm', 'Dụng cụ sửa chữa', 'Buồng máy', 2, 'Không có hạn sử dụng'],
+      ['Bộ vá lỗ khẩn cấp', 'Dụng cụ sửa chữa', 'Buồng máy', 1, 'Không có hạn sử dụng'],
       // Ghi chú các loại/vị trí hợp lệ
       ['', `Loại: ${SHIP_EQ_TYPES.join(' / ')}`, `Vị trí: ${SHIP_EQ_LOCATIONS.join(' / ')}`, '', ''],
     ];
@@ -406,6 +427,9 @@ export default function AddVesselPage() {
         const imported = [];
         const startUid = shipEquipments.length > 0
           ? Math.max(...shipEquipments.map(eq => eq._uid)) + 1 : 1;
+        const seenEquipmentKeys = new Set(
+          shipEquipments.map((equipment) => equipmentIdentityKey(equipment, true)),
+        );
 
         nonEmptyRows.forEach((r, i) => {
           const rowNum = i + 2; // +2 vì dòng 1 là header
@@ -449,15 +473,27 @@ export default function AddVesselPage() {
             }
           }
 
-          // --- Cột E: Ghi chú hạn sử dụng (tùy chọn, tối đa 500 ký tự) ---
-          const expiryNote = String(r[4] || '').trim();
-          if (expiryNote.length > 500) {
-            rowErrors.push('Ghi chú hạn sử dụng quá dài (tối đa 500 ký tự)');
+          // --- Cột E: Hạn sử dụng YYYY-MM-DD hoặc "Không có hạn sử dụng" ---
+          const expiryNote = parseExcelExpiryDate(r[4]);
+          if (expiryNote === undefined) {
+            rowErrors.push('Hạn sử dụng không hợp lệ (dùng YYYY-MM-DD hoặc Không có hạn sử dụng)');
+          } else if (!isEquipmentExpiryAllowed(expiryNote)) {
+            rowErrors.push('Hạn sử dụng phải sau ngày hiện tại hoặc chọn Không có hạn sử dụng');
+          }
+
+          const candidate = {
+            equipmentName,
+            equipmentType: equipmentType || 'Khác',
+          };
+          const candidateKey = equipmentIdentityKey(candidate, true);
+          if (equipmentName && seenEquipmentKeys.has(candidateKey)) {
+            rowErrors.push('Tên và loại thiết bị bị trùng với thiết bị khác');
           }
 
           if (rowErrors.length > 0) {
             errors.push({ rowNum, rowErrors });
           } else {
+            seenEquipmentKeys.add(candidateKey);
             imported.push({ _uid: startUid + imported.length, equipmentName, equipmentType, location, quantity, expiryNote });
           }
         });
@@ -496,7 +532,7 @@ export default function AddVesselPage() {
 
   const addShipEquipment = () => {
     const newUid = shipEquipments.length > 0 ? Math.max(...shipEquipments.map(e => e._uid)) + 1 : 1;
-    setShipEquipments([...shipEquipments, { _uid: newUid, equipmentName: '', equipmentType: '', location: 'Boong', quantity: 1, expiryNote: '' }]);
+    setShipEquipments([...shipEquipments, { _uid: newUid, equipmentName: '', equipmentType: '', location: 'Boong', quantity: 1, expiryNote: null }]);
   };
   const removeShipEquipment = (uid) => {
     setShipEquipments(shipEquipments.filter(e => e._uid !== uid));
@@ -554,6 +590,13 @@ export default function AddVesselPage() {
       }
     }
 
+    const duplicateEngine = findDuplicateEngine([mainEngine, ...generatorEngines]);
+    if (duplicateEngine) {
+      setActiveTab('engine');
+      notifyWarning(`Tên máy "${duplicateEngine.engineName.trim()}" bị trùng. Mỗi máy trên tàu phải có tên riêng.`);
+      return;
+    }
+
     // Validation: Phải có ít nhất 1 khoang hàng và thông tin hợp lệ
     if (!holds || holds.length === 0) {
       setActiveTab('capacity');
@@ -608,6 +651,34 @@ export default function AddVesselPage() {
       notifyWarning('Số lượng của tất cả thiết bị phải là số nguyên dương. Vui lòng kiểm tra lại!');
       return;
     }
+    const duplicateEquipment = findDuplicateEquipment(
+      shipEquipments.map((equipment) => ({
+        ...equipment,
+        equipmentType: equipment.equipmentType || 'Khác',
+      })),
+      true,
+    );
+    if (duplicateEquipment) {
+      setActiveTab('equipment');
+      notifyWarning(`Thiết bị "${duplicateEquipment.equipmentName.trim()}" bị trùng tên và loại thiết bị.`);
+      return;
+    }
+    const invalidExpiryEquipment = shipEquipments.find(
+      (equipment) => normalizeEquipmentExpiryDate(equipment.expiryNote) === undefined,
+    );
+    if (invalidExpiryEquipment) {
+      setActiveTab('equipment');
+      notifyWarning(`Hạn sử dụng của thiết bị "${invalidExpiryEquipment.equipmentName.trim()}" không hợp lệ.`);
+      return;
+    }
+    const nonFutureExpiryEquipment = shipEquipments.find(
+      (equipment) => !isEquipmentExpiryAllowed(equipment.expiryNote),
+    );
+    if (nonFutureExpiryEquipment) {
+      setActiveTab('equipment');
+      notifyWarning(`Hạn sử dụng của thiết bị "${nonFutureExpiryEquipment.equipmentName.trim()}" phải sau ngày hiện tại hoặc chọn Không có hạn sử dụng.`);
+      return;
+    }
 
     try {
       const normalizedEquipments = shipEquipments.map(e => ({
@@ -615,7 +686,7 @@ export default function AddVesselPage() {
         equipmentType: e.equipmentType || 'Khác',
         location: e.location || 'Boong',
         quantity: Number(e.quantity),
-        expiryNote: e.expiryNote || null,
+        expiryNote: normalizeEquipmentExpiryDate(e.expiryNote),
       }));
       const payload = {
         basicInfo,
@@ -639,7 +710,7 @@ export default function AddVesselPage() {
             equipmentType: e.equipmentType || 'Khác',
             location: e.location || 'Boong',
             quantity: Number(e.quantity),
-            expiryNote: e.expiryNote || null,
+            expiryNote: normalizeEquipmentExpiryDate(e.expiryNote),
           })));
         }
         notifySuccess('Cập nhật thông tin tàu thành công!');
@@ -1118,9 +1189,31 @@ export default function AddVesselPage() {
                       onChange={v => handleShipEquipChange(eq._uid, 'quantity', v)} />
                   </div>
                   <div style={{ flex: '1 1 150px', minWidth: 120 }}>
-                    <div style={{ fontSize: 11, color: '#64748b', marginBottom: 2 }}>Hạn sử dụng (ghi chú)</div>
-                    <Input placeholder="VD: 06/2027 hoặc Không có hạn" value={eq.expiryNote || ''}
-                      onChange={e => handleShipEquipChange(eq._uid, 'expiryNote', e.target.value)} />
+                    <div style={{ fontSize: 11, color: '#64748b', marginBottom: 2 }}>Hạn sử dụng</div>
+                    <DatePicker
+                      style={{ width: '100%' }}
+                      format="DD/MM/YYYY"
+                      placeholder="Chọn ngày hết hạn"
+                      value={eq.expiryNote ? dayjs(eq.expiryNote, 'YYYY-MM-DD') : null}
+                      disabled={!eq.expiryNote}
+                      disabledDate={(current) => current && !current.isAfter(dayjs(), 'day')}
+                      onChange={(date) => handleShipEquipChange(
+                        eq._uid,
+                        'expiryNote',
+                        date ? date.format('YYYY-MM-DD') : null,
+                      )}
+                    />
+                    <Checkbox
+                      style={{ marginTop: 4, fontSize: 11 }}
+                      checked={!eq.expiryNote}
+                      onChange={(event) => handleShipEquipChange(
+                        eq._uid,
+                        'expiryNote',
+                        event.target.checked ? null : dayjs().add(1, 'year').format('YYYY-MM-DD'),
+                      )}
+                    >
+                      Không có hạn sử dụng
+                    </Checkbox>
                   </div>
                   <div style={{ paddingTop: 22 }}>
                     <Button type="text" danger icon={<DeleteOutlined />} onClick={() => removeShipEquipment(eq._uid)} />
