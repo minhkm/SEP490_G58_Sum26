@@ -8,6 +8,8 @@ const Cargo = sequelize.define("Cargo", {
   cargoType: { type: DataTypes.STRING },
   totalWeight: { type: DataTypes.FLOAT },
   totalVolume: { type: DataTypes.FLOAT, defaultValue: 0 },
+  quantity: { type: DataTypes.INTEGER, allowNull: true },
+  unit: { type: DataTypes.STRING, allowNull: true },
   status: { type: DataTypes.STRING, defaultValue: "Registered" },
 }, { tableName: "Cargo", timestamps: false });
 

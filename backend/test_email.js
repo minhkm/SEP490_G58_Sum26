@@ -1,29 +1,24 @@
 require('dotenv').config();
-const nodemailer = require('nodemailer');
+
+const { sendEmail } = require('./src/services/emailService');
 
 async function testEmail() {
-  try {
-    const transporter = nodemailer.createTransport({
-      service: 'gmail',
-      auth: {
-        user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASS
-      }
-    });
+  const recipient = process.env.EMAIL_TEST_RECIPIENT;
 
-    const mailOptions = {
-      from: `"CargoOps System" <${process.env.EMAIL_USER}>`,
-      to: 'cargoops36@gmail.com', // Send to self just to test
-      subject: 'Test Email CargoOps',
-      html: `<p>Test successful</p>`
-    };
-
-    console.log('Sending email...');
-    await transporter.sendMail(mailOptions);
-    console.log('Email sent successfully!');
-  } catch (err) {
-    console.error('Lỗi gửi email:', err);
+  if (!recipient) {
+    throw new Error('Hãy cấu hình EMAIL_TEST_RECIPIENT trước khi chạy kiểm tra');
   }
+
+  const result = await sendEmail({
+    to: recipient,
+    subject: 'Test Email CargoOps qua Gmail API',
+    html: '<h2>Gmail API hoạt động!</h2><p>Email này được gửi từ CargoOps qua HTTPS API.</p>'
+  });
+
+  console.log(`Email sent successfully via Gmail API: ${result.id}`);
 }
 
-testEmail();
+testEmail().catch(error => {
+  console.error('Lỗi gửi email:', error.message);
+  process.exitCode = 1;
+});

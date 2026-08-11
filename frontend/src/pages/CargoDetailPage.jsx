@@ -120,6 +120,9 @@ export default function CargoDetailPage() {
                   <Descriptions column={1} colon={false}>
                     <Descriptions.Item label="Tên hàng hóa"><strong>{cargo.cargoName || 'Chưa cập nhật'}</strong></Descriptions.Item>
                     <Descriptions.Item label="Loại hàng"><strong>{cargo.cargoType || 'Chưa cập nhật'}</strong></Descriptions.Item>
+                    {cargo.quantity && cargo.unit && (
+                      <Descriptions.Item label={`Số lượng (${cargo.unit})`}><strong>{formatNumber(cargo.quantity)}</strong></Descriptions.Item>
+                    )}
                     <Descriptions.Item label="Tổng khối lượng"><strong>{formatNumber(cargo.totalWeight)} Tấn</strong></Descriptions.Item>
                     <Descriptions.Item label="Tổng thể tích"><strong>{formatNumber(cargo.totalVolume)} m³</strong></Descriptions.Item>
                     <Descriptions.Item label="Trạng thái"><strong>{cargo.status || 'Chưa cập nhật'}</strong></Descriptions.Item>

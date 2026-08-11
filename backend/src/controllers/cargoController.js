@@ -146,7 +146,7 @@ exports.getCargoById = async (req, res) => {
 
 exports.createCargo = async (req, res) => {
   try {
-    const { voyageId, cargoName, cargoType, totalWeight, totalVolume, status } = req.body;
+    const { voyageId, cargoName, cargoType, totalWeight, totalVolume, quantity, unit, status } = req.body;
 
     if (totalWeight <= 0 || totalVolume <= 0) {
       return res.status(400).json({ success: false, message: "Khối lượng và thể tích phải lớn hơn 0" });
@@ -158,6 +158,8 @@ exports.createCargo = async (req, res) => {
       cargoType,
       totalWeight,
       totalVolume,
+      quantity: quantity || null,
+      unit: unit || null,
       status: status || "Đã ở cảng"
     });
 
@@ -181,7 +183,7 @@ exports.createCargo = async (req, res) => {
 exports.updateCargo = async (req, res) => {
   try {
     const cargoId = req.params.id;
-    const { voyageId, cargoName, cargoType, totalWeight, totalVolume, status } = req.body;
+    const { voyageId, cargoName, cargoType, totalWeight, totalVolume, quantity, unit, status } = req.body;
 
     const cargo = await Cargo.findByPk(cargoId);
     if (!cargo) {
@@ -201,11 +203,13 @@ exports.updateCargo = async (req, res) => {
     }
 
     await cargo.update({
-      voyageId: voyageId || cargo.voyageId,
+      voyageId: (voyageId === '' || voyageId === null) ? null : (voyageId !== undefined ? voyageId : cargo.voyageId),
       cargoName: cargoName || cargo.cargoName,
       cargoType: cargoType || cargo.cargoType,
       totalWeight: totalWeight !== undefined ? totalWeight : cargo.totalWeight,
       totalVolume: totalVolume !== undefined ? totalVolume : cargo.totalVolume,
+      quantity: quantity !== undefined ? quantity : cargo.quantity,
+      unit: unit !== undefined ? unit : cargo.unit,
       status: status || cargo.status
     });
 

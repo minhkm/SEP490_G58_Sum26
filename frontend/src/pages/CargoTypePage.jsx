@@ -37,7 +37,6 @@ const { Option } = Select;
 // Đơn vị tính phổ biến trong hàng hải
 const UNIT_OPTIONS = [
   { value: 'MT', label: 'MT (Tấn)' },
-  { value: 'CBM', label: 'CBM (m³)' },
   { value: 'TEU', label: 'TEU (Container 20ft)' },
   { value: 'BAG', label: 'BAG (Bao)' },
   { value: 'PCS', label: 'PCS (Kiện / Cái)' },

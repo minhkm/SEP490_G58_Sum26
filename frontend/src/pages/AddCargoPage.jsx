@@ -41,6 +41,7 @@ export default function AddCargoPage() {
   const [typeModalOpen, setTypeModalOpen] = useState(false);
   const [typeForm] = Form.useForm();
   const [creatingType, setCreatingType] = useState(false);
+  const [selectedUnit, setSelectedUnit] = useState(null);
 
   const loadCargoTypes = () =>
     cargoTypeService.getAll()
@@ -48,22 +49,31 @@ export default function AddCargoPage() {
       .catch(() => {}); // Không chặn form nếu lỗi tải loại hàng
 
   useEffect(() => {
-    loadCargoTypes();
-
     if (isEditMode) {
-      cargoService.getById(id).then(res => {
-        if (res.success && res.data) {
-          const c = res.data;
-          // Lô hàng đã thuộc hải trình bị khoá — chặn cả khi truy cập trực tiếp URL edit
+      setLoading(true);
+      Promise.all([
+        cargoTypeService.getAll().catch(() => ({ success: false, data: [] })),
+        cargoService.getById(id)
+      ]).then(([typesRes, cargoRes]) => {
+        const fetchedTypes = typesRes.success ? typesRes.data : [];
+        setCargoTypes(fetchedTypes);
+
+        if (cargoRes.success && cargoRes.data) {
+          const c = cargoRes.data;
           if (c.Voyage || c.voyageId) {
             notifyError('Lô hàng đã thuộc hải trình nên không thể chỉnh sửa.');
             navigate(`/cargos/view/${id}`, { replace: true });
             return;
           }
+          const cType = fetchedTypes.find(t => t.name === c.cargoType);
+          if (cType) setSelectedUnit(cType.defaultUnit);
+          else if (c.unit) setSelectedUnit(c.unit);
+
           form.setFieldsValue({
             voyageId: c.voyageId || '',
             cargoName: c.cargoName || '',
             cargoType: c.cargoType || undefined,
+            quantity: c.quantity || undefined,
             totalWeight: c.totalWeight ?? null,
             totalVolume: c.totalVolume ?? null,
             status: c.status || 'Đã ở cảng',
@@ -72,7 +82,9 @@ export default function AddCargoPage() {
       }).catch(err => {
         console.error('Lỗi tải thông tin lô hàng:', err);
         setError('Không thể tải thông tin lô hàng.');
-      });
+      }).finally(() => setLoading(false));
+    } else {
+      loadCargoTypes();
     }
   }, [id, isEditMode, form, navigate]);
 
@@ -88,6 +100,12 @@ export default function AddCargoPage() {
 
     // Tự động tính thể tích chiếm chỗ theo SF của loại hàng được chọn
     const selectedType = cargoTypes.find(t => t.name === value);
+    if (selectedType) {
+      setSelectedUnit(selectedType.defaultUnit);
+    } else {
+      setSelectedUnit(null);
+    }
+
     const weight = form.getFieldValue('totalWeight');
     if (selectedType && selectedType.stowageFactor && weight !== undefined && weight !== null && weight !== '') {
       const sf = Number(selectedType.stowageFactor) || 1.0;
@@ -123,6 +141,7 @@ export default function AddCargoPage() {
       const res = await cargoTypeService.create(payload);
       await loadCargoTypes();
       form.setFieldValue('cargoType', res.data?.name || payload.name);
+      setSelectedUnit(payload.defaultUnit);
       // Tự động tính volume theo SF mới tạo
       const weight = form.getFieldValue('totalWeight');
       if (weight && payload.stowageFactor) {
@@ -148,6 +167,8 @@ export default function AddCargoPage() {
         cargoType: values.cargoType || '',
         totalWeight: values.totalWeight ?? '',
         totalVolume: values.totalVolume ?? '',
+        quantity: values.quantity ?? null,
+        unit: selectedUnit || null,
         status: values.status || 'Đã ở cảng',
       };
       if (isEditMode) {
@@ -221,7 +242,25 @@ export default function AddCargoPage() {
 
           <Card title="Khối lượng & Thể tích" style={{ marginBottom: 16 }}>
             <Row gutter={16}>
-              <Col xs={24} md={12}>
+              {['TEU', 'BAG', 'PCS', 'BBL'].includes(selectedUnit) && (
+                <Col xs={24} md={12}>
+                  <Form.Item
+                    label={`Số Lượng (${selectedUnit})`}
+                    name="quantity"
+                    rules={[
+                      { required: true, message: 'Vui lòng nhập số lượng' },
+                      { type: 'number', min: 1, message: 'Số lượng phải lớn hơn 0' }
+                    ]}
+                  >
+                    <InputNumber
+                      min={1}
+                      placeholder={`VD: 500`}
+                      style={{ width: '100%' }}
+                    />
+                  </Form.Item>
+                </Col>
+              )}
+              <Col xs={24} md={['TEU', 'BAG', 'PCS', 'BBL'].includes(selectedUnit) ? 12 : 12}>
                 <Form.Item
                   label="Tổng Khối Lượng (Tấn)"
                   name="totalWeight"
@@ -294,7 +333,6 @@ export default function AddCargoPage() {
             >
               <Select placeholder="Chọn đơn vị">
                 <Option value="MT">MT (Tấn)</Option>
-                <Option value="CBM">CBM (m³)</Option>
                 <Option value="TEU">TEU (Cont 20ft)</Option>
                 <Option value="BAG">BAG (Bao)</Option>
                 <Option value="PCS">PCS (Kiện/Cái)</Option>
