@@ -561,7 +561,7 @@ export default function AddVesselPage() {
       return;
     }
 
-    if (!mainEngine.engineName) {
+    if (!mainEngine.engineName || !mainEngine.engineName.trim()) {
       setActiveTab('engine');
       notifyWarning('Vui lòng nhập Tên động cơ cho Máy chính.');
       return;
@@ -577,7 +577,7 @@ export default function AddVesselPage() {
 
     // Validation: Thông số an toàn bắt buộc cho máy đèn
     for (const gen of generatorEngines) {
-      if (!gen.engineName) {
+      if (!gen.engineName || !gen.engineName.trim()) {
         setActiveTab('engine');
         notifyWarning(`Vui lòng nhập Tên máy cho các máy đèn.`);
         return;
