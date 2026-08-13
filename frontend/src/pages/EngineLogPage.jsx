@@ -93,6 +93,7 @@ export default function EngineLogPage() {
   // ===== BƯỚC 1: Lấy danh sách hải trình (tự chọn sẵn nếu có tham số từ màn ca trực) =====
   useEffect(() => {
     const initVoyageId = searchParams.get('voyageId');
+    const activeVoyageId = localStorage.getItem('activeVoyageId');
     const initDate = searchParams.get('date');
     const initShiftId = searchParams.get('shiftId');
     const init = async () => {
@@ -101,6 +102,7 @@ export default function EngineLogPage() {
         setVoyages(data);
         if (data.length === 0) return;
         const voyage = (initVoyageId && data.find(v => v.id === Number(initVoyageId)))
+          || (activeVoyageId && data.find(v => v.id === Number(activeVoyageId)))
           || data.find(v => v.status !== 'Completed') || data[0];
         setSelectedVoyage(voyage);
 
@@ -141,6 +143,7 @@ export default function EngineLogPage() {
   const handleVoyageChange = async (voyageId) => {
     if (!voyageId) return;
     const v = voyages.find(v => v.id === voyageId);
+    localStorage.setItem('activeVoyageId', String(voyageId));
     setSelectedVoyage(v);
     setSelectedShift(null);
     setHistory([]);
@@ -241,9 +244,8 @@ export default function EngineLogPage() {
       notifyWarning('Vui lòng nhập ít nhất 3 thông số máy');
       return;
     }
-    const mainKeywords = ['Fuel Oil Pressure', 'Exhaust Gas Temp XL2', 'Cooling Water Temp'];
     const mainParamIds = selectedEngine.EngineParameters
-      .filter(p => mainKeywords.some(kw => p.name.includes(kw)))
+      .filter(p => isRequiredParameter(p.name))
       .map(p => p.id);
       
     const filledMainParams = values.filter(v => mainParamIds.includes(v.parameterId));
@@ -316,9 +318,8 @@ export default function EngineLogPage() {
         return;
       }
 
-      const mainKeywords = ['Fuel Oil Pressure', 'Exhaust Gas Temp XL2', 'Cooling Water Temp'];
       const mainParamIds = editEngineParams
-        .filter(p => mainKeywords.some(kw => p.name.includes(kw)))
+        .filter(p => isRequiredParameter(p.name))
         .map(p => p.id);
       
       const filledMainParams = values.filter(v => mainParamIds.includes(v.parameterId));

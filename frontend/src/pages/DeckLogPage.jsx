@@ -155,7 +155,9 @@ export default function DeckLogPage() {
         const data = await deckLogService.getMyVoyages();
         setVoyages(data);
         if (data.length === 0) return;
+        const activeVoyageId = Number(localStorage.getItem('activeVoyageId'));
         const voyage = (initVoyageId && data.find(v => v.id === Number(initVoyageId)))
+          || (Number.isInteger(activeVoyageId) && data.find(v => v.id === activeVoyageId))
           || data.find(v => v.status !== 'Completed') || data[0];
         setSelectedVoyage(voyage);
 
@@ -191,6 +193,7 @@ export default function DeckLogPage() {
     setFileList([]);
     setEntries([]);
     if (v) {
+      localStorage.setItem('activeVoyageId', String(v.id));
       const shiftsData = await deckLogService.getShifts(v.id, selectedDate.format('YYYY-MM-DD'));
       setShifts(shiftsData);
     }
