@@ -25,7 +25,7 @@ const {
   Ship, ShipCapacity, ShipDocument,
   Engine, EngineParameter,
   Equipment,
-  CargoHold, Cargo, CargoItem, CargoAllocation, CargoType,
+  CargoHold, Cargo, CargoItem, CargoAllocation, CargoType, CargoOperation,
   Voyage, VoyageCrew,
   Attendance, Shift, ShiftLog, DeckLog, DeckLogEntry, EngineLog, EngineLogValue,
   Report, ReportReply,
@@ -55,11 +55,12 @@ async function seed() {
     // USERS & CREW PROFILES
     // ================================================================
     const SALT = 10;
-    const defPass = await bcrypt.hash('CargoOps@2026', SALT);
-    const adminPass = await bcrypt.hash('Admin@CargoOps2026', SALT);
+    // Mật khẩu demo dùng chung cho MỌI tài khoản (kể cả Admin) để dễ trình bày.
+    const DEMO_PASSWORD = '12345678';
+    const defPass = await bcrypt.hash(DEMO_PASSWORD, SALT);
 
     // --- Company admin (quản lý tàu, tạo hải trình) ---
-    await User.create({ username: 'admin@vinhquang.vn', password: adminPass, role: 'Admin', status: 'Active' }, { transaction: t });
+    await User.create({ username: 'admin@vinhquang.vn', password: defPass, role: 'Admin', status: 'Active' }, { transaction: t });
 
     // --- STAR 66 crew (từ Crew List IMO FAL Form 5 thực tế) ---
     const uDuong = await User.create({ username: 'nvduong@star66.vn', password: defPass, role: 'Master', status: 'Available' }, { transaction: t });
@@ -137,17 +138,152 @@ async function seed() {
       { crewId: cpQuan.id, certificateName: 'Engineer Officer of the Watch (EOOW)', issueDate: '2023-11-11', expiryDate: '2028-11-11', fileUrl: null, status: 'Valid' },
     ], { transaction: t });
 
-    console.log('✅ Người dùng và thuyền viên xong');
+    // ================================================================
+    // NHÂN SỰ BỔ SUNG (khai báo dạng dữ liệu + vòng lặp cho gọn)
+    // - 9 người: kíp tàu MV BIEN DONG 09 (được phân công vào hải trình VOY-03)
+    // - 23 người: đội dự bị của công ty, luôn ở trạng thái Sẵn sàng để test
+    //   tạo hải trình mới (đủ 4 chức danh bắt buộc cho ít nhất 2 chuyến).
+    // ================================================================
+    const POSITION_BY_ROLE = {
+      Master: 'Captain',
+      ChiefOfficer: 'Chief Officer',
+      DeckOfficer: 'Deck Officer',
+      EngineOfficer: 'Chief Engineer',
+      EngineCrew: 'Engine Crew',
+      Sailor: 'Seaman Deck',
+    };
+    const DEPARTMENT_BY_ROLE = {
+      Master: 'Deck',
+      ChiefOfficer: 'Deck',
+      DeckOfficer: 'Deck',
+      EngineOfficer: 'Engine',
+      EngineCrew: 'Engine',
+      Sailor: 'Deck',
+    };
+
+    // Kíp trực tiếp của MV BIEN DONG 09
+    const bienDongCrewDefs = [
+      { fullName: 'Vũ Đình Khánh', email: 'vdkhanh@biendong09.vn', role: 'Master' },
+      { fullName: 'Đỗ Trọng Nghĩa', email: 'dtnghia@biendong09.vn', role: 'ChiefOfficer' },
+      { fullName: 'Lý Văn Cường', email: 'lvcuong@biendong09.vn', role: 'DeckOfficer' },
+      { fullName: 'Bùi Xuân Hoà', email: 'bxhoa@biendong09.vn', role: 'EngineOfficer' },
+      { fullName: 'Đặng Minh Tú', email: 'dmtu@biendong09.vn', role: 'EngineCrew' },
+      { fullName: 'Hồ Sỹ Bình', email: 'hsbinh@biendong09.vn', role: 'EngineCrew' },
+      { fullName: 'Ngô Văn Lâm', email: 'nvlam@biendong09.vn', role: 'Sailor' },
+      { fullName: 'Trịnh Bá Kiên', email: 'tbkien@biendong09.vn', role: 'Sailor' },
+      { fullName: 'Phùng Quốc Đại', email: 'pqdai@biendong09.vn', role: 'Sailor' },
+    ];
+
+    // Đội dự bị trên bờ — chưa thuộc hải trình nào
+    const reserveCrewDefs = [
+      { fullName: 'Nguyễn Hải Đăng', email: 'nhdang@vinhquang.vn', role: 'Master' },
+      { fullName: 'Trương Công Định', email: 'tcdinh@vinhquang.vn', role: 'Master' },
+      { fullName: 'Lâm Tuấn Vũ', email: 'ltvu@vinhquang.vn', role: 'Master' },
+      { fullName: 'Vương Đức Hải', email: 'vdhai@vinhquang.vn', role: 'ChiefOfficer' },
+      { fullName: 'Tạ Quang Huy', email: 'tqhuy@vinhquang.vn', role: 'ChiefOfficer' },
+      { fullName: 'Đinh Ngọc Sơn', email: 'dnson@vinhquang.vn', role: 'ChiefOfficer' },
+      { fullName: 'Chu Văn Lợi', email: 'cvloi@vinhquang.vn', role: 'DeckOfficer' },
+      { fullName: 'Mai Thế Anh', email: 'mtanh@vinhquang.vn', role: 'DeckOfficer' },
+      { fullName: 'Hà Trung Kiên', email: 'htkien@vinhquang.vn', role: 'DeckOfficer' },
+      { fullName: 'Lương Bá Thành', email: 'lbthanh@vinhquang.vn', role: 'EngineOfficer' },
+      { fullName: 'Nghiêm Xuân Phú', email: 'nxphu@vinhquang.vn', role: 'EngineOfficer' },
+      { fullName: 'Tô Vĩnh Hưng', email: 'tvhung2@vinhquang.vn', role: 'EngineOfficer' },
+      { fullName: 'Dương Văn Tài', email: 'dvtai@vinhquang.vn', role: 'EngineCrew' },
+      { fullName: 'Đoàn Hữu Nghị', email: 'dhnghi@vinhquang.vn', role: 'EngineCrew' },
+      { fullName: 'Kiều Anh Dũng', email: 'kadung@vinhquang.vn', role: 'EngineCrew' },
+      { fullName: 'Lại Văn Chính', email: 'lvchinh@vinhquang.vn', role: 'EngineCrew' },
+      { fullName: 'Phan Trọng Nhân', email: 'ptnhan@vinhquang.vn', role: 'EngineCrew' },
+      { fullName: 'Bạch Đình Vinh', email: 'bdvinh@vinhquang.vn', role: 'Sailor' },
+      { fullName: 'Cao Văn Thọ', email: 'cvtho@vinhquang.vn', role: 'Sailor' },
+      { fullName: 'Đỗ Quang Trường', email: 'dqtruong@vinhquang.vn', role: 'Sailor' },
+      { fullName: 'Lê Minh Khoa', email: 'lmkhoa@vinhquang.vn', role: 'Sailor' },
+      { fullName: 'Nguyễn Đức Toàn', email: 'ndtoan@vinhquang.vn', role: 'Sailor' },
+      { fullName: 'Vũ Hồng Phong', email: 'vhphong@vinhquang.vn', role: 'Sailor' },
+    ];
+
+    // 22 hồ sơ phía trên đã dùng hết cccd 034000000001..022 → nhóm mới đánh số tiếp.
+    let crewSeq = 22;
+    const createCrewFromDef = async (def) => {
+      crewSeq += 1;
+      const user = await User.create({
+        username: def.email,
+        password: defPass,
+        role: def.role,
+        status: 'Available',
+      }, { transaction: t });
+      return CrewProfile.create({
+        userId: user.id,
+        fullName: def.fullName,
+        email: def.email,
+        phone: `0908${String(crewSeq).padStart(6, '0')}`,
+        cccd: `034${String(crewSeq).padStart(9, '0')}`,
+        department: DEPARTMENT_BY_ROLE[def.role],
+        position: POSITION_BY_ROLE[def.role],
+      }, { transaction: t });
+    };
+
+    const bienDongCrew = [];
+    for (const def of bienDongCrewDefs) {
+      bienDongCrew.push(await createCrewFromDef(def));
+    }
+
+    const reserveCrew = [];
+    for (const def of reserveCrewDefs) {
+      reserveCrew.push(await createCrewFromDef(def));
+    }
+
+    // Chứng chỉ cho các sĩ quan mới (thuyền trưởng / đại phó / sĩ quan boong / máy trưởng)
+    const OFFICER_CERTIFICATES = {
+      Master: 'Certificate of Competency - Master (< 3000 GT)',
+      ChiefOfficer: 'Certificate of Competency - Chief Officer',
+      DeckOfficer: 'Officer of the Watch (OOW) - Deck',
+      EngineOfficer: 'Certificate of Competency - Chief Engineer',
+    };
+    const officerCertificates = [];
+    [...bienDongCrewDefs, ...reserveCrewDefs].forEach((def, idx) => {
+      const certificateName = OFFICER_CERTIFICATES[def.role];
+      if (!certificateName) return;
+      const profile = idx < bienDongCrew.length
+        ? bienDongCrew[idx]
+        : reserveCrew[idx - bienDongCrew.length];
+      officerCertificates.push({
+        crewId: profile.id,
+        certificateName,
+        issueDate: '2023-07-01',
+        expiryDate: '2028-07-01',
+        fileUrl: null,
+        status: 'Valid',
+      });
+    });
+    await CrewCertificate.bulkCreate(officerCertificates, { transaction: t });
+
+    console.log(`✅ Người dùng và thuyền viên xong (${22 + bienDongCrew.length + reserveCrew.length} thuyền viên)`);
 
     // ================================================================
     // SHIPS
     // ================================================================
-    const shipVQS = await Ship.create({ shipName: 'MV VINH QUANG SUN', imoNumber: '9215672', flag: 'Vietnam', status: SHIP_STATUS.OPERATIONAL }, { transaction: t });
-    const shipS66 = await Ship.create({ shipName: 'MV STAR 66', imoNumber: '9588548', flag: 'Vietnam', status: SHIP_STATUS.OPERATIONAL }, { transaction: t });
+    // 2 tàu chủ lực (có sẵn) — đều đang chạy hải trình nên status là "Đang làm việc".
+    const shipVQS = await Ship.create({ shipName: 'MV VINH QUANG SUN', imoNumber: '9215672', flag: 'Vietnam', status: SHIP_STATUS.WORKING }, { transaction: t });
+    const shipS66 = await Ship.create({ shipName: 'MV STAR 66', imoNumber: '9588548', flag: 'Vietnam', status: SHIP_STATUS.WORKING }, { transaction: t });
+
+    // 4 tàu bổ sung — phủ đủ các trạng thái để demo bộ lọc/thống kê ở màn Quản lý Đội tàu.
+    // Lưu ý: "Đang trên hải trình" KHÔNG lưu ở đây, backend tự suy ra từ hải trình
+    // chưa Completed/Cancelled (xem vesselRoutes.js) → tàu BIEN DONG 09 để "Đang làm việc".
+    const shipBD09 = await Ship.create({ shipName: 'MV BIEN DONG 09', imoNumber: '9631507', flag: 'Vietnam', status: SHIP_STATUS.WORKING }, { transaction: t });
+    const shipHPG = await Ship.create({ shipName: 'MV HAI PHONG GLORY', imoNumber: '9455121', flag: 'Vietnam', status: SHIP_STATUS.OPERATIONAL }, { transaction: t });
+    const shipTS18 = await Ship.create({ shipName: 'MV TRUONG SA 18', imoNumber: '9327104', flag: 'Vietnam', status: SHIP_STATUS.MAINTENANCE }, { transaction: t });
+    const shipPQP = await Ship.create({ shipName: 'MV PHU QUOC PEARL', imoNumber: '9702389', flag: 'Vietnam', status: SHIP_STATUS.INACTIVE }, { transaction: t });
+
+    const allShips = [shipVQS, shipS66, shipBD09, shipHPG, shipTS18, shipPQP];
 
     await ShipCapacity.bulkCreate([
       { shipId: shipVQS.id, maxCargoWeight: 3500, maxCargoVolume: 4200, minCrew: 10, maxCrew: 15 },
       { shipId: shipS66.id, maxCargoWeight: 3200, maxCargoVolume: 3800, minCrew: 10, maxCrew: 15 },
+      // Tàu ven biển cỡ nhỏ hơn: định biên 8-14 người
+      { shipId: shipBD09.id, maxCargoWeight: 2800, maxCargoVolume: 3400, minCrew: 8, maxCrew: 14 },
+      { shipId: shipHPG.id, maxCargoWeight: 3000, maxCargoVolume: 3600, minCrew: 8, maxCrew: 14 },
+      { shipId: shipTS18.id, maxCargoWeight: 2600, maxCargoVolume: 3200, minCrew: 8, maxCrew: 14 },
+      { shipId: shipPQP.id, maxCargoWeight: 2400, maxCargoVolume: 3000, minCrew: 8, maxCrew: 14 },
     ], { transaction: t });
 
     await ShipDocument.bulkCreate([
@@ -161,18 +297,36 @@ async function seed() {
       { shipId: shipS66.id, documentName: 'MARPOL Annex I Certificate', documentType: 'Environmental', expiryDate: '2027-11-30', fileUrl: null, status: 'Valid' },
     ], { transaction: t });
 
-    console.log('✅ Tàu và tài liệu xong');
+    // Bộ hồ sơ tiêu chuẩn cho 4 tàu bổ sung.
+    // Tàu bảo trì / ngừng hoạt động cố tình có 1 chứng chỉ hết hạn để demo cảnh báo.
+    const shipDocTemplate = [
+      { documentName: 'Certificate of Registry', documentType: 'Registry', expiryDate: '2029-01-31' },
+      { documentName: 'Safety Management Certificate (SMC)', documentType: 'Safety', expiryDate: '2028-05-31' },
+      { documentName: 'International Load Line Certificate', documentType: 'Safety', expiryDate: '2027-09-30' },
+      { documentName: 'MARPOL Annex I Certificate', documentType: 'Environmental', expiryDate: '2027-12-31' },
+    ];
+    for (const ship of [shipBD09, shipHPG, shipTS18, shipPQP]) {
+      const needsExpiredDoc = ship.id === shipTS18.id || ship.id === shipPQP.id;
+      await ShipDocument.bulkCreate(
+        shipDocTemplate.map((doc, idx) => {
+          const expired = needsExpiredDoc && idx === 2;
+          return {
+            shipId: ship.id,
+            ...doc,
+            expiryDate: expired ? '2026-02-28' : doc.expiryDate,
+            fileUrl: null,
+            status: expired ? 'Expired' : 'Valid',
+          };
+        }),
+        { transaction: t }
+      );
+    }
+
+    console.log(`✅ Tàu và tài liệu xong (${allShips.length} tàu)`);
 
     // ================================================================
     // ENGINES & PARAMETERS
     // ================================================================
-    const eVQSMain = await Engine.create({ shipId: shipVQS.id, engineName: 'Máy chính - MAN B&W 6S35ME', engineType: ENGINE_TYPE.MAIN, status: ENGINE_STATUS.OPERATIONAL }, { transaction: t });
-    const eVQSGen1 = await Engine.create({ shipId: shipVQS.id, engineName: 'Máy phụ số 1', engineType: ENGINE_TYPE.AUXILIARY, status: ENGINE_STATUS.OPERATIONAL }, { transaction: t });
-    const eVQSGen2 = await Engine.create({ shipId: shipVQS.id, engineName: 'Máy phụ số 2', engineType: ENGINE_TYPE.AUXILIARY, status: ENGINE_STATUS.STANDBY }, { transaction: t });
-    const eS66Main = await Engine.create({ shipId: shipS66.id, engineName: 'Máy chính - MAN B&W 6S35ME', engineType: ENGINE_TYPE.MAIN, status: ENGINE_STATUS.OPERATIONAL }, { transaction: t });
-    const eS66Gen1 = await Engine.create({ shipId: shipS66.id, engineName: 'Máy phụ số 1', engineType: ENGINE_TYPE.AUXILIARY, status: ENGINE_STATUS.OPERATIONAL }, { transaction: t });
-    const eS66Gen2 = await Engine.create({ shipId: shipS66.id, engineName: 'Máy phụ số 2', engineType: ENGINE_TYPE.AUXILIARY, status: ENGINE_STATUS.STANDBY }, { transaction: t });
-
     // Engine parameters từ Engine Log thực tế (Voyage 1/4, Sea Area: Nam Biển Đông)
     // Giá trị thực: RPM=660, FO Press=4.8, Scav=5.2, Air=2.0, Start=1.2, LubOil=65°C, CoolWater=59°C, ExhGas=385~390°C
     const paramDefs = [
@@ -190,16 +344,6 @@ async function seed() {
       { name: 'Nhiệt độ khí xả XL6 (°C)', maxValue: 420 },
     ];
 
-    const epVQS = [];
-    for (const p of paramDefs) {
-      epVQS.push(await EngineParameter.create({ engineId: eVQSMain.id, ...p }, { transaction: t }));
-    }
-
-    const epS66 = [];
-    for (const p of paramDefs) {
-      epS66.push(await EngineParameter.create({ engineId: eS66Main.id, ...p }, { transaction: t }));
-    }
-
     // 3 thông số bắt buộc cho máy phụ — giống biểu mẫu thêm tàu
     const genParamDefs = [
       { name: 'Áp suất dầu nhiên liệu (kg/cm²)', maxValue: 6.0 },
@@ -207,13 +351,41 @@ async function seed() {
       { name: 'Nhiệt độ nước làm mát (°C)', maxValue: 75 },
     ];
 
-    for (const gen of [eVQSGen1, eVQSGen2, eS66Gen1, eS66Gen2]) {
-      for (const p of genParamDefs) {
-        await EngineParameter.create({ engineId: gen.id, ...p }, { transaction: t });
+    // Mỗi tàu: 1 máy chính + 2 máy phụ (máy phụ số 2 để dự phòng).
+    // Tàu đang bảo trì thì máy chính ở trạng thái "Đang bảo dưỡng".
+    const createEnginesForShip = async (ship) => {
+      const mainStatus = ship.status === SHIP_STATUS.MAINTENANCE
+        ? ENGINE_STATUS.MAINTENANCE
+        : ENGINE_STATUS.OPERATIONAL;
+
+      const mainEngine = await Engine.create({
+        shipId: ship.id,
+        engineName: 'Máy chính - MAN B&W 6S35ME',
+        engineType: ENGINE_TYPE.MAIN,
+        status: mainStatus,
+      }, { transaction: t });
+      for (const p of paramDefs) {
+        await EngineParameter.create({ engineId: mainEngine.id, ...p }, { transaction: t });
       }
+
+      for (const [idx, status] of [ENGINE_STATUS.OPERATIONAL, ENGINE_STATUS.STANDBY].entries()) {
+        const gen = await Engine.create({
+          shipId: ship.id,
+          engineName: `Máy phụ số ${idx + 1}`,
+          engineType: ENGINE_TYPE.AUXILIARY,
+          status,
+        }, { transaction: t });
+        for (const p of genParamDefs) {
+          await EngineParameter.create({ engineId: gen.id, ...p }, { transaction: t });
+        }
+      }
+    };
+
+    for (const ship of allShips) {
+      await createEnginesForShip(ship);
     }
 
-    console.log('✅ Máy và thông số máy xong');
+    console.log(`✅ Máy và thông số máy xong (${allShips.length * 3} máy)`);
 
     // ================================================================
     // EQUIPMENT (gắn với tàu)
@@ -251,24 +423,31 @@ async function seed() {
       { equipmentName: 'Nắp hầm hàng thủy lực', equipmentType: 'Khác', location: 'Boong', quantity: 2, expiryNote: null },
     ];
 
-    // Tạo equipment cho từng tàu
-    for (const ship of [shipVQS, shipS66]) {
+    // Tạo equipment cho TẤT CẢ các tàu.
+    // Tàu đang bảo trì có thêm vài thiết bị hỏng để demo màn Thiết bị và vật tư.
+    for (const ship of allShips) {
+      const brokenFor = (equipmentName) => {
+        if (ship.id !== shipTS18.id) return 0;
+        if (equipmentName === 'Bình chữa cháy bột xách tay') return 2;
+        if (equipmentName === 'Áo phao cá nhân') return 3;
+        return 0;
+      };
       await Equipment.bulkCreate(
         shipEquipTemplate.map(e => ({
           ...e,
           shipId: ship.id,
           voyageId: null,
-          brokenCount: 0,
+          brokenCount: brokenFor(e.equipmentName),
           status: 'Hoạt động',
         })),
         { transaction: t }
       );
     }
 
-    console.log('✅ Thiết bị tàu xong');
+    console.log(`✅ Thiết bị tàu xong (${allShips.length * shipEquipTemplate.length} bản ghi)`);
 
     // ================================================================
-    // KHOANG HÀNG
+    // KHOANG HÀNG (maxCapacity / currentUsage tính bằng m³)
     // ================================================================
     const holdVQS1 = await CargoHold.create({ shipId: shipVQS.id, holdName: 'Khoang hàng số 1', maxCapacity: 1500, currentUsage: 0, status: 'Available' }, { transaction: t });
     const holdVQS2 = await CargoHold.create({ shipId: shipVQS.id, holdName: 'Khoang hàng số 2', maxCapacity: 1600, currentUsage: 0, status: 'Available' }, { transaction: t });
@@ -276,12 +455,21 @@ async function seed() {
     const holdS661 = await CargoHold.create({ shipId: shipS66.id, holdName: 'Khoang hàng số 1', maxCapacity: 1500, currentUsage: 0, status: 'Available' }, { transaction: t });
     const holdS662 = await CargoHold.create({ shipId: shipS66.id, holdName: 'Khoang hàng số 2', maxCapacity: 1500, currentUsage: 0, status: 'Available' }, { transaction: t });
 
+    // 4 tàu bổ sung: mỗi tàu 2 khoang
+    const extraHolds = {};
+    for (const ship of [shipBD09, shipHPG, shipTS18, shipPQP]) {
+      extraHolds[ship.id] = [
+        await CargoHold.create({ shipId: ship.id, holdName: 'Khoang hàng số 1', maxCapacity: 1400, currentUsage: 0, status: 'Available' }, { transaction: t }),
+        await CargoHold.create({ shipId: ship.id, holdName: 'Khoang hàng số 2', maxCapacity: 1400, currentUsage: 0, status: 'Available' }, { transaction: t }),
+      ];
+    }
+
     console.log('✅ Khoang hàng xong');
 
     // ================================================================
     // CARGO TYPES (loại hàng cấu hình được)
     // ================================================================
-    await CargoType.bulkCreate([
+    const cargoTypeDefs = [
       { name: 'Sắt thép', defaultUnit: 'MT', stowageFactor: 0.45, description: 'Sắt thép cuộn, thép tấm, phôi thép (Hàng nặng)' },
       { name: 'Quặng sắt', defaultUnit: 'MT', stowageFactor: 0.48, description: 'Quặng sắt, bauxite, khoáng sản thô (Hàng nặng)' },
       { name: 'Xi măng', defaultUnit: 'MT', stowageFactor: 0.80, description: 'Xi măng bao 50kg / xi măng rời (Cần chống ẩm)' },
@@ -294,25 +482,505 @@ async function seed() {
       { name: 'Bông sợi', defaultUnit: 'MT', stowageFactor: 2.60, description: 'Bông sợi dệt may ép kiện (Hàng nhẹ cồng kềnh)' },
       { name: 'Thiết bị điện', defaultUnit: 'PCS', stowageFactor: 3.50, description: 'Máy móc, thiết bị điện tử đóng trong thùng carton' },
       { name: 'Dầu nhờn', defaultUnit: 'BBL', stowageFactor: 1.15, description: 'Dầu bôi trơn đóng thùng phuy tiêu chuẩn' },
-    ], { transaction: t });
+    ];
+    await CargoType.bulkCreate(cargoTypeDefs, { transaction: t });
     console.log('✅ Loại hàng xong');
 
     // ================================================================
-    // COMMIT (Không tạo hải trình mẫu - để trống 0 hải trình)
+    // HẢI TRÌNH + HÀNG HOÁ + ĐIỂM DANH
+    // ----------------------------------------------------------------
+    // Seed ghi thẳng DB nên không đi qua validate của API → phải tự giữ
+    // các bất biến nghiệp vụ, nếu không UI sẽ chặn thao tác tiếp theo:
+    //  · Tàu có hải trình chưa Completed/Cancelled → hiển thị "Đang trên hải trình".
+    //  · Mỗi hải trình cần >= 5 loại vật tư y tế.
+    //  · Phải đủ 4 chức danh: Thuyền trưởng, Đại phó, Sĩ quan boong, Máy trưởng.
+    //  · Underway cần: điểm danh đủ + lộ trình Approved + hàng đã lên tàu.
+    // ================================================================
+
+    // Ngày tương đối để bộ dữ liệu luôn "mới" dù seed lại lúc nào.
+    const baseDate = new Date();
+    const dayOffset = (n) => {
+      const d = new Date(baseDate);
+      d.setDate(d.getDate() + n);
+      return d.toISOString().slice(0, 10);
+    };
+
+    // Hệ số chất xếp tra theo TÊN loại hàng — Cargo.cargoType phải khớp CargoType.name
+    const sfMap = Object.fromEntries(cargoTypeDefs.map(ct => [ct.name, ct.stowageFactor]));
+    const volumeOf = (cargoType, weight) => Math.round(weight * (sfMap[cargoType] || 1.0) * 100) / 100;
+
+    // Chuỗi chức danh phải khớp CREW_ROLE_OPTIONS ở frontend/src/pages/CreateVoyagePage.jsx
+    const V_ROLE = {
+      CAPTAIN: 'Captain (CAPT)',
+      CHIEF_OFFICER: 'Đại phó (Chief Officer)',
+      DECK_OFFICER: 'Sĩ quan boong (Deck Officer)',
+      CHIEF_ENGINEER: 'Máy trưởng (Chief Engineer)',
+      ENGINE_CREW: 'Thợ máy (Engine Crew)',
+      SAILOR: 'Thủy thủ (Crew)',
+    };
+    // Chỉ Thợ máy / Thủy thủ được phép trùng chức danh → sĩ quan máy thứ 2 xuống làm thợ máy.
+    const VOYAGE_ROLE_BY_ACCOUNT = {
+      Master: V_ROLE.CAPTAIN,
+      ChiefOfficer: V_ROLE.CHIEF_OFFICER,
+      DeckOfficer: V_ROLE.DECK_OFFICER,
+      EngineOfficer: V_ROLE.CHIEF_ENGINEER,
+      EngineCrew: V_ROLE.ENGINE_CREW,
+      Sailor: V_ROLE.SAILOR,
+      Crew: V_ROLE.SAILOR,
+    };
+
+    // Vật tư y tế của hải trình (>= 5 loại theo ràng buộc voyageRoutes.js)
+    const medicalSupplyTemplate = [
+      { equipmentName: 'Tủ thuốc cấp cứu tiêu chuẩn', location: 'Buồng lái', quantity: 1, expiryNote: dayOffset(540) },
+      { equipmentName: 'Bộ sơ cứu cầm máu', location: 'Buồng lái', quantity: 3, expiryNote: dayOffset(400) },
+      { equipmentName: 'Bình oxy y tế cầm tay', location: 'Buồng lái', quantity: 2, expiryNote: dayOffset(620) },
+      { equipmentName: 'Cáng cứu thương', location: 'Boong', quantity: 1, expiryNote: null },
+      { equipmentName: 'Thuốc say sóng và giảm đau', location: 'Buồng lái', quantity: 5, expiryNote: dayOffset(300) },
+      { equipmentName: 'Bộ nẹp cố định xương gãy', location: 'Boong', quantity: 2, expiryNote: null },
+    ];
+
+    const createMedicalSupplies = (voyageId) => Equipment.bulkCreate(
+      medicalSupplyTemplate.map(e => ({
+        ...e,
+        voyageId,
+        shipId: null,
+        equipmentType: 'Vật tư y tế',
+        brokenCount: 0,
+        status: 'Hoạt động',
+      })),
+      { transaction: t }
+    );
+
+    const assignCrew = (voyageId, assignments) => VoyageCrew.bulkCreate(
+      assignments.map(a => ({ voyageId, crewId: a.profile.id, role: a.role })),
+      { transaction: t }
+    );
+
+    // Điểm danh: PreDeparture (trước khởi hành) / PostDischarge (kết thúc chuyến)
+    const recordAttendance = (voyageId, assignments, attendanceType, attendanceDate, recordedBy) =>
+      Attendance.bulkCreate(
+        assignments.map(a => ({
+          voyageId,
+          crewId: a.profile.id,
+          attendanceType,
+          status: 'Present',
+          attendanceDate,
+          recordedAt: new Date(`${attendanceDate}T07:30:00.000Z`),
+          recordedBy,
+          note: null,
+        })),
+        { transaction: t }
+      );
+
+    // Tạo lô hàng + chi tiết + phân bổ khoang, giữ đồng bộ:
+    //   CargoItem.allocations (JSON) ⇄ CargoAllocation (bảng) ⇄ CargoHold.currentUsage (m³)
+    // Hàng đã dỡ thì KHÔNG còn chiếm chỗ khoang (giống voyageRoutes.js).
+    const createCargoWithItems = async ({ voyageId = null, cargoName, cargoType, unit, quantity, status, items }) => {
+      const totalWeight = items.reduce((sum, i) => sum + i.weight, 0);
+      const totalVolume = items.reduce((sum, i) => sum + volumeOf(cargoType, i.weight), 0);
+      const cargo = await Cargo.create({
+        voyageId,
+        cargoName,
+        cargoType,
+        totalWeight,
+        totalVolume: Math.round(totalVolume * 100) / 100,
+        quantity,
+        unit,
+        status,
+      }, { transaction: t });
+
+      const weightByHold = {};
+      for (const item of items) {
+        const volume = volumeOf(cargoType, item.weight);
+        const allocations = item.hold
+          ? [{ holdId: item.hold.id, weight: item.weight, volume }]
+          : [];
+        const cargoItem = await CargoItem.create({
+          cargoId: cargo.id,
+          itemName: item.itemName,
+          quantity: item.quantity,
+          weight: item.weight,
+          volume,
+          isLoaded: Boolean(item.isLoaded),
+          isDischarged: Boolean(item.isDischarged),
+          holdId: null,
+          allocations,
+        }, { transaction: t });
+
+        if (item.hold && item.isLoaded) {
+          weightByHold[item.hold.id] = (weightByHold[item.hold.id] || 0) + item.weight;
+
+          // Chỉ hàng còn trên tàu mới chiếm dung tích khoang
+          if (!item.isDischarged) {
+            item.hold.currentUsage = Math.round((item.hold.currentUsage + volume) * 100) / 100;
+            await item.hold.save({ transaction: t });
+          }
+        }
+
+        if (voyageId && item.isLoaded) {
+          await CargoOperation.create({
+            voyageId,
+            cargoId: cargo.id,
+            cargoItemId: cargoItem.id,
+            operationType: 'LOAD',
+            plannedQuantity: item.quantity,
+            actualQuantity: item.quantity,
+            plannedWeight: item.weight,
+            actualWeight: item.weight,
+            unit: unit || 'ton',
+            port: item.loadPort || null,
+            completedAt: new Date(`${item.loadedOn}T09:00:00.000Z`),
+            status: 'Completed',
+            note: null,
+          }, { transaction: t });
+        }
+        if (voyageId && item.isDischarged) {
+          await CargoOperation.create({
+            voyageId,
+            cargoId: cargo.id,
+            cargoItemId: cargoItem.id,
+            operationType: 'UNLOAD',
+            plannedQuantity: item.quantity,
+            actualQuantity: item.quantity,
+            plannedWeight: item.weight,
+            actualWeight: item.weight,
+            unit: unit || 'ton',
+            port: item.dischargePort || null,
+            completedAt: new Date(`${item.dischargedOn}T15:00:00.000Z`),
+            status: 'Completed',
+            note: null,
+          }, { transaction: t });
+        }
+      }
+
+      for (const [holdId, weight] of Object.entries(weightByHold)) {
+        await CargoAllocation.create({
+          cargoId: cargo.id,
+          cargoHoldId: Number(holdId),
+          allocatedWeight: weight,
+          status: 'Allocated',
+        }, { transaction: t });
+      }
+
+      return cargo;
+    };
+
+    // ---------- Phân công nhân sự cho từng kíp tàu ----------
+    // MV VINH QUANG SUN — 10 người (minCrew 10)
+    const crewVQS = [
+      { profile: cpMinh, role: V_ROLE.CAPTAIN },
+      { profile: cpHungV, role: V_ROLE.CHIEF_OFFICER },
+      { profile: cpAn, role: V_ROLE.DECK_OFFICER },
+      { profile: cpThanh, role: V_ROLE.CHIEF_ENGINEER },
+      { profile: cpQuan, role: V_ROLE.ENGINE_CREW },
+      { profile: cpKhoa, role: V_ROLE.ENGINE_CREW },
+      { profile: cpDat, role: V_ROLE.ENGINE_CREW },
+      { profile: cpViet, role: V_ROLE.SAILOR },
+      { profile: cpPhuc, role: V_ROLE.SAILOR },
+      { profile: cpThang, role: V_ROLE.SAILOR },
+    ];
+
+    // MV STAR 66 — 12 người (minCrew 10, maxCrew 15)
+    const crewS66 = [
+      { profile: cpDuong, role: V_ROLE.CAPTAIN },
+      { profile: cpTuong, role: V_ROLE.CHIEF_OFFICER },
+      { profile: cpTuan, role: V_ROLE.DECK_OFFICER },
+      { profile: cpDuc, role: V_ROLE.CHIEF_ENGINEER },
+      { profile: cpTrong, role: V_ROLE.ENGINE_CREW },
+      { profile: cpHao, role: V_ROLE.ENGINE_CREW },
+      { profile: cpLong, role: V_ROLE.ENGINE_CREW },
+      { profile: cpNam, role: V_ROLE.ENGINE_CREW },
+      { profile: cpTue, role: V_ROLE.SAILOR },
+      { profile: cpSu, role: V_ROLE.SAILOR },
+      { profile: cpHung, role: V_ROLE.SAILOR },
+      { profile: cpQuangS, role: V_ROLE.SAILOR },
+    ];
+
+    // MV BIEN DONG 09 — 9 người (minCrew 8)
+    const crewBD09 = bienDongCrew.map((profile, idx) => ({
+      profile,
+      role: VOYAGE_ROLE_BY_ACCOUNT[bienDongCrewDefs[idx].role],
+    }));
+
+    // Hai kíp lấy từ đội dự bị cho các chuyến ĐÃ hoàn thành.
+    // Hải trình Completed không khoá nhân sự → 23 người này vẫn ở trạng thái Sẵn sàng.
+    const pickReserveCrew = (indexes) => indexes.map(i => ({
+      profile: reserveCrew[i],
+      role: VOYAGE_ROLE_BY_ACCOUNT[reserveCrewDefs[i].role],
+    }));
+    const crewHPG = pickReserveCrew([0, 3, 6, 9, 12, 13, 17, 18, 19]);
+    const crewTS18 = pickReserveCrew([1, 4, 7, 10, 14, 15, 20, 21, 22]);
+
+    // ---------- VOY-01: MV VINH QUANG SUN — Đang di chuyển ----------
+    const voy01 = await Voyage.create({
+      shipId: shipVQS.id,
+      departurePort: 'Cảng Hải Phòng (Hải Phòng, Việt Nam)',
+      destinationPort: 'Cảng Cát Lái (Hồ Chí Minh, Việt Nam)',
+      departureDate: dayOffset(-4),
+      arrivalDate: dayOffset(3),
+      status: 'Underway',
+      isCrewSufficient: true,
+      isCargoLoaded: true,
+      routeStatus: 'Approved',
+      routeWaypoints: [
+        { lat: 20.8632, lng: 106.6896, name: 'Cảng đi: Cảng Hải Phòng' },
+        { lat: 17.60, lng: 108.00, name: 'Cửa Vịnh Bắc Bộ (Nam)' },
+        { lat: 16.35, lng: 108.60, name: 'Ngoài khơi Đà Nẵng / Sơn Trà' },
+        { lat: 12.20, lng: 109.65, name: 'Ngoài khơi Nha Trang / Cam Ranh' },
+        { lat: 10.25, lng: 107.05, name: 'Phao số 0 Vũng Tàu' },
+        { lat: 10.7668, lng: 106.7955, name: 'Cảng đến: Cảng Cát Lái' },
+      ],
+    }, { transaction: t });
+    await assignCrew(voy01.id, crewVQS);
+    await recordAttendance(voy01.id, crewVQS, 'PreDeparture', dayOffset(-4), cpMinh.userId);
+    await createMedicalSupplies(voy01.id);
+    await createCargoWithItems({
+      voyageId: voy01.id,
+      cargoName: 'Gạo xuất khẩu Hải Phòng - Cát Lái',
+      cargoType: 'Gạo',
+      unit: 'MT',
+      quantity: 16000,
+      status: 'Đã lên tàu',
+      items: [{ itemName: 'Gạo 5% tấm đóng bao 50kg', quantity: 16000, weight: 800, hold: holdVQS1, isLoaded: true, loadedOn: dayOffset(-5), loadPort: 'Cảng Hải Phòng (Hải Phòng, Việt Nam)' }],
+    });
+    await createCargoWithItems({
+      voyageId: voy01.id,
+      cargoName: 'Xi măng bao Nghi Sơn',
+      cargoType: 'Xi măng',
+      unit: 'MT',
+      quantity: 18000,
+      status: 'Đã lên tàu',
+      items: [{ itemName: 'Xi măng PCB40 bao 50kg', quantity: 18000, weight: 900, hold: holdVQS2, isLoaded: true, loadedOn: dayOffset(-5), loadPort: 'Cảng Hải Phòng (Hải Phòng, Việt Nam)' }],
+    });
+
+    // ---------- VOY-02: MV STAR 66 — Đã làm hàng xong ----------
+    // Cố ý CHƯA điểm danh và lộ trình còn Draft → demo được luồng
+    // Đại phó lập lộ trình → gửi duyệt → Thuyền trưởng phê duyệt → điểm danh → chạy.
+    const voy02 = await Voyage.create({
+      shipId: shipS66.id,
+      departurePort: 'Cảng Cẩm Phả (Quảng Ninh, Việt Nam)',
+      destinationPort: 'Cảng Đà Nẵng (Đà Nẵng, Việt Nam)',
+      departureDate: dayOffset(2),
+      arrivalDate: dayOffset(8),
+      status: 'Loaded',
+      isCrewSufficient: false,
+      isCargoLoaded: true,
+      routeStatus: 'Draft',
+      routeWaypoints: [],
+    }, { transaction: t });
+    await assignCrew(voy02.id, crewS66);
+    await createMedicalSupplies(voy02.id);
+    await createCargoWithItems({
+      voyageId: voy02.id,
+      cargoName: 'Than đá nhiệt điện Cẩm Phả',
+      cargoType: 'Than đá',
+      unit: 'MT',
+      quantity: 1000,
+      status: 'Đã lên tàu',
+      items: [{ itemName: 'Than cám 6a', quantity: 1000, weight: 1000, hold: holdS661, isLoaded: true, loadedOn: dayOffset(-1), loadPort: 'Cảng Cẩm Phả (Quảng Ninh, Việt Nam)' }],
+    });
+    await createCargoWithItems({
+      voyageId: voy02.id,
+      cargoName: 'Thép cuộn Hoà Phát',
+      cargoType: 'Sắt thép',
+      unit: 'MT',
+      quantity: 600,
+      status: 'Đã lên tàu',
+      items: [{ itemName: 'Thép cuộn cán nóng HRC', quantity: 600, weight: 1200, hold: holdS662, isLoaded: true, loadedOn: dayOffset(-1), loadPort: 'Cảng Cẩm Phả (Quảng Ninh, Việt Nam)' }],
+    });
+
+    // ---------- VOY-03: MV BIEN DONG 09 — Lên kế hoạch ----------
+    const voy03 = await Voyage.create({
+      shipId: shipBD09.id,
+      departurePort: 'Cảng Quy Nhơn (Bình Định, Việt Nam)',
+      destinationPort: 'Cảng Singapore (PSA, Singapore)',
+      departureDate: dayOffset(6),
+      arrivalDate: dayOffset(13),
+      status: 'Planning',
+      isCrewSufficient: false,
+      isCargoLoaded: false,
+      routeStatus: 'Draft',
+      routeWaypoints: [],
+    }, { transaction: t });
+    await assignCrew(voy03.id, crewBD09);
+    await createMedicalSupplies(voy03.id);
+    await createCargoWithItems({
+      voyageId: voy03.id,
+      cargoName: 'Cà phê nhân xuất khẩu Tây Nguyên',
+      cargoType: 'Cà phê',
+      unit: 'BAG',
+      quantity: 10000,
+      status: 'Đã ở cảng',
+      items: [{ itemName: 'Cà phê Robusta bao 60kg', quantity: 10000, weight: 600, hold: null, isLoaded: false }],
+    });
+
+    // ---------- VOY-04: MV HAI PHONG GLORY — Hoàn thành ----------
+    const voy04 = await Voyage.create({
+      shipId: shipHPG.id,
+      departurePort: 'Cảng Đình Vũ (Hải Phòng, Việt Nam)',
+      destinationPort: 'Cảng Chân Mây (Thừa Thiên Huế, Việt Nam)',
+      departureDate: dayOffset(-32),
+      arrivalDate: dayOffset(-25),
+      status: 'Completed',
+      isCrewSufficient: true,
+      isCargoLoaded: true,
+      routeStatus: 'Approved',
+      routeWaypoints: [
+        { lat: 20.8632, lng: 106.6896, name: 'Cảng đi: Cảng Đình Vũ' },
+        { lat: 19.30, lng: 107.60, name: 'Giữa Vịnh Bắc Bộ' },
+        { lat: 16.3307, lng: 108.0224, name: 'Cảng đến: Cảng Chân Mây' },
+      ],
+    }, { transaction: t });
+    await assignCrew(voy04.id, crewHPG);
+    await recordAttendance(voy04.id, crewHPG, 'PreDeparture', dayOffset(-32), crewHPG[0].profile.userId);
+    await recordAttendance(voy04.id, crewHPG, 'PostDischarge', dayOffset(-25), crewHPG[0].profile.userId);
+    await createMedicalSupplies(voy04.id);
+    await createCargoWithItems({
+      voyageId: voy04.id,
+      cargoName: 'Phân bón NPK Đình Vũ',
+      cargoType: 'Phân bón',
+      unit: 'MT',
+      quantity: 14000,
+      status: 'Đã giao thành công',
+      items: [{
+        itemName: 'Phân NPK bao 50kg', quantity: 14000, weight: 700, hold: extraHolds[shipHPG.id][0],
+        isLoaded: true, loadedOn: dayOffset(-33), loadPort: 'Cảng Đình Vũ (Hải Phòng, Việt Nam)',
+        isDischarged: true, dischargedOn: dayOffset(-25), dischargePort: 'Cảng Chân Mây (Thừa Thiên Huế, Việt Nam)',
+      }],
+    });
+
+    // ---------- VOY-05: MV TRUONG SA 18 — Hoàn thành (tàu về xưởng bảo trì) ----------
+    const voy05 = await Voyage.create({
+      shipId: shipTS18.id,
+      departurePort: 'Cảng Nghi Sơn (Thanh Hóa, Việt Nam)',
+      destinationPort: 'Cảng Cần Thơ (Cần Thơ, Việt Nam)',
+      departureDate: dayOffset(-58),
+      arrivalDate: dayOffset(-48),
+      status: 'Completed',
+      isCrewSufficient: true,
+      isCargoLoaded: true,
+      routeStatus: 'Approved',
+      routeWaypoints: [
+        { lat: 19.3149, lng: 105.8145, name: 'Cảng đi: Cảng Nghi Sơn' },
+        { lat: 16.35, lng: 108.60, name: 'Ngoài khơi Đà Nẵng / Sơn Trà' },
+        { lat: 10.25, lng: 107.05, name: 'Phao số 0 Vũng Tàu' },
+        { lat: 19.9043, lng: 105.4629, name: 'Cảng đến: Cảng Cần Thơ' },
+      ],
+    }, { transaction: t });
+    await assignCrew(voy05.id, crewTS18);
+    await recordAttendance(voy05.id, crewTS18, 'PreDeparture', dayOffset(-58), crewTS18[0].profile.userId);
+    await recordAttendance(voy05.id, crewTS18, 'PostDischarge', dayOffset(-48), crewTS18[0].profile.userId);
+    await createMedicalSupplies(voy05.id);
+    await createCargoWithItems({
+      voyageId: voy05.id,
+      cargoName: 'Ngũ cốc nhập khẩu Nghi Sơn',
+      cargoType: 'Ngũ cốc',
+      unit: 'MT',
+      quantity: 650,
+      status: 'Đã giao thành công',
+      items: [{
+        itemName: 'Bắp hạt chở xá', quantity: 650, weight: 650, hold: extraHolds[shipTS18.id][0],
+        isLoaded: true, loadedOn: dayOffset(-59), loadPort: 'Cảng Nghi Sơn (Thanh Hóa, Việt Nam)',
+        isDischarged: true, dischargedOn: dayOffset(-48), dischargePort: 'Cảng Cần Thơ (Cần Thơ, Việt Nam)',
+      }],
+    });
+
+    // ---------- VOY-06: MV PHU QUOC PEARL — Đã huỷ ----------
+    // Theo hành vi huỷ ở voyageRoutes.js: không còn VoyageCrew, hàng được trả về cảng.
+    const voy06 = await Voyage.create({
+      shipId: shipPQP.id,
+      departurePort: 'Cảng Vũng Tàu (BR-VT, Việt Nam)',
+      destinationPort: 'Port Klang (Selangor, Malaysia)',
+      departureDate: dayOffset(-14),
+      arrivalDate: dayOffset(-6),
+      status: 'Cancelled',
+      isCrewSufficient: false,
+      isCargoLoaded: false,
+      issueReason: 'Huỷ chuyến do tàu phải lên đà kiểm định ngoài kế hoạch, hàng đã được trả về cảng.',
+      routeStatus: 'Draft',
+      routeWaypoints: [],
+    }, { transaction: t });
+
+    console.log('✅ Hải trình xong (6 chuyến)');
+
+    // ---------- Lô hàng tự do: chưa thuộc hải trình nào ----------
+    // Dùng để demo/test luồng tạo hải trình mới rồi gán hàng vào.
+    await createCargoWithItems({
+      cargoName: 'Thép tấm đóng tàu Phú Mỹ',
+      cargoType: 'Sắt thép',
+      unit: 'MT',
+      quantity: 500,
+      status: 'Đã ở cảng',
+      items: [{ itemName: 'Thép tấm SS400', quantity: 500, weight: 500, hold: null, isLoaded: false }],
+    });
+    await createCargoWithItems({
+      cargoName: 'Hàng công-ten-nơ Cát Lái - Singapore',
+      cargoType: 'Hàng Container',
+      unit: 'TEU',
+      quantity: 120,
+      status: 'Đã ở cảng',
+      items: [
+        { itemName: 'Container 20ft hàng bách hoá', quantity: 80, weight: 320, hold: null, isLoaded: false },
+        { itemName: 'Container 40ft hàng may mặc', quantity: 40, weight: 260, hold: null, isLoaded: false },
+      ],
+    });
+    await createCargoWithItems({
+      cargoName: 'Bông sợi nhập khẩu cho nhà máy dệt',
+      cargoType: 'Bông sợi',
+      unit: 'MT',
+      quantity: 300,
+      status: 'Đã ở cảng',
+      items: [{ itemName: 'Bông sợi ép kiện', quantity: 300, weight: 300, hold: null, isLoaded: false }],
+    });
+
+    console.log('✅ Hàng hoá xong (10 lô, trong đó 3 lô chưa gán hải trình)');
+
+    // ================================================================
+    // COMMIT
     // ================================================================
     await t.commit();
     console.log('✅ Đã xác nhận giao dịch thành công!');
 
-    console.log('\n🎉 Hoàn tất tạo dữ liệu mẫu (0 hải trình - sẵn sàng tạo mới)!\n');
-    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-    console.log('📋 TÀI KHOẢN MẪU');
-    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-    console.log('  Quản trị viên (Admin): admin@vinhquang.vn → Admin@CargoOps2026');
-    console.log('  Thuyền trưởng / Thuyền viên: mật khẩu chung CargoOps@2026');
-    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-    console.log('🚢 TÀU:  MV VINH QUANG SUN (IMO 9215672) | MV STAR 66 (IMO 9588548)');
-    console.log('🗺️  HẢI TRÌNH: 0 (Chưa có hải trình nào)');
-    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n');
+    const line = '━'.repeat(74);
+    console.log('\n🎉 Hoàn tất tạo dữ liệu mẫu cho demo!\n');
+    console.log(line);
+    console.log(`🔑 MẬT KHẨU CHUNG CHO MỌI TÀI KHOẢN: ${DEMO_PASSWORD}`);
+    console.log(line);
+    console.log('  Quản trị viên      admin@vinhquang.vn');
+    console.log('  ── Đang chạy hải trình ─────────────────────────────────────────────');
+    console.log('  Thuyền trưởng      nqminh@vqs.vn          MV VINH QUANG SUN · Đang di chuyển');
+    console.log('  Đại phó            tvhung@vqs.vn          MV VINH QUANG SUN · Đang di chuyển');
+    console.log('  Thuỷ thủ           tqviet@vqs.vn          MV VINH QUANG SUN · ghi nhật ký boong');
+    console.log('  Thợ máy            ldkhoa@vqs.vn          MV VINH QUANG SUN · ghi nhật ký máy');
+    console.log('  Thuyền trưởng      nvduong@star66.vn      MV STAR 66 · Đã làm hàng xong');
+    console.log('  Đại phó            tvtuong@star66.vn      MV STAR 66 · lập & gửi duyệt lộ trình');
+    console.log('  Thuyền trưởng      vdkhanh@biendong09.vn  MV BIEN DONG 09 · Lên kế hoạch');
+    console.log('  ── Đội dự bị (Sẵn sàng, 23 người) ──────────────────────────────────');
+    console.log('  Thuyền trưởng      nhdang@vinhquang.vn / tcdinh@vinhquang.vn / ltvu@vinhquang.vn');
+    console.log('  Đại phó            vdhai@vinhquang.vn / tqhuy@vinhquang.vn / dnson@vinhquang.vn');
+    console.log('  Sĩ quan boong      cvloi@vinhquang.vn / mtanh@vinhquang.vn / htkien@vinhquang.vn');
+    console.log('  Máy trưởng         lbthanh@vinhquang.vn / nxphu@vinhquang.vn / tvhung2@vinhquang.vn');
+    console.log(line);
+    console.log('🚢 ĐỘI TÀU (6 chiếc)');
+    console.log(line);
+    console.log('  MV VINH QUANG SUN   IMO 9215672   → Đang trên hải trình');
+    console.log('  MV STAR 66          IMO 9588548   → Đang trên hải trình');
+    console.log('  MV BIEN DONG 09     IMO 9631507   → Đang trên hải trình');
+    console.log('  MV HAI PHONG GLORY  IMO 9455121   → Sẵn sàng  (dùng tàu này để test tạo hải trình mới)');
+    console.log('  MV TRUONG SA 18     IMO 9327104   → Bảo trì');
+    console.log('  MV PHU QUOC PEARL   IMO 9702389   → Ngừng hoạt động');
+    console.log(line);
+    console.log('🗺️  HẢI TRÌNH (6 chuyến)');
+    console.log(line);
+    console.log(`  #${voy01.id} Hải Phòng → Cát Lái        Đang di chuyển     (đã điểm danh, lộ trình đã duyệt)`);
+    console.log(`  #${voy02.id} Cẩm Phả → Đà Nẵng          Đã làm hàng xong   (chờ lập lộ trình + điểm danh)`);
+    console.log(`  #${voy03.id} Quy Nhơn → Singapore       Lên kế hoạch       (chờ bốc xếp hàng)`);
+    console.log(`  #${voy04.id} Đình Vũ → Chân Mây         Hoàn thành`);
+    console.log(`  #${voy05.id} Nghi Sơn → Cần Thơ         Hoàn thành`);
+    console.log(`  #${voy06.id} Vũng Tàu → Port Klang      Đã huỷ`);
+    console.log(line);
+    console.log('👥 THUYỀN VIÊN: 54 người  ·  📦 HÀNG HOÁ: 10 lô (3 lô còn ở cảng, chưa gán chuyến)');
+    console.log(`${line}\n`);
 
   } catch (err) {
     await t.rollback();

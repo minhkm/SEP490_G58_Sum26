@@ -12,7 +12,7 @@ export default function SettingsPage() {
   const user = JSON.parse(localStorage.getItem('user')) || {};
   const Layout = user.role === 'Admin' ? AdminLayout : MasterLayout;
 
-  // Danh mục các mục cài đặt (chỉ Admin truy cập màn này)
+  // Danh mục các mục cấu hình (chỉ Admin truy cập màn này)
   const settingItems = [
     {
       key: 'cargo-types',
@@ -29,7 +29,7 @@ export default function SettingsPage() {
         {/* Header */}
         <Space align="center" size={12} style={{ marginBottom: 4 }}>
           <SettingOutlined style={{ fontSize: 26, color: '#6366f1' }} />
-          <Title level={3} style={{ margin: 0 }}>Cài đặt</Title>
+          <Title level={3} style={{ margin: 0 }}>Cấu hình</Title>
         </Space>
         <p style={{ color: '#64748b', marginTop: 0, marginBottom: 24, fontSize: '0.9rem' }}>
           Quản lý cấu hình hệ thống.
