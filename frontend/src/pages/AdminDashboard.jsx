@@ -57,6 +57,7 @@ export default function AdminDashboard() {
 
   // --- Joyride State ---
   const [runTour, setRunTour] = useState(() => !localStorage.getItem('hasSeenTour'));
+  const [stepIndex, setStepIndex] = useState(0);
   const [tourSteps] = useState([
     {
       target: '.tour-quick-actions',
@@ -87,10 +88,14 @@ export default function AdminDashboard() {
   ]);
 
   const handleJoyrideCallback = (tourData) => {
-    const { status } = tourData;
+    const { status, type, index, action } = tourData;
     const finishedStatuses = [STATUS.FINISHED, STATUS.SKIPPED];
-    if (finishedStatuses.includes(status)) {
+
+    if (type === 'step:after' || type === 'target:notFound') {
+      setStepIndex(index + (action === 'prev' ? -1 : 1));
+    } else if (finishedStatuses.includes(status)) {
       setRunTour(false);
+      setStepIndex(0);
       localStorage.setItem('hasSeenTour', 'true');
     }
   };
@@ -308,6 +313,7 @@ export default function AdminDashboard() {
         continuous
         showProgress
         showSkipButton
+        stepIndex={stepIndex}
         callback={handleJoyrideCallback}
         styles={{
           options: {
@@ -336,7 +342,7 @@ export default function AdminDashboard() {
               <Button 
                 className="tour-help-btn"
                 icon={<QuestionCircleOutlined />} 
-                onClick={() => setRunTour(true)}
+                onClick={() => { setStepIndex(0); setRunTour(true); }}
               >
                 Hướng dẫn
               </Button>

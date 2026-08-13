@@ -186,7 +186,7 @@ export default function LoginPage() {
                   <Form.Item name="remember" valuePropName="checked" noStyle>
                     <Checkbox>Ghi nhớ đăng nhập</Checkbox>
                   </Form.Item>
-                  <a href="#" className="login-forgot-link">Quên mật khẩu?</a>
+                  <a href="#" className="login-forgot-link" onClick={(e) => { e.preventDefault(); Modal.info({ title: 'Quên mật khẩu', content: 'Tính năng đang được phát triển. Vui lòng liên hệ Admin để được cấp lại mật khẩu.' }); }}>Quên mật khẩu?</a>
                 </div>
               </Form.Item>
 

@@ -287,7 +287,7 @@ export default function AddCargoPage() {
                     { type: 'number', min: 0.01, message: 'Thể tích phải lớn hơn 0' }
                   ]}
                 >
-                  <InputNumber step={0.01} min={0} placeholder="VD: 3200" style={{ width: '100%' }} />
+                  <InputNumber step={0.01} min={0} placeholder="VD: 3200" style={{ width: '100%' }} disabled />
                 </Form.Item>
               </Col>
             </Row>

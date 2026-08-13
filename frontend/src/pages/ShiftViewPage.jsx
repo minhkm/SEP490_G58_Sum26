@@ -138,7 +138,13 @@ export default function ShiftViewPage() {
           breadcrumb={`${ctx.ship?.shipName || ''} · ${ctx.voyage?.departurePort} → ${ctx.voyage?.destinationPort}`}
           title="Lịch trực toàn tàu"
           extra={
-            <Space>
+            <Space wrap>
+              <Button onClick={() => navigate(`/deck-logs?voyageId=${ctx.voyage.id}`)} icon={<FileTextOutlined />}>
+                Nhật ký Boong
+              </Button>
+              <Button onClick={() => navigate(`/engine-logs?voyageId=${ctx.voyage.id}`)} icon={<FileTextOutlined />}>
+                Nhật ký Máy
+              </Button>
               {canExportDeck && (
                 <Button icon={<DownloadOutlined />} loading={exporting} onClick={handleExportDeck}>
                   Xuất báo cáo boong
