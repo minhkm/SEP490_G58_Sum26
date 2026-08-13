@@ -26,7 +26,7 @@ export default function AdminSidebar() {
     { key: '/crews', icon: <TeamOutlined />, label: 'Quản lý Thủy thủ đoàn', className: 'tour-crews' },
     { key: '/voyages', icon: <CompassOutlined />, label: 'Chuyến hải trình', className: 'tour-voyages' },
     (CARGO_ROLES.includes(role) || role.toLowerCase() === 'admin') && { key: '/cargos', icon: <InboxOutlined />, label: 'Hàng hóa', className: 'tour-cargos' },
-    role.toLowerCase() === 'admin' && { key: '/settings', icon: <SettingOutlined />, label: 'Cài đặt' },
+    role.toLowerCase() === 'admin' && { key: '/settings', icon: <SettingOutlined />, label: 'Cấu hình' },
   ].filter(Boolean);
 
   const selectedKey =

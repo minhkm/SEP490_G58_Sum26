@@ -6,6 +6,16 @@ import AdminLayout from '../components/AdminLayout';
 import { crewService } from '../services/api';
 import { PageHeader, PageContainer, notifySuccess, notifyError } from '../components/common';
 
+// Chức vụ được suy ra từ quyền hệ thống — người dùng không nhập tay nữa.
+const POSITION_BY_ROLE = {
+  Master: 'Thuyền trưởng',
+  ChiefOfficer: 'Đại phó',
+  DeckOfficer: 'Sĩ quan boong',
+  Sailor: 'Thủy thủ',
+  EngineOfficer: 'Sĩ quan máy',
+  EngineCrew: 'Thợ máy',
+};
+
 export default function AddCrewPage() {
   const navigate = useNavigate();
   const { id } = useParams();
@@ -58,17 +68,14 @@ export default function AddCrewPage() {
 
   const handleRoleChange = (value) => {
     setRole(value);
-    if (value === 'Master') {
-      form.setFieldsValue({ role: value, department: 'None', position: 'Thuyền trưởng' });
-    } else if (value === 'ChiefOfficer') {
-      form.setFieldsValue({ role: value, department: 'None', position: 'Đại phó' });
+    if (value === 'Master' || value === 'ChiefOfficer') {
+      form.setFieldsValue({ role: value, department: 'None', position: POSITION_BY_ROLE[value] });
     } else {
       const prevDepartment = form.getFieldValue('department');
-      const prevRole = form.getFieldValue('role');
       form.setFieldsValue({
         role: value,
         department: prevDepartment === 'None' ? 'Deck' : prevDepartment,
-        position: prevRole === 'Master' || prevRole === 'ChiefOfficer' ? '' : form.getFieldValue('position'),
+        position: POSITION_BY_ROLE[value] || '',
       });
     }
   };
@@ -193,7 +200,7 @@ export default function AddCrewPage() {
             phone: '',
             cccd: '',
             department: 'Deck',
-            position: '',
+            position: POSITION_BY_ROLE.Sailor,
             role: 'Sailor',
             status: 'Available',
             password: '',
@@ -253,6 +260,10 @@ export default function AddCrewPage() {
                   </Space>
                 }
               >
+                {/* Chức vụ được hệ thống tự suy ra từ quyền hệ thống — ẩn khỏi giao diện */}
+                <Form.Item name="position" hidden>
+                  <Input />
+                </Form.Item>
                 <Row gutter={16}>
                   <Col xs={24} md={12}>
                     <Form.Item label="Bộ phận" name="department">
@@ -263,13 +274,6 @@ export default function AddCrewPage() {
                       </Select>
                     </Form.Item>
                   </Col>
-                  <Col xs={24} md={12}>
-                    <Form.Item label="Chức vụ (Position)" name="position">
-                      <Input placeholder="Ví dụ: Máy trưởng" readOnly={isLockedRole} />
-                    </Form.Item>
-                  </Col>
-                </Row>
-                <Row gutter={16}>
                   <Col xs={24} md={12}>
                     <Form.Item label="Quyền hệ thống (Role)" name="role">
                       <Select onChange={handleRoleChange}>
@@ -282,9 +286,16 @@ export default function AddCrewPage() {
                       </Select>
                     </Form.Item>
                   </Col>
+                </Row>
+                <Row gutter={16}>
                   <Col xs={24} md={12}>
-                    <Form.Item label="Trạng thái" name="status">
-                      <Select>
+                    {/* Trạng thái do hệ thống quản lý (mặc định Sẵn sàng), người dùng không được đổi */}
+                    <Form.Item
+                      label="Trạng thái"
+                      name="status"
+                      tooltip="Trạng thái do hệ thống tự quản lý theo hải trình, không thể chỉnh sửa thủ công."
+                    >
+                      <Select disabled>
                         <Select.Option value="Available">Sẵn sàng (Available)</Select.Option>
                         <Select.Option value="OnLeave">Nghỉ phép (On Leave)</Select.Option>
                       </Select>

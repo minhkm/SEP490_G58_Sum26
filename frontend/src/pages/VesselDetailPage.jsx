@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Card, Row, Col, Tag, Spin, Empty, Button, Space, Descriptions, Tabs } from 'antd';
+import { Card, Row, Col, Tag, Spin, Empty, Button, Space, Descriptions, Tabs, Table, Typography } from 'antd';
 import {
   InfoCircleOutlined,
   SettingOutlined,
@@ -16,9 +16,13 @@ import {
   equipmentLocationLabel,
   equipmentNameLabel,
   equipmentTypeLabel,
+  formatEquipmentExpiryDate,
+  isEquipmentExpired,
   normalizeShipStatus,
 } from '../utils/vessel';
 import { getCode } from 'country-list';
+
+const { Text } = Typography;
 
 const vietnameseRegionNames = new Intl.DisplayNames(['vi'], { type: 'region' });
 const countryLabel = (country) => {
@@ -26,6 +30,63 @@ const countryLabel = (country) => {
   const code = getCode(country);
   return code ? vietnameseRegionNames.of(code) : country;
 };
+
+// Cột bảng Trang thiết bị của tàu
+const equipmentColumns = [
+  {
+    title: 'Tên thiết bị',
+    dataIndex: 'equipmentName',
+    key: 'equipmentName',
+    width: 260,
+    render: (name) => <Text strong>{equipmentNameLabel(name)}</Text>,
+  },
+  {
+    title: 'Loại thiết bị',
+    dataIndex: 'equipmentType',
+    key: 'equipmentType',
+    width: 200,
+    render: (type) => <Tag color="purple">{equipmentTypeLabel(type)}</Tag>,
+  },
+  {
+    title: 'Vị trí',
+    dataIndex: 'location',
+    key: 'location',
+    width: 140,
+    render: (location) => equipmentLocationLabel(location) || '—',
+  },
+  {
+    title: 'Số lượng',
+    dataIndex: 'quantity',
+    key: 'quantity',
+    width: 160,
+    align: 'right',
+    render: (quantity, equipment) => {
+      const total = quantity || 1;
+      const broken = equipment.brokenCount || 0;
+      return (
+        <Space size={6}>
+          <Text strong>{total}</Text>
+          {broken > 0 && <Tag color="red">{broken} hỏng</Tag>}
+        </Space>
+      );
+    },
+  },
+  {
+    title: 'Hạn sử dụng',
+    dataIndex: 'expiryNote',
+    key: 'expiryNote',
+    width: 180,
+    render: (expiryNote) => {
+      if (!expiryNote) return <Text type="secondary">Không có hạn sử dụng</Text>;
+      const expired = isEquipmentExpired(expiryNote);
+      return (
+        <Tag color={expired ? 'red' : 'default'}>
+          {formatEquipmentExpiryDate(expiryNote)}{expired ? ' (Hết hạn)' : ''}
+        </Tag>
+      );
+    },
+  },
+];
 
 export default function VesselDetailPage() {
   const { id } = useParams();
@@ -250,17 +311,24 @@ export default function VesselDetailPage() {
                   </Space>
                 ),
                 children: (
-                  vessel.Equipment && vessel.Equipment.length > 0 ? (
-                    <ul style={{ paddingLeft: '20px', margin: 0, color: '#475569', fontSize: '0.95rem' }}>
-                      {vessel.Equipment.map((e, idx) => (
-                        <li key={idx} style={{ marginBottom: '6px' }}>
-                          <strong>{equipmentNameLabel(e.equipmentName)}</strong> ({equipmentTypeLabel(e.equipmentType)}) - Vị trí: {equipmentLocationLabel(e.location)}
-                        </li>
-                      ))}
-                    </ul>
-                  ) : (
-                    <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="Chưa có thiết bị" />
-                  )
+                  <Table
+                    rowKey={(equipment, idx) => equipment.id ?? idx}
+                    columns={equipmentColumns}
+                    dataSource={vessel.Equipment || []}
+                    size="small"
+                    scroll={{ x: 'max-content' }}
+                    pagination={{
+                      defaultPageSize: 10,
+                      showSizeChanger: true,
+                      pageSizeOptions: ['10', '20', '50'],
+                      showTotal: (total, range) => `Hiển thị ${range[0]}-${range[1]} trong số ${total} thiết bị`,
+                    }}
+                    locale={{
+                      emptyText: (
+                        <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="Chưa có thiết bị" />
+                      ),
+                    }}
+                  />
                 ),
               },
             ]}

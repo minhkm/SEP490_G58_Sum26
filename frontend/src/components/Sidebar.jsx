@@ -76,7 +76,7 @@ export default function Sidebar() {
     },
     { key: '/reports', icon: <BarChartOutlined />, label: 'Báo cáo' },
     isMasterOrChief && { key: '/vessel-supplies', icon: <ToolOutlined />, label: 'Thiết bị và vật tư' },
-    isMasterOrChief && { key: 'cai-dat', icon: <SettingOutlined />, label: 'Cài đặt', disabled: true },
+    isMasterOrChief && { key: 'cai-dat', icon: <SettingOutlined />, label: 'Cấu hình', disabled: true },
   ].filter(Boolean);
 
   // Chọn key đang active dựa trên đường dẫn hiện tại

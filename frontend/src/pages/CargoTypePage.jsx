@@ -263,7 +263,7 @@ export default function CargoTypePage() {
           title={
             <Space>
               <TagsOutlined style={{ color: '#6366f1', fontSize: '24px' }} />
-              <span>Quản lý Loại Hàng hóa</span>
+              <span>Cấu hình Loại Hàng hóa</span>
             </Space>
           }
           extra={
