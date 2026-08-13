@@ -78,6 +78,7 @@ export default function EngineManagePage() {
   const [shipEquipments, setShipEquipments] = useState([]);   // thiết bị của tàu
   const [voyageEquipments, setVoyageEquipments] = useState([]); // vật tư y tế hải trình
   const [loading, setLoading] = useState(true);
+  const [voyageContextError, setVoyageContextError] = useState('');
 
   // Filter cho thiết bị tàu
   const [eqTypeFilter, setEqTypeFilter] = useState('Tất cả');
@@ -94,13 +95,24 @@ export default function EngineManagePage() {
   const [medModal, setMedModal] = useState({ open: false, equip: null, newUsed: 1 });
   const canUpdateSupplies = selectedVoyage?.status === 'Underway';
 
-  // Tự động load hải trình đang hoạt động
+  // Chỉ tải đúng hải trình người dùng đã chọn tại trang "Hải trình của tôi".
   useEffect(() => {
     const init = async () => {
       try {
+        const activeVoyageId = localStorage.getItem('activeVoyageId');
+        if (!activeVoyageId) {
+          setVoyageContextError('Vui lòng chọn một hải trình trước khi truy cập trang này.');
+          return;
+        }
+
         const data = await voyageService.getAll();
-        const current = data.find(v => v.status !== 'Completed' && v.status !== 'Cancelled');
-        if (!current) { setLoading(false); return; }
+        const current = (data || []).find(v => String(v.id) === String(activeVoyageId));
+        if (!current) {
+          setVoyageContextError('Không tìm thấy hải trình đã chọn hoặc bạn không còn được phân công vào hải trình này.');
+          return;
+        }
+
+        setVoyageContextError('');
         setSelectedVoyage(current);
 
         // Lấy engines + thiết bị tàu từ vessel
@@ -121,6 +133,7 @@ export default function EngineManagePage() {
 
       } catch (e) {
         console.error(e);
+        setVoyageContextError('Không thể tải dữ liệu của hải trình đã chọn.');
       } finally {
         setLoading(false);
       }
@@ -413,7 +426,9 @@ export default function EngineManagePage() {
         <div style={{ padding: 'clamp(12px, 4vw, 32px)' }}>
           <PageHeader icon={<ToolOutlined />}
             breadcrumb={pageTitle} title={pageTitle} />
-          <Card><Empty description="Hiện không có hải trình nào đang hoạt động." /></Card>
+          <Card>
+            <Empty description={voyageContextError || 'Vui lòng chọn một hải trình trước khi truy cập trang này.'} />
+          </Card>
         </div>
       </MasterLayout>
     );
@@ -435,7 +450,7 @@ export default function EngineManagePage() {
           showIcon
           message={
             <span>
-              Hải trình đang hoạt động:{' '}
+              Hải trình đã chọn:{' '}
               <strong>{selectedVoyage.voyageCode || `Hải trình số ${selectedVoyage.id}`}</strong>
               {' — '}
               {selectedVoyage.departurePort} → {selectedVoyage.destinationPort}
@@ -679,8 +694,9 @@ export default function EngineManagePage() {
               <Text strong style={{ display: 'block', marginBottom: 8 }}>
                 Số lượng hỏng mới phát sinh <span style={{ fontSize: 12, fontWeight: 400, color: '#64748b' }}>(chỉ nhập số nguyên dương)</span>:
               </Text>
+              {/* Cho phép nhập 0 để state đồng bộ; phần xác nhận sẽ chặn giá trị không dương. */}
               <InputNumber
-                min={1}
+                min={0}
                 max={(brokenModal.equip.quantity || 0) - (brokenModal.equip.brokenCount || 0)}
                 precision={0}
                 step={1}
@@ -694,9 +710,14 @@ export default function EngineManagePage() {
               />
             </div>
             <Alert
-              type={(brokenModal.equip.brokenCount || 0) + brokenModal.newBroken === brokenModal.equip.quantity ? 'error' : 'warning'}
+              type={brokenModal.newBroken === 0
+                || (brokenModal.equip.brokenCount || 0) + (brokenModal.newBroken ?? 0) === brokenModal.equip.quantity
+                ? 'error'
+                : 'warning'}
               showIcon
-              message={`Sau khi ghi nhận: ${brokenModal.equip.quantity - (brokenModal.equip.brokenCount || 0) - (brokenModal.newBroken || 0)} cái tốt, ${(brokenModal.equip.brokenCount || 0) + (brokenModal.newBroken || 0)} cái hỏng`}
+              message={brokenModal.newBroken === 0
+                ? 'Số lượng hỏng mới phải là số nguyên dương.'
+                : `Sau khi ghi nhận: ${brokenModal.equip.quantity - (brokenModal.equip.brokenCount || 0) - (brokenModal.newBroken ?? 0)} cái tốt, ${(brokenModal.equip.brokenCount || 0) + (brokenModal.newBroken ?? 0)} cái hỏng`}
             />
           </Space>
         )}
@@ -721,8 +742,9 @@ export default function EngineManagePage() {
             <Text>Đã dùng trước đó: <strong style={{ color: '#d97706' }}>{medModal.equip.brokenCount || 0}</strong></Text>
             <div>
               <Text strong style={{ display: 'block', marginBottom: 8 }}>Số lượng mới sử dụng thêm:</Text>
+              {/* Cho phép nhập 0 để state đồng bộ; phần xác nhận sẽ chặn giá trị không dương. */}
               <InputNumber
-                min={1}
+                min={0}
                 max={(medModal.equip.quantity || 0) - (medModal.equip.brokenCount || 0)}
                 precision={0}
                 step={1}
@@ -736,9 +758,14 @@ export default function EngineManagePage() {
               />
             </div>
             <Alert
-              type={(medModal.equip.brokenCount || 0) + medModal.newUsed >= medModal.equip.quantity ? 'error' : 'warning'}
+              type={medModal.newUsed === 0
+                || (medModal.equip.brokenCount || 0) + (medModal.newUsed ?? 0) >= medModal.equip.quantity
+                ? 'error'
+                : 'warning'}
               showIcon
-              message={`Sau khi ghi nhận còn lại: ${medModal.equip.quantity - (medModal.equip.brokenCount || 0) - (medModal.newUsed || 0)} đơn vị`}
+              message={medModal.newUsed === 0
+                ? 'Số lượng sử dụng thêm phải là số nguyên dương.'
+                : `Sau khi ghi nhận còn lại: ${medModal.equip.quantity - (medModal.equip.brokenCount || 0) - (medModal.newUsed ?? 0)} đơn vị`}
             />
           </Space>
         )}
