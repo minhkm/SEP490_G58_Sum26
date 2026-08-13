@@ -659,7 +659,8 @@ export default function CreateVoyagePage() {
                         onChange={(value) => setShipId(value)}
                         options={availableShips.map((ship) => ({
                           value: ship.id,
-                          label: `${ship.shipName} (IMO: ${ship.imoNumber})`,
+                          label: `${ship.shipName} (IMO: ${ship.imoNumber})${ship.status === 'OnVoyage' ? ' - Đang bận' : ''}`,
+                          disabled: ship.status === 'OnVoyage',
                         }))}
                       />
                     </Form.Item>

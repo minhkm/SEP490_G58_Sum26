@@ -83,6 +83,10 @@ function LocationMarkers({ waypoints, setWaypoints, isReadOnly, unsafeSegments, 
 
   const handleDeleteWaypoint = (index) => {
     if (isReadOnly) return;
+    if (index === 0 || index === waypoints.length - 1) {
+      message.error('Không thể xóa điểm cảng xuất phát hoặc cảng đích!');
+      return;
+    }
     setWaypoints((prev) => prev.filter((_, idx) => idx !== index));
     message.info('Đã xóa điểm mốc khỏi lộ trình');
   };
@@ -314,9 +318,11 @@ export default function RoutePlannerPage() {
 
   const selectedVoyage = voyages.find((v) => v.id === selectedVoyageId);
 
-  // Chỉ khóa khi chuyến đã duyệt hoặc đang chờ duyệt (hoặc khi đã hoàn thành)
+  // Khóa lộ trình đối với Master, và chỉ mở cho ChiefOfficer khi tàu đã "Loaded"
   const isReadOnly =
     !selectedVoyage ||
+    userRole === 'master' ||
+    (userRole === 'chiefofficer' && selectedVoyage.status !== 'Loaded') ||
     ['Approved', 'Pending'].includes(selectedVoyage.routeStatus) ||
     ['Completed', 'Cancelled'].includes(selectedVoyage.status);
 
@@ -336,7 +342,12 @@ export default function RoutePlannerPage() {
     );
 
     setWaypoints(safeRoute);
-    message.success('Đã tự động vẽ luồng hàng hải an toàn men theo biển!');
+    const checkSafety = validateRouteSafety(safeRoute);
+    if (checkSafety.isSafe) {
+      message.success('Đã tự động vẽ luồng hàng hải an toàn men theo biển!');
+    } else {
+      message.warning('Đã tự động vẽ tuyến, nhưng vẫn còn đoạn cắt qua đất liền. Vui lòng chỉnh sửa thủ công!');
+    }
   };
 
   // Hoàn tác điểm vừa thêm
@@ -368,12 +379,6 @@ export default function RoutePlannerPage() {
     }
     setWaypoints(initialWaypoints);
     message.info('Đã xóa tất cả mốc trung gian, đưa về 2 cảng');
-  };
-
-  // Xóa sạch toàn bộ điểm
-  const handleClearAll = () => {
-    setWaypoints([]);
-    message.info('Đã xóa sạch toàn bộ điểm trên bản đồ');
   };
 
   // Thêm tọa độ thủ công
@@ -546,9 +551,6 @@ export default function RoutePlannerPage() {
                     <Button icon={<ClearOutlined />} onClick={handleResetToPorts} disabled={waypoints.length === 0}>
                       Xóa mốc trung gian
                     </Button>
-                    <Button danger icon={<DeleteOutlined />} onClick={handleClearAll} disabled={waypoints.length === 0}>
-                      Xoá sạch
-                    </Button>
                     <Button type="primary" icon={<SaveOutlined />} onClick={handleSave} loading={saving}>
                       Lưu lộ trình
                     </Button>
@@ -624,7 +626,11 @@ export default function RoutePlannerPage() {
               </span>
               <span>
                 <strong>Kiểm tra An toàn:</strong>{' '}
-                {routeSafety.isSafe ? (
+                {waypoints.length < 2 ? (
+                  <Tag color="default" style={{ marginLeft: 6 }}>
+                    Chưa có lộ trình
+                  </Tag>
+                ) : routeSafety.isSafe ? (
                   <Tag color="success" style={{ marginLeft: 6 }}>
                     ✅ Luồng An toàn (100% trên biển)
                   </Tag>

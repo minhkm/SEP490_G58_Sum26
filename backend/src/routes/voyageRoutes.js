@@ -362,7 +362,8 @@ router.get('/:id/cargo', authMiddleware, async (req, res) => {
             stowageFactor: sf,
             itemId: item.id,
             itemName: item.itemName,
-            quantity: item.quantity,
+            quantity: cargo.quantity !== null ? cargo.quantity : item.quantity,
+            unit: cargo.unit,
             weight: itemWeight,
             volume: itemVol,
             isLoaded: item.isLoaded,
@@ -383,7 +384,8 @@ router.get('/:id/cargo', authMiddleware, async (req, res) => {
           stowageFactor: sf,
           itemId: null,
           itemName: 'Chưa có chi tiết',
-          quantity: 0,
+          quantity: cargo.quantity !== null ? cargo.quantity : 0,
+          unit: cargo.unit,
           weight: totalWeight,
           volume: Math.round(totalWeight * sf * 100) / 100,
           isLoaded: false,
@@ -476,6 +478,10 @@ router.put('/:id', authMiddleware, async (req, res) => {
       }
     }
 
+    if (voyage.status === 'Cancelled' && status && status !== 'Cancelled') {
+      return res.status(400).json({ message: 'Không thể chuyển trạng thái cho hải trình đã hủy!' });
+    }
+
     if (status === 'Cancelled' && voyage.status !== 'Planning' && voyage.status !== 'Cancelled') {
       return res.status(400).json({ message: 'Không thể hủy hải trình khi đã bắt đầu làm hàng hoặc di chuyển!' });
     }
@@ -525,6 +531,12 @@ router.put('/:id', authMiddleware, async (req, res) => {
       }
       if (userRole === 'chiefofficer' && voyage.status !== 'Loaded') {
         return res.status(403).json({ message: 'Đại phó chỉ được chỉnh sửa lộ trình khi tàu đã làm hàng xong!' });
+      }
+      if (userRole === 'master') {
+        return res.status(403).json({ message: 'Thuyền trưởng không có quyền chỉnh sửa lộ trình!' });
+      }
+      if (!Array.isArray(routeWaypoints) || routeWaypoints.length < 2) {
+        return res.status(400).json({ message: 'Lộ trình phải có ít nhất 2 điểm (Cảng đi và Cảng đến)!' });
       }
       voyage.routeWaypoints = routeWaypoints;
     }

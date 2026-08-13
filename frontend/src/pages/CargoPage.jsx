@@ -151,6 +151,11 @@ const AllocationModal = ({ open, cargo, holds, cargoList, onClose, onSave }) => 
             <div style={{ marginTop: 4 }}>
               <Text type="secondary">Khối lượng:</Text>{' '}
               <Text strong style={{ color: '#2563eb' }}>{targetWeight.toLocaleString()} MT</Text>
+              {cargo?.quantity && cargo?.unit && cargo?.unit !== 'MT' && (
+                <Text type="secondary" style={{ marginLeft: 8 }}>
+                  (SL: {cargo.quantity.toLocaleString()} {cargo.unit})
+                </Text>
+              )}
             </div>
           </Col>
           <Col span={12}>
@@ -221,15 +226,29 @@ const AllocationModal = ({ open, cargo, holds, cargoList, onClose, onSave }) => 
             title: 'Khối lượng (MT)',
             dataIndex: 'weight',
             width: 130,
-            render: (_, record, idx) => (
-              <Input
-                type="number"
-                min={0}
-                placeholder="0 MT"
-                value={record.weight}
-                onChange={(e) => handleChange(idx, e.target.value)}
-              />
-            ),
+            render: (_, record, idx) => {
+              const weightVal = Number(record.weight || 0);
+              const estimatedQty = cargo?.quantity && targetWeight > 0
+                ? Math.round((weightVal / targetWeight) * cargo.quantity)
+                : 0;
+
+              return (
+                <div>
+                  <Input
+                    type="number"
+                    min={0}
+                    placeholder="0 MT"
+                    value={record.weight}
+                    onChange={(e) => handleChange(idx, e.target.value)}
+                  />
+                  {cargo?.quantity && cargo?.unit && cargo?.unit !== 'MT' && weightVal > 0 ? (
+                    <div style={{ fontSize: 11, color: '#64748b', marginTop: 4 }}>
+                      ~ {estimatedQty.toLocaleString()} {cargo.unit}
+                    </div>
+                  ) : null}
+                </div>
+              );
+            },
           },
           {
             title: 'Thể tích chiếm (m³)',
@@ -571,6 +590,7 @@ export default function CargoPage() {
             <strong>{cargo.cargoName}</strong>
             <div style={{ fontSize: '0.8rem', color: '#6b7280' }}>
               {cargo.cargoType || 'Chưa phân loại'}
+              {cargo.quantity && cargo.unit && cargo.unit !== 'MT' ? ` • ${cargo.quantity.toLocaleString()} ${cargo.unit}` : ''}
             </div>
           </div>
         </Space>
@@ -623,7 +643,22 @@ export default function CargoPage() {
   const voyageCargoColumns = [
     { title: 'STT', key: 'stt', width: 50, render: (_, __, idx) => idx + 1 },
     { title: 'Lô hàng', dataIndex: 'cargoName', key: 'cargoName', width: 140 },
-    { title: 'Chi tiết / Quy cách', dataIndex: 'itemName', key: 'itemName', width: 160 },
+    {
+      title: 'Chi tiết / Quy cách',
+      dataIndex: 'itemName',
+      key: 'itemName',
+      width: 160,
+      render: (text, cargo) => (
+        <Space direction="vertical" size={2}>
+          <Text>{text}</Text>
+          {cargo.quantity && cargo.unit && cargo.unit !== 'MT' ? (
+            <div style={{ fontSize: 12, color: '#64748b' }}>
+              SL: {cargo.quantity.toLocaleString()} {cargo.unit}
+            </div>
+          ) : null}
+        </Space>
+      ),
+    },
     {
       title: 'Loại hàng & SF',
       key: 'cargoType',
@@ -755,7 +790,7 @@ export default function CargoPage() {
           title={activeVoyageId ? `Quản lý Hàng hóa - Chuyến VY-${String(activeVoyageId).padStart(4, '0')}` : "Quản lý Hàng hóa"}
           extra={
             activeVoyageId ? (
-              isChiefOfficer ? (
+              isChiefOfficer && isCargoLoadAllowed ? (
                 <Button type="primary" icon={<SaveOutlined />} onClick={handleSaveVoyageCargoConfig} loading={savingConfig}>
                   Lưu cấu hình hàng hóa
                 </Button>

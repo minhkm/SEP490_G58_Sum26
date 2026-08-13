@@ -438,7 +438,40 @@ router.put('/:id', async (req, res) => {
       }
     }
 
+    // 5. Sync Equipment
+    if (equipmentList) {
+      const existingEquipments = await Equipment.findAll({ where: { shipId: vesselId } });
+      const keepIds = equipmentList.filter(e => e.id).map(e => e.id);
+      
+      for (const ex of existingEquipments) {
+        if (!keepIds.includes(ex.id)) await ex.destroy();
+      }
 
+      for (const e of equipmentList) {
+        if (e.id) {
+          const eq = await Equipment.findByPk(e.id);
+          if (eq) await eq.update({
+            equipmentName: normalizeEquipmentName(e.equipmentName),
+            equipmentType: normalizeEquipmentType(e.equipmentType),
+            location: normalizeEquipmentLocation(e.location),
+            quantity: Number(e.quantity),
+            expiryNote: normalizeEquipmentExpiryDate(e.expiryNote),
+          });
+        } else {
+          await Equipment.create({
+            shipId: vesselId,
+            voyageId: null,
+            equipmentName: normalizeEquipmentName(e.equipmentName),
+            equipmentType: normalizeEquipmentType(e.equipmentType),
+            location: normalizeEquipmentLocation(e.location),
+            quantity: Number(e.quantity),
+            expiryNote: normalizeEquipmentExpiryDate(e.expiryNote),
+            brokenCount: 0,
+            status: 'Hoạt động'
+          });
+        }
+      }
+    }
 
     res.json({ message: 'Cập nhật tàu thành công', ship: vessel });
   } catch (error) {

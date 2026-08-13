@@ -87,6 +87,20 @@ router.get('/me/certificates', authMiddleware, async (req, res) => {
 router.post('/me/certificates', authMiddleware, async (req, res) => {
   try {
     const { certificateName, issueDate, expiryDate, fileUrl } = req.body;
+
+    if (!certificateName || !certificateName.trim()) {
+      return res.status(400).json({ message: 'Tên chứng chỉ không được để trống.' });
+    }
+    if (certificateName.trim().length > 255) {
+      return res.status(400).json({ message: 'Tên chứng chỉ không được vượt quá 255 ký tự.' });
+    }
+    if (fileUrl && fileUrl.length > 255) {
+      return res.status(400).json({ message: 'Link ảnh không được vượt quá 255 ký tự.' });
+    }
+    if (issueDate && expiryDate && new Date(issueDate) >= new Date(expiryDate)) {
+      return res.status(400).json({ message: 'Ngày cấp phải trước ngày hết hạn.' });
+    }
+
     const profile = await CrewProfile.findOne({ where: { userId: req.user.id } });
     if (!profile) return res.status(404).json({ message: 'Chưa có hồ sơ.' });
 
@@ -114,6 +128,20 @@ router.put('/me/certificates/:certId', authMiddleware, async (req, res) => {
     if (!cert) return res.status(404).json({ message: 'Không tìm thấy chứng chỉ.' });
 
     const { certificateName, issueDate, expiryDate, fileUrl } = req.body;
+
+    if (!certificateName || !certificateName.trim()) {
+      return res.status(400).json({ message: 'Tên chứng chỉ không được để trống.' });
+    }
+    if (certificateName.trim().length > 255) {
+      return res.status(400).json({ message: 'Tên chứng chỉ không được vượt quá 255 ký tự.' });
+    }
+    if (fileUrl && fileUrl.length > 255) {
+      return res.status(400).json({ message: 'Link ảnh không được vượt quá 255 ký tự.' });
+    }
+    if (issueDate && expiryDate && new Date(issueDate) >= new Date(expiryDate)) {
+      return res.status(400).json({ message: 'Ngày cấp phải trước ngày hết hạn.' });
+    }
+
     const today = new Date().toISOString().split('T')[0];
     await cert.update({
       certificateName,
@@ -235,6 +263,10 @@ router.post('/', async (req, res) => {
   try {
     const { email, role, status, fullName, phone, cccd, department, position } = req.body;
 
+    if (!fullName || !fullName.trim()) {
+      return res.status(400).json({ message: 'Tên thuyền viên không được để trống.' });
+    }
+
     // Check email tồn tại
     const existingUser = await User.findOne({ where: { username: email } });
     if (existingUser) {
@@ -265,7 +297,7 @@ router.post('/', async (req, res) => {
       username: email,
       password: hashedPassword,
       role: role || 'Sailor',
-      status: status || 'Available',
+      status: (status && status !== 'OnVoyage') ? status : 'Available',
       requiresPasswordChange: true
     });
 
@@ -305,6 +337,14 @@ router.put('/:id', async (req, res) => {
   try {
     const crewId = req.params.id;
     const { email, password, role, status, fullName, phone, cccd, department, position } = req.body;
+
+    if (!fullName || !fullName.trim()) {
+      return res.status(400).json({ message: 'Tên thuyền viên không được để trống.' });
+    }
+    
+    if (password && password.length < 6) {
+      return res.status(400).json({ message: 'Mật khẩu phải có ít nhất 6 ký tự.' });
+    }
 
     const crew = await CrewProfile.findByPk(crewId);
     if (!crew) return res.status(404).json({ message: 'Không tìm thấy hồ sơ thủy thủ' });
@@ -362,7 +402,10 @@ router.put('/:id', async (req, res) => {
 
     // Update User
     if (user) {
-      const updateUserData = { status, role, username: email };
+      const updateUserData = { role, username: email };
+      if (status && status !== 'OnVoyage') {
+        updateUserData.status = status;
+      }
       if (password) {
         updateUserData.password = await bcrypt.hash(password, 10);
       }

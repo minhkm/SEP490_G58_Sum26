@@ -161,6 +161,65 @@ const INDOCHINA_LAND_POLYGON = [
   [20.5, 100.0],
 ];
 
+const PALAWAN_POLYGON = [
+  [11.5, 119.5],
+  [10.5, 119.0],
+  [9.0, 117.5],
+  [8.3, 117.0],
+  [8.0, 117.3],
+  [9.0, 118.0],
+  [10.0, 119.2],
+  [11.2, 119.8],
+  [11.5, 119.5]
+];
+
+const BORNEO_POLYGON = [
+  [7.0, 117.0],
+  [5.0, 119.0],
+  [1.0, 119.0],
+  [-4.0, 116.0],
+  [-4.0, 110.0],
+  [-1.0, 109.0],
+  [2.0, 109.5],
+  [7.0, 117.0]
+];
+
+const TAIWAN_POLYGON = [
+  [25.3, 121.5],
+  [22.0, 121.0],
+  [22.0, 120.0],
+  [25.0, 121.0],
+  [25.3, 121.5]
+];
+
+const HAINAN_POLYGON = [
+  [20.0, 111.0],
+  [18.2, 110.0],
+  [18.5, 108.6],
+  [19.5, 109.0],
+  [20.0, 111.0]
+];
+
+const PHILIPPINES_MAIN_POLYGON = [
+  [18.5, 122.0],
+  [13.0, 124.0],
+  [6.0, 126.0],
+  [5.0, 125.0],
+  [7.0, 122.0],
+  [14.0, 120.0],
+  [16.0, 119.5],
+  [18.5, 122.0]
+];
+
+const LAND_POLYGONS = [
+  INDOCHINA_LAND_POLYGON,
+  PALAWAN_POLYGON,
+  BORNEO_POLYGON,
+  TAIWAN_POLYGON,
+  HAINAN_POLYGON,
+  PHILIPPINES_MAIN_POLYGON
+];
+
 // Hàm kiểm tra 1 điểm có nằm trong đa giác đất liền hay không (Ray-casting algorithm)
 export function isPointInPolygon(point, polygon) {
   const [lat, lng] = point;
@@ -178,8 +237,10 @@ export function isPointInPolygon(point, polygon) {
 }
 
 export function isWaterCoordinate(lat, lng) {
-  if (isPointInPolygon([lat, lng], INDOCHINA_LAND_POLYGON)) {
-    return false;
+  for (const polygon of LAND_POLYGONS) {
+    if (isPointInPolygon([lat, lng], polygon)) {
+      return false;
+    }
   }
   return true;
 }
@@ -192,8 +253,10 @@ export function checkSegmentCrossesLand(p1, p2, samples = 12) {
     const sampleLat = p1.lat + (p2.lat - p1.lat) * fraction;
     const sampleLng = p1.lng + (p2.lng - p1.lng) * fraction;
 
-    if (isPointInPolygon([sampleLat, sampleLng], INDOCHINA_LAND_POLYGON)) {
-      return true; // Cắt ngang đất liền!
+    for (const polygon of LAND_POLYGONS) {
+      if (isPointInPolygon([sampleLat, sampleLng], polygon)) {
+        return true; // Cắt ngang đất liền!
+      }
     }
   }
   return false;
