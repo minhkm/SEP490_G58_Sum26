@@ -80,7 +80,7 @@ export function reportTypeOptions(department) {
 // Mỗi "rung" là một cấp; role đại diện của rung là phần tử đầu tiên.
 export const REPORT_LADDERS = {
   Deck: [['Sailor'], ['DeckOfficer'], ['ChiefOfficer'], ['Master']],
-  Engine: [['EngineCrew', 'Sailor'], ['EngineOfficer'], ['Master']],
+  Engine: [['EngineCrew', 'Sailor'], ['EngineOfficer'], ['ChiefOfficer'], ['Master']],
 };
 
 function resolveLadder(role, department) {
