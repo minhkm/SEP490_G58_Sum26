@@ -6,6 +6,7 @@ const { buildShiftSnapshot } = require("../services/shiftSnapshotService");
 
 const ROLE_LABELS = {
   Sailor: "Thủy thủ",
+  Crew: "Thủy thủ",
   DeckOfficer: "Sĩ quan boong",
   ChiefOfficer: "Đại phó",
   EngineCrew: "Thợ máy",
