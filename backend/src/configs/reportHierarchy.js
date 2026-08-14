@@ -8,9 +8,10 @@
 // nhiều role cùng cấp (vd Engine: Thợ máy và Thủy thủ cùng ở cấp cơ sở).
 // Role đại diện của rung (dùng để định tuyến khi escalate) là phần tử đầu tiên.
 // Đại phó là rung dùng chung cho cả hai bộ phận, nằm ngay dưới Thuyền trưởng.
+// 'Crew' là bí danh cũ của 'Sailor' trong dữ liệu tài khoản -> xếp cùng rung cơ sở.
 const LADDERS = {
-  Deck: [["Sailor"], ["DeckOfficer"], ["ChiefOfficer"], ["Master"]],
-  Engine: [["EngineCrew", "Sailor"], ["EngineOfficer"], ["ChiefOfficer"], ["Master"]],
+  Deck: [["Sailor", "Crew"], ["DeckOfficer"], ["ChiefOfficer"], ["Master"]],
+  Engine: [["EngineCrew", "Sailor", "Crew"], ["EngineOfficer"], ["ChiefOfficer"], ["Master"]],
 };
 
 // Vòng đời trạng thái (BR-21): Open -> InProgress -> Resolved -> Closed (+ Rejected).
