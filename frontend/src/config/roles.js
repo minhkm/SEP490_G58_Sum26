@@ -42,10 +42,12 @@ export function getDashboardPath(role) {
 
 // ===== Module Báo cáo (FT-10) =====
 // Thuyền viên trên tàu được truy cập module Báo cáo (Admin trên bờ không can thiệp).
-export const REPORT_ROLES = ['Master', 'ChiefOfficer', 'DeckOfficer', 'EngineOfficer', 'EngineCrew', 'Sailor'];
+// 'Crew' là bí danh cũ của 'Sailor' còn tồn tại trong dữ liệu tài khoản -> phải liệt kê,
+// nếu không người dùng vào thẳng /reports (chưa chọn hải trình) sẽ bị đá về /my-voyages.
+export const REPORT_ROLES = ['Master', 'ChiefOfficer', 'DeckOfficer', 'EngineOfficer', 'EngineCrew', 'Sailor', 'Crew'];
 
 // FT-10 v2: phân tách quyền tạo / xử lý
-export const REPORT_CREATE_ROLES = ['ChiefOfficer', 'DeckOfficer', 'EngineOfficer', 'EngineCrew', 'Sailor'];
+export const REPORT_CREATE_ROLES = ['ChiefOfficer', 'DeckOfficer', 'EngineOfficer', 'EngineCrew', 'Sailor', 'Crew'];
 export const REPORT_HANDLE_ROLES = ['Master', 'ChiefOfficer', 'DeckOfficer', 'EngineOfficer'];
 
 export function canCreateReport(role) {
@@ -79,8 +81,8 @@ export function reportTypeOptions(department) {
 // Thang bậc escalation — MIRROR của backend/src/configs/reportHierarchy.js
 // Mỗi "rung" là một cấp; role đại diện của rung là phần tử đầu tiên.
 export const REPORT_LADDERS = {
-  Deck: [['Sailor'], ['DeckOfficer'], ['ChiefOfficer'], ['Master']],
-  Engine: [['EngineCrew', 'Sailor'], ['EngineOfficer'], ['ChiefOfficer'], ['Master']],
+  Deck: [['Sailor', 'Crew'], ['DeckOfficer'], ['ChiefOfficer'], ['Master']],
+  Engine: [['EngineCrew', 'Sailor', 'Crew'], ['EngineOfficer'], ['ChiefOfficer'], ['Master']],
 };
 
 function resolveLadder(role, department) {
