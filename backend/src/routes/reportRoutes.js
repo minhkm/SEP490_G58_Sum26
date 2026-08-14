@@ -5,9 +5,11 @@ const authMiddleware = require('../middlewares/authMiddleware');
 const requireRole = require('../middlewares/roleMiddleware');
 
 // Module Báo cáo dành cho thuyền viên trên tàu. Admin (trên bờ) không can thiệp luồng duyệt.
-const allReportRoles = requireRole('Master', 'ChiefOfficer', 'DeckOfficer', 'EngineOfficer', 'EngineCrew', 'Sailor');
+// Lưu ý: 'Crew' là bí danh cũ của 'Sailor' (vẫn còn trong dữ liệu seed/DB) -> phải cho phép,
+// nếu không các tài khoản này bị 403 dù giao diện đã hiển thị họ là Thủy thủ.
+const allReportRoles = requireRole('Master', 'ChiefOfficer', 'DeckOfficer', 'EngineOfficer', 'EngineCrew', 'Sailor', 'Crew');
 // FT-10 v2 (vấn đề #2a): Master chỉ tiếp nhận xử lý — không tạo báo cáo
-const createReportRoles = requireRole('ChiefOfficer', 'DeckOfficer', 'EngineOfficer', 'EngineCrew', 'Sailor');
+const createReportRoles = requireRole('ChiefOfficer', 'DeckOfficer', 'EngineOfficer', 'EngineCrew', 'Sailor', 'Crew');
 
 router.use(authMiddleware);
 
