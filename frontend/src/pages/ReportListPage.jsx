@@ -95,10 +95,14 @@ export default function ReportListPage() {
   }, [scope, canHandle, canCreate]);
 
   // Fetch
-  const fetchData = useCallback(() => {
+  // showToast: chỉ báo khi người dùng bấm nút Làm mới, không báo lúc tải tự động
+  const fetchData = useCallback((showToast = false) => {
     setLoading(true);
     reportService.getReports({ scope, category, status })
-      .then((res) => setReports(res.success && Array.isArray(res.data) ? res.data : []))
+      .then((res) => {
+        setReports(res.success && Array.isArray(res.data) ? res.data : []);
+        if (showToast) notifySuccess('Đã làm mới danh sách báo cáo.');
+      })
       .catch(() => notifyError('Không thể tải danh sách báo cáo.'))
       .finally(() => setLoading(false));
   }, [scope, category, status]);
@@ -292,7 +296,7 @@ export default function ReportListPage() {
                   ...Object.entries(STATUS_LABEL).map(([value, label]) => ({ label, value })),
                 ]}
               />
-              <Button icon={<ReloadOutlined />} onClick={fetchData} />
+              <Button icon={<ReloadOutlined />} loading={loading} onClick={() => fetchData(true)} />
             </Space>
           }
         >
