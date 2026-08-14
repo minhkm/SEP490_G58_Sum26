@@ -126,11 +126,7 @@ export default function CrewListPage() {
         </Tag>
       ),
     },
-    {
-      title: 'Chức vụ',
-      dataIndex: 'position',
-      render: (position) => position || '---',
-    },
+    // Cột "Chức vụ" đã bỏ: chức vụ được suy ra từ Quyền hệ thống nên hiển thị trùng lặp.
     {
       title: 'Quyền hệ thống',
       key: 'role',
