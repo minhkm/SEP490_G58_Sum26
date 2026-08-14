@@ -24,7 +24,7 @@ export default function ShiftViewPage() {
   const [detail, setDetail] = useState(null);
   const [handoverFor, setHandoverFor] = useState(null); // ca A đang mở form bàn giao
   const [handoverNote, setHandoverNote] = useState('');
-  const [handoverLateTest, setHandoverLateTest] = useState(false); // chỉ dùng khi dev để giả lập muộn
+  const [simulateLate, setSimulateLate] = useState(false); // dev: bỏ qua cửa sổ giờ + đánh dấu muộn
   const [busy, setBusy] = useState(false);
   const [exporting, setExporting] = useState(false);
 
@@ -32,8 +32,9 @@ export default function ShiftViewPage() {
   const isMine = (s) => s.crewId === myCrewId;
   // Chỉ thủy thủ/thợ máy mới thực sự có ca của mình → sĩ quan không thấy toggle "Chỉ ca của tôi"
   const canHaveShift = ['Sailor', 'EngineCrew'].includes(ctx?.me?.role);
-  // Lãnh đạo bộ phận boong được xuất báo cáo trực boong
+  // Lãnh đạo bộ phận được xuất báo cáo trực (boong / máy)
   const canExportDeck = ['DeckOfficer', 'ChiefOfficer', 'Master'].includes(ctx?.me?.role);
+  const canExportEngine = ['EngineOfficer', 'Master'].includes(ctx?.me?.role);
 
   const loadShifts = useCallback(async (date) => {
     try { setShifts(await shiftService.getShifts(date)); } catch { setShifts([]); }
@@ -60,17 +61,21 @@ export default function ShiftViewPage() {
 
   const shiftDay = (delta) => setSelectedDate(dayjs(selectedDate).add(delta, 'day').format('YYYY-MM-DD'));
 
-  // Xuất Excel báo cáo trực boong
-  const handleExportDeck = async () => {
+  // Xuất Excel báo cáo trực (boong / máy)
+  const handleExport = async (dept) => {
     setExporting(true);
     try {
-      const response = await shiftService.exportDeckReport(ctx.voyage.id);
+      const response = dept === 'engine'
+        ? await shiftService.exportEngineReport(ctx.voyage.id)
+        : await shiftService.exportDeckReport(ctx.voyage.id);
       const disposition = response.headers?.['content-disposition'] || '';
       const m = disposition.match(/filename="?([^";]+)"?/i);
-      const filename = m?.[1] || `Nhat_Ky_Truc_Boong_Voyage-${ctx.voyage.id}.xlsx`;
+      const fallback = dept === 'engine'
+        ? `Nhat_Ky_Truc_May_Voyage-${ctx.voyage.id}.xlsx`
+        : `Nhat_Ky_Truc_Boong_Voyage-${ctx.voyage.id}.xlsx`;
       const url = window.URL.createObjectURL(new Blob([response.data], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }));
       const link = document.createElement('a');
-      link.href = url; link.download = filename;
+      link.href = url; link.download = m?.[1] || fallback;
       document.body.appendChild(link); link.click(); link.remove();
       window.URL.revokeObjectURL(url);
       notifySuccess('Đã xuất báo cáo Excel.');
@@ -88,13 +93,14 @@ export default function ShiftViewPage() {
 
   // Ca liền kề cùng vị trí (để bàn giao ↔ nhận ca)
   const sameTime = (a, b) => new Date(a).getTime() === new Date(b).getTime();
+  // Ca kế tiếp cùng vị trí (để người trực ca này bàn giao cho ca sau)
   const nextShift = (s) => shifts.find(x => x.id !== s.id && x.position === s.position && x.status !== 'Cancelled' && sameTime(x.startTime, s.endTime));
 
   const submitHandover = async () => {
     setBusy(true);
     try {
-      const res = await shiftService.handover(handoverFor.id, handoverNote, { late: handoverLateTest, test: import.meta.env.DEV });
-      setHandoverFor(null); setHandoverNote(''); setHandoverLateTest(false); setDetail(null);
+      const res = await shiftService.handover(handoverFor.id, handoverNote, { late: simulateLate, test: simulateLate });
+      setHandoverFor(null); setHandoverNote(''); setSimulateLate(false); setDetail(null);
       await loadShifts(selectedDate);
       notifySuccess(res.message);
     } catch (err) {
@@ -104,8 +110,8 @@ export default function ShiftViewPage() {
   const handleReceive = async (s) => {
     setBusy(true);
     try {
-      const res = await shiftService.receive(s.id, { test: import.meta.env.DEV });
-      setDetail(null);
+      const res = await shiftService.receive(s.id, { late: simulateLate, test: simulateLate });
+      setSimulateLate(false); setDetail(null);
       await loadShifts(selectedDate);
       notifySuccess(res.message);
     } catch (err) {
@@ -146,8 +152,13 @@ export default function ShiftViewPage() {
                 Nhật ký Máy
               </Button>
               {canExportDeck && (
-                <Button icon={<DownloadOutlined />} loading={exporting} onClick={handleExportDeck}>
+                <Button icon={<DownloadOutlined />} loading={exporting} onClick={() => handleExport('deck')}>
                   Xuất báo cáo boong
+                </Button>
+              )}
+              {canExportEngine && (
+                <Button icon={<DownloadOutlined />} loading={exporting} onClick={() => handleExport('engine')}>
+                  Xuất báo cáo máy
                 </Button>
               )}
               {ctx.canCreate && (
@@ -243,7 +254,7 @@ export default function ShiftViewPage() {
       </PageContainer>
 
       {/* Modal chi tiết */}
-      <Modal open={!!detail} onCancel={() => setDetail(null)} title="Chi tiết ca trực" footer={null}>
+      <Modal open={!!detail} onCancel={() => { setDetail(null); setSimulateLate(false); }} title="Chi tiết ca trực" footer={null}>
         {detail && (
           <>
             <Descriptions column={1} bordered size="small" style={{ marginTop: 8 }}>
@@ -254,46 +265,54 @@ export default function ShiftViewPage() {
               <Descriptions.Item label="Trạng thái"><StatusTag status={detail.status} text={SHIFT_STATUS[detail.status]?.label} /></Descriptions.Item>
             </Descriptions>
             {(() => {
-              const started = new Date(detail.startTime) <= new Date();
-              const nxt = nextShift(detail);                                       // ca mình bàn giao cho (mình là A)
-              const canHandover = isMine(detail) && nxt && !nxt.handedOverAt;
-              const canReceive = isMine(detail) && detail.handedOverAt && !detail.receivedAt; // mình là B
+              const nxt = nextShift(detail);   // ca kế tiếp (mình là người BÀN GIAO)
+              // Nhận ca: mình trực ca này & chưa nhận (tạm thời cho nhận kể cả khi không có ca liền trước)
+              const canReceive = isMine(detail) && !detail.receivedAt;
+              // Bàn giao sau: mình là ca trước, ca sau đã nhận nhưng chưa được bàn giao
+              const canHandover = isMine(detail) && nxt && nxt.receivedAt && !nxt.handedOverAt;
               return (
                 <div style={{ marginTop: 16 }}>
-                  {/* Thông tin bàn giao */}
+                  {/* Ghi chú bàn giao (hiện cho người ca sau đọc) */}
                   {detail.handoverNote && (
                     <div style={{ marginBottom: 12, padding: 10, background: '#f6ffed', border: '1px solid #b7eb8f', borderRadius: 8 }}>
                       <Text type="secondary" style={{ fontSize: 12 }}>Ghi chú bàn giao từ ca trước:</Text>
                       <div>{detail.handoverNote}</div>
                     </div>
                   )}
-                  <Space wrap style={{ marginBottom: (canHandover || canReceive || (isMine(detail) && started)) ? 12 : 0 }}>
+                  <Space wrap style={{ marginBottom: 12 }}>
+                    {detail.receivedAt && !detail.handedOverAt && <Tag color="orange">Đã nhận ca, chờ bàn giao</Tag>}
                     {detail.handedOverAt && detail.receivedAt && <Tag color="green">Đã bàn giao xong</Tag>}
                     {detail.handoverLate && <Tag color="red">Bàn giao muộn</Tag>}
+                    {isMine(detail) && nxt?.receivedAt && !nxt?.handedOverAt && <Tag color="orange">Ca sau đã nhận — chờ bạn bàn giao</Tag>}
                     {isMine(detail) && nxt?.handedOverAt && <Tag color="blue">Đã bàn giao cho ca sau</Tag>}
                   </Space>
 
                   {isMine(detail) && (
-                    <Space wrap>
-                      {started && (
+                    <>
+                      {import.meta.env.DEV && (canReceive || canHandover) && (
+                        <Checkbox checked={simulateLate} onChange={(e) => setSimulateLate(e.target.checked)} style={{ display: 'block', marginBottom: 10 }}>
+                          Giả lập muộn — bỏ qua cửa sổ giờ (test)
+                        </Checkbox>
+                      )}
+                      <Space wrap>
                         <Button type="primary" icon={<FileTextOutlined />} onClick={() => goToLog(detail)}>
                           Ghi nhật ký trực
                         </Button>
-                      )}
-                      {canHandover && (
-                        <Button icon={<SwapOutlined />} onClick={() => { setHandoverNote(''); setHandoverLateTest(false); setHandoverFor(detail); }}>
-                          Bàn giao ca
-                        </Button>
-                      )}
-                      {canReceive && (
-                        <Button type="primary" icon={<CheckOutlined />} loading={busy} onClick={() => handleReceive(detail)}>
-                          Nhận ca
-                        </Button>
-                      )}
-                      <Tooltip title="Tạo báo cáo ngoại lệ / sự cố từ ca trực này">
-                        <Button icon={<StopOutlined />} danger onClick={() => navigate(`/reports?shiftId=${detail.id}`)}>Báo cáo ca trực</Button>
-                      </Tooltip>
-                    </Space>
+                        {canReceive && (
+                          <Button type="primary" icon={<CheckOutlined />} loading={busy} onClick={() => handleReceive(detail)}>
+                            Nhận ca
+                          </Button>
+                        )}
+                        {canHandover && (
+                          <Button icon={<SwapOutlined />} onClick={() => { setHandoverNote(''); setHandoverFor(detail); }}>
+                            Bàn giao ca
+                          </Button>
+                        )}
+                        <Tooltip title="Tạo báo cáo ngoại lệ / sự cố từ ca trực này">
+                          <Button icon={<StopOutlined />} danger onClick={() => navigate(`/reports?shiftId=${detail.id}`)}>Báo cáo ca trực</Button>
+                        </Tooltip>
+                      </Space>
+                    </>
                   )}
                 </div>
               );
@@ -308,11 +327,6 @@ export default function ShiftViewPage() {
         <Text type="secondary">Ghi chú tình trạng bàn giao (thời tiết, thiết bị, lưu ý cho ca sau...)</Text>
         <Input.TextArea rows={4} value={handoverNote} onChange={(e) => setHandoverNote(e.target.value)}
           placeholder="VD: Biển động nhẹ, radar hoạt động bình thường..." style={{ marginTop: 8 }} />
-        {import.meta.env.DEV && (
-          <Checkbox checked={handoverLateTest} onChange={(e) => setHandoverLateTest(e.target.checked)} style={{ marginTop: 12 }}>
-            Giả lập muộn (test)
-          </Checkbox>
-        )}
       </Modal>
     </MasterLayout>
   );

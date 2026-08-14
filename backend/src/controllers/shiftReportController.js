@@ -1,5 +1,5 @@
 const { Voyage, VoyageCrew } = require("../models");
-const { buildDeckReport, createDeckWorkbook } = require("../services/shiftReportService");
+const { buildDeckReport, createDeckWorkbook, buildEngineReport, createEngineWorkbook } = require("../services/shiftReportService");
 
 const normalizedRole = (req) => String(req.user.role || "").replace(/\s+/g, "").toLowerCase();
 
@@ -38,6 +38,28 @@ exports.exportDeck = async (req, res) => {
     res.end(buffer);
   } catch (error) {
     console.error("Error exporting deck shift report:", error);
+    res.status(500).json({ message: "Lỗi xuất báo cáo Excel." });
+  }
+};
+
+// GET /api/shift-reports/:voyageId/export/engine — Máy trưởng xuất Excel nhật ký trực máy
+exports.exportEngine = async (req, res) => {
+  try {
+    const permit = await authorizeVoyage(req, req.params.voyageId, ["admin", "master", "engineofficer"]);
+    if (!permit.ok) return res.status(permit.status).json({ message: permit.message });
+
+    const data = await buildEngineReport(req.params.voyageId);
+    if (!data) return res.status(404).json({ message: "Không tìm thấy hải trình." });
+
+    const workbook = await createEngineWorkbook(data);
+    const buffer = await workbook.xlsx.writeBuffer();
+    const filename = `Nhat_Ky_Truc_May_Voyage-${req.params.voyageId}.xlsx`;
+    res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+    res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
+    res.setHeader("Content-Length", buffer.length);
+    res.end(buffer);
+  } catch (error) {
+    console.error("Error exporting engine shift report:", error);
     res.status(500).json({ message: "Lỗi xuất báo cáo Excel." });
   }
 };
