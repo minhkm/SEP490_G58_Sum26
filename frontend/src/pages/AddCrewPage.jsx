@@ -12,7 +12,7 @@ const POSITION_BY_ROLE = {
   ChiefOfficer: 'Đại phó',
   DeckOfficer: 'Sĩ quan boong',
   Sailor: 'Thủy thủ',
-  EngineOfficer: 'Sĩ quan máy',
+  EngineOfficer: 'Máy trưởng',
   EngineCrew: 'Thợ máy',
 };
 
@@ -268,21 +268,21 @@ export default function AddCrewPage() {
                   <Col xs={24} md={12}>
                     <Form.Item label="Bộ phận" name="department">
                       <Select disabled={isLockedRole}>
-                        <Select.Option value="None">Không thuộc bộ phận (None)</Select.Option>
-                        <Select.Option value="Deck">Bộ phận Boong (Deck)</Select.Option>
-                        <Select.Option value="Engine">Bộ phận Máy (Engine)</Select.Option>
+                        <Select.Option value="None">Không thuộc bộ phận</Select.Option>
+                        <Select.Option value="Deck">Bộ phận Boong</Select.Option>
+                        <Select.Option value="Engine">Bộ phận Máy</Select.Option>
                       </Select>
                     </Form.Item>
                   </Col>
                   <Col xs={24} md={12}>
-                    <Form.Item label="Quyền hệ thống (Role)" name="role">
+                    <Form.Item label="Quyền hệ thống" name="role">
                       <Select onChange={handleRoleChange}>
-                        <Select.Option value="Master">Thuyền trưởng (Master)</Select.Option>
-                        <Select.Option value="ChiefOfficer">Đại phó (Chief Officer)</Select.Option>
-                        <Select.Option value="DeckOfficer">Sĩ quan boong (Deck Officer)</Select.Option>
-                        <Select.Option value="Sailor">Thủy thủ (Sailor)</Select.Option>
-                        <Select.Option value="EngineOfficer">Sĩ quan máy / Máy trưởng (Engine Officer)</Select.Option>
-                        <Select.Option value="EngineCrew">Thợ máy (Engine Crew)</Select.Option>
+                        <Select.Option value="Master">Thuyền trưởng</Select.Option>
+                        <Select.Option value="ChiefOfficer">Đại phó</Select.Option>
+                        <Select.Option value="DeckOfficer">Sĩ quan boong</Select.Option>
+                        <Select.Option value="Sailor">Thủy thủ</Select.Option>
+                        <Select.Option value="EngineOfficer">Máy trưởng</Select.Option>
+                        <Select.Option value="EngineCrew">Thợ máy</Select.Option>
                       </Select>
                     </Form.Item>
                   </Col>

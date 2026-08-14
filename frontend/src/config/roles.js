@@ -114,14 +114,26 @@ export function roleLabel(role) {
   return ROLE_LABELS[role] || role || '';
 }
 
+// Nhãn tiếng Việt cho bộ phận (CrewProfile.department / Report.department).
+export const DEPARTMENT_LABELS = {
+  Deck: 'Boong',
+  Engine: 'Máy',
+  None: 'Không thuộc bộ phận',
+};
+
+export function departmentLabel(department, fallback = '—') {
+  if (!department) return fallback;
+  return DEPARTMENT_LABELS[department] || department;
+}
+
 const POSITION_LABELS = {
   Captain: 'Thuyền trưởng',
   Master: 'Thuyền trưởng',
   'Chief Officer': 'Đại phó',
   'Deck Officer': 'Sĩ quan boong',
   'Chief Engineer': 'Máy trưởng',
-  'Engine Officer': 'Sĩ quan máy',
-  'Engine Office': 'Sĩ quan máy',
+  'Engine Officer': 'Máy trưởng',
+  'Engine Office': 'Máy trưởng',
   'Engine Crew': 'Thợ máy',
   'Seaman Engine': 'Thợ máy',
   'Seaman Deck': 'Thủy thủ',
@@ -138,7 +150,7 @@ export function positionLabel(position) {
   if (normalized.includes('chief officer')) return 'Đại phó';
   if (normalized.includes('deck officer')) return 'Sĩ quan boong';
   if (normalized.includes('chief engineer')) return 'Máy trưởng';
-  if (normalized.includes('engine officer') || normalized.includes('engine office')) return 'Sĩ quan máy';
+  if (normalized.includes('engine officer') || normalized.includes('engine office')) return 'Máy trưởng';
   if (normalized.includes('engine crew') || normalized.includes('seaman engine')) return 'Thợ máy';
   if (normalized.includes('seaman deck')) return 'Thủy thủ';
   if (normalized.includes('cook')) return 'Đầu bếp';

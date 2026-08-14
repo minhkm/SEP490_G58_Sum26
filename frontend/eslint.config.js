@@ -18,4 +18,9 @@ export default defineConfig([
       parserOptions: { ecmaFeatures: { jsx: true } },
     },
   },
+  // src/data/*.js là script Node chạy tay (không đóng gói vào bundle) -> cần globals của Node.
+  {
+    files: ['src/data/**/*.js'],
+    languageOptions: { globals: globals.node },
+  },
 ])
