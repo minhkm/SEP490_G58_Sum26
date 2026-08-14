@@ -10,7 +10,7 @@ import dayjs from 'dayjs';
 import MasterLayout from '../components/MasterLayout';
 import { reportService } from '../services/api';
 import { PageHeader, PageContainer, StatusTag, notifySuccess, notifyError, confirmAction } from '../components/common';
-import { roleLabel, getNextHandlerRole } from '../config/roles';
+import { roleLabel, positionLabel, departmentLabel, getNextHandlerRole } from '../config/roles';
 
 const { TextArea } = Input;
 const { Text, Paragraph } = Typography;
@@ -70,7 +70,7 @@ function ShiftSnapshotCard({ snapshot }) {
           <Descriptions.Item label="Ca trực">{`#${shift.id}`}</Descriptions.Item>
           <Descriptions.Item label="Thời gian">{fmtTime(shift.startTime)} – {fmtTime(shift.endTime)}</Descriptions.Item>
           <Descriptions.Item label="Người trực">{shift.crew?.fullName || '—'}</Descriptions.Item>
-          <Descriptions.Item label="Bộ phận">{shift.crew?.department || '—'}</Descriptions.Item>
+          <Descriptions.Item label="Bộ phận">{departmentLabel(shift.crew?.department)}</Descriptions.Item>
         </Descriptions>
       )}
 
@@ -236,7 +236,7 @@ export default function ReportDetailPage() {
                             <Descriptions.Item label="Mức độ">
                               <Tag color={PRIORITY_COLOR[report.priority] || 'default'}>{PRIORITY_LABEL[report.priority] || report.priority}</Tag>
                             </Descriptions.Item>
-                            <Descriptions.Item label="Bộ phận">{report.department || '—'}</Descriptions.Item>
+                            <Descriptions.Item label="Bộ phận">{departmentLabel(report.department)}</Descriptions.Item>
                             <Descriptions.Item label="Tàu">{report.Ship?.shipName || '—'}</Descriptions.Item>
                             <Descriptions.Item label="Người tạo">{report.CrewProfile?.fullName || '—'}</Descriptions.Item>
                             <Descriptions.Item label="Ngày tạo">{fmt(report.createdAt)}</Descriptions.Item>
@@ -265,7 +265,7 @@ export default function ReportDetailPage() {
                                     <div>
                                       <Space size={8} wrap>
                                         <Text strong>{rep.CrewProfile?.fullName || 'Ẩn danh'}</Text>
-                                        {rep.CrewProfile?.position && <Text type="secondary" style={{ fontSize: 12 }}>{rep.CrewProfile.position}</Text>}
+                                        {rep.CrewProfile?.position && <Text type="secondary" style={{ fontSize: 12 }}>{positionLabel(rep.CrewProfile.position)}</Text>}
                                         <Text type="secondary" style={{ fontSize: 12 }}>{fmt(rep.repliedAt)}</Text>
                                       </Space>
                                       {ev && <div><Text type="secondary" italic>{ev}</Text></div>}

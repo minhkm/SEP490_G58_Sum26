@@ -11,16 +11,9 @@ import {
 import AdminLayout from '../components/AdminLayout';
 import { crewService } from '../services/api';
 import { PageHeader, PageContainer, StatCard, StatusTag, RowActions, notifyError, confirmDelete } from '../components/common';
+import { roleLabel, departmentLabel } from '../config/roles';
 
 const { Text } = Typography;
-
-const roleLabels = {
-  Master: 'Thuyền trưởng (Master)',
-  ChiefOfficer: 'Đại phó (Chief Officer)',
-  DeckOfficer: 'Sĩ quan boong (Deck Officer)',
-  EngineOfficer: 'Sĩ quan máy (Engine Officer)',
-  Sailor: 'Thủy thủ (Sailor)',
-};
 
 const getInitials = (name) => {
   if (!name) return 'CR';
@@ -94,7 +87,7 @@ export default function CrewListPage() {
             <div style={{ fontWeight: 600 }}>
               {crew.fullName || 'Chưa cập nhật'}
               {crew.User?.role === 'Master' && (
-                <Tooltip title="Thuyền trưởng (Master)">
+                <Tooltip title="Thuyền trưởng">
                   <SafetyCertificateOutlined
                     style={{ marginLeft: 6, color: '#0284c7', verticalAlign: 'middle' }}
                   />
@@ -118,11 +111,7 @@ export default function CrewListPage() {
       dataIndex: 'department',
       render: (department) => (
         <Tag color={department === 'Deck' ? 'blue' : department === 'Engine' ? 'orange' : 'default'}>
-          {department === 'Deck'
-            ? 'Boong (Deck)'
-            : department === 'Engine'
-            ? 'Máy (Engine)'
-            : department || 'Chưa rõ'}
+          {departmentLabel(department, 'Chưa rõ')}
         </Tag>
       ),
     },
@@ -132,7 +121,7 @@ export default function CrewListPage() {
       key: 'role',
       render: (_, crew) => (
         <span style={{ fontWeight: 600, color: '#334155', fontSize: 13 }}>
-          {roleLabels[crew.User?.role] || crew.User?.role || '---'}
+          {roleLabel(crew.User?.role) || '---'}
         </span>
       ),
     },

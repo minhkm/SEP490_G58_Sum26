@@ -19,6 +19,7 @@ import {
 import dayjs from 'dayjs';
 import { profileService } from '../services/api';
 import { PageHeader, StatusTag, notifySuccess, notifyError, confirmDelete } from '../components/common';
+import { roleLabel, positionLabel, departmentLabel } from '../config/roles';
 
 const { Text } = Typography;
 const { Header, Content } = Layout;
@@ -192,16 +193,9 @@ export default function CrewProfilePage() {
     ['Email (tên đăng nhập)', profile?.User?.username],
     ['Số điện thoại', profile?.phone || '—'],
     ['CCCD/CMND', profile?.cccd || '—'],
-    [
-      'Bộ phận',
-      profile?.department === 'Deck'
-        ? 'Boong (Deck)'
-        : profile?.department === 'Engine'
-        ? 'Máy (Engine)'
-        : profile?.department || '—',
-    ],
-    ['Chức danh', profile?.position || '—'],
-    ['Vai trò hệ thống', profile?.User?.role || '—'],
+    ['Bộ phận', departmentLabel(profile?.department)],
+    ['Chức danh', positionLabel(profile?.position) || '—'],
+    ['Vai trò hệ thống', roleLabel(profile?.User?.role) || '—'],
   ];
 
   return (

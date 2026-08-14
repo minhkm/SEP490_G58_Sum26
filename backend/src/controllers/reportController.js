@@ -9,7 +9,7 @@ const ROLE_LABELS = {
   DeckOfficer: "Sĩ quan boong",
   ChiefOfficer: "Đại phó",
   EngineCrew: "Thợ máy",
-  EngineOfficer: "Sĩ quan máy",
+  EngineOfficer: "Máy trưởng",
   Master: "Thuyền trưởng",
 };
 const roleLabel = (role) => ROLE_LABELS[role] || role || "cấp phụ trách";

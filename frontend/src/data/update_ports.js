@@ -5,9 +5,6 @@ const https = require('https');
 const portsFilePath = path.join(__dirname, 'ports.js');
 let content = fs.readFileSync(portsFilePath, 'utf-8');
 
-// Basic regex to find port objects
-const portRegex = /{([^}]+)}/g;
-
 async function geocode(portName) {
   // Extract just the city/country part to make search easier
   let search = portName.replace('Cảng ', '');
@@ -25,7 +22,7 @@ async function geocode(portName) {
           } else {
             resolve(null);
           }
-        } catch (e) {
+        } catch {
           resolve(null);
         }
       });

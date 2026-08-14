@@ -207,7 +207,7 @@ const REPORT_ROLE_LABELS = {
   DeckOfficer: "Sĩ quan boong",
   ChiefOfficer: "Đại phó",
   EngineCrew: "Thợ máy",
-  EngineOfficer: "Sĩ quan máy",
+  EngineOfficer: "Máy trưởng",
   Master: "Thuyền trưởng",
 };
 

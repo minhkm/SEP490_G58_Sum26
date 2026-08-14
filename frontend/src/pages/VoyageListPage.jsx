@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Table, Button, Input, Card, Row, Col, Statistic, Space, Typography, Tooltip, Modal, Select, DatePicker, message } from 'antd';
+import { Table, Button, Input, Card, Space, Typography, Tooltip, Modal, Select, DatePicker, message } from 'antd';
 import { PlusOutlined, ReloadOutlined, TeamOutlined, ArrowRightOutlined, CompassOutlined, FileExcelOutlined } from '@ant-design/icons';
 import MasterLayout from '../components/MasterLayout';
 import AdminLayout from '../components/AdminLayout';
@@ -151,13 +151,6 @@ export default function VoyageListPage() {
       ].some((value) => String(value || '').toLowerCase().includes(keyword))
     );
   }, [searchTerm, voyages, userRole]);
-
-  const activeCount = voyages.filter((v) =>
-    ['underway', 'homeward bounding', 'active', 'in progress'].includes((v.status || '').toLowerCase())
-  ).length;
-  const plannedCount = voyages.filter((v) =>
-    ['planned', 'planning'].includes((v.status || '').toLowerCase())
-  ).length;
 
   const columns = [
     {

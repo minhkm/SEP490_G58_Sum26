@@ -1,5 +1,5 @@
 import { useNavigate, useLocation } from 'react-router-dom';
-import { Layout, Menu, Avatar, Button } from 'antd';
+import { Layout, Menu, Button } from 'antd';
 import {
   DashboardOutlined,
   CompassOutlined,
