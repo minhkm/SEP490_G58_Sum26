@@ -151,6 +151,15 @@ exports.getReportById = async (req, res) => {
     });
     if (!report) return res.status(404).json({ success: false, message: "Không tìm thấy báo cáo" });
 
+    // BR-22 (tầng ĐỌC): chặn xem chi tiết báo cáo của tàu khác qua URL trực tiếp.
+    // Mốc kiểm tra là "cùng tàu" chứ không phải "đúng cấp đang giữ", để cấp đã đẩy báo cáo
+    // đi vẫn theo dõi được, và người cùng tàu khác bộ phận vẫn xem được (đồng bộ scope=ship).
+    const actor = actorOf(req);
+    const canView = report.createdBy === actor.crewId || (await isCrewOnShip(actor.crewId, report.shipId));
+    if (!canView) {
+      return res.status(403).json({ success: false, message: "Bạn không thuộc biên chế tàu của báo cáo này." });
+    }
+
     const replies = await ReportReply.findAll({
       where: { reportId: report.id },
       include: [{ model: CrewProfile, attributes: ["id", "fullName", "position"] }],
@@ -158,7 +167,6 @@ exports.getReportById = async (req, res) => {
     });
 
     // Quyền của người đang xem để FE hiển thị đúng nút hành động (BR-21/BR-22 vẫn được enforce ở server).
-    const actor = actorOf(req);
     const permit = await canActOnReport(actor, report);
     const isCreator = report.createdBy === actor.crewId;
     const isActive = !["Closed", "Rejected"].includes(report.status);
