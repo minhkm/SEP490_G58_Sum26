@@ -65,17 +65,15 @@ export default function CrewDashboard() {
       icon: <ClockCircleOutlined style={{ fontSize: 28 }} />,
       label: 'Ca trực',
       sub: 'Lịch & nhật ký ca trực',
-      path: null,
+      path: '/shifts',
       color: '#f59e0b',
-      disabled: true,
     },
     {
       icon: <FileTextOutlined style={{ fontSize: 28 }} />,
       label: 'Báo cáo',
       sub: 'Báo cáo vận hành',
-      path: null,
+      path: '/reports',
       color: '#8b5cf6',
-      disabled: true,
     },
   ];
 

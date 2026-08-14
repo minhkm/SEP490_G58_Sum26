@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Row, Col, Card, Table, Button, Input, Space, Typography, Steps, Tag, Progress, Empty, Tooltip } from 'antd';
+import { Row, Col, Card, Table, Button, Input, Space, Typography, Steps, Tag, Empty, Tooltip } from 'antd';
 import {
   CalendarOutlined,
   PlusOutlined,
@@ -159,9 +159,9 @@ export default function AdminDashboard() {
       render: (_, v) => (
         <div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontWeight: 500 }}>
-            <span>📍 {v.departurePort}</span>
+            <span>{v.departurePort}</span>
             <ArrowRightOutlined style={{ color: '#6366f1', fontSize: 12 }} />
-            <span>🏁 {v.destinationPort}</span>
+            <span>{v.destinationPort}</span>
           </div>
           <Text type="secondary" style={{ fontSize: 12 }}>
             {v.departureDate ? new Date(v.departureDate).toLocaleDateString('vi-VN') : '—'}
@@ -177,24 +177,15 @@ export default function AdminDashboard() {
       width: 180,
       render: (_, v) => {
         const isCompleted = v.status === 'Completed';
-        const strokeColor = isCompleted ? '#22c55e' : v.status === 'Underway' ? '#3b82f6' : '#eab308';
         return (
-          <div style={{ minWidth: 140 }}>
-            <Progress
-              percent={v.progressPercent || 0}
-              size="small"
-              strokeColor={strokeColor}
-              format={(p) => `${p}%`}
-            />
-            <div style={{ fontSize: 11, color: '#64748b', marginTop: 2 }}>
-              {isCompleted
-                ? 'Đã cập cảng đích'
-                : v.status === 'Underway'
-                ? 'Đang hành trình trên biển'
-                : v.status === 'Loaded'
-                ? 'Đã xếp hàng, sẵn sàng rời cảng'
-                : 'Đang chuẩn bị chuyến'}
-            </div>
+          <div style={{ minWidth: 140, fontSize: 12, color: '#64748b' }}>
+            {isCompleted
+              ? 'Đã cập cảng đích'
+              : v.status === 'Underway'
+              ? 'Đang hành trình trên biển'
+              : v.status === 'Loaded'
+              ? 'Đã xếp hàng, sẵn sàng rời cảng'
+              : 'Đang chuẩn bị chuyến'}
           </div>
         );
       },
@@ -237,7 +228,7 @@ export default function AdminDashboard() {
                       }}
                     >
                       <span style={{ fontWeight: 600, color: '#1d4ed8', display: 'flex', alignItems: 'center', gap: 4 }}>
-                        📦 {cargo.name}
+                        {cargo.name}
                       </span>
                       {cargo.type && (
                         <Tag color="blue" style={{ fontSize: 10, borderRadius: 3, margin: 0, padding: '0 4px', lineHeight: '16px' }}>
@@ -264,7 +255,7 @@ export default function AdminDashboard() {
       render: (_, v) => (
         <div>
           <div style={{ fontWeight: 500, color: '#334155' }}>
-            👨‍✈️ {v.captainName}
+            {v.captainName}
           </div>
           <Text type="secondary" style={{ fontSize: 12 }}>
             Biên chế: <strong>{v.crewCount}</strong> thuyền viên
