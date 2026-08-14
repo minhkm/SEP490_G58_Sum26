@@ -17,6 +17,10 @@ api.interceptors.request.use(
     if (activeVoyageRole) {
       config.headers['x-active-voyage-role'] = activeVoyageRole;
     }
+    const activeVoyageId = localStorage.getItem('activeVoyageId');
+    if (activeVoyageId) {
+      config.headers['x-active-voyage-id'] = activeVoyageId;
+    }
     return config;
   },
   (error) => {
@@ -411,12 +415,15 @@ export const shiftService = {
     const response = await api.post(`/shifts/${id}/handover`, { note, late, test });
     return response.data;
   },
-  receive: async (id, { test = false } = {}) => {
-    const response = await api.post(`/shifts/${id}/receive`, { test });
+  receive: async (id, { late = false, test = false } = {}) => {
+    const response = await api.post(`/shifts/${id}/receive`, { late, test });
     return response.data;
   },
   exportDeckReport: async (voyageId) => {
     return api.get(`/shift-reports/${voyageId}/export/deck`, { responseType: 'blob' });
+  },
+  exportEngineReport: async (voyageId) => {
+    return api.get(`/shift-reports/${voyageId}/export/engine`, { responseType: 'blob' });
   },
 };
 
