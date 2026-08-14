@@ -21,6 +21,13 @@ export default function SettingsPage() {
       icon: <TagOutlined style={{ fontSize: 24, color: '#6366f1' }} />,
       path: '/cargo-types',
     },
+    {
+      key: 'ports',
+      title: 'Quản lý Cảng',
+      description: 'Cấu hình danh sách các cảng cho phép tàu cập bến.',
+      icon: <SettingOutlined style={{ fontSize: 24, color: '#6366f1' }} />,
+      path: '/ports',
+    },
   ];
 
   return (

@@ -138,6 +138,26 @@ export const cargoTypeService = {
   }
 };
 
+export const portService = {
+  getAllPorts: async () => {
+    const response = await api.get('/ports');
+    return response.data;
+  },
+  createPort: async (data) => {
+    const response = await api.post('/ports', data);
+    return response.data;
+  },
+  updatePort: async (id, data) => {
+    const response = await api.put(`/ports/${id}`, data);
+    return response.data;
+  },
+  deletePort: async (id) => {
+    const response = await api.delete(`/ports/${id}`);
+    return response.data;
+  }
+};
+
+
 export const dashboardService = {
   getAdminDashboardData: async () => {
     const response = await api.get('/dashboard/admin');

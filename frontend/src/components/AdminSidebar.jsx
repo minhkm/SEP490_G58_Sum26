@@ -29,7 +29,9 @@ export default function AdminSidebar() {
     role.toLowerCase() === 'admin' && { key: '/settings', icon: <SettingOutlined />, label: 'Cấu hình' },
   ].filter(Boolean);
 
-  const selectedKey =
+  const isSettingsPage = location.pathname.startsWith('/settings') || location.pathname.startsWith('/cargo-types') || location.pathname.startsWith('/ports');
+
+  const selectedKey = isSettingsPage ? '/settings' :
     items
       .map((it) => it.key)
       .find((k) => location.pathname === k || location.pathname.startsWith(k + '/')) || '/admin-dashboard';

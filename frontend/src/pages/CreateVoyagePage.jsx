@@ -41,9 +41,8 @@ import {
 } from '@ant-design/icons';
 import MasterLayout from '../components/MasterLayout';
 import AdminLayout from '../components/AdminLayout';
-import { voyageService, vesselService, crewService, cargoService } from '../services/api';
+import { voyageService, vesselService, crewService, cargoService, portService } from '../services/api';
 import { PageHeader, notifySuccess, notifyError, notifyWarning } from '../components/common';
-import { SEAPORTS } from '../data/ports';
 import { positionLabel } from '../config/roles';
 import * as XLSX from 'xlsx';
 import {
@@ -141,6 +140,7 @@ export default function CreateVoyagePage() {
   const [availableShips, setAvailableShips] = useState([]);
   const [availableCargos, setAvailableCargos] = useState([]);
   const [availableCrews, setAvailableCrews] = useState([]);
+  const [portList, setPortList] = useState([]);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -155,6 +155,11 @@ export default function CreateVoyagePage() {
         if (cargosRes && cargosRes.data) {
           const unassignedCargos = cargosRes.data.filter(c => !c.voyageId);
           setAvailableCargos(unassignedCargos);
+        }
+
+        const portsRes = await portService.getAllPorts();
+        if (portsRes && portsRes.success) {
+          setPortList(portsRes.data.filter(p => p.status === 'Active'));
         }
       } catch (err) {
         console.error('Không thể tải dữ liệu tham chiếu', err);
@@ -677,9 +682,10 @@ export default function CreateVoyagePage() {
                         showSearch
                         placeholder="📍 Chọn cảng đi..."
                         optionFilterProp="label"
-                        options={SEAPORTS.map(port => ({
-                          ...port,
-                          disabled: port.value === routeInfo.destinationPort
+                        options={portList.map(port => ({
+                          label: port.portName,
+                          value: port.portName,
+                          disabled: port.portName === routeInfo.destinationPort
                         }))}
                         value={routeInfo.departurePort || undefined}
                         onChange={(value) => handleRouteInfoChange('departurePort', value)}
@@ -695,9 +701,10 @@ export default function CreateVoyagePage() {
                         showSearch
                         placeholder="📍 Chọn cảng đến..."
                         optionFilterProp="label"
-                        options={SEAPORTS.map(port => ({
-                          ...port,
-                          disabled: port.value === routeInfo.departurePort
+                        options={portList.map(port => ({
+                          label: port.portName,
+                          value: port.portName,
+                          disabled: port.portName === routeInfo.departurePort
                         }))}
                         value={routeInfo.destinationPort || undefined}
                         onChange={(value) => handleRouteInfoChange('destinationPort', value)}
