@@ -536,7 +536,7 @@ export default function EngineLogPage() {
 
             <div style={{ marginTop: 16 }}>
               <label style={{ fontSize: 14, fontWeight: 500, color: '#475569', marginBottom: 8, display: 'block' }}>Ghi chú</label>
-              <TextArea rows={3} placeholder="VD: Máy chạy ổn định..." value={note} onChange={e => setNote(e.target.value)} />
+              <TextArea rows={3} placeholder="VD: Máy chạy ổn định..." maxLength={500} showCount value={note} onChange={e => setNote(e.target.value)} />
             </div>
             <div style={{ marginTop: 16 }}>
               <label style={{ fontSize: 14, fontWeight: 500, color: '#475569', marginBottom: 8, display: 'block' }}>
@@ -580,11 +580,11 @@ export default function EngineLogPage() {
         <Alert message="Bạn đang chỉnh sửa nhật ký đã ghi. Vui lòng cung cấp lý do chỉnh sửa." type="info" showIcon style={{ marginBottom: 16 }} />
         <div style={{ marginBottom: 16 }}>
           <label style={{ fontWeight: 500, display: 'block', marginBottom: 4 }}>Lý do chỉnh sửa <span style={{ color: 'red' }}>*</span></label>
-          <TextArea rows={2} placeholder="VD: Nhập sai số liệu, bổ sung thông tin..." value={editReason} onChange={e => setEditReason(e.target.value)} />
+          <TextArea rows={2} placeholder="VD: Nhập sai số liệu, bổ sung thông tin..." maxLength={500} showCount value={editReason} onChange={e => setEditReason(e.target.value)} />
         </div>
         <div style={{ marginBottom: 16 }}>
           <label style={{ fontWeight: 500, display: 'block', marginBottom: 4 }}>Ghi chú</label>
-          <TextArea rows={2} value={editNote} onChange={e => setEditNote(e.target.value)} />
+          <TextArea rows={2} maxLength={500} showCount value={editNote} onChange={e => setEditNote(e.target.value)} />
         </div>
 
         {editEngineParams.map(param => {
