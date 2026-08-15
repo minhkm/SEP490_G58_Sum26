@@ -7,7 +7,8 @@ const Report = sequelize.define("Report", {
 
   // Phân loại báo cáo
   reportCategory: { type: DataTypes.STRING, defaultValue: "Routine" }, // Routine (thường nhật), Incident (sự cố/khẩn cấp)
-  reportType: { type: DataTypes.STRING }, // Leave, ShiftSwap, ShiftException (Routine) | Breakdown, ShipIssue, Other (Incident)
+  reportType: { type: DataTypes.STRING }, // Leave, ShiftSwap, Other (Routine) | Breakdown, ShipIssue, Other (Incident)
+  // ShiftException: giá trị cũ, đã ngừng cho chọn ở FE — dữ liệu cũ vẫn có thể mang giá trị này.
   department: { type: DataTypes.STRING }, // Deck, Engine — chọn thang bậc escalation
   priority: { type: DataTypes.STRING, defaultValue: "Normal" }, // Normal, High, Urgent
 
