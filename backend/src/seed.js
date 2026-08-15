@@ -29,6 +29,7 @@ const {
   Voyage, VoyageCrew,
   Attendance, Shift, ShiftLog, DeckLog, DeckLogEntry, EngineLog, EngineLogValue,
   Report, ReportReply,
+  Port,
 } = require('./models');
 const { ENGINE_STATUS, ENGINE_TYPE } = require('./utils/engine');
 const { SHIP_STATUS } = require('./utils/vessel');
@@ -485,6 +486,103 @@ async function seed() {
     ];
     await CargoType.bulkCreate(cargoTypeDefs, { transaction: t });
     console.log('✅ Loại hàng xong');
+
+    // ================================================================
+    // PORTS (CẢNG)
+    // ================================================================
+    const SEAPORTS = [
+      // --- VIỆT NAM ---
+      { portName: 'Cảng Cát Lái (Hồ Chí Minh, Việt Nam)', country: 'Vietnam' , lat: 10.7667971, lng: 106.7954767 },
+      { portName: 'Cảng Sài Gòn (Hồ Chí Minh, Việt Nam)', country: 'Vietnam' , lat: 8.7318724, lng: 106.6322895 },
+      { portName: 'Cảng Hiệp Phước (Hồ Chí Minh, Việt Nam)', country: 'Vietnam' , lat: 10.4026823, lng: 107.1795119 },
+      { portName: 'Cảng Hải Phòng (Hải Phòng, Việt Nam)', country: 'Vietnam' , lat: 20.8632078, lng: 106.6895646 },
+      { portName: 'Cảng Đình Vũ (Hải Phòng, Việt Nam)', country: 'Vietnam' , lat: 10.4206143, lng: 107.2146008 },
+      { portName: 'Cảng Lạch Huyện (Hải Phòng, Việt Nam)', country: 'Vietnam' , lat: 20.798367, lng: 106.9055297 },
+      { portName: 'Cảng Đà Nẵng (Đà Nẵng, Việt Nam)', country: 'Vietnam' , lat: 15.4769446, lng: 108.6869021 },
+      { portName: 'Cảng Tiên Sa (Đà Nẵng, Việt Nam)', country: 'Vietnam' , lat: 16.119709, lng: 108.2171737 },
+      { portName: 'Cảng Quy Nhơn (Bình Định, Việt Nam)', country: 'Vietnam' , lat: 13.7787437, lng: 109.2424598 },
+      { portName: 'Cảng Vũng Tàu (BR-VT, Việt Nam)', country: 'Vietnam' , lat: 10.3869289, lng: 107.0625009 },
+      { portName: 'Cảng Cái Mép - Thị Vải (BR-VT, Việt Nam)', country: 'Vietnam' , lat: 10.5369289, lng: 107.0125009 },
+      { portName: 'Cảng Phú Mỹ (BR-VT, Việt Nam)', country: 'Vietnam' , lat: 10.5869289, lng: 107.0225009 },
+      { portName: 'Cảng Nha Trang (Khánh Hòa, Việt Nam)', country: 'Vietnam' , lat: 12.2000, lng: 109.2000 },
+      { portName: 'Cảng Cam Ranh (Khánh Hòa, Việt Nam)', country: 'Vietnam' , lat: 11.998251, lng: 109.2173774 },
+      { portName: 'Cảng Cẩm Phả (Quảng Ninh, Việt Nam)', country: 'Vietnam' , lat: 21.0100, lng: 107.3300 },
+      { portName: 'Cảng Cái Lân (Quảng Ninh, Việt Nam)', country: 'Vietnam' , lat: 20.9736595, lng: 107.0536768 },
+      { portName: 'Cảng Nghi Sơn (Thanh Hóa, Việt Nam)', country: 'Vietnam' , lat: 19.3148657, lng: 105.8144636 },
+      { portName: 'Cảng Vũng Áng (Hà Tĩnh, Việt Nam)', country: 'Vietnam' , lat: 18.1118603, lng: 106.4080058 },
+      { portName: 'Cảng Chân Mây (Thừa Thiên Huế, Việt Nam)', country: 'Vietnam' , lat: 16.3306507, lng: 108.0224026 },
+      { portName: 'Cảng Dung Quất (Quảng Ngãi, Việt Nam)', country: 'Vietnam' , lat: 15.415307, lng: 108.7966372 },
+      { portName: 'Cảng Cần Thơ (Cần Thơ, Việt Nam)', country: 'Vietnam' , lat: 19.9043348, lng: 105.4629163 },
+
+      // --- SINGAPORE ---
+      { portName: 'Cảng Singapore (PSA, Singapore)', country: 'Singapore' , lat: 1.2811983, lng: 103.7751981 },
+      { portName: 'Cảng Jurong (Singapore)', country: 'Singapore' , lat: 1.3073194, lng: 103.7187343 },
+      { portName: 'Cảng Keppel (Singapore)', country: 'Singapore' , lat: 1.2610, lng: 103.8220 },
+      { portName: 'Cảng Pasir Panjang (Singapore)', country: 'Singapore' , lat: 1.2763998, lng: 103.7914017 },
+
+      // --- MALAYSIA ---
+      { portName: 'Port Klang (Selangor, Malaysia)', country: 'Malaysia' , lat: 2.9996963, lng: 101.3913589 },
+      { portName: 'Cảng Tanjung Pelepas (Johor, Malaysia)', country: 'Malaysia' , lat: 1.3638949, lng: 103.5541482 },
+      { portName: 'Cảng Penang (Penang, Malaysia)', country: 'Malaysia' , lat: 5.4191106, lng: 100.3445895 },
+      { portName: 'Cảng Johor (Pasir Gudang, Malaysia)', country: 'Malaysia' , lat: 1.4390587, lng: 103.9015989 },
+      { portName: 'Cảng Bintulu (Sarawak, Malaysia)', country: 'Malaysia' , lat: 3.055309, lng: 112.9480102 },
+      { portName: 'Cảng Kuantan (Pahang, Malaysia)', country: 'Malaysia' , lat: 3.980539, lng: 103.4241516 },
+      { portName: 'Cảng Kuching (Sarawak, Malaysia)', country: 'Malaysia' , lat: 1.5526634, lng: 110.3906004 },
+      { portName: 'Cảng Kota Kinabalu (Sabah, Malaysia)', country: 'Malaysia' , lat: 5.9948698, lng: 116.0828562 },
+
+      // --- THÁI LAN ---
+      { portName: 'Cảng Laem Chabang (Chonburi, Thái Lan)', country: 'Thailand' , lat: 13.0734119, lng: 100.8994177 },
+      { portName: 'Cảng Bangkok (Khlong Toei, Thái Lan)', country: 'Thailand' , lat: 13.7061508, lng: 100.5752327 },
+      { portName: 'Cảng Map Ta Phut (Rayong, Thái Lan)', country: 'Thailand' , lat: 12.668777, lng: 101.1547309 },
+      { portName: 'Cảng Songkhla (Songkhla, Thái Lan)', country: 'Thailand' , lat: 7.2280171, lng: 100.569692 },
+      { portName: 'Cảng Phuket (Phuket, Thái Lan)', country: 'Thailand' , lat: 7.8750215, lng: 98.4176493 },
+
+      // --- INDONESIA ---
+      { portName: 'Cảng Tanjung Priok (Jakarta, Indonesia)', country: 'Indonesia' , lat: -6.1037982, lng: 106.8824532 },
+      { portName: 'Cảng Tanjung Perak (Surabaya, Indonesia)', country: 'Indonesia' , lat: -7.1964103, lng: 112.7330655 },
+      { portName: 'Cảng Belawan (Medan, Indonesia)', country: 'Indonesia' , lat: 3.7780783, lng: 98.6806199 },
+      { portName: 'Cảng Makassar (South Sulawesi, Indonesia)', country: 'Indonesia' , lat: -5.1221355, lng: 119.4074487 },
+      { portName: 'Cảng Semarang / Tanjung Emas (Java, Indonesia)', country: 'Indonesia' , lat: -6.9477594, lng: 110.4243042 },
+      { portName: 'Cảng Batam (Riau Islands, Indonesia)', country: 'Indonesia' , lat: 1.0821452, lng: 103.9342899 },
+      { portName: 'Cảng Panjang (Sumatra, Indonesia)', country: 'Indonesia' , lat: 1.259693, lng: 103.7836489 },
+      { portName: 'Cảng Balikpapan (Kalimantan, Indonesia)', country: 'Indonesia' , lat: -1.1598236, lng: 116.7838201 },
+
+      // --- PHILIPPINES ---
+      { portName: 'Cảng Manila (Manila, Philippines)', country: 'Philippines' , lat: 14.5995, lng: 120.9842 },
+      { portName: 'Cảng Cebu (Cebu, Philippines)', country: 'Philippines' , lat: 11.2498938, lng: 125.000487 },
+      { portName: 'Cảng Davao (Mindanao, Philippines)', country: 'Philippines' , lat: 7.1265272, lng: 125.6627111 },
+      { portName: 'Cảng Batangas (Luzon, Philippines)', country: 'Philippines' , lat: 13.7544544, lng: 121.0413059 },
+      { portName: 'Cảng Subic Bay (Zambales, Philippines)', country: 'Philippines' , lat: 14.8157249, lng: 120.2834936 },
+      { portName: 'Cảng Cagayan de Oro (Mindanao, Philippines)', country: 'Philippines' , lat: 8.4945316, lng: 124.6621902 },
+      { portName: 'Cảng Iloilo (Visayas, Philippines)', country: 'Philippines' , lat: 10.6901234, lng: 122.5826142 },
+      { portName: 'Cảng Zamboanga (Mindanao, Philippines)', country: 'Philippines' , lat: 7.0707779, lng: 122.2125093 },
+
+      // --- CAMPUCHIA ---
+      { portName: 'Cảng Sihanoukville (PAS, Campuchia)', country: 'Cambodia' , lat: 10.6520936, lng: 103.5210411 },
+      { portName: 'Cảng Phnom Penh (PPAP, Campuchia)', country: 'Cambodia' , lat: 11.5466365, lng: 104.8125936 },
+      { portName: 'Cảng Koh Kong (Campuchia)', country: 'Cambodia' , lat: 11.1172525, lng: 103.7306307 },
+
+      // --- MYANMAR ---
+      { portName: 'Cảng Yangon (Yangon, Myanmar)', country: 'Myanmar' , lat: 16.9122626, lng: 96.1368079 },
+      { portName: 'Cảng Thilawa (Thanlyin, Myanmar)', country: 'Myanmar' , lat: 16.6676527, lng: 96.253149 },
+      { portName: 'Cảng Sittwe (Rakhine, Myanmar)', country: 'Myanmar' , lat: 20.1330489, lng: 92.8731834 },
+      { portName: 'Cảng Pathein (Ayeyarwady, Myanmar)', country: 'Myanmar' , lat: 16.8136014, lng: 94.7753243 },
+
+      // --- BRUNEI ---
+      { portName: 'Cảng Muara (Brunei)', country: 'Brunei' , lat: 5.0296228, lng: 115.0732004 },
+      { portName: 'Cảng Kuala Belait (Brunei)', country: 'Brunei' , lat: 4.5833, lng: 114.2000 },
+
+      // --- ĐÔNG TIMOR (TIMOR-LESTE) ---
+      { portName: 'Cảng Dili (Timor-Leste)', country: 'Timor-Leste' , lat: -8.5500, lng: 125.5667 },
+      { portName: 'Cảng Tibar Bay (Timor-Leste)', country: 'Timor-Leste' , lat: -8.5721133, lng: 125.4749679 },
+
+      // --- ĐÀI LOAN ---
+      { portName: 'Cảng Cao Hùng (Kaohsiung, Đài Loan)', country: 'Taiwan' , lat: 22.550645, lng: 120.3202879 },
+      { portName: 'Cảng Keelung (Cơ Long, Đài Loan)', country: 'Taiwan' , lat: 25.1462479, lng: 121.7556113 },
+      { portName: 'Cảng Taichung (Đài Trung, Đài Loan)', country: 'Taiwan' , lat: 24.3043419, lng: 120.6026908 },
+    ];
+    await Port.bulkCreate(SEAPORTS.map(p => ({ ...p, status: 'Active' })), { transaction: t });
+    console.log(`✅ Cảng xong (${SEAPORTS.length} cảng)`);
 
     // ================================================================
     // HẢI TRÌNH + HÀNG HOÁ + ĐIỂM DANH

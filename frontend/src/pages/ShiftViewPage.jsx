@@ -289,7 +289,7 @@ export default function ShiftViewPage() {
 
                   {isMine(detail) && (
                     <>
-                      {import.meta.env.DEV && (canReceive || canHandover) && (
+                      {(canReceive || canHandover) && (
                         <Checkbox checked={simulateLate} onChange={(e) => setSimulateLate(e.target.checked)} style={{ display: 'block', marginBottom: 10 }}>
                           Giả lập muộn — bỏ qua cửa sổ giờ (test)
                         </Checkbox>
