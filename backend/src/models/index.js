@@ -16,6 +16,7 @@ const VoyageCrew = require("./VoyageCrew");
 const Cargo = require("./Cargo");
 const CargoItem = require("./CargoItem");
 const CargoType = require("./CargoType");
+const Port = require("./Port");
 const Attendance = require("./Attendance");
 const CargoOperation = require("./CargoOperation");
 const VoyageOperationReport = require("./VoyageOperationReport");
@@ -219,7 +220,7 @@ module.exports = {
   Engine, Equipment,
   CargoHold, CargoAllocation,
   Voyage, VoyageCrew,
-  Cargo, CargoItem, CargoType, CargoOperation,
+  Cargo, CargoItem, CargoType, CargoOperation, Port,
   Attendance, VoyageOperationReport,
   Shift, ShiftLog, ShiftLogEquipment,
   Report, ReportReply,

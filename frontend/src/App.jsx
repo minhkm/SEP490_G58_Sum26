@@ -1,4 +1,4 @@
-﻿import { BrowserRouter as Router, Routes, Route, useNavigate } from "react-router-dom";
+import { BrowserRouter as Router, Routes, Route, useNavigate } from "react-router-dom";
 import LandingPage from "./pages/LandingPage";
 import LoginPage from "./pages/LoginPage";
 import MasterDashboard from "./pages/MasterDashboard";
@@ -11,6 +11,7 @@ import CargoPage from "./pages/CargoPage";
 import AddCargoPage from "./pages/AddCargoPage";
 import CargoDetailPage from "./pages/CargoDetailPage";
 import CargoTypePage from "./pages/CargoTypePage";
+import PortPage from "./pages/PortPage";
 import SettingsPage from "./pages/SettingsPage";
 import VoyageListPage from "./pages/VoyageListPage";
 import CrewListPage from "./pages/CrewListPage";
@@ -95,6 +96,14 @@ function App() {
           element={
             <RequireRole allow={['Admin']}>
               <CargoTypePage />
+            </RequireRole>
+          }
+        />
+        <Route
+          path="/ports"
+          element={
+            <RequireRole allow={['Admin']}>
+              <PortPage />
             </RequireRole>
           }
         />

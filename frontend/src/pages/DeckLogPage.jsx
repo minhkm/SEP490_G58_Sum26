@@ -75,18 +75,18 @@ const ENTRY_FIELDS = [
   { key: 'courseTrue', label: 'Hướng đi Thật', short: 'HĐ Thật', type: 'number', max: 360 },
   { key: 'courseGyro', label: 'LBCQ', short: 'LBCQ', type: 'number', max: 360 },
   { key: 'courseSteer', label: 'LB Lái', short: 'LB Lái', type: 'number', max: 360 },
-  { key: 'gyroError', label: 'Sai số LBCQ', short: 'SS LBCQ', type: 'number' },
+  { key: 'gyroError', label: 'Sai số LBCQ', short: 'SS LBCQ', type: 'number', min: -10, max: 10 },
   { key: 'courseMagnetic', label: 'LB Từ', short: 'LB Từ', type: 'number', max: 360 },
-  { key: 'speed', label: 'Tốc độ (hải lý/giờ)', short: 'Tốc độ', type: 'number' },
-  { key: 'rpm', label: 'Vòng quay/phút', short: 'Vòng/phút', type: 'number' },
+  { key: 'speed', label: 'Tốc độ (hải lý/giờ)', short: 'Tốc độ', type: 'number', min: 0, max: 60 },
+  { key: 'rpm', label: 'Vòng quay/phút', short: 'Vòng/phút', type: 'number', min: -1000, max: 1500 },
   { key: 'windDirection', label: 'Hướng gió', short: 'H.Gió', type: 'select', options: WIND_DIRECTION_OPTIONS },
   { key: 'windForce', label: 'Cấp gió', short: 'S.Gió', type: 'number', max: 12 },
   { key: 'weather', label: 'Thời tiết', short: 'T.Tiết', type: 'select', options: WEATHER_OPTIONS },
-  { key: 'barometer', label: 'Khí áp (milibar)', short: 'Khí áp', type: 'number' },
+  { key: 'barometer', label: 'Khí áp (hPa)', short: 'Khí áp', type: 'number', min: 850, max: 1100 },
   { key: 'seaState', label: 'Biển', short: 'Biển', type: 'number', max: 9 },
-  { key: 'visibility', label: 'Tầm nhìn (hải lý)', short: 'Tầm nhìn', type: 'number' },
-  { key: 'airTemp', label: 'Nhiệt độ không khí (°C)', short: 'Nhiệt độ KK', type: 'number' },
-  { key: 'seaTemp', label: 'Nhiệt độ biển (°C)', short: 'Nhiệt độ biển', type: 'number' },
+  { key: 'visibility', label: 'Tầm nhìn (mã WMO 0–9)', short: 'Tầm nhìn', type: 'number', max: 9 },
+  { key: 'airTemp', label: 'Nhiệt độ không khí (°C)', short: 'Nhiệt độ KK', type: 'number', min: -100, max: 100 },
+  { key: 'seaTemp', label: 'Nhiệt độ biển (°C)', short: 'Nhiệt độ biển', type: 'number', min: -100, max: 100 },
 ];
 
 // Nhóm field theo vị trí ca trực
@@ -392,7 +392,7 @@ export default function DeckLogPage() {
     return (
       <InputNumber size="small" style={{ width: '100%', background: disabled ? '#f5f5f5' : undefined }} placeholder={disabled ? '' : '—'}
         disabled={disabled}
-        min={field.key === 'gyroError' ? undefined : 0}
+        min={field.min !== undefined ? field.min : (field.key === 'gyroError' ? undefined : 0)}
         max={field.max}
         value={entry[field.key]}
         onChange={val => onChange(entry.hour, field.key, val)} />

@@ -30,10 +30,9 @@ import {
 import { MapContainer, TileLayer, Marker, Polyline, Popup, CircleMarker, useMapEvents } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
-import { voyageService } from '../services/api';
+import { voyageService, portService } from '../services/api';
 import MasterLayout from '../components/MasterLayout';
 import { translateStatus } from '../components/common/StatusTag';
-import { SEAPORTS } from '../data/ports';
 import {
   generateSafeMaritimeRoute,
   validateRouteSafety,
@@ -218,6 +217,7 @@ export default function RoutePlannerPage() {
   const [inputLat, setInputLat] = useState('');
   const [inputLng, setInputLng] = useState('');
   const [showMaritimeHubs, setShowMaritimeHubs] = useState(false);
+  const [portList, setPortList] = useState([]);
 
   const user = JSON.parse(localStorage.getItem('user')) || {};
   const activeVoyageRole = localStorage.getItem('activeVoyageRole');
@@ -226,10 +226,17 @@ export default function RoutePlannerPage() {
   // Khởi tạo và nạp danh sách chuyến đi khi mở trang (CHỈ CHẠY 1 LẦN)
   useEffect(() => {
     let isMounted = true;
-    voyageService.getAll()
-      .then((data) => {
+    Promise.all([voyageService.getAll(), portService.getAllPorts()])
+      .then(([voyageData, portsRes]) => {
         if (!isMounted) return;
-        const activeData = (data || []).filter((v) => v.status !== 'Completed' && v.status !== 'Cancelled');
+        
+        let loadedPorts = [];
+        if (portsRes && portsRes.success) {
+           loadedPorts = portsRes.data.map(p => ({ value: p.portName, label: p.portName, lat: p.lat, lng: p.lng }));
+           setPortList(loadedPorts);
+        }
+
+        const activeData = (voyageData || []).filter((v) => v.status !== 'Completed' && v.status !== 'Cancelled');
         setVoyages(activeData);
         if (activeData.length > 0) {
           const firstVoyage = activeData[0];
@@ -237,8 +244,8 @@ export default function RoutePlannerPage() {
           if (firstVoyage.routeWaypoints && firstVoyage.routeWaypoints.length > 0) {
             setWaypoints(firstVoyage.routeWaypoints);
           } else {
-            const depPort = SEAPORTS.find((p) => p.value === firstVoyage.departurePort);
-            const arrPort = SEAPORTS.find((p) => p.value === firstVoyage.destinationPort);
+            const depPort = loadedPorts.find((p) => p.value === firstVoyage.departurePort);
+            const arrPort = loadedPorts.find((p) => p.value === firstVoyage.destinationPort);
             const initialWaypoints = [];
             if (depPort?.lat && depPort?.lng) {
               initialWaypoints.push({ lat: depPort.lat, lng: depPort.lng, name: `Cảng đi: ${depPort.label}` });
@@ -252,7 +259,7 @@ export default function RoutePlannerPage() {
       })
       .catch((err) => {
         console.error(err);
-        message.error('Không thể tải danh sách chuyến đi');
+        message.error('Không thể tải dữ liệu');
       })
       .finally(() => {
         if (isMounted) setLoading(false);
@@ -270,8 +277,8 @@ export default function RoutePlannerPage() {
     if (voyage && voyage.routeWaypoints && voyage.routeWaypoints.length > 0) {
       setWaypoints(voyage.routeWaypoints);
     } else if (voyage) {
-      const depPort = SEAPORTS.find((p) => p.value === voyage.departurePort);
-      const arrPort = SEAPORTS.find((p) => p.value === voyage.destinationPort);
+      const depPort = portList.find((p) => p.value === voyage.departurePort);
+      const arrPort = portList.find((p) => p.value === voyage.destinationPort);
       const initialWaypoints = [];
       if (depPort?.lat && depPort?.lng) {
         initialWaypoints.push({ lat: depPort.lat, lng: depPort.lng, name: `Cảng đi: ${depPort.label}` });
@@ -329,8 +336,8 @@ export default function RoutePlannerPage() {
   // Nút tự động sinh luồng hàng hải an toàn khi người dùng bấm
   const handleAutoGenerateRoute = () => {
     if (!selectedVoyage) return message.warning('Vui lòng chọn chuyến đi');
-    const depPort = SEAPORTS.find((p) => p.value === selectedVoyage.departurePort);
-    const arrPort = SEAPORTS.find((p) => p.value === selectedVoyage.destinationPort);
+    const depPort = portList.find((p) => p.value === selectedVoyage.departurePort);
+    const arrPort = portList.find((p) => p.value === selectedVoyage.destinationPort);
 
     if (!depPort?.lat || !arrPort?.lat) {
       return message.error('Không tìm thấy tọa độ cảng đi hoặc cảng đến.');
@@ -368,8 +375,8 @@ export default function RoutePlannerPage() {
   // Đặt lại về 2 điểm Cảng đi & Cảng đến
   const handleResetToPorts = () => {
     if (!selectedVoyage) return;
-    const depPort = SEAPORTS.find((p) => p.value === selectedVoyage.departurePort);
-    const arrPort = SEAPORTS.find((p) => p.value === selectedVoyage.destinationPort);
+    const depPort = portList.find((p) => p.value === selectedVoyage.departurePort);
+    const arrPort = portList.find((p) => p.value === selectedVoyage.destinationPort);
     const initialWaypoints = [];
     if (depPort?.lat && depPort?.lng) {
       initialWaypoints.push({ lat: depPort.lat, lng: depPort.lng, name: `Cảng đi: ${depPort.label}` });
