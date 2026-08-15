@@ -8,7 +8,7 @@ import dayjs from 'dayjs';
 import MasterLayout from '../components/MasterLayout';
 import { reportService, profileService } from '../services/api';
 import { PageHeader, PageContainer, StatusTag, RowActions, notifySuccess, notifyError } from '../components/common';
-import { roleLabel, canCreateReport, canHandleReport, reportTypeOptions } from '../config/roles';
+import { roleLabel, canCreateReport, canHandleReport, reportTypeOptions, DEPRECATED_REPORT_TYPES } from '../config/roles';
 
 const { TextArea } = Input;
 const { RangePicker } = DatePicker;
@@ -325,6 +325,7 @@ export default function ReportListPage() {
               allowClear
               style={{ width: 160 }}
               options={Object.entries(TYPE_LABEL)
+                .filter(([k]) => !DEPRECATED_REPORT_TYPES.includes(k))
                 .filter(([k]) => allTypeValues.includes(k) || !filterReportType)
                 .map(([value, label]) => ({ label, value }))}
             />

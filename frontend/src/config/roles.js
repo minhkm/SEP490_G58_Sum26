@@ -58,14 +58,19 @@ export function canHandleReport(role) {
   return REPORT_HANDLE_ROLES.includes(role);
 }
 
+// Loại báo cáo đã ngừng dùng: không cho chọn khi tạo và không hiện trong bộ lọc.
+// Nhãn vẫn được giữ trong TYPE_LABEL (ReportListPage/ReportDetailPage) để báo cáo cũ
+// đã lưu giá trị này vẫn hiển thị đúng tiếng Việt.
+export const DEPRECATED_REPORT_TYPES = ['ShiftException'];
+
 /**
  * Trả danh sách reportType đã lọc theo bộ phận.
- * - Routine: Xin nghỉ, Xin đổi ca, Ngoại lệ ca trực, Khác (cả 2 bộ phận)
+ * - Routine: Xin nghỉ, Xin đổi ca, Khác (cả 2 bộ phận)
  * - Incident Boong: Sự cố tàu + Khác
  * - Incident Máy: Hỏng hóc máy + Khác
  */
 export function reportTypeOptions(department) {
-  const routine = ['Leave', 'ShiftSwap', 'ShiftException', 'Other'];
+  const routine = ['Leave', 'ShiftSwap', 'Other'];
   let incident;
   if (department === 'Engine') {
     incident = ['Breakdown', 'Other'];
