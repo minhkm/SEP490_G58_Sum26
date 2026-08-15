@@ -968,6 +968,8 @@ export default function AddVesselPage() {
                     <div style={{ marginBottom: 6, fontWeight: 600 }}>Tên động cơ {requiredTag}</div>
                     <Input
                       placeholder="Wärtsilä 14RT"
+                      maxLength={255}
+                      showCount
                       value={mainEngine.engineName}
                       onChange={(e) => handleMainEngineChange('engineName', e.target.value)}
                     />
@@ -1030,6 +1032,8 @@ export default function AddVesselPage() {
                         <div style={{ marginBottom: 6, fontWeight: 600 }}>Tên máy {requiredTag}</div>
                         <Input
                           placeholder="Caterpillar C32"
+                          maxLength={255}
+                          showCount
                           value={gen.engineName}
                           onChange={(e) => handleGeneratorEngineChange(gen.id, 'engineName', e.target.value)}
                         />
@@ -1188,6 +1192,7 @@ export default function AddVesselPage() {
                   <div style={{ flex: '2 1 200px', minWidth: 150 }}>
                     <div style={{ fontSize: 11, color: '#64748b', marginBottom: 2 }}>Tên thiết bị <span style={{ color: 'red' }}>*</span></div>
                     <Input placeholder="VD: Áo phao cá nhân, ra-đa, bình chữa cháy..." value={eq.equipmentName}
+                      maxLength={255}
                       onChange={e => handleShipEquipChange(eq._uid, 'equipmentName', e.target.value)} />
                   </div>
                   <div style={{ flex: '1 1 130px', minWidth: 120 }}>

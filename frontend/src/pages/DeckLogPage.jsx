@@ -587,7 +587,7 @@ export default function DeckLogPage() {
               <label style={{ fontSize: 14, fontWeight: 500, color: '#475569', marginBottom: 8, display: 'block' }}>
                 Ghi chú
               </label>
-              <TextArea rows={3} placeholder="VD: Gặp sóng lớn vùng biển X, đã chuyển hướng tránh..." value={note} onChange={e => setNote(e.target.value)} />
+              <TextArea rows={3} placeholder="VD: Gặp sóng lớn vùng biển X, đã chuyển hướng tránh..." maxLength={500} showCount value={note} onChange={e => setNote(e.target.value)} />
             </div>
 
             {/* Ảnh */}
@@ -636,12 +636,12 @@ export default function DeckLogPage() {
 
         <div style={{ marginBottom: 16 }}>
           <label style={{ fontWeight: 500, display: 'block', marginBottom: 4 }}>Lý do chỉnh sửa <span style={{ color: 'red' }}>*</span></label>
-          <TextArea rows={2} placeholder="VD: Bổ sung thông tin, sửa lỗi chính tả..." value={editReason} onChange={e => setEditReason(e.target.value)} />
+          <TextArea rows={2} placeholder="VD: Bổ sung thông tin, sửa lỗi chính tả..." maxLength={500} showCount value={editReason} onChange={e => setEditReason(e.target.value)} />
         </div>
 
         <div style={{ marginBottom: 16 }}>
           <label style={{ fontWeight: 500, display: 'block', marginBottom: 4 }}>Ghi chú</label>
-          <TextArea rows={2} placeholder="Nhập ghi chú..." value={editNote} onChange={e => setEditNote(e.target.value)} />
+          <TextArea rows={2} placeholder="Nhập ghi chú..." maxLength={500} showCount value={editNote} onChange={e => setEditNote(e.target.value)} />
         </div>
 
         {/* Bảng chỉnh sửa entries */}
