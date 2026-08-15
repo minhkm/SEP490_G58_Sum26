@@ -72,6 +72,23 @@ const REQUIRED_PARAMS = [
   'Nhiệt độ nước làm mát (°C)',
 ];
 
+// Giới hạn tối đa thực tế cho từng thông số (dựa trên tiêu chuẩn kỹ thuật tàu biển)
+const PARAM_MAX_VALUE = {
+  'Áp suất dầu nhiên liệu (kg/cm²)': 50,
+  'Nhiệt độ khí xả XL2 (°C)': 600,
+  'Nhiệt độ nước làm mát (°C)': 95,
+  'Vòng quay máy chính (vòng/phút)': 2000,
+  'Áp suất khí quét (kg/cm²)': 50,
+  'Áp suất khí nén (kg/cm²)': 50,
+  'Áp suất khí khởi động (kg/cm²)': 50,
+  'Nhiệt độ dầu bôi trơn (°C)': 600,
+  'Nhiệt độ khí xả XL3 (°C)': 600,
+  'Nhiệt độ khí xả XL4 (°C)': 600,
+  'Nhiệt độ khí xả XL5 (°C)': 600,
+  'Nhiệt độ khí xả XL6 (°C)': 600,
+};
+const getParamMax = (name) => PARAM_MAX_VALUE[name] ?? 9999;
+
 const parseExcelExpiryDate = (value) => {
   if (value == null || String(value).trim() === '') return null;
   if (typeof value === 'number') {
@@ -767,6 +784,7 @@ export default function AddVesselPage() {
               <InputNumber
                 style={{ width: '100%' }}
                 min={0}
+                max={getParamMax(param.name)}
                 placeholder={requiredParamPlaceholder(param.name)}
                 value={param.maxValue === '' ? null : param.maxValue}
                 onChange={(value) => onChange(param._uid, 'maxValue', value ?? '')}
@@ -808,6 +826,7 @@ export default function AddVesselPage() {
                 style={{ width: '100%' }}
                 placeholder="Giá trị tối đa"
                 min={0}
+                max={getParamMax(param.name)}
                 value={param.maxValue === '' ? null : param.maxValue}
                 onChange={(value) => onChange(param._uid, 'maxValue', value ?? '')}
               />

@@ -525,6 +525,7 @@ export default function EngineLogPage() {
                       {engineParameterLabel(param.name)} {isMain && <span style={{ color: 'red' }}>*</span>}
                     </div>
                     <InputNumber style={{ width: '100%', borderColor: statusBorderColor(status) }} placeholder="Nhập giá trị" min={0}
+                      max={param.maxValue ? param.maxValue * 2 : undefined}
                       value={paramValues[param.id] === '' ? null : paramValues[param.id]}
                       onChange={value => handleParamChange(param.id, value === null ? '' : value)} />
                     <Text type="secondary" style={{ fontSize: 12 }}>{param.maxValue != null && `Tối đa: ${param.maxValue}`}</Text>
@@ -591,7 +592,9 @@ export default function EngineLogPage() {
           return (
             <div key={param.id} style={{ marginBottom: 8 }}>
               <Text strong>{engineParameterLabel(param.name)} {isMain && <span style={{ color: 'red' }}>*</span>}: </Text>
-              <InputNumber style={{ width: '100%' }} min={0} value={editValues[param.id]} onChange={val => setEditValues({ ...editValues, [param.id]: val })} />
+              <InputNumber style={{ width: '100%' }} min={0}
+                max={param.maxValue ? param.maxValue * 2 : undefined}
+                value={editValues[param.id]} onChange={val => setEditValues(p => ({ ...p, [param.id]: val }))} />
             </div>
           );
         })}
