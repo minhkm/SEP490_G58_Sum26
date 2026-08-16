@@ -337,7 +337,7 @@ router.get('/:id/cargo', authMiddleware, async (req, res) => {
       include: [
         {
           model: CargoItem,
-          attributes: ['id', 'itemName', 'quantity', 'weight', 'volume', 'isLoaded', 'isDischarged', 'holdId', 'allocations']
+          attributes: ['id', 'itemName', 'quantity', 'weight', 'volume', 'isLoaded', 'isDischarged', 'dischargedQuantity', 'dischargedWeight', 'holdId', 'allocations']
         }
       ]
     });
@@ -368,6 +368,8 @@ router.get('/:id/cargo', authMiddleware, async (req, res) => {
             volume: itemVol,
             isLoaded: item.isLoaded,
             isDischarged: item.isDischarged,
+            dischargedQuantity: item.dischargedQuantity,
+            dischargedWeight: item.dischargedWeight,
             holdId: null,
             allocations: (item.allocations || []).map((a) => ({
               ...a,
@@ -1251,6 +1253,13 @@ router.put('/:id/cargo/:itemId/discharge', authMiddleware, async (req, res) => {
 
     const wasDischarged = Boolean(cargoItem.isDischarged);
     cargoItem.isDischarged = isDischarged;
+    if (isDischarged) {
+      cargoItem.dischargedQuantity = actualQuantity !== undefined ? actualQuantity : cargoItem.quantity;
+      cargoItem.dischargedWeight = actualWeight !== undefined ? actualWeight : cargoItem.weight;
+    } else {
+      cargoItem.dischargedQuantity = 0;
+      cargoItem.dischargedWeight = 0;
+    }
     await cargoItem.save();
 
     if (!wasDischarged && isDischarged) {

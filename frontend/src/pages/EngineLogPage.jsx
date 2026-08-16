@@ -282,7 +282,7 @@ export default function EngineLogPage() {
       setFileList([]);
     } catch (error) {
       console.error('Lỗi:', error);
-      notifyError('Có lỗi xảy ra khi lưu nhật ký');
+      notifyError(error.response?.data?.message || 'Có lỗi xảy ra khi lưu nhật ký');
     }
 
   };
@@ -339,8 +339,8 @@ export default function EngineLogPage() {
       const logs = await engineLogService.getHistoryByShift(selectedShift.id);
       setHistory(logs);
     } catch (error) {
-      console.error('Lỗi cập nhật:', error);
-      notifyError('Có lỗi xảy ra khi cập nhật');
+      console.error('Lỗi:', error);
+      notifyError(error.response?.data?.message || 'Có lỗi xảy ra khi cập nhật');
     }
   };
 

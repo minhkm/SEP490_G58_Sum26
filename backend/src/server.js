@@ -1,6 +1,7 @@
 const express = require("express");
 const { sequelize } = require("./models"); // ⬅ đổi chỗ này
 require("dotenv").config();
+process.env.TZ = "Asia/Ho_Chi_Minh";
 
 const cors = require("cors");
 const path = require("path");

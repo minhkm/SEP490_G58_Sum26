@@ -306,6 +306,9 @@ export default function CargoPage() {
   const [fetchingHolds, setFetchingHolds] = useState(false);
   const [allocatingCargoItem, setAllocatingCargoItem] = useState(null);
   const [savingConfig, setSavingConfig] = useState(false);
+  const [dischargeModalOpen, setDischargeModalOpen] = useState(false);
+  const [dischargingCargo, setDischargingCargo] = useState(null);
+  const [dischargeValues, setDischargeValues] = useState({ actualQuantity: '', actualWeight: '' });
 
   const user = JSON.parse(localStorage.getItem('user')) || {};
   const Layout = user.role === 'Admin' ? AdminLayout : MasterLayout;
@@ -491,11 +494,25 @@ export default function CargoPage() {
     );
   };
 
-  const handleCargoDischarge = async (itemId) => {
+  const handleCargoDischargeClick = (cargo) => {
+    setDischargingCargo(cargo);
+    setDischargeValues({
+      actualQuantity: cargo.quantity || '',
+      actualWeight: cargo.weight || ''
+    });
+    setDischargeModalOpen(true);
+  };
+
+  const submitDischarge = async () => {
     try {
       setLoading(true);
-      await voyageService.dischargeCargoItem(activeVoyageId, itemId, true);
+      await voyageService.dischargeCargoItem(activeVoyageId, dischargingCargo.itemId, {
+        isDischarged: true,
+        actualQuantity: Number(dischargeValues.actualQuantity) || undefined,
+        actualWeight: Number(dischargeValues.actualWeight) || undefined
+      });
       message.success('Đã dỡ hàng thành công!');
+      setDischargeModalOpen(false);
       await fetchActiveVoyage();
     } catch {
       message.error('Lỗi khi dỡ hàng!');
@@ -703,19 +720,31 @@ export default function CargoPage() {
         align: 'center',
         width: 150,
         render: (_, cargo) => {
-          if (cargo.isDischarged) return <Tag color="success">Đã dỡ xong</Tag>;
+          if (cargo.isDischarged) {
+            const isDiff = cargo.dischargedQuantity !== cargo.quantity || cargo.dischargedWeight !== cargo.weight;
+            return (
+              <div style={{ textAlign: 'center' }}>
+                <Tag color={isDiff ? 'warning' : 'success'} style={{ marginBottom: 4 }}>Đã dỡ xong</Tag>
+                <div style={{ fontSize: 11, color: isDiff ? '#d97706' : '#64748b' }}>
+                  SL: {cargo.dischargedQuantity?.toLocaleString()} / {cargo.quantity?.toLocaleString()}
+                </div>
+                <div style={{ fontSize: 11, color: isDiff ? '#d97706' : '#64748b' }}>
+                  KL: {cargo.dischargedWeight?.toLocaleString()} / {cargo.weight?.toLocaleString()} MT
+                </div>
+              </div>
+            );
+          }
           if (userRole !== 'chiefofficer') return <Tag color="default">Chưa dỡ</Tag>;
           return (
-            <Popconfirm
-              title="Xác nhận dỡ hàng?"
-              description={`Bạn có chắc chắn đã dỡ toàn bộ lô ${cargo.itemName} khỏi hầm?`}
-              onConfirm={() => handleCargoDischarge(cargo.itemId)}
-              okText="Xác nhận"
-              cancelText="Hủy"
+            <Button 
+              type="primary" 
+              size="small" 
+              style={{ background: '#fa8c16', borderColor: '#fa8c16' }}
               disabled={activeVoyage.status === 'Completed'}
+              onClick={() => handleCargoDischargeClick(cargo)}
             >
-              <Button type="primary" size="small" style={{ background: '#fa8c16', borderColor: '#fa8c16' }}>Tiến hành dỡ</Button>
-            </Popconfirm>
+              Tiến hành dỡ
+            </Button>
           );
         },
       });
@@ -953,6 +982,47 @@ export default function CargoPage() {
           onSave={handleSaveAllocations}
         />
       )}
+      <Modal
+        title="Tiến hành dỡ hàng"
+        open={dischargeModalOpen}
+        onOk={submitDischarge}
+        onCancel={() => setDischargeModalOpen(false)}
+        okText="Xác nhận dỡ"
+        cancelText="Hủy"
+        confirmLoading={loading}
+      >
+        <Alert
+          message="Vui lòng nhập số lượng và khối lượng hàng hóa thực tế đã dỡ xuống để đối chiếu."
+          type="info"
+          showIcon
+          style={{ marginBottom: 16 }}
+        />
+        <div style={{ marginBottom: 16 }}>
+          <Text strong>Lô hàng:</Text> {dischargingCargo?.itemName}
+        </div>
+        <Row gutter={16}>
+          <Col span={12}>
+            <div style={{ marginBottom: 8 }}><Text type="secondary">SL bốc lên:</Text> <Text strong>{dischargingCargo?.quantity?.toLocaleString()}</Text></div>
+            <div style={{ marginBottom: 4 }}>Số lượng dỡ thực tế:</div>
+            <Input
+              type="number"
+              value={dischargeValues.actualQuantity}
+              onChange={(e) => setDischargeValues({ ...dischargeValues, actualQuantity: e.target.value })}
+              suffix={dischargingCargo?.unit}
+            />
+          </Col>
+          <Col span={12}>
+            <div style={{ marginBottom: 8 }}><Text type="secondary">KL bốc lên:</Text> <Text strong>{dischargingCargo?.weight?.toLocaleString()} MT</Text></div>
+            <div style={{ marginBottom: 4 }}>Khối lượng dỡ thực tế:</div>
+            <Input
+              type="number"
+              value={dischargeValues.actualWeight}
+              onChange={(e) => setDischargeValues({ ...dischargeValues, actualWeight: e.target.value })}
+              suffix="MT"
+            />
+          </Col>
+        </Row>
+      </Modal>
     </Layout>
   );
 }

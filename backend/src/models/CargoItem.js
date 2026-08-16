@@ -10,6 +10,8 @@ const CargoItem = sequelize.define("CargoItem", {
   volume: { type: DataTypes.FLOAT, defaultValue: 0 },
   isLoaded: { type: DataTypes.BOOLEAN, defaultValue: false },
   isDischarged: { type: DataTypes.BOOLEAN, defaultValue: false },
+  dischargedQuantity: { type: DataTypes.INTEGER, defaultValue: 0 },
+  dischargedWeight: { type: DataTypes.FLOAT, defaultValue: 0 },
   holdId: { type: DataTypes.INTEGER, allowNull: true },
   allocations: { type: DataTypes.JSON, defaultValue: [] },
 }, { tableName: "CargoItem", timestamps: false });

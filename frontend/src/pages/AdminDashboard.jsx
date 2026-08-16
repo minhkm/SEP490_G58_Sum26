@@ -23,17 +23,7 @@ import { PageHeader, PageContainer, StatCard, StatusTag, notifyError } from '../
 
 const { Text, Title } = Typography;
 
-// Cấu hình trạng thái hải trình
-const VOYAGE_STATUS_MAP = {
-  Underway: { color: 'blue', text: 'Đang hành trình' },
-  Loaded: { color: 'cyan', text: 'Đã xếp hàng' },
-  Draft: { color: 'gold', text: 'Bản nháp' },
-  Planning: { color: 'orange', text: 'Lập kế hoạch' },
-  Approved: { color: 'purple', text: 'Đã phê duyệt' },
-  Completed: { color: 'green', text: 'Đã hoàn thành' },
-  Cancelled: { color: 'default', text: 'Đã hủy' },
-};
-
+// Xóa VOYAGE_STATUS_MAP để dùng chung logic của StatusTag
 export default function AdminDashboard() {
   const navigate = useNavigate();
 
@@ -267,16 +257,7 @@ export default function AdminDashboard() {
       title: 'TRẠNG THÁI',
       dataIndex: 'status',
       width: 140,
-      render: (status) => {
-        const cfg = VOYAGE_STATUS_MAP[status] || { color: 'default', text: status || 'Không rõ' };
-        return (
-          <StatusTag
-            status={status}
-            color={cfg.color}
-            text={cfg.text}
-          />
-        );
-      },
+      render: (status) => <StatusTag status={status || 'Planning'} />,
     },
     {
       title: 'THAO TÁC',
