@@ -285,7 +285,7 @@ export default function DeckLogPage() {
       setEntries(hours.map(h => createEmptyRow(h)));
     } catch (error) {
       console.error('Lỗi:', error);
-      notifyError('Có lỗi xảy ra khi lưu nhật ký');
+      notifyError(error.response?.data?.message || 'Có lỗi xảy ra khi lưu nhật ký');
     }
 
   };
@@ -335,7 +335,7 @@ export default function DeckLogPage() {
       setHistory(logs);
     } catch (error) {
       console.error('Lỗi:', error);
-      notifyError('Có lỗi xảy ra khi cập nhật');
+      notifyError(error.response?.data?.message || 'Có lỗi xảy ra khi cập nhật');
     }
   };
 

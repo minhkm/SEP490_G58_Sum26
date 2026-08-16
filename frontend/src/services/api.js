@@ -60,8 +60,8 @@ export const voyageService = {
     const response = await api.get(`/voyages/${id}/cargo`);
     return response.data;
   },
-  dischargeCargoItem: async (voyageId, itemId, isDischarged) => {
-    const response = await api.put(`/voyages/${voyageId}/cargo/${itemId}/discharge`, { isDischarged });
+  dischargeCargoItem: async (voyageId, itemId, data) => {
+    const response = await api.put(`/voyages/${voyageId}/cargo/${itemId}/discharge`, data);
     return response.data;
   },
   updateVoyage: async (id, data) => {
