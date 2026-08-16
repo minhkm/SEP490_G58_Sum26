@@ -1001,23 +1001,38 @@ export default function CargoPage() {
           <Text strong>Lô hàng:</Text> {dischargingCargo?.itemName}
         </div>
         <Row gutter={16}>
-          <Col span={12}>
-            <div style={{ marginBottom: 8 }}><Text type="secondary">SL bốc lên:</Text> <Text strong>{dischargingCargo?.quantity?.toLocaleString()}</Text></div>
-            <div style={{ marginBottom: 4 }}>Số lượng dỡ thực tế:</div>
-            <Input
-              type="number"
-              value={dischargeValues.actualQuantity}
-              onChange={(e) => setDischargeValues({ ...dischargeValues, actualQuantity: e.target.value })}
-              suffix={dischargingCargo?.unit}
-            />
-          </Col>
-          <Col span={12}>
+          {!(dischargingCargo?.unit === 'MT' && Number(dischargingCargo?.quantity) === Number(dischargingCargo?.weight)) && (
+            <Col span={12}>
+              <div style={{ marginBottom: 8 }}>
+                <Text type="secondary">SL bốc lên:</Text>{' '}
+                <Text strong>
+                  {dischargingCargo?.quantity?.toLocaleString()} {dischargingCargo?.unit === 'MT' ? '' : dischargingCargo?.unit}
+                </Text>
+              </div>
+              <div style={{ marginBottom: 4 }}>Số lượng dỡ thực tế:</div>
+              <Input
+                type="number"
+                value={dischargeValues.actualQuantity}
+                onChange={(e) => setDischargeValues({ ...dischargeValues, actualQuantity: e.target.value })}
+                suffix={dischargingCargo?.unit === 'MT' ? undefined : dischargingCargo?.unit}
+              />
+            </Col>
+          )}
+          <Col span={dischargingCargo?.unit === 'MT' && Number(dischargingCargo?.quantity) === Number(dischargingCargo?.weight) ? 24 : 12}>
             <div style={{ marginBottom: 8 }}><Text type="secondary">KL bốc lên:</Text> <Text strong>{dischargingCargo?.weight?.toLocaleString()} MT</Text></div>
             <div style={{ marginBottom: 4 }}>Khối lượng dỡ thực tế:</div>
             <Input
               type="number"
               value={dischargeValues.actualWeight}
-              onChange={(e) => setDischargeValues({ ...dischargeValues, actualWeight: e.target.value })}
+              onChange={(e) => {
+                const w = e.target.value;
+                const isBulk = dischargingCargo?.unit === 'MT' && Number(dischargingCargo?.quantity) === Number(dischargingCargo?.weight);
+                setDischargeValues(prev => ({
+                  ...prev,
+                  actualWeight: w,
+                  ...(isBulk ? { actualQuantity: w } : {})
+                }));
+              }}
               suffix="MT"
             />
           </Col>
