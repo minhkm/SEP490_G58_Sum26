@@ -628,9 +628,9 @@ export default function CargoPage() {
       dataIndex: 'Voyage',
       render: (v) =>
         v ? (
-          <Tag color="blue">
-            VY-{String(v.id).padStart(4, '0')} ({v.departurePort} ➔ {v.destinationPort})
-          </Tag>
+          <div key={v.id}>
+            {v.voyageCode || `VY-${String(v.id).padStart(4, '0')}`} ({v.departurePort} ➔ {v.destinationPort})
+          </div>
         ) : (
           <Tag color="default">Chưa gán</Tag>
         ),
@@ -816,7 +816,7 @@ export default function CargoPage() {
         <PageHeader
           icon={<InboxOutlined />}
           breadcrumb="Tổng quan lô hàng và phân bổ hầm tàu"
-          title={activeVoyageId ? `Quản lý Hàng hóa - Chuyến VY-${String(activeVoyageId).padStart(4, '0')}` : "Quản lý Hàng hóa"}
+          title={activeVoyageId ? `Quản lý Hàng hóa - Chuyến ${activeVoyage?.voyageCode || `VY-${String(activeVoyageId).padStart(4, '0')}`}` : "Quản lý Hàng hóa"}
           extra={
             activeVoyageId ? (
               isChiefOfficer && isCargoLoadAllowed ? (

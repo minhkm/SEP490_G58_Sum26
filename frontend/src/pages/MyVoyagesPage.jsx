@@ -98,9 +98,9 @@ export default function MyVoyagesPage() {
 
   const columns = [
     {
-      title: 'Hải trình',
+      title: 'Mã chuyến',
       dataIndex: 'id',
-      render: (id) => <strong>VY-{String(id).padStart(4, '0')}</strong>,
+      render: (id, record) => <strong>{record.voyageCode || `VY-${String(id).padStart(4, '0')}`}</strong>,
     },
     {
       title: 'Tàu vận chuyển',

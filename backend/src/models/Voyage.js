@@ -3,6 +3,7 @@ const sequelize = require("../configs/database");
 
 const Voyage = sequelize.define("Voyage", {
   id: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
+  voyageCode: { type: DataTypes.STRING, unique: true },
   shipId: { type: DataTypes.INTEGER, allowNull: false },
   departurePort: { type: DataTypes.STRING },
   destinationPort: { type: DataTypes.STRING },

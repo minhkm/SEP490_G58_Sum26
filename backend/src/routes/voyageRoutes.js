@@ -133,6 +133,11 @@ router.post('/', authMiddleware, requireRole('Admin'), async (req, res) => {
       status: 'Planning'
     }, { transaction: t });
 
+    const yy = routeInfo.departureDate ? new Date(routeInfo.departureDate).getFullYear().toString().slice(-2) : new Date().getFullYear().toString().slice(-2);
+    const seq = String(voyage.id).padStart(3, '0');
+    const voyageCode = `QT17-${yy}${seq}-S`;
+    await voyage.update({ voyageCode }, { transaction: t });
+
     if (shipId) {
       await Ship.update({ status: 'Đang làm việc' }, { where: { id: shipId }, transaction: t });
     }
@@ -271,8 +276,7 @@ router.get("/", authMiddleware, async (req, res) => {
         },
       ],
       order: [
-        ["departureDate", "DESC"],
-        ["id", "DESC"],
+        ["id", "ASC"],
       ],
     });
 
