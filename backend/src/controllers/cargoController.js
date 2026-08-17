@@ -1,4 +1,7 @@
 const { Cargo, Voyage, CargoAllocation, CargoHold, Ship, CargoItem, VoyageCrew } = require("../models");
+const MAX_CARGO_NAME_LENGTH = 255;
+const MAX_CARGO_QUANTITY = 999999;
+const MAX_CARGO_MEASUREMENT = 999999999;
 
 exports.getAllCargos = async (req, res) => {
   try {
@@ -147,18 +150,30 @@ exports.getCargoById = async (req, res) => {
 exports.createCargo = async (req, res) => {
   try {
     const { voyageId, cargoName, cargoType, totalWeight, totalVolume, quantity, unit, status } = req.body;
+    const normalizedCargoName = String(cargoName || '').trim();
+    const normalizedWeight = Number(totalWeight);
+    const normalizedVolume = Number(totalVolume);
+    const normalizedQuantity = quantity == null || quantity === '' ? null : Number(quantity);
 
-    if (totalWeight <= 0 || totalVolume <= 0) {
-      return res.status(400).json({ success: false, message: "Khối lượng và thể tích phải lớn hơn 0" });
+    if (!normalizedCargoName || normalizedCargoName.length > MAX_CARGO_NAME_LENGTH) {
+      return res.status(400).json({ success: false, message: `Tên lô hàng là bắt buộc và tối đa ${MAX_CARGO_NAME_LENGTH} ký tự` });
+    }
+    if (!Number.isFinite(normalizedWeight) || normalizedWeight <= 0 || normalizedWeight > MAX_CARGO_MEASUREMENT
+      || !Number.isFinite(normalizedVolume) || normalizedVolume <= 0 || normalizedVolume > MAX_CARGO_MEASUREMENT) {
+      return res.status(400).json({ success: false, message: `Khối lượng và thể tích phải từ 0,01 đến ${MAX_CARGO_MEASUREMENT}` });
+    }
+    if (normalizedQuantity !== null
+      && (!Number.isInteger(normalizedQuantity) || normalizedQuantity <= 0 || normalizedQuantity > MAX_CARGO_QUANTITY)) {
+      return res.status(400).json({ success: false, message: `Số lượng phải là số nguyên từ 1 đến ${MAX_CARGO_QUANTITY}` });
     }
 
     const newCargo = await Cargo.create({
       voyageId: voyageId || null,
-      cargoName,
+      cargoName: normalizedCargoName,
       cargoType,
-      totalWeight,
-      totalVolume,
-      quantity: quantity || null,
+      totalWeight: normalizedWeight,
+      totalVolume: normalizedVolume,
+      quantity: normalizedQuantity,
       unit: unit || null,
       status: status || "Đã ở cảng"
     });
@@ -166,10 +181,10 @@ exports.createCargo = async (req, res) => {
     // Tự động tạo 1 CargoItem mặc định bằng toàn bộ khối lượng lô hàng
     await CargoItem.create({
       cargoId: newCargo.id,
-      itemName: cargoName,
+      itemName: normalizedCargoName,
       quantity: 1,
-      weight: totalWeight,
-      volume: totalVolume,
+      weight: normalizedWeight,
+      volume: normalizedVolume,
       isLoaded: false
     });
 
@@ -190,11 +205,26 @@ exports.updateCargo = async (req, res) => {
       return res.status(404).json({ success: false, message: "Không tìm thấy lô hàng" });
     }
 
-    if (totalWeight !== undefined && totalWeight <= 0) {
-      return res.status(400).json({ success: false, message: "Khối lượng phải lớn hơn 0" });
+    const normalizedCargoName = cargoName === undefined ? undefined : String(cargoName || '').trim();
+    const normalizedWeight = totalWeight === undefined ? undefined : Number(totalWeight);
+    const normalizedVolume = totalVolume === undefined ? undefined : Number(totalVolume);
+    const normalizedQuantity = quantity === undefined || quantity === null || quantity === '' ? quantity : Number(quantity);
+
+    if (normalizedCargoName !== undefined
+      && (!normalizedCargoName || normalizedCargoName.length > MAX_CARGO_NAME_LENGTH)) {
+      return res.status(400).json({ success: false, message: `Tên lô hàng là bắt buộc và tối đa ${MAX_CARGO_NAME_LENGTH} ký tự` });
     }
-    if (totalVolume !== undefined && totalVolume <= 0) {
-      return res.status(400).json({ success: false, message: "Thể tích phải lớn hơn 0" });
+    if (normalizedWeight !== undefined
+      && (!Number.isFinite(normalizedWeight) || normalizedWeight <= 0 || normalizedWeight > MAX_CARGO_MEASUREMENT)) {
+      return res.status(400).json({ success: false, message: `Khối lượng phải từ 0,01 đến ${MAX_CARGO_MEASUREMENT}` });
+    }
+    if (normalizedVolume !== undefined
+      && (!Number.isFinite(normalizedVolume) || normalizedVolume <= 0 || normalizedVolume > MAX_CARGO_MEASUREMENT)) {
+      return res.status(400).json({ success: false, message: `Thể tích phải từ 0,01 đến ${MAX_CARGO_MEASUREMENT}` });
+    }
+    if (normalizedQuantity !== undefined && normalizedQuantity !== null
+      && (!Number.isInteger(normalizedQuantity) || normalizedQuantity <= 0 || normalizedQuantity > MAX_CARGO_QUANTITY)) {
+      return res.status(400).json({ success: false, message: `Số lượng phải là số nguyên từ 1 đến ${MAX_CARGO_QUANTITY}` });
     }
 
     // Lô hàng đã thuộc hải trình thì bị khoá — không cho chỉnh sửa
@@ -204,11 +234,11 @@ exports.updateCargo = async (req, res) => {
 
     await cargo.update({
       voyageId: (voyageId === '' || voyageId === null) ? null : (voyageId !== undefined ? voyageId : cargo.voyageId),
-      cargoName: cargoName || cargo.cargoName,
+      cargoName: normalizedCargoName !== undefined ? normalizedCargoName : cargo.cargoName,
       cargoType: cargoType || cargo.cargoType,
-      totalWeight: totalWeight !== undefined ? totalWeight : cargo.totalWeight,
-      totalVolume: totalVolume !== undefined ? totalVolume : cargo.totalVolume,
-      quantity: quantity !== undefined ? quantity : cargo.quantity,
+      totalWeight: normalizedWeight !== undefined ? normalizedWeight : cargo.totalWeight,
+      totalVolume: normalizedVolume !== undefined ? normalizedVolume : cargo.totalVolume,
+      quantity: normalizedQuantity !== undefined ? normalizedQuantity : cargo.quantity,
       unit: unit !== undefined ? unit : cargo.unit,
       status: status || cargo.status
     });

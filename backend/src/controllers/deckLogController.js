@@ -17,7 +17,7 @@ const DECK_NUMERIC_RULES = {
   windForce: { min: 0, max: 12, integer: true },
   barometer: { min: 0 },
   seaState: { min: 0, max: 9, integer: true },
-  visibility: { min: 0 },
+  visibility: { min: 0, max: 9, integer: true },
   airTemp: {},
   seaTemp: {},
 };

@@ -32,6 +32,9 @@ const {
 } = require('../utils/voyageRole');
 
 const router = express.Router();
+const MAX_NAME_LENGTH = 255;
+const MAX_EQUIPMENT_QUANTITY = 999999;
+const MAX_CAPACITY_VALUE = 999999999;
 
 // GET /api/vessels - Lấy danh sách toàn bộ tàu
 router.get('/', async (req, res) => {
@@ -101,13 +104,16 @@ router.post('/', authMiddleware, requireRole('Admin'), async (req, res) => {
     }
     const invalidEquipment = equipmentList.some((equipment) => {
       const quantity = Number(equipment?.quantity);
-      return !String(equipment?.equipmentName || '').trim()
+      const equipmentName = String(equipment?.equipmentName || '').trim();
+      return !equipmentName
+        || equipmentName.length > MAX_NAME_LENGTH
         || !Number.isInteger(quantity)
-        || quantity <= 0;
+        || quantity <= 0
+        || quantity > MAX_EQUIPMENT_QUANTITY;
     });
     if (invalidEquipment) {
       return res.status(400).json({
-        message: 'Tên thiết bị là bắt buộc và số lượng phải là số nguyên dương.',
+        message: `Tên thiết bị tối đa ${MAX_NAME_LENGTH} ký tự và số lượng phải là số nguyên từ 1 đến ${MAX_EQUIPMENT_QUANTITY}.`,
       });
     }
     const duplicateEquipment = findDuplicateEquipment(equipmentList, true);
@@ -133,11 +139,29 @@ router.post('/', authMiddleware, requireRole('Admin'), async (req, res) => {
       });
     }
 
-    if (!holds || holds.length === 0) {
+    const shipMaxWeight = Number(capacity?.maxWeight);
+    const shipMaxVolume = Number(capacity?.maxVolume);
+    if (!Number.isFinite(shipMaxWeight) || shipMaxWeight <= 0 || shipMaxWeight > MAX_CAPACITY_VALUE
+      || !Number.isFinite(shipMaxVolume) || shipMaxVolume <= 0 || shipMaxVolume > MAX_CAPACITY_VALUE) {
+      return res.status(400).json({ message: `Tải trọng tối đa và thể tích tối đa phải từ 0,01 đến ${MAX_CAPACITY_VALUE}.` });
+    }
+
+    if (!Array.isArray(holds) || holds.length === 0) {
       return res.status(400).json({ message: 'Tàu phải có ít nhất một khoang chứa hàng.' });
     }
+    const invalidHold = holds.find((hold) => {
+      const holdCapacity = Number(hold?.capacity);
+      const holdName = String(hold?.name || '').trim();
+      return !holdName
+        || holdName.length > MAX_NAME_LENGTH
+        || !Number.isInteger(holdCapacity)
+        || holdCapacity <= 0
+        || holdCapacity > MAX_CAPACITY_VALUE;
+    });
+    if (invalidHold) {
+      return res.status(400).json({ message: `Tên khoang tối đa ${MAX_NAME_LENGTH} ký tự và sức chứa phải là số nguyên từ 1 đến ${MAX_CAPACITY_VALUE} m³.` });
+    }
     const totalHoldsCapacity = holds.reduce((sum, h) => sum + Number(h.capacity || 0), 0);
-    const shipMaxVolume = Number(capacity?.maxVolume || 0);
     if (totalHoldsCapacity > shipMaxVolume) {
       return res.status(400).json({ message: `Tổng sức chứa của các khoang (${totalHoldsCapacity}) không được vượt quá thể tích của tàu (${shipMaxVolume}).` });
     }
@@ -263,6 +287,20 @@ router.put('/:id', async (req, res) => {
     const { basicInfo, capacity, mainEngine, generatorEngines, holds, equipmentList } = req.body;
 
     if (Array.isArray(equipmentList)) {
+      const invalidEquipment = equipmentList.some((equipment) => {
+        const equipmentName = String(equipment?.equipmentName || '').trim();
+        const quantity = Number(equipment?.quantity);
+        return !equipmentName
+          || equipmentName.length > MAX_NAME_LENGTH
+          || !Number.isInteger(quantity)
+          || quantity <= 0
+          || quantity > MAX_EQUIPMENT_QUANTITY;
+      });
+      if (invalidEquipment) {
+        return res.status(400).json({
+          message: `Tên thiết bị tối đa ${MAX_NAME_LENGTH} ký tự và số lượng phải là số nguyên từ 1 đến ${MAX_EQUIPMENT_QUANTITY}.`,
+        });
+      }
       const invalidExpiryEquipment = equipmentList.find(
         (equipment) => normalizeEquipmentExpiryDate(equipment?.expiryNote) === undefined,
       );
@@ -281,11 +319,29 @@ router.put('/:id', async (req, res) => {
       }
     }
 
-    if (!holds || holds.length === 0) {
+    const shipMaxWeight = Number(capacity?.maxWeight);
+    const shipMaxVolume = Number(capacity?.maxVolume);
+    if (!Number.isFinite(shipMaxWeight) || shipMaxWeight <= 0 || shipMaxWeight > MAX_CAPACITY_VALUE
+      || !Number.isFinite(shipMaxVolume) || shipMaxVolume <= 0 || shipMaxVolume > MAX_CAPACITY_VALUE) {
+      return res.status(400).json({ message: `Tải trọng tối đa và thể tích tối đa phải từ 0,01 đến ${MAX_CAPACITY_VALUE}.` });
+    }
+
+    if (!Array.isArray(holds) || holds.length === 0) {
       return res.status(400).json({ message: 'Tàu phải có ít nhất một khoang chứa hàng.' });
     }
+    const invalidHold = holds.find((hold) => {
+      const holdCapacity = Number(hold?.capacity);
+      const holdName = String(hold?.name || '').trim();
+      return !holdName
+        || holdName.length > MAX_NAME_LENGTH
+        || !Number.isInteger(holdCapacity)
+        || holdCapacity <= 0
+        || holdCapacity > MAX_CAPACITY_VALUE;
+    });
+    if (invalidHold) {
+      return res.status(400).json({ message: `Tên khoang tối đa ${MAX_NAME_LENGTH} ký tự và sức chứa phải là số nguyên từ 1 đến ${MAX_CAPACITY_VALUE} m³.` });
+    }
     const totalHoldsCapacity = holds.reduce((sum, h) => sum + Number(h.capacity || 0), 0);
-    const shipMaxVolume = Number(capacity?.maxVolume || 0);
     if (totalHoldsCapacity > shipMaxVolume) {
       return res.status(400).json({ message: `Tổng sức chứa của các khoang (${totalHoldsCapacity}) không được vượt quá thể tích của tàu (${shipMaxVolume}).` });
     }
@@ -629,13 +685,16 @@ router.post('/:id/equipments', authMiddleware, async (req, res) => {
 
     const invalid = equipmentList.filter((equipment) => {
       const quantity = Number(equipment?.quantity);
-      return !String(equipment?.equipmentName || '').trim()
+      const equipmentName = String(equipment?.equipmentName || '').trim();
+      return !equipmentName
+        || equipmentName.length > MAX_NAME_LENGTH
         || !Number.isInteger(quantity)
-        || quantity <= 0;
+        || quantity <= 0
+        || quantity > MAX_EQUIPMENT_QUANTITY;
     });
     if (invalid.length > 0) {
       return res.status(400).json({
-        message: 'Tên thiết bị là bắt buộc và số lượng phải là số nguyên dương',
+        message: `Tên thiết bị tối đa ${MAX_NAME_LENGTH} ký tự và số lượng phải là số nguyên từ 1 đến ${MAX_EQUIPMENT_QUANTITY}`,
       });
     }
 

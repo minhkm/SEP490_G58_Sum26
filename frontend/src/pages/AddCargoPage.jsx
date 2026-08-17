@@ -22,6 +22,9 @@ import { notifySuccess, notifyError } from '../utils/feedback';
 const { Option } = Select;
 
 const ADD_CARGO_TYPE = '__add__';
+const MAX_CARGO_NAME_LENGTH = 255;
+const MAX_CARGO_QUANTITY = 999999;
+const MAX_CARGO_MEASUREMENT = 999999999;
 
 export default function AddCargoPage() {
   const navigate = useNavigate();
@@ -212,9 +215,12 @@ export default function AddCargoPage() {
             <Form.Item
               label="Tên Lô Hàng"
               name="cargoName"
-              rules={[{ required: true, message: 'Vui lòng nhập tên lô hàng' }]}
+              rules={[
+                { required: true, whitespace: true, message: 'Vui lòng nhập tên lô hàng' },
+                { max: MAX_CARGO_NAME_LENGTH, message: `Tên lô hàng tối đa ${MAX_CARGO_NAME_LENGTH} ký tự` },
+              ]}
             >
-              <Input placeholder="VD: Vietnam White Rice 5% Broken..." />
+              <Input maxLength={MAX_CARGO_NAME_LENGTH} showCount placeholder="VD: Gạo trắng 5% tấm..." />
             </Form.Item>
 
             <Row gutter={16}>
@@ -249,11 +255,13 @@ export default function AddCargoPage() {
                     name="quantity"
                     rules={[
                       { required: true, message: 'Vui lòng nhập số lượng' },
-                      { type: 'number', min: 1, message: 'Số lượng phải lớn hơn 0' }
+                      { type: 'number', min: 1, max: MAX_CARGO_QUANTITY, message: `Số lượng phải từ 1 đến ${MAX_CARGO_QUANTITY.toLocaleString('vi-VN')}` }
                     ]}
                   >
                     <InputNumber
                       min={1}
+                      max={MAX_CARGO_QUANTITY}
+                      precision={0}
                       placeholder={`VD: 500`}
                       style={{ width: '100%' }}
                     />
@@ -266,12 +274,13 @@ export default function AddCargoPage() {
                   name="totalWeight"
                   rules={[
                     { required: true, message: 'Vui lòng nhập tổng khối lượng' },
-                    { type: 'number', min: 0.01, message: 'Khối lượng phải lớn hơn 0' }
+                    { type: 'number', min: 0.01, max: MAX_CARGO_MEASUREMENT, message: `Khối lượng phải từ 0,01 đến ${MAX_CARGO_MEASUREMENT.toLocaleString('vi-VN')} tấn` }
                   ]}
                 >
                   <InputNumber
                     step={0.01}
-                    min={0}
+                    min={0.01}
+                    max={MAX_CARGO_MEASUREMENT}
                     placeholder="VD: 2750"
                     style={{ width: '100%' }}
                     onChange={handleWeightChange}
@@ -284,10 +293,10 @@ export default function AddCargoPage() {
                   name="totalVolume"
                   extra="Tự động ước tính: Thể tích = Khối lượng × Hệ số SF của loại hàng"
                   rules={[
-                    { type: 'number', min: 0.01, message: 'Thể tích phải lớn hơn 0' }
+                    { type: 'number', min: 0.01, max: MAX_CARGO_MEASUREMENT, message: `Thể tích phải từ 0,01 đến ${MAX_CARGO_MEASUREMENT.toLocaleString('vi-VN')} m³` }
                   ]}
                 >
-                  <InputNumber step={0.01} min={0} placeholder="VD: 3200" style={{ width: '100%' }} disabled />
+                  <InputNumber step={0.01} min={0.01} max={MAX_CARGO_MEASUREMENT} placeholder="VD: 3200" style={{ width: '100%' }} disabled />
                 </Form.Item>
               </Col>
             </Row>
