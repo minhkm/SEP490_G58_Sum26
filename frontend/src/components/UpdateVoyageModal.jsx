@@ -312,7 +312,7 @@ export default function UpdateVoyageModal({ voyage, onClose, onUpdate }) {
   return (
     <Modal
       open
-      title={<div style={{ fontSize: 22, fontWeight: 600, color: '#1e293b' }}>Chi tiết chuyến đi: <span style={{ color: '#2563eb' }}>VY-{String(voyage.id).padStart(4, '0')}</span></div>}
+      title={<div style={{ fontSize: 22, fontWeight: 600, color: '#1e293b' }}>Chi tiết chuyến đi: <span style={{ color: '#2563eb' }}>{voyage.voyageCode || `VY-${String(voyage.id).padStart(4, '0')}`}</span></div>}
       onCancel={onClose}
       width={960}
       centered

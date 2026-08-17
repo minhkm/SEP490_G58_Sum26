@@ -517,8 +517,8 @@ export default function RoutePlannerPage() {
               >
                 {voyages.map((v) => (
                   <Select.Option key={v.id} value={v.id}>
-                    VY-{String(v.id).padStart(4, '0')} - {v.departurePort} đến {v.destinationPort} (
-                    {translateStatus(v.status || 'Planning')})
+                    {v.voyageCode || `VY-${String(v.id).padStart(4, '0')}`} - {v.departurePort} đến {v.destinationPort} (
+                    {v.Ship?.shipName})
                     {v.routeStatus === 'Pending' && (
                       <Tag color="warning" style={{ marginLeft: 8 }}>
                         Chờ duyệt

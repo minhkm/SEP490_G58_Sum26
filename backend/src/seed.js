@@ -1001,6 +1001,16 @@ async function seed() {
 
     console.log('✅ Hải trình xong (6 chuyến)');
 
+    // Sinh mã hải trình cho các chuyến đã seed
+    const seededVoyages = [voy01, voy02, voy03, voy04, voy05, voy06];
+    for (const v of seededVoyages) {
+      const yy = v.departureDate ? new Date(v.departureDate).getFullYear().toString().slice(-2) : new Date().getFullYear().toString().slice(-2);
+      const seq = String(v.id).padStart(3, '0');
+      const voyageCode = `QT17-${yy}${seq}-S`;
+      await v.update({ voyageCode }, { transaction: t });
+    }
+
+
     // ---------- Lô hàng tự do: chưa thuộc hải trình nào ----------
     // Dùng để demo/test luồng tạo hải trình mới rồi gán hàng vào.
     await createCargoWithItems({
