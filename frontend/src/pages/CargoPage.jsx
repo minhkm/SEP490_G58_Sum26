@@ -636,6 +636,20 @@ export default function CargoPage() {
         ),
     },
     {
+      title: 'Trạng thái',
+      dataIndex: 'status',
+      render: (status) => {
+        let color = 'default';
+        if (status === 'Đã ở cảng') color = 'processing';
+        if (status === 'Đang xếp hàng') color = 'warning';
+        if (status === 'Đã xếp lên tàu') color = 'success';
+        if (status === 'Đang dỡ hàng') color = 'warning';
+        if (status === 'Đã dỡ xong') color = 'success';
+        if (status === 'Đã giao thành công') color = 'success';
+        return <Tag color={color}>{status || 'Không xác định'}</Tag>;
+      },
+    },
+    {
       title: 'Thao tác',
       key: 'actions',
       align: 'center',
