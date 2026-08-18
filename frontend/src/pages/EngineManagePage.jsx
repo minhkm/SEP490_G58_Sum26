@@ -93,7 +93,7 @@ export default function EngineManagePage() {
 
   // Modal cập nhật số đã dùng (vật tư y tế)
   const [medModal, setMedModal] = useState({ open: false, equip: null, newUsed: 1 });
-  const canUpdateSupplies = selectedVoyage?.status === 'Underway';
+  const canUpdateSupplies = ['Underway', 'At Anchor', 'Homeward Bounding'].includes(selectedVoyage?.status);
 
   // Chỉ tải đúng hải trình người dùng đã chọn tại trang "Hải trình của tôi".
   useEffect(() => {
@@ -145,8 +145,8 @@ export default function EngineManagePage() {
   const confirmEngineStatus = async () => {
     const { engine, newStatus } = engineModal;
     // Chỉ đổi trạng thái máy khi hải trình đang đi hoặc neo đậu.
-    if (!['Underway', 'Anchored'].includes(selectedVoyage?.status)) {
-      notifyError('Chỉ được phép đổi trạng thái máy khi hải trình đang đi hoặc neo đậu!');
+    if (!['Underway', 'Anchored', 'At Anchor', 'Homeward Bounding'].includes(selectedVoyage?.status)) {
+      notifyError('Chỉ được phép đổi trạng thái máy khi hải trình đang di chuyển, neo đậu hoặc quay về cảng xuất phát!');
       setEngineModal({ open: false, engine: null, newStatus: null });
       return;
     }
@@ -264,7 +264,7 @@ export default function EngineManagePage() {
           const statusCfg = getEngineStatusCfg(engine.status);
           const isMain    = isMainEngine(engine);
           // Được đổi trạng thái khi hải trình đang đi hoặc neo đậu
-          const canChangeStatus = ['Underway', 'Anchored'].includes(selectedVoyage?.status);
+          const canChangeStatus = ['Underway', 'Anchored', 'At Anchor', 'Homeward Bounding'].includes(selectedVoyage?.status);
           return (
             <Col xs={24} sm={12} lg={8} key={engine.id}>
               <Card

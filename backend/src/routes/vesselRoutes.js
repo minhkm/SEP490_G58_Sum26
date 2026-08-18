@@ -644,7 +644,7 @@ router.patch('/engines/:engineId/status', async (req, res) => {
       : await Voyage.findOne({
         where: {
           shipId: engine.shipId,
-          status: { [Op.in]: ['Underway', 'Anchored'] },
+          status: { [Op.in]: ['Underway', 'Anchored', 'At Anchor', 'Homeward Bounding'] },
         },
       });
     if (voyage && voyage.shipId != null && Number(voyage.shipId) !== Number(engine.shipId)) {
@@ -653,9 +653,9 @@ router.patch('/engines/:engineId/status', async (req, res) => {
     if (!voyage) {
       return res.status(400).json({ message: 'Không tìm thấy hải trình đang hoạt động của tàu.' });
     }
-    if (!['Underway', 'Anchored'].includes(voyage.status)) {
+    if (!['Underway', 'Anchored', 'At Anchor', 'Homeward Bounding'].includes(voyage.status)) {
       return res.status(400).json({
-        message: 'Chỉ được đổi trạng thái máy khi hải trình đang di chuyển hoặc đang neo đậu.',
+        message: 'Chỉ được đổi trạng thái máy khi hải trình đang di chuyển, neo đậu hoặc quay về cảng xuất phát.',
       });
     }
 
