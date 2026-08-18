@@ -54,6 +54,7 @@ import {
 
 const { Text } = Typography;
 const DATE_FORMAT = 'YYYY-MM-DD';
+const MAX_EQUIPMENT_QUANTITY = 999999;
 const toDayjs = (value) => (value ? dayjs(value, DATE_FORMAT) : null);
 
 const parseExcelExpiryDate = (value) => {
@@ -432,14 +433,14 @@ export default function CreateVoyagePage() {
       title: <span>Tên thuốc / vật tư <span style={{ color: 'red' }}>*</span></span>, dataIndex: 'name',
       render: (value, record) => (
         <Input placeholder="VD: Thuốc paracetamol, băng gạc, ..." value={value}
-          maxLength={255}
+          maxLength={255} showCount
           onChange={(e) => handleEquipmentChange(record.id, 'name', e.target.value)} />
       ),
     },
     {
       title: <span>Số lượng <span style={{ color: 'red' }}>*</span></span>, dataIndex: 'quantity', width: 120,
       render: (value, record) => (
-        <InputNumber min={1} style={{ width: '100%' }} placeholder="VD: 50" value={value || 1}
+        <InputNumber min={1} max={MAX_EQUIPMENT_QUANTITY} step={1} precision={0} style={{ width: '100%' }} placeholder="VD: 50" value={value || 1}
           onChange={(v) => handleEquipmentChange(record.id, 'quantity', v)} />
       ),
     },

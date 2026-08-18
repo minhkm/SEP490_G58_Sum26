@@ -1188,8 +1188,8 @@ router.patch('/equipments/:equipmentId/broken-count', authMiddleware, async (req
     if (!voyage) {
       return res.status(404).json({ message: 'Không tìm thấy hải trình của vật tư y tế.' });
     }
-    if (voyage.status !== 'Underway') {
-      return res.status(400).json({ message: 'Chỉ được cập nhật vật tư y tế khi hải trình đang di chuyển.' });
+    if (!['Underway', 'At Anchor', 'Homeward Bounding'].includes(voyage.status)) {
+      return res.status(400).json({ message: 'Chỉ được cập nhật vật tư y tế khi hải trình đang di chuyển, neo đậu hoặc quay về cảng xuất phát.' });
     }
 
     const currentUsedCount = Number(equipment.brokenCount) || 0;
