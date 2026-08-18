@@ -497,8 +497,8 @@ export default function CargoPage() {
   const handleCargoDischargeClick = (cargo) => {
     setDischargingCargo(cargo);
     setDischargeValues({
-      actualQuantity: cargo.quantity || '',
-      actualWeight: cargo.weight || ''
+      actualQuantity: cargo.isDischarged ? (cargo.dischargedQuantity ?? '') : (cargo.quantity || ''),
+      actualWeight: cargo.isDischarged ? (cargo.dischargedWeight ?? '') : (cargo.weight || '')
     });
     setDischargeModalOpen(true);
   };
@@ -745,6 +745,11 @@ export default function CargoPage() {
                 <div style={{ fontSize: 11, color: isDiff ? '#d97706' : '#64748b' }}>
                   KL: {cargo.dischargedWeight?.toLocaleString()} / {cargo.weight?.toLocaleString()} MT
                 </div>
+                {userRole === 'chiefofficer' && activeVoyage.status !== 'Completed' && (
+                  <Button type="link" size="small" onClick={() => handleCargoDischargeClick(cargo)} style={{ padding: 0, height: 'auto', marginTop: 4 }}>
+                    Sửa lại
+                  </Button>
+                )}
               </div>
             );
           }
@@ -1026,6 +1031,7 @@ export default function CargoPage() {
               <div style={{ marginBottom: 4 }}>Số lượng dỡ thực tế:</div>
               <Input
                 type="number"
+                min="0"
                 value={dischargeValues.actualQuantity}
                 onChange={(e) => setDischargeValues({ ...dischargeValues, actualQuantity: e.target.value })}
                 suffix={dischargingCargo?.unit === 'MT' ? undefined : dischargingCargo?.unit}
@@ -1037,6 +1043,7 @@ export default function CargoPage() {
             <div style={{ marginBottom: 4 }}>Khối lượng dỡ thực tế:</div>
             <Input
               type="number"
+              min="0"
               value={dischargeValues.actualWeight}
               onChange={(e) => {
                 const w = e.target.value;

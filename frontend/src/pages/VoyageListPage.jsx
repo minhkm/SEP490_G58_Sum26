@@ -209,7 +209,7 @@ export default function VoyageListPage() {
                     />
                   </Tooltip>
                 )}
-                {canAttendance && ['Loaded', 'Underway', 'Discharged'].includes(voyage.status) && (
+                {canAttendance && ['Loaded', 'Underway', 'Discharged', 'Homeward Bounding', 'At Anchor'].includes(voyage.status) && (
                   <Tooltip title="Điểm danh thuyền viên">
                     <Button
                       type="text"

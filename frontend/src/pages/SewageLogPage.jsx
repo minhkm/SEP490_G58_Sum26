@@ -504,7 +504,7 @@ export default function SewageLogPage() {
                 style={{ flex: 1 }}
                 rules={[{ required: true, message: 'Vui lòng nhập' }]}
               >
-                <InputNumber min={0} step={0.1} style={{ width: '100%' }} placeholder="Ví dụ: 15.5" />
+                <InputNumber min={0} max={9999} step={0.1} style={{ width: '100%' }} placeholder="Ví dụ: 15.5" />
               </Form.Item>
               
               <Form.Item 
@@ -513,7 +513,7 @@ export default function SewageLogPage() {
                 style={{ flex: 1 }}
                 rules={[{ required: true, message: 'Vui lòng nhập' }]}
               >
-                <InputNumber min={0} step={0.1} style={{ width: '100%' }} placeholder="Ví dụ: 12.0" />
+                <InputNumber min={0} max={100} step={0.1} style={{ width: '100%' }} placeholder="Ví dụ: 12.0" />
               </Form.Item>
             </div>
 
@@ -523,6 +523,8 @@ export default function SewageLogPage() {
               <div style={{ display: 'flex', gap: 16, marginTop: 8 }}>
                 <Form.Item label="Vĩ độ (Latitude)" style={{ flex: 1, marginBottom: 0 }}>
                   <InputNumber 
+                    min={-90}
+                    max={90}
                     value={selectedLat} 
                     onChange={(val) => setSelectedLat(val || 0)} 
                     style={{ width: '100%' }} 
@@ -531,6 +533,8 @@ export default function SewageLogPage() {
                 </Form.Item>
                 <Form.Item label="Kinh độ (Longitude)" style={{ flex: 1, marginBottom: 0 }}>
                   <InputNumber 
+                    min={-180}
+                    max={180}
                     value={selectedLng} 
                     onChange={(val) => setSelectedLng(val || 0)} 
                     style={{ width: '100%' }} 
@@ -561,12 +565,12 @@ export default function SewageLogPage() {
 
             <div style={{ display: 'flex', gap: 16 }}>
               <Form.Item name="volume" label="Khối lượng (m³)" style={{ flex: 1 }} rules={[{ required: true, message: 'Vui lòng nhập khối lượng' }]}>
-                <InputNumber min={0.1} step={0.1} style={{ width: '100%' }} />
+                <InputNumber min={0.1} max={99999} step={0.1} style={{ width: '100%' }} />
               </Form.Item>
             </div>
 
-            <Form.Item name="remarks" label="Ghi chú thêm">
-              <Input.TextArea rows={2} placeholder="Các ghi chú hoặc tình trạng thiết bị (nếu có)" />
+            <Form.Item name="remarks" label="Ghi chú thêm" rules={[{ max: 500, message: 'Ghi chú không vượt quá 500 ký tự' }]}>
+              <Input.TextArea maxLength={500} rows={2} placeholder="Các ghi chú hoặc tình trạng thiết bị (nếu có)" />
             </Form.Item>
 
             <Form.Item label="Hình ảnh đính kèm (Tối đa 5 ảnh)">

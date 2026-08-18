@@ -382,9 +382,12 @@ export default function CargoTypePage() {
           <Form.Item
             label="Tên Loại Hàng"
             name="name"
-            rules={[{ required: true, message: 'Vui lòng nhập tên loại hàng' }]}
+            rules={[
+              { required: true, message: 'Vui lòng nhập tên loại hàng' },
+              { max: 100, message: 'Tên loại hàng không được vượt quá 100 ký tự' }
+            ]}
           >
-            <Input placeholder="VD: Gạo, Than đá, Sắt thép, Bông sợi, Ngũ cốc..." />
+            <Input maxLength={100} placeholder="VD: Gạo, Than đá, Sắt thép, Bông sợi, Ngũ cốc..." />
           </Form.Item>
 
           <Row gutter={16}>
@@ -422,8 +425,12 @@ export default function CargoTypePage() {
             </Col>
           </Row>
 
-          <Form.Item label="Mô Tả / Ghi Chú Đặc Tính" name="description">
-            <Input.TextArea rows={3} placeholder="VD: Gạo xuất khẩu đóng bao 50kg, than đá công nghiệp..." />
+          <Form.Item
+            label="Mô Tả / Ghi Chú Đặc Tính"
+            name="description"
+            rules={[{ max: 500, message: 'Mô tả không được vượt quá 500 ký tự' }]}
+          >
+            <Input.TextArea maxLength={500} rows={3} placeholder="VD: Gạo xuất khẩu đóng bao 50kg, than đá công nghiệp..." />
           </Form.Item>
         </Form>
       </Modal>
@@ -449,9 +456,12 @@ export default function CargoTypePage() {
           <Form.Item
             label="Tên Loại Hàng"
             name="name"
-            rules={[{ required: true, message: 'Vui lòng nhập tên loại hàng' }]}
+            rules={[
+              { required: true, message: 'Vui lòng nhập tên loại hàng' },
+              { max: 100, message: 'Tên loại hàng không được vượt quá 100 ký tự' }
+            ]}
           >
-            <Input placeholder="Tên loại hàng" />
+            <Input maxLength={100} placeholder="Tên loại hàng" />
           </Form.Item>
 
           <Row gutter={16}>
@@ -489,8 +499,12 @@ export default function CargoTypePage() {
             </Col>
           </Row>
 
-          <Form.Item label="Mô Tả / Ghi Chú Đặc Tính" name="description">
-            <Input.TextArea rows={3} placeholder="Mô tả..." />
+          <Form.Item
+            label="Mô Tả / Ghi Chú Đặc Tính"
+            name="description"
+            rules={[{ max: 500, message: 'Mô tả không được vượt quá 500 ký tự' }]}
+          >
+            <Input.TextArea maxLength={500} rows={3} placeholder="Mô tả..." />
           </Form.Item>
         </Form>
       </Modal>

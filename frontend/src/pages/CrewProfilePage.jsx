@@ -338,9 +338,12 @@ export default function CrewProfilePage() {
                     <Form.Item
                       label="Tên chứng chỉ"
                       name="certificateName"
-                      rules={[{ required: true, message: 'Vui lòng điền đầy đủ thông tin.' }]}
+                      rules={[
+                        { required: true, message: 'Vui lòng điền đầy đủ thông tin.' },
+                        { max: 100, message: 'Tên chứng chỉ không vượt quá 100 ký tự' }
+                      ]}
                     >
-                      <Input placeholder="Ví dụ: Certificate of Competency - OOW" />
+                      <Input maxLength={100} placeholder="Ví dụ: Certificate of Competency - OOW" />
                     </Form.Item>
                   </Col>
                   <Col xs={12} md={6}>
@@ -458,10 +461,11 @@ export default function CrewProfilePage() {
                               label="Tên chứng chỉ"
                               name="certificateName"
                               rules={[
-                                { required: true, message: 'Vui lòng điền đầy đủ thông tin bắt buộc.' },
+                                { required: true, message: 'Vui lòng điền đầy đủ thông tin.' },
+                                { max: 100, message: 'Tên chứng chỉ không vượt quá 100 ký tự' }
                               ]}
                             >
-                              <Input />
+                              <Input maxLength={100} placeholder="Tên chứng chỉ..." />
                             </Form.Item>
                           </Col>
                           <Col xs={12} md={6}>
