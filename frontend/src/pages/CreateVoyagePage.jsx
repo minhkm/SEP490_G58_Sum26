@@ -665,8 +665,8 @@ export default function CreateVoyagePage() {
                         onChange={(value) => setShipId(value)}
                         options={availableShips.map((ship) => ({
                           value: ship.id,
-                          label: `${ship.shipName} (IMO: ${ship.imoNumber})${ship.status === 'OnVoyage' ? ' - Đang bận' : ''}`,
-                          disabled: ship.status === 'OnVoyage',
+                          label: `${ship.shipName} (IMO: ${ship.imoNumber})${ship.status === 'Đang làm việc' ? ' - Đang bận' : ''}`,
+                          disabled: ship.status === 'Đang làm việc',
                         }))}
                       />
                     </Form.Item>
@@ -757,7 +757,7 @@ export default function CreateVoyagePage() {
                 label: 'Lô hàng',
                 children: (
               <Card
-                title="Lô hàng Dự kiến (Tùy chọn)"
+                title={<span>Lô hàng Dự kiến <span style={{ color: '#ef4444' }}>*</span></span>}
                 extra={
                   <Button type="link" icon={<PlusOutlined />} onClick={addCargo}>
                     Thêm Lô hàng
@@ -772,7 +772,7 @@ export default function CreateVoyagePage() {
                         <p style={{ margin: 0 }}>
                           Chưa có lô hàng nào được liên kết với hải trình này.
                         </p>
-                        <Text type="secondary">Bạn có thể thêm lô hàng sau khi lưu hải trình.</Text>
+                        <Text type="danger">Hải trình bắt buộc phải có ít nhất một lô hàng.</Text>
                       </div>
                     }
                   />

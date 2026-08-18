@@ -35,6 +35,22 @@ const router = express.Router();
 const MAX_NAME_LENGTH = 255;
 const MAX_EQUIPMENT_QUANTITY = 999999;
 const MAX_CAPACITY_VALUE = 999999999;
+const REQUIRED_ENGINE_PARAMS = [
+  'Áp suất dầu nhiên liệu (kg/cm²)',
+  'Nhiệt độ khí xả XL2 (°C)',
+  'Nhiệt độ nước làm mát (°C)',
+];
+const hasRequiredEngineParams = (parameters) => {
+  const map = new Map(
+    (parameters || [])
+      .filter((p) => p?.name)
+      .map((p) => [normalizeEngineParameterName(p.name), p]),
+  );
+  return REQUIRED_ENGINE_PARAMS.every((name) => {
+    const p = map.get(name);
+    return p && p.maxValue !== '' && p.maxValue !== null && p.maxValue !== undefined;
+  });
+};
 
 // GET /api/vessels - Lấy danh sách toàn bộ tàu
 router.get('/', async (req, res) => {
@@ -166,6 +182,22 @@ router.post('/', authMiddleware, requireRole('Admin'), async (req, res) => {
       return res.status(400).json({ message: `Tổng sức chứa của các khoang (${totalHoldsCapacity}) không được vượt quá thể tích của tàu (${shipMaxVolume}).` });
     }
 
+    if (!mainEngine?.engineName?.trim()) {
+      return res.status(400).json({ message: 'Vui lòng nhập Tên động cơ cho Máy chính.' });
+    }
+    if (!hasRequiredEngineParams(mainEngine.parameters)) {
+      return res.status(400).json({ message: 'Vui lòng nhập đủ các hạn mức chỉ số an toàn bắt buộc cho Máy chính.' });
+    }
+    if (Array.isArray(generatorEngines) && generatorEngines.length > 0) {
+      for (const gen of generatorEngines) {
+        if (!gen?.engineName?.trim()) {
+          return res.status(400).json({ message: 'Vui lòng nhập Tên máy cho các máy đèn.' });
+        }
+        if (!hasRequiredEngineParams(gen.parameters)) {
+          return res.status(400).json({ message: `Vui lòng nhập đủ các hạn mức chỉ số an toàn bắt buộc cho máy phụ (${String(gen.engineName || 'chưa có tên').trim()}).` });
+        }
+      }
+    }
     if (mainEngine?.engineName && parseEngineStatus(mainEngine.status) !== ENGINE_STATUS.OPERATIONAL) {
       return res.status(400).json({ message: 'Máy chính mới bắt buộc phải ở trạng thái Hoạt động.' });
     }
@@ -350,6 +382,23 @@ router.put('/:id', async (req, res) => {
     if (newMainEngine && parseEngineStatus(newMainEngine.status) !== ENGINE_STATUS.OPERATIONAL) {
       return res.status(400).json({ message: 'Máy chính mới bắt buộc phải ở trạng thái Hoạt động.' });
     }
+    // Validate: tên máy chính + 3 hạn mức an toàn bắt buộc (áp dụng cho cả máy cũ và mới trên form update)
+    if (!mainEngine?.engineName?.trim()) {
+      return res.status(400).json({ message: 'Vui lòng nhập Tên động cơ cho Máy chính.' });
+    }
+    if (!hasRequiredEngineParams(mainEngine.parameters)) {
+      return res.status(400).json({ message: 'Vui lòng nhập đủ các hạn mức chỉ số an toàn bắt buộc cho Máy chính.' });
+    }
+    if (Array.isArray(generatorEngines) && generatorEngines.length > 0) {
+      for (const gen of generatorEngines) {
+        if (!gen?.engineName?.trim()) {
+          return res.status(400).json({ message: 'Vui lòng nhập Tên máy cho các máy đèn.' });
+        }
+        if (!hasRequiredEngineParams(gen.parameters)) {
+          return res.status(400).json({ message: `Vui lòng nhập đủ các hạn mức chỉ số an toàn bắt buộc cho máy phụ (${String(gen.engineName || 'chưa có tên').trim()}).` });
+        }
+      }
+    }
     const newAuxiliaryEngines = (generatorEngines || [])
       .filter((engine) => !engine.id && engine.engineName);
     const duplicateEngine = findDuplicateEngine([
@@ -366,7 +415,7 @@ router.put('/:id', async (req, res) => {
         message: 'Máy phụ mới chỉ được khai báo ở trạng thái Hoạt động hoặc Dự phòng.',
       });
     }
-    
+
     const vessel = await Ship.findByPk(vesselId);
     if (!vessel) return res.status(404).json({ message: 'Không tìm thấy tàu' });
 

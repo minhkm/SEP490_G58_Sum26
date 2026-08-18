@@ -709,6 +709,10 @@ router.put('/:id', authMiddleware, async (req, res) => {
 
     // Process cargoList if provided and allowed
     if (isShipStaff && cargoList && Array.isArray(cargoList)) {
+      if (!['Loading', 'Loaded'].includes(voyage.status)) {
+        return res.status(400).json({ message: 'Chỉ được phép phân bổ và xếp hàng khi hải trình đang trong trạng thái Làm hàng!' });
+      }
+      
       if (cargoList.length > 0) {
         // PRE-VALIDATE HOLD CAPACITIES IN VOLUME (m³)
         const allHolds = await CargoHold.findAll({ where: { shipId: voyage.shipId } });
