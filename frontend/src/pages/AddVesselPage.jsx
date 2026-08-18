@@ -716,7 +716,9 @@ export default function AddVesselPage() {
     }
 
     try {
+      // Truyền id vào để backend phân biệt record cần UPDATE vs CREATE mới
       const normalizedEquipments = shipEquipments.map(e => ({
+        ...(e.id ? { id: e.id } : {}),
         equipmentName: e.equipmentName.trim(),
         equipmentType: e.equipmentType || 'Khác',
         location: e.location || 'Boong',
@@ -734,20 +736,6 @@ export default function AddVesselPage() {
 
       if (isEditMode) {
         await vesselService.update(id, payload);
-        // Thiết bị đã có `id` đang tồn tại trong DB, không gửi lại vào API tạo mới
-        // để tránh nhân đôi toàn bộ danh sách mỗi lần cập nhật hồ sơ tàu.
-        const newEquipments = shipEquipments.filter(
-          e => !e.id && e.equipmentName && e.equipmentName.trim()
-        );
-        if (newEquipments.length > 0) {
-          await vesselService.createShipEquipments(id, newEquipments.map(e => ({
-            equipmentName: e.equipmentName,
-            equipmentType: e.equipmentType || 'Khác',
-            location: e.location || 'Boong',
-            quantity: Number(e.quantity),
-            expiryNote: normalizeEquipmentExpiryDate(e.expiryNote),
-          })));
-        }
         notifySuccess('Cập nhật thông tin tàu thành công!');
       } else {
         await vesselService.create(payload);
