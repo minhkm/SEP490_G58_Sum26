@@ -889,6 +889,7 @@ export default function AddVesselPage() {
                   </div>
                   <Input
                     placeholder="Ví dụ: Hải Trình Biển Đông"
+                    maxLength={100}
                     value={basicInfo.shipName}
                     onChange={(e) => setBasicInfo({ ...basicInfo, shipName: e.target.value })}
                   />

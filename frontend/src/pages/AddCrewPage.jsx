@@ -228,19 +228,22 @@ export default function AddCrewPage() {
                 <Form.Item
                   label="Họ và Tên"
                   name="fullName"
-                  rules={[{ required: true, message: 'Vui lòng điền đầy đủ Họ tên và Email.' }]}
+                  rules={[
+                    { required: true, message: 'Vui lòng điền đầy đủ Họ tên và Email.' },
+                    { max: 100, message: 'Họ tên không được vượt quá 100 ký tự' }
+                  ]}
                 >
-                  <Input placeholder="Ví dụ: Nguyễn Văn A" disabled={isEditMode} />
+                  <Input maxLength={100} placeholder="Ví dụ: Nguyễn Văn A" disabled={isEditMode} />
                 </Form.Item>
                 <Row gutter={16}>
                   <Col xs={24} md={12}>
                     <Form.Item label="CCCD" name="cccd">
-                      <Input placeholder="Mã định danh" disabled={isEditMode} />
+                      <Input maxLength={12} placeholder="Mã định danh" disabled={isEditMode} />
                     </Form.Item>
                   </Col>
                   <Col xs={24} md={12}>
                     <Form.Item label="Số điện thoại" name="phone">
-                      <Input placeholder="+84..." />
+                      <Input maxLength={15} placeholder="+84..." />
                     </Form.Item>
                   </Col>
                 </Row>
@@ -324,9 +327,10 @@ export default function AddCrewPage() {
                   rules={[
                     { required: true, message: 'Vui lòng điền đầy đủ Họ tên và Email.' },
                     { type: 'email', message: 'Email không hợp lệ.' },
+                    { max: 100, message: 'Email không vượt quá 100 ký tự' }
                   ]}
                 >
-                  <Input placeholder="abc@cargoops.vn" disabled={isEditMode} />
+                  <Input maxLength={100} placeholder="abc@cargoops.vn" disabled={isEditMode} />
                 </Form.Item>
                 {isEditMode ? (
                   <Form.Item label="Mật khẩu mới (Bỏ trống nếu không đổi)" name="password">

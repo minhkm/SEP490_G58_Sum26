@@ -446,17 +446,23 @@ export default function PortPage() {
           <Form.Item
             label="Tên Cảng"
             name="portName"
-            rules={[{ required: true, message: 'Vui lòng nhập tên cảng' }]}
+            rules={[
+              { required: true, message: 'Vui lòng nhập tên cảng' },
+              { max: 100, message: 'Tên cảng không được vượt quá 100 ký tự' }
+            ]}
           >
-            <Input placeholder="VD: Cảng Cát Lái (Hồ Chí Minh, Việt Nam)" />
+            <Input maxLength={100} placeholder="VD: Cảng Cát Lái (Hồ Chí Minh, Việt Nam)" />
           </Form.Item>
 
           <Form.Item
             label="Quốc gia"
             name="country"
-            rules={[{ required: true, message: 'Vui lòng nhập quốc gia' }]}
+            rules={[
+              { required: true, whitespace: true, message: 'Vui lòng nhập quốc gia hợp lệ' },
+              { max: 50, message: 'Quốc gia không được vượt quá 50 ký tự' }
+            ]}
           >
-            <Input placeholder="VD: Vietnam, Singapore, Thailand..." />
+            <Input maxLength={50} placeholder="VD: Vietnam, Singapore, Thailand..." />
           </Form.Item>
 
           <Row gutter={16}>
@@ -541,17 +547,23 @@ export default function PortPage() {
           <Form.Item
             label="Tên Cảng"
             name="portName"
-            rules={[{ required: true, message: 'Vui lòng nhập tên cảng' }]}
+            rules={[
+              { required: true, message: 'Vui lòng nhập tên cảng' },
+              { max: 100, message: 'Tên cảng không được vượt quá 100 ký tự' }
+            ]}
           >
-            <Input placeholder="Tên cảng" />
+            <Input maxLength={100} placeholder="Tên cảng" />
           </Form.Item>
 
           <Form.Item
             label="Quốc gia"
             name="country"
-            rules={[{ required: true, message: 'Vui lòng nhập quốc gia' }]}
+            rules={[
+              { required: true, whitespace: true, message: 'Vui lòng nhập quốc gia hợp lệ' },
+              { max: 50, message: 'Quốc gia không được vượt quá 50 ký tự' }
+            ]}
           >
-            <Input placeholder="Quốc gia" />
+            <Input maxLength={50} placeholder="Quốc gia" />
           </Form.Item>
 
           <Row gutter={16}>
