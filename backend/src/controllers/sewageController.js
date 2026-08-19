@@ -28,11 +28,15 @@ exports.createRequest = async (req, res) => {
 
     const { voyageId, dischargeType, distanceFromLand, shipSpeed, volume, plannedDischargeDate, startLat, startLng, remarks } = req.body;
 
+    if (!dischargeType || !plannedDischargeDate || distanceFromLand === undefined || shipSpeed === undefined || volume === undefined || !startLat || !startLng) {
+      return res.status(400).json({ message: 'Vui lòng điền đầy đủ các thông tin bắt buộc (loại xả thải, thời gian, khoảng cách, tốc độ, thể tích, tọa độ).' });
+    }
+
     const voyage = await Voyage.findByPk(voyageId);
     if (!voyage) return res.status(404).json({ message: 'Không tìm thấy chuyến đi.' });
 
-    if (voyage.status !== 'Underway') {
-      return res.status(400).json({ message: 'Tàu chưa chạy (Status không phải Underway). Không được phép xả nước thải.' });
+    if (voyage.status !== 'Underway' && voyage.status !== 'Homeward Bounding') {
+      return res.status(400).json({ message: 'Tàu chưa chạy (Status không phải Underway hoặc Homeward Bounding). Không được phép xả nước thải.' });
     }
 
     let isCompliant = true;
@@ -60,16 +64,6 @@ exports.createRequest = async (req, res) => {
       remarks,
       images
     });
-
-    // Notify Master
-    try {
-      const master = await User.findOne({ where: { role: 'Master' } });
-      if (master) {
-        await sendSewageApprovalEmail(master.username, req.user.username, voyageId);
-      }
-    } catch(err) {
-      console.error("Error sending email:", err);
-    }
 
     res.status(201).json({ message: 'Tạo yêu cầu xả thải thành công.', log: newLog });
   } catch (error) {

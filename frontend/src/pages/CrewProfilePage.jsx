@@ -285,7 +285,14 @@ export default function CrewProfilePage() {
                 </Col>
                 <Col xs={24} sm={12}></Col>
                 <Col xs={24} sm={12}>
-                  <Form.Item label="Mật khẩu mới" name="newPassword" rules={[{ required: true, message: 'Vui lòng nhập mật khẩu mới', min: 6 }]}>
+                  <Form.Item 
+                    label="Mật khẩu mới" 
+                    name="newPassword" 
+                    rules={[
+                      { required: true, message: 'Vui lòng nhập mật khẩu mới' },
+                      { min: 6, message: 'Mật khẩu phải có ít nhất 6 ký tự' }
+                    ]}
+                  >
                     <Input.Password />
                   </Form.Item>
                 </Col>
@@ -373,6 +380,10 @@ export default function CrewProfilePage() {
                         </span>
                       }
                       name="fileUrl"
+                      rules={[
+                        { type: 'url', message: 'Vui lòng nhập đúng định dạng URL hợp lệ' },
+                        { max: 255, message: 'Đường dẫn không được vượt quá 255 ký tự' }
+                      ]}
                     >
                       <Input placeholder="https://drive.google.com/..." />
                     </Form.Item>
@@ -498,6 +509,10 @@ export default function CrewProfilePage() {
                                 </span>
                               }
                               name="fileUrl"
+                              rules={[
+                                { type: 'url', message: 'Vui lòng nhập đúng định dạng URL hợp lệ' },
+                                { max: 255, message: 'Đường dẫn không được vượt quá 255 ký tự' }
+                              ]}
                             >
                               <Input placeholder="https://drive.google.com/..." />
                             </Form.Item>

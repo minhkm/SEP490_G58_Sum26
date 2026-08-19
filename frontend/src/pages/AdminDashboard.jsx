@@ -71,7 +71,7 @@ export default function AdminDashboard() {
       placement: 'right',
     },
     {
-      target: '.topbar-help-btn',
+      target: '.tour-help-btn',
       content: 'Bạn luôn có thể xem lại hướng dẫn này bất cứ lúc nào bằng cách nhấn vào đây!',
       placement: 'left',
     }

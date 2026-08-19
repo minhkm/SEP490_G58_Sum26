@@ -405,11 +405,19 @@ export default function ReportListPage() {
           <Form.Item label="Mức độ ưu tiên" name="priority" rules={[{ required: true }]}>
             <Select options={Object.entries(PRIORITY_LABEL).map(([value, label]) => ({ label, value }))} />
           </Form.Item>
-          <Form.Item label="Tiêu đề" name="title" rules={[{ required: true, message: 'Vui lòng nhập tiêu đề' }]}>
-            <Input placeholder="VD: Xin đổi ca trực ngày..." />
+          <Form.Item label="Tiêu đề" name="title" rules={[
+            { required: true, message: 'Vui lòng nhập tiêu đề' },
+            { min: 5, message: 'Tiêu đề tối thiểu 5 ký tự' },
+            { max: 100, message: 'Tiêu đề tối đa 100 ký tự' }
+          ]}>
+            <Input placeholder="VD: Xin đổi ca trực ngày..." showCount maxLength={100} />
           </Form.Item>
-          <Form.Item label="Nội dung" name="content" rules={[{ required: true, message: 'Vui lòng nhập nội dung' }]}>
-            <TextArea rows={4} placeholder="Mô tả chi tiết nội dung báo cáo..." />
+          <Form.Item label="Nội dung" name="content" rules={[
+            { required: true, message: 'Vui lòng nhập nội dung' },
+            { min: 10, message: 'Nội dung tối thiểu 10 ký tự' },
+            { max: 1000, message: 'Nội dung tối đa 1000 ký tự' }
+          ]}>
+            <TextArea rows={4} placeholder="Mô tả chi tiết nội dung báo cáo..." showCount maxLength={1000} />
           </Form.Item>
         </Form>
       </Modal>

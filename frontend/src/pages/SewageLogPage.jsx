@@ -403,8 +403,8 @@ export default function SewageLogPage() {
               type="primary" 
               icon={<PlusOutlined />} 
               onClick={() => setIsModalVisible(true)}
-              disabled={!voyageInfo || !['Underway', 'Arrived', 'Discharge', 'Discharged', 'Homeward Bounding'].includes(voyageInfo.status)}
-              title={(!voyageInfo || !['Underway', 'Arrived', 'Discharge', 'Discharged', 'Homeward Bounding'].includes(voyageInfo.status)) ? 'Chỉ được phép xả thải khi tàu đang di chuyển (từ Underway đến Homeward Bounding)' : ''}
+              disabled={!voyageInfo || !['Underway', 'Homeward Bounding'].includes(voyageInfo.status)}
+              title={(!voyageInfo || !['Underway', 'Homeward Bounding'].includes(voyageInfo.status)) ? 'Chỉ được phép xả thải khi tàu đang chạy (Underway hoặc Homeward Bounding)' : ''}
             >
               Tạo yêu cầu xả thải
             </Button>

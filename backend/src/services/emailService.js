@@ -156,9 +156,33 @@ const sendSewageApprovalEmail = async (email, applicantName, voyageId) => {
   }
 };
 
+const sendShiftAssignmentEmail = async (email, crewName, voyageId, date, shifts) => {
+  try {
+    const shiftList = shifts.map(s => `<li>${s.slotLabel}</li>`).join('');
+    await sendEmail({
+      to: email,
+      subject: `Thông báo phân ca trực chuyến đi VY-${String(voyageId).padStart(4, '0')} ngày ${date}`,
+      html: `
+        <h2>Thông báo phân ca trực</h2>
+        <p>Thân gửi <strong>${crewName || 'thuyền viên'}</strong>,</p>
+        <p>Bạn đã được phân công ca trực cho chuyến đi <strong>VY-${String(voyageId).padStart(4, '0')}</strong> vào ngày <strong>${date}</strong>.</p>
+        <p>Chi tiết các ca trực:</p>
+        <ul>${shiftList}</ul>
+        <p>Vui lòng đăng nhập CargoOps để xem chi tiết.</p>
+        <br><p>Trân trọng,<br>CargoOps Team</p>
+      `
+    });
+    return true;
+  } catch (error) {
+    console.error(`Error sending email to ${email} via Gmail API:`, error.message);
+    return false;
+  }
+};
+
 module.exports = {
   sendEmail,
   sendCrewCredentialsEmail,
   sendRouteApprovalEmail,
-  sendSewageApprovalEmail
+  sendSewageApprovalEmail,
+  sendShiftAssignmentEmail
 };

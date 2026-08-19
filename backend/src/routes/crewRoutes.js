@@ -51,6 +51,11 @@ router.put('/me', authMiddleware, async (req, res) => {
 router.put('/me/password', authMiddleware, async (req, res) => {
   try {
     const { oldPassword, newPassword } = req.body;
+    
+    if (!newPassword || newPassword.length < 6) {
+      return res.status(400).json({ message: 'Mật khẩu mới phải có ít nhất 6 ký tự.' });
+    }
+
     const user = await User.findByPk(req.user.id);
     
     const isMatch = await bcrypt.compare(oldPassword, user.password);
@@ -94,8 +99,15 @@ router.post('/me/certificates', authMiddleware, async (req, res) => {
     if (certificateName.trim().length > 255) {
       return res.status(400).json({ message: 'Tên chứng chỉ không được vượt quá 255 ký tự.' });
     }
-    if (fileUrl && fileUrl.length > 255) {
-      return res.status(400).json({ message: 'Link ảnh không được vượt quá 255 ký tự.' });
+    if (fileUrl) {
+      if (fileUrl.length > 255) {
+        return res.status(400).json({ message: 'Link ảnh không được vượt quá 255 ký tự.' });
+      }
+      try {
+        new URL(fileUrl);
+      } catch (err) {
+        return res.status(400).json({ message: 'Link ảnh không hợp lệ (phải là định dạng URL).' });
+      }
     }
     if (issueDate && expiryDate && new Date(issueDate) >= new Date(expiryDate)) {
       return res.status(400).json({ message: 'Ngày cấp phải trước ngày hết hạn.' });
@@ -135,8 +147,15 @@ router.put('/me/certificates/:certId', authMiddleware, async (req, res) => {
     if (certificateName.trim().length > 255) {
       return res.status(400).json({ message: 'Tên chứng chỉ không được vượt quá 255 ký tự.' });
     }
-    if (fileUrl && fileUrl.length > 255) {
-      return res.status(400).json({ message: 'Link ảnh không được vượt quá 255 ký tự.' });
+    if (fileUrl) {
+      if (fileUrl.length > 255) {
+        return res.status(400).json({ message: 'Link ảnh không được vượt quá 255 ký tự.' });
+      }
+      try {
+        new URL(fileUrl);
+      } catch (err) {
+        return res.status(400).json({ message: 'Link ảnh không hợp lệ (phải là định dạng URL).' });
+      }
     }
     if (issueDate && expiryDate && new Date(issueDate) >= new Date(expiryDate)) {
       return res.status(400).json({ message: 'Ngày cấp phải trước ngày hết hạn.' });

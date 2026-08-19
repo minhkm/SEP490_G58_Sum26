@@ -349,9 +349,13 @@ export default function RoutePlannerPage() {
     }
 
     const safeRoute = generateSafeMaritimeRoute(
-      { lat: depPort.lat, lng: depPort.lng, name: `Cảng đi: ${depPort.label}` },
-      { lat: arrPort.lat, lng: arrPort.lng, name: `Cảng đến: ${arrPort.label}` }
+      { lat: depPort.lat, lng: depPort.lng, name: selectedVoyage.departurePort },
+      { lat: arrPort.lat, lng: arrPort.lng, name: selectedVoyage.destinationPort }
     );
+
+    if (!safeRoute) {
+      return message.error('Không thể tìm thấy tuyến đường an toàn cho cặp cảng này. Vui lòng thử vẽ thủ công.');
+    }
 
     setWaypoints(safeRoute);
     const checkSafety = validateRouteSafety(safeRoute);
@@ -382,10 +386,10 @@ export default function RoutePlannerPage() {
     const arrPort = portList.find((p) => p.value === selectedVoyage.destinationPort);
     const initialWaypoints = [];
     if (depPort?.lat && depPort?.lng) {
-      initialWaypoints.push({ lat: depPort.lat, lng: depPort.lng, name: `Cảng đi: ${depPort.label}` });
+      initialWaypoints.push({ lat: depPort.lat, lng: depPort.lng, name: selectedVoyage.departurePort });
     }
     if (arrPort?.lat && arrPort?.lng) {
-      initialWaypoints.push({ lat: arrPort.lat, lng: arrPort.lng, name: `Cảng đến: ${arrPort.label}` });
+      initialWaypoints.push({ lat: arrPort.lat, lng: arrPort.lng, name: selectedVoyage.destinationPort });
     }
     setWaypoints(initialWaypoints);
     message.info('Đã xóa tất cả mốc trung gian, đưa về 2 cảng');
