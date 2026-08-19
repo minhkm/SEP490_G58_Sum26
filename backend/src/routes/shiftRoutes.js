@@ -1,6 +1,6 @@
 const express = require('express');
 const { Op } = require('sequelize');
-const { Shift, Voyage, VoyageCrew, CrewProfile, Ship, Report } = require('../models');
+const { Shift, Voyage, VoyageCrew, CrewProfile, Ship, Report, Notification } = require('../models');
 const authMiddleware = require('../middlewares/authMiddleware');
 const { sendShiftAssignmentEmail } = require('../services/emailService');
 const {
@@ -314,14 +314,27 @@ router.post('/bulk', authMiddleware, async (req, res) => {
       const cp = allowedCrew.get(c.crewId);
       if (!cp || !cp.email) continue;
       if (!emailGroups[c.crewId]) {
-        emailGroups[c.crewId] = { email: cp.email, name: cp.fullName, shifts: [] };
+        emailGroups[c.crewId] = { email: cp.email, name: cp.fullName, shifts: [], userId: cp.userId };
       }
       emailGroups[c.crewId].shifts.push({ slotLabel: c._label });
     }
     
-    // Send email asynchronously
+    // Send email asynchronously and create Notification
     for (const group of Object.values(emailGroups)) {
       sendShiftAssignmentEmail(group.email, group.name, voyage.id, date, group.shifts).catch(err => console.error(err));
+      
+      // Tạo thông báo trong hệ thống
+      if (group.userId) {
+        Notification.create({
+          recipientUserId: group.userId,
+          actorUserId: req.user.id,
+          voyageId: voyage.id,
+          type: 'SHIFT_ASSIGNMENT',
+          title: 'Thông báo phân ca trực mới',
+          message: `Bạn vừa được phân ${group.shifts.length} ca trực vào ngày ${date}. Vui lòng kiểm tra lịch trực.`,
+          metadata: { date, shiftCount: group.shifts.length }
+        }).catch(err => console.error('Lỗi tạo Notification phân ca:', err));
+      }
     }
 
     res.status(201).json({ message: `Đã tạo ${created.length} ca trực.`, count: created.length });
