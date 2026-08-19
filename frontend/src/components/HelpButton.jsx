@@ -15,7 +15,7 @@ export default function HelpButton({ className = '' }) {
   return (
     <Tooltip title="Hướng dẫn sử dụng" placement="bottom">
       <QuestionCircleOutlined
-        className={`help-button ${className}`.trim()}
+        className={`help-button topbar-help-btn ${className}`.trim()}
         role="button"
         tabIndex={0}
         aria-label="Hướng dẫn sử dụng"

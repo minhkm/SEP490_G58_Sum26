@@ -1,4 +1,3 @@
-import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { ConfigProvider, App as AntdApp } from 'antd'
 import viVN from 'antd/locale/vi_VN'
@@ -78,11 +77,9 @@ const maritimeTheme = {
 };
 
 createRoot(document.getElementById('root')).render(
-  <StrictMode>
-    <ConfigProvider locale={viVN} theme={maritimeTheme}>
-      <AntdApp>
-        <App />
-      </AntdApp>
-    </ConfigProvider>
-  </StrictMode>,
+  <ConfigProvider locale={viVN} theme={maritimeTheme}>
+    <AntdApp>
+      <App />
+    </AntdApp>
+  </ConfigProvider>,
 )

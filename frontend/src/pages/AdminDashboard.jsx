@@ -16,7 +16,7 @@ import {
   SearchOutlined,
   EyeOutlined,
 } from '@ant-design/icons';
-import { Joyride, STATUS } from 'react-joyride';
+import { Joyride, STATUS, EVENTS, ACTIONS } from 'react-joyride';
 import AdminLayout from '../components/AdminLayout';
 import { dashboardService } from '../services/api';
 import { PageHeader, PageContainer, StatCard, StatusTag, notifyError } from '../components/common';
@@ -46,7 +46,7 @@ export default function AdminDashboard() {
   const [searchVoyage, setSearchVoyage] = useState('');
 
   // --- Joyride State ---
-  const [runTour, setRunTour] = useState(() => !localStorage.getItem('hasSeenTour'));
+  const [runTour, setRunTour] = useState(true);
   const [stepIndex, setStepIndex] = useState(0);
   const [tourSteps] = useState([
     {
@@ -71,21 +71,18 @@ export default function AdminDashboard() {
       placement: 'right',
     },
     {
-      target: '.tour-help-btn',
+      target: '.topbar-help-btn',
       content: 'Bạn luôn có thể xem lại hướng dẫn này bất cứ lúc nào bằng cách nhấn vào đây!',
       placement: 'left',
     }
   ]);
 
   const handleJoyrideCallback = (tourData) => {
-    const { status, type, index, action } = tourData;
+    const { status } = tourData;
     const finishedStatuses = [STATUS.FINISHED, STATUS.SKIPPED];
 
-    if (type === 'step:after' || type === 'target:notFound') {
-      setStepIndex(index + (action === 'prev' ? -1 : 1));
-    } else if (finishedStatuses.includes(status)) {
+    if (finishedStatuses.includes(status)) {
       setRunTour(false);
-      setStepIndex(0);
       localStorage.setItem('hasSeenTour', 'true');
     }
   };
@@ -280,12 +277,12 @@ export default function AdminDashboard() {
     <AdminLayout>
       {/* Joyride Tour Component */}
       <Joyride
+        key={stepIndex} // Dùng stepIndex làm key để reset tour khi bấm Hướng dẫn
         steps={tourSteps}
         run={runTour}
         continuous
         showProgress
         showSkipButton
-        stepIndex={stepIndex}
         callback={handleJoyrideCallback}
         styles={{
           options: {
@@ -314,7 +311,7 @@ export default function AdminDashboard() {
               <Button 
                 className="tour-help-btn"
                 icon={<QuestionCircleOutlined />} 
-                onClick={() => { setStepIndex(0); setRunTour(true); }}
+                onClick={() => { setStepIndex(prev => prev + 1); setRunTour(true); }}
               >
                 Hướng dẫn
               </Button>
@@ -389,8 +386,9 @@ export default function AdminDashboard() {
 
         {/* Stats Cards */}
         <Row gutter={[20, 20]} style={{ marginBottom: 24 }}>
-          <Col xs={24} sm={8} lg={8} className="tour-vessels">
+          <Col xs={24} sm={8} lg={8}>
             <StatCard
+              className="tour-vessels"
               title="Quản lý đội tàu"
               value={data.totalVessels}
               icon={<ContainerOutlined />}
@@ -399,8 +397,9 @@ export default function AdminDashboard() {
               onClick={() => navigate('/vessels')}
             />
           </Col>
-          <Col xs={24} sm={8} lg={8} className="tour-crews">
+          <Col xs={24} sm={8} lg={8}>
             <StatCard
+              className="tour-crews"
               title="Thủy thủ đoàn"
               value={data.totalCrews}
               icon={<TeamOutlined />}
@@ -409,8 +408,9 @@ export default function AdminDashboard() {
               onClick={() => navigate('/crews')}
             />
           </Col>
-          <Col xs={24} sm={8} lg={8} className="tour-voyages">
+          <Col xs={24} sm={8} lg={8}>
             <StatCard
+              className="tour-voyages"
               title="Hải trình đang đi"
               value={data.voyagesInProgress}
               icon={<CompassOutlined />}

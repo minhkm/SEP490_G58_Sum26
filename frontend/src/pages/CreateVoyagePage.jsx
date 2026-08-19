@@ -536,6 +536,8 @@ export default function CreateVoyagePage() {
       { id: 'Đại phó (Chief Officer)', name: 'Đại phó' },
       { id: 'Sĩ quan boong (Deck Officer)', name: 'Sĩ quan boong' },
       { id: 'Máy trưởng (Chief Engineer)', name: 'Máy trưởng' },
+      { id: 'Thủy thủ (Crew)', name: 'Thủy thủ' },
+      { id: 'Thợ máy (Engine Crew)', name: 'Thợ máy' },
     ];
 
     const missingRoles = requiredRoles.filter((r) => !selectedRoles.includes(r.id));

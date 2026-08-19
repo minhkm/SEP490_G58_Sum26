@@ -29,7 +29,7 @@ const DATE_FORMAT = 'YYYY-MM-DD';
 const toDayjs = (value) => (value ? dayjs(value, DATE_FORMAT) : null);
 
 const STATUS_OPTIONS = [
-  { value: 'Planning', label: 'Đang lên kế hoạch', roles: ['admin'] },
+  { value: 'Planning', label: 'Đang lên kế hoạch', roles: ['admin', 'master'] },
   { value: 'Loading', label: 'Đang làm hàng', roles: ['master'] },
   { value: 'Loaded', label: 'Đã làm hàng xong', roles: ['master'] },
   { value: 'Underway', label: 'Đang di chuyển', roles: ['master'] },
@@ -65,7 +65,7 @@ const STATUS_WORKFLOW = {
   'Discharge': ['Discharged'],
   'Discharged': ['Homeward Bounding'],
   'Homeward Bounding': ['Completed', 'At Anchor'],
-  'At Anchor': ['Underway', 'Homeward Bounding', 'Arrived', 'Completed'],
+  'At Anchor': ['Underway', 'Homeward Bounding'],
   'Completed': [],
   'Cancelled': []
 };
@@ -138,9 +138,10 @@ export default function UpdateVoyageModal({ voyage, onClose, onUpdate }) {
   );
 
   if (userRole === 'admin') {
-    allowedStatusOptions = allowedStatusOptions.filter((opt) =>
-      ['Planning', 'Cancelled'].includes(opt.value) || opt.value === voyage.status
-    );
+    allowedStatusOptions = allowedStatusOptions.filter((opt) => {
+      if (voyage.status === 'At Anchor' && ['Planning', 'Cancelled'].includes(opt.value)) return false;
+      return ['Planning', 'Cancelled'].includes(opt.value) || opt.value === voyage.status;
+    });
   }
 
   const allowedNextStatuses = STATUS_WORKFLOW[voyage.status] || [];
@@ -193,6 +194,7 @@ export default function UpdateVoyageModal({ voyage, onClose, onUpdate }) {
                   style={{ width: '100%', borderRadius: 8 }}
                   format={DATE_FORMAT}
                   value={toDayjs(formData.departureDate)}
+                  disabledDate={(current) => voyage.status === 'Planning' && current && current.startOf('day').isBefore(dayjs().startOf('day'))}
                   onChange={(d) =>
                     setFormData((prev) => ({ ...prev, departureDate: d ? d.format(DATE_FORMAT) : '' }))
                   }
