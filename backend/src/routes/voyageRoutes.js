@@ -713,6 +713,10 @@ router.put('/:id', authMiddleware, async (req, res) => {
 
     // Process cargoList if provided and allowed
     if (isShipStaff && cargoList && Array.isArray(cargoList)) {
+      if (!['Loading', 'Loaded'].includes(voyage.status)) {
+        return res.status(400).json({ message: 'Chỉ được phép phân bổ và xếp hàng khi hải trình đang trong trạng thái Làm hàng!' });
+      }
+      
       if (cargoList.length > 0) {
         // PRE-VALIDATE HOLD CAPACITIES IN VOLUME (m³)
         const allHolds = await CargoHold.findAll({ where: { shipId: voyage.shipId } });
@@ -1184,8 +1188,8 @@ router.patch('/equipments/:equipmentId/broken-count', authMiddleware, async (req
     if (!voyage) {
       return res.status(404).json({ message: 'Không tìm thấy hải trình của vật tư y tế.' });
     }
-    if (voyage.status !== 'Underway') {
-      return res.status(400).json({ message: 'Chỉ được cập nhật vật tư y tế khi hải trình đang di chuyển.' });
+    if (!['Underway', 'At Anchor', 'Homeward Bounding'].includes(voyage.status)) {
+      return res.status(400).json({ message: 'Chỉ được cập nhật vật tư y tế khi hải trình đang di chuyển, neo đậu hoặc quay về cảng xuất phát.' });
     }
 
     const currentUsedCount = Number(equipment.brokenCount) || 0;
