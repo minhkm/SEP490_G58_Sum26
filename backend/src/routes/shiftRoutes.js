@@ -2,6 +2,7 @@ const express = require('express');
 const { Op } = require('sequelize');
 const { Shift, Voyage, VoyageCrew, CrewProfile, Ship, Report } = require('../models');
 const authMiddleware = require('../middlewares/authMiddleware');
+const { sendShiftAssignmentEmail } = require('../services/emailService');
 const {
   canonicalVoyageRole,
   isLogRoleForDuty,
@@ -211,6 +212,15 @@ router.post('/bulk', authMiddleware, async (req, res) => {
       return res.status(400).json({ message: 'Thiếu ngày hoặc danh sách ca trực.' });
     }
 
+    const depDateStr = voyage.departureDate ? new Date(voyage.departureDate).toISOString().split('T')[0] : null;
+    const arrDateStr = voyage.arrivalDate ? new Date(voyage.arrivalDate).toISOString().split('T')[0] : null;
+    if (depDateStr && date < depDateStr) {
+      return res.status(400).json({ message: 'Ngày phân ca không được nhỏ hơn ngày khởi hành dự kiến.' });
+    }
+    if (arrDateStr && date > arrDateStr) {
+      return res.status(400).json({ message: 'Ngày phân ca không được lớn hơn ngày cập bến dự kiến.' });
+    }
+
     // Lấy sẵn crew thuộc hải trình + đúng bộ phận + là cấp dưới được gán
     const memberships = await VoyageCrew.findAll({
       where: { voyageId: voyage.id },
@@ -298,7 +308,21 @@ router.post('/bulk', authMiddleware, async (req, res) => {
       toCreate.map(({ _crewName, _label, ...row }) => row)
     );
 
-    // TODO Phase 2: sinh Report gửi thuyền trưởng khi tạo lịch trực.
+    // Group shifts by crewId to send emails
+    const emailGroups = {};
+    for (const c of toCreate) {
+      const cp = allowedCrew.get(c.crewId);
+      if (!cp || !cp.email) continue;
+      if (!emailGroups[c.crewId]) {
+        emailGroups[c.crewId] = { email: cp.email, name: cp.fullName, shifts: [] };
+      }
+      emailGroups[c.crewId].shifts.push({ slotLabel: c._label });
+    }
+    
+    // Send email asynchronously
+    for (const group of Object.values(emailGroups)) {
+      sendShiftAssignmentEmail(group.email, group.name, voyage.id, date, group.shifts).catch(err => console.error(err));
+    }
 
     res.status(201).json({ message: `Đã tạo ${created.length} ca trực.`, count: created.length });
   } catch (err) {

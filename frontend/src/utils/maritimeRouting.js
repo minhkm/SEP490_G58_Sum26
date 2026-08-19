@@ -400,14 +400,9 @@ export function generateSafeMaritimeRoute(startPoint, endPoint) {
     curr = previous[curr];
   }
 
-  // Nếu không tìm được đường kết nối trong đồ thị, trả về đường thẳng với 2 node biển
+  // Nếu không tìm được đường kết nối trong đồ thị, trả về null để báo lỗi
   if (pathNodes[0] !== startNode.id) {
-    return [
-      startPoint,
-      { lat: startNode.lat, lng: startNode.lng },
-      { lat: endNode.lat, lng: endNode.lng },
-      endPoint,
-    ];
+    return null;
   }
 
   // 5. Tạo danh sách Waypoints đầy đủ

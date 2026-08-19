@@ -202,8 +202,11 @@ exports.createReport = async (req, res) => {
     }
 
     const { reportCategory, reportType, title, content, priority } = req.body;
-    if (!title || !content) {
-      return res.status(400).json({ success: false, message: "Vui lòng nhập tiêu đề và nội dung báo cáo." });
+    if (!title || !content || title.trim().length < 5 || content.trim().length < 10) {
+      return res.status(400).json({ success: false, message: "Vui lòng nhập tiêu đề (tối thiểu 5 ký tự) và nội dung (tối thiểu 10 ký tự) báo cáo." });
+    }
+    if (title.trim().length > 100 || content.trim().length > 1000) {
+      return res.status(400).json({ success: false, message: "Tiêu đề không quá 100 ký tự và nội dung không quá 1000 ký tự." });
     }
 
     const category = reportCategory === "Incident" ? "Incident" : "Routine";
@@ -293,9 +296,13 @@ exports.addReply = async (req, res) => {
   try {
     const actor = actorOf(req);
     const { content } = req.body;
-    if (!content || !content.trim()) {
+    if (!content || !content.trim() || content.trim().length < 5) {
       await t.rollback();
-      return res.status(400).json({ success: false, message: "Vui lòng nhập nội dung phản hồi." });
+      return res.status(400).json({ success: false, message: "Vui lòng nhập nội dung phản hồi (tối thiểu 5 ký tự)." });
+    }
+    if (content.trim().length > 500) {
+      await t.rollback();
+      return res.status(400).json({ success: false, message: "Phản hồi không được vượt quá 500 ký tự." });
     }
 
     const report = await Report.findByPk(req.params.id, { transaction: t });
@@ -420,9 +427,13 @@ async function performStatusAction(req, res, { toStatus, kind, successMsg, requi
     }
 
     const note = (req.body.note || req.body.content || "").trim();
-    if (requireNote && !note) {
+    if (requireNote && (!note || note.length < 5)) {
       await t.rollback();
-      return res.status(400).json({ success: false, message: "Vui lòng nhập lý do." });
+      return res.status(400).json({ success: false, message: "Vui lòng nhập lý do (tối thiểu 5 ký tự)." });
+    }
+    if (note.length > 500) {
+      await t.rollback();
+      return res.status(400).json({ success: false, message: "Ghi chú không được vượt quá 500 ký tự." });
     }
 
     const fromStatus = report.status;

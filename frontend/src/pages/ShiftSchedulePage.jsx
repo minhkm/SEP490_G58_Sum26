@@ -151,6 +151,14 @@ export default function ShiftSchedulePage() {
         <Space style={{ marginBottom: 20 }}>
           <Button icon={<LeftOutlined />} onClick={() => shiftDay(-1)} />
           <DatePicker value={dayjs(selectedDate)} allowClear={false} format="DD/MM/YYYY"
+            disabledDate={(current) => {
+              if (!current || !ctx.voyage) return false;
+              const depDate = ctx.voyage.departureDate ? dayjs(ctx.voyage.departureDate).startOf('day') : null;
+              const arrDate = ctx.voyage.arrivalDate ? dayjs(ctx.voyage.arrivalDate).endOf('day') : null;
+              if (depDate && current < depDate) return true;
+              if (arrDate && current > arrDate) return true;
+              return false;
+            }}
             onChange={(d) => d && setSelectedDate(d.format('YYYY-MM-DD'))} />
           <Button icon={<RightOutlined />} onClick={() => shiftDay(1)} />
           <Button onClick={() => setSelectedDate(dayjs().format('YYYY-MM-DD'))}>Hôm nay</Button>

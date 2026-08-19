@@ -138,9 +138,6 @@ router.post('/', authMiddleware, requireRole('Admin'), async (req, res) => {
     const voyageCode = `QT17-${yy}${seq}-S`;
     await voyage.update({ voyageCode }, { transaction: t });
 
-    if (shipId) {
-      await Ship.update({ status: 'Đang làm việc' }, { where: { id: shipId }, transaction: t });
-    }
 
     // 2. Phân bổ nhân sự (sử dụng ID thủy thủ đã chọn từ Frontend)
     if (crewList && crewList.length > 0) {
@@ -544,6 +541,13 @@ router.put('/:id', authMiddleware, async (req, res) => {
       if (!Array.isArray(routeWaypoints) || routeWaypoints.length < 2) {
         return res.status(400).json({ message: 'Lộ trình phải có ít nhất 2 điểm (Cảng đi và Cảng đến)!' });
       }
+      // Thêm kiểm tra điểm đầu và điểm cuối
+      if (routeWaypoints[0].name !== voyage.departurePort) {
+        return res.status(400).json({ message: `Điểm bắt đầu lộ trình phải là cảng khởi hành (${voyage.departurePort})!` });
+      }
+      if (routeWaypoints[routeWaypoints.length - 1].name !== voyage.destinationPort) {
+        return res.status(400).json({ message: `Điểm kết thúc lộ trình phải là cảng đến (${voyage.destinationPort})!` });
+      }
       voyage.routeWaypoints = routeWaypoints;
     }
     
@@ -900,10 +904,6 @@ router.put('/:id', authMiddleware, async (req, res) => {
     if (nextStatus === 'Completed' || nextStatus === 'Cancelled') {
       if (voyage.shipId) {
         await Ship.update({ status: SHIP_STATUS.OPERATIONAL }, { where: { id: voyage.shipId } });
-      }
-    } else if (previousVoyage.status !== nextStatus) {
-      if (voyage.shipId) {
-        await Ship.update({ status: 'Đang làm việc' }, { where: { id: voyage.shipId } });
       }
     }
 

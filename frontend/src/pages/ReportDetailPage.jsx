@@ -147,7 +147,10 @@ export default function ReportDetailPage() {
   const perms = report?.permissions || {};
 
   const handleReply = async () => {
-    if (!replyText.trim()) return;
+    const text = replyText.trim();
+    if (!text) return;
+    if (text.length < 5) return notifyError('Phản hồi tối thiểu 5 ký tự.');
+    if (text.length > 500) return notifyError('Phản hồi tối đa 500 ký tự.');
     setSubmitting(true);
     try {
       await reportService.addReply(id, replyText.trim());
@@ -369,7 +372,16 @@ export default function ReportDetailPage() {
       <Modal
         title={noteModal?.title}
         open={!!noteModal}
-        onOk={() => doAction(noteModal.action, noteText.trim())}
+        onOk={() => {
+          const text = noteText.trim();
+          if (noteModal.requireNote) {
+            if (text.length < 5) return notifyError('Vui lòng nhập lý do tối thiểu 5 ký tự.');
+            if (text.length > 500) return notifyError('Lý do tối đa 500 ký tự.');
+          } else if (text && text.length > 500) {
+            return notifyError('Ghi chú tối đa 500 ký tự.');
+          }
+          doAction(noteModal.action, text);
+        }}
         onCancel={() => setNoteModal(null)}
         okText="Xác nhận"
         cancelText="Hủy"
@@ -380,7 +392,7 @@ export default function ReportDetailPage() {
         <Paragraph type="secondary" style={{ marginTop: 0 }}>
           {noteModal?.requireNote ? 'Vui lòng nhập lý do:' : 'Ghi chú (không bắt buộc):'}
         </Paragraph>
-        <TextArea rows={3} value={noteText} onChange={(e) => setNoteText(e.target.value)} placeholder="Nhập nội dung..." />
+        <TextArea rows={3} value={noteText} onChange={(e) => setNoteText(e.target.value)} placeholder="Nhập nội dung..." showCount maxLength={500} />
       </Modal>
     </MasterLayout>
   );
