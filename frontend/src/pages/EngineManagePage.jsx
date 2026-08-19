@@ -161,7 +161,11 @@ export default function EngineManagePage() {
       notifySuccess(`Đã cập nhật "${engineNameLabel(engine.engineName)}" → ${getEngineStatusCfg(newStatus).label}`);
       if (result.voyageUpdated && result.newVoyageStatus) {
         setSelectedVoyage(prev => ({ ...prev, status: result.newVoyageStatus }));
-        const voyageLabel = result.newVoyageStatus === 'Anchored' ? 'Neo đậu' : 'Đang hành trình';
+        const voyageLabel = (result.newVoyageStatus === 'Anchored' || result.newVoyageStatus === 'At Anchor')
+          ? 'Neo đậu'
+          : result.newVoyageStatus === 'Homeward Bounding'
+          ? 'Đang quay về cảng xuất phát'
+          : 'Đang hành trình';
         notifySuccess(`Hải trình đã chuyển sang trạng thái ${voyageLabel}`);
       }
       setEngineModal({ open: false, engine: null, newStatus: null });
