@@ -1,6 +1,6 @@
 const express = require('express');
 const { Op } = require('sequelize');
-const { sequelize, Ship, ShipCapacity, Engine, EngineParameter, CargoHold, Equipment, Voyage, VoyageCrew } = require('../models');
+const { sequelize, Ship, ShipCapacity, Engine, EngineParameter, CargoHold, Equipment, Voyage, VoyageCrew, Attendance } = require('../models');
 const authMiddleware = require('../middlewares/authMiddleware');
 const requireRole = require('../middlewares/roleMiddleware');
 const {
@@ -678,15 +678,19 @@ router.patch('/engines/:engineId/status', async (req, res) => {
 
     if (mainEngine && voyage && !['Completed', 'Cancelled'].includes(voyage.status)) {
       // Máy chính ngừng chạy: hải trình sang Anchored
-      if (normalizedStatus !== ENGINE_STATUS.OPERATIONAL && voyage.status !== 'Anchored') {
+      if (normalizedStatus !== ENGINE_STATUS.OPERATIONAL && !['Anchored', 'At Anchor'].includes(voyage.status)) {
         await voyage.update({ status: 'Anchored' });
         newVoyageStatus = 'Anchored';
         voyageUpdated = true;
       }
-      // Máy chính → hoạt động trở lại: hải trình sang Underway
-      if (normalizedStatus === ENGINE_STATUS.OPERATIONAL && voyage.status === 'Anchored') {
-        await voyage.update({ status: 'Underway' });
-        newVoyageStatus = 'Underway';
+      // Máy chính → hoạt động trở lại: khôi phục về Homeward Bounding nếu đang lượt về, hoặc Underway nếu đang lượt đi
+      if (normalizedStatus === ENGINE_STATUS.OPERATIONAL && ['Anchored', 'At Anchor'].includes(voyage.status)) {
+        const postDischargeAttendanceCount = await Attendance.count({
+          where: { voyageId: voyage.id, attendanceType: 'PostDischarge' }
+        });
+        const targetStatus = postDischargeAttendanceCount > 0 ? 'Homeward Bounding' : 'Underway';
+        await voyage.update({ status: targetStatus });
+        newVoyageStatus = targetStatus;
         voyageUpdated = true;
       }
     }
@@ -827,8 +831,8 @@ router.patch('/equipments/:equipmentId/broken-count', authMiddleware, async (req
     if (!voyage) {
       return res.status(400).json({ message: 'Chỉ được cập nhật thiết bị khi tàu đang trong hải trình.' });
     }
-    if (voyage.status !== 'Underway') {
-      return res.status(400).json({ message: 'Chỉ được cập nhật thiết bị khi hải trình đang di chuyển.' });
+    if (!['Underway', 'At Anchor', 'Homeward Bounding'].includes(voyage.status)) {
+      return res.status(400).json({ message: 'Chỉ được cập nhật thiết bị khi hải trình đang di chuyển, neo đậu hoặc quay về cảng xuất phát.' });
     }
 
     const currentBrokenCount = Number(equipment.brokenCount) || 0;

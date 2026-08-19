@@ -161,7 +161,11 @@ export default function EngineManagePage() {
       notifySuccess(`Đã cập nhật "${engineNameLabel(engine.engineName)}" → ${getEngineStatusCfg(newStatus).label}`);
       if (result.voyageUpdated && result.newVoyageStatus) {
         setSelectedVoyage(prev => ({ ...prev, status: result.newVoyageStatus }));
-        const voyageLabel = result.newVoyageStatus === 'Anchored' ? 'Neo đậu' : 'Đang hành trình';
+        const voyageLabel = (result.newVoyageStatus === 'Anchored' || result.newVoyageStatus === 'At Anchor')
+          ? 'Neo đậu'
+          : result.newVoyageStatus === 'Homeward Bounding'
+          ? 'Đang quay về cảng xuất phát'
+          : 'Đang hành trình';
         notifySuccess(`Hải trình đã chuyển sang trạng thái ${voyageLabel}`);
       }
       setEngineModal({ open: false, engine: null, newStatus: null });
@@ -206,7 +210,7 @@ export default function EngineManagePage() {
   const confirmBrokenCount = async () => {
     const { equip, newBroken } = brokenModal;
     if (!canUpdateSupplies) {
-      notifyError('Chỉ được cập nhật thiết bị khi hải trình đang di chuyển.');
+      notifyError('Chỉ được cập nhật thiết bị khi hải trình đang di chuyển, neo đậu hoặc quay về cảng xuất phát.');
       return;
     }
     if (isExpiredWithStock(equip)) {
@@ -233,7 +237,7 @@ export default function EngineManagePage() {
   const confirmMedUsed = async () => {
     const { equip, newUsed } = medModal;
     if (!canUpdateSupplies) {
-      notifyError('Chỉ được cập nhật vật tư y tế khi hải trình đang di chuyển.');
+      notifyError('Chỉ được cập nhật vật tư y tế khi hải trình đang di chuyển, neo đậu hoặc quay về cảng xuất phát.');
       return;
     }
     if (isExpiredWithStock(equip)) {
@@ -463,8 +467,8 @@ export default function EngineManagePage() {
             style={{ marginBottom: 16 }}
             type="warning"
             showIcon
-            message="Hải trình chưa ở trạng thái Đang hành trình"
-            description="Thiết bị và vật tư y tế chỉ được cập nhật khi tàu đang di chuyển."
+            message="Hải trình chưa ở trạng thái hoạt động trên biển"
+            description="Thiết bị và vật tư y tế chỉ được cập nhật khi tàu đang di chuyển, neo đậu hoặc quay về cảng xuất phát."
           />
         )}
 
