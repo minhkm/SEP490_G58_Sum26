@@ -32,29 +32,29 @@ exports.createRequest = async (req, res) => {
       return res.status(400).json({ message: 'Vui lòng điền đầy đủ các thông tin bắt buộc (loại xả thải, thời gian, khoảng cách, tốc độ, thể tích, tọa độ).' });
     }
 
-    const allowedDischargeTypes = ['Untreated', 'Comminuted', 'Treated'];
+    const allowedDischargeTypes = ['Untreated', 'Comminuted', 'Treated_STP'];
     if (!allowedDischargeTypes.includes(dischargeType)) {
       return res.status(400).json({ message: 'Loại xả thải không hợp lệ.' });
     }
 
-    if (isNaN(distanceFromLand) || Number(distanceFromLand) <= 0) {
+    if (!Number.isFinite(Number(distanceFromLand)) || Number(distanceFromLand) <= 0) {
       return res.status(400).json({ message: 'Khoảng cách với bờ phải là số lớn hơn 0.' });
     }
-    if (isNaN(shipSpeed) || Number(shipSpeed) <= 0) {
+    if (!Number.isFinite(Number(shipSpeed)) || Number(shipSpeed) <= 0) {
       return res.status(400).json({ message: 'Tốc độ tàu phải là số lớn hơn 0.' });
     }
-    if (isNaN(volume) || Number(volume) <= 0) {
+    if (!Number.isFinite(Number(volume)) || Number(volume) <= 0) {
       return res.status(400).json({ message: 'Thể tích xả thải phải là số lớn hơn 0.' });
     }
-    if (isNaN(startLat) || Number(startLat) < -90 || Number(startLat) > 90) {
+    if (!Number.isFinite(Number(startLat)) || Number(startLat) < -90 || Number(startLat) > 90) {
       return res.status(400).json({ message: 'Vĩ độ phải nằm trong khoảng -90 đến 90.' });
     }
-    if (isNaN(startLng) || Number(startLng) < -180 || Number(startLng) > 180) {
+    if (!Number.isFinite(Number(startLng)) || Number(startLng) < -180 || Number(startLng) > 180) {
       return res.status(400).json({ message: 'Kinh độ phải nằm trong khoảng -180 đến 180.' });
     }
 
     const plannedDate = new Date(plannedDischargeDate);
-    if (isNaN(plannedDate.getTime())) {
+    if (!Number.isFinite(plannedDate.getTime())) {
       return res.status(400).json({ message: 'Thời gian xả thải dự kiến không hợp lệ.' });
     }
     if (plannedDate < new Date()) {
