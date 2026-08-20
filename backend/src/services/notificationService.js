@@ -1,4 +1,5 @@
 const { Notification, CrewProfile, Ship, VoyageCrew, Voyage, User } = require("../models");
+const { canonicalVoyageRole } = require("../utils/voyageRole");
 
 async function createNotification(data, options = {}) {
   if (!data || !data.recipientUserId || !data.type || !data.title || !data.message) {
@@ -168,16 +169,12 @@ async function notifyEngineParameterExceeded({
 
   const recipientUserIds = [...new Set(voyageCrews
     .filter((voyageCrew) => {
-      const assignedRole = String(voyageCrew.role || "").toLowerCase();
+      // Quyền nhận cảnh báo lấy theo chức danh được phân công trong
+      // chính hải trình này. Không dùng User.role/position vì một tài khoản
+      // có thể là Máy trưởng ở hải trình khác nhưng chỉ là Thợ máy ở đây.
+      const assignedRole = canonicalVoyageRole(voyageCrew.role);
       const profile = voyageCrew.CrewProfile;
-      const position = String(profile?.position || "").toLowerCase();
-      const accountRole = String(profile?.User?.role || "").toLowerCase();
-      return accountRole === "engineofficer"
-        || accountRole === "chiefengineer"
-        || assignedRole.includes("chief engineer")
-        || assignedRole.includes("máy trưởng")
-        || position.includes("chief engineer")
-        || position.includes("máy trưởng");
+      return assignedRole === "EngineOfficer" && Boolean(profile?.userId);
     })
     .map((voyageCrew) => voyageCrew.CrewProfile?.userId)
     .filter(Boolean))];
@@ -226,7 +223,32 @@ async function resolveCrewUserId(crewId, options = {}) {
   return profile ? profile.userId : null;
 }
 
-// Tìm userId của các thuyền viên có role cụ thể đang thuộc biên chế một tàu (qua VoyageCrew).
+// Tìm userId của các thuyền viên có role cụ thể trong đúng hải trình.
+// VoyageCrew.role là nguồn quyền nghiệp vụ; User.role chỉ là role tài khoản,
+// không phản ánh chức vụ mà người đó đang được giao ở từng hải trình.
+async function resolveVoyageUserIdsByRole(voyageId, role, options = {}) {
+  if (!voyageId || !role) return [];
+
+  const targetRole = canonicalVoyageRole(role);
+  const voyageCrews = await VoyageCrew.findAll({
+    where: { voyageId },
+    include: [{
+      model: CrewProfile,
+      attributes: ["id", "userId"],
+    }],
+    transaction: options.transaction,
+  });
+
+  return [...new Set(voyageCrews
+    .filter((voyageCrew) => (
+      canonicalVoyageRole(voyageCrew.role) === targetRole
+      && Boolean(voyageCrew.CrewProfile?.userId)
+    ))
+    .map((voyageCrew) => voyageCrew.CrewProfile.userId))];
+}
+
+// Legacy fallback for reports that were created before voyageId was persisted.
+// New reports always carry voyageId and use resolveVoyageUserIdsByRole above.
 async function resolveShipUserIdsByRole(shipId, role, options = {}) {
   if (!shipId || !role) return [];
   const voyages = await Voyage.findAll({
@@ -277,7 +299,9 @@ async function bulkNotifyUsers(userIds, payload, options = {}) {
 // Báo cáo mới được gửi -> báo cho officer đang giữ lượt (currentHandlerRole) trên tàu.
 async function notifyReportSubmitted({ report, actorUserId }, options = {}) {
   if (!report) return [];
-  const userIds = await resolveShipUserIdsByRole(report.shipId, report.currentHandlerRole, options);
+  const userIds = report.voyageId
+    ? await resolveVoyageUserIdsByRole(report.voyageId, report.currentHandlerRole, options)
+    : await resolveShipUserIdsByRole(report.shipId, report.currentHandlerRole, options);
   return bulkNotifyUsers(
     userIds.filter((uid) => uid !== actorUserId),
     {
@@ -296,7 +320,9 @@ async function notifyReportSubmitted({ report, actorUserId }, options = {}) {
 async function notifyReportEscalated({ report, toRole, actorUserId }, options = {}) {
   if (!report) return [];
   const target = toRole || report.currentHandlerRole;
-  const userIds = await resolveShipUserIdsByRole(report.shipId, target, options);
+  const userIds = report.voyageId
+    ? await resolveVoyageUserIdsByRole(report.voyageId, target, options)
+    : await resolveShipUserIdsByRole(report.shipId, target, options);
   return bulkNotifyUsers(
     userIds.filter((uid) => uid !== actorUserId),
     {
@@ -320,7 +346,9 @@ async function notifyReportReplied({ report, actorUserId }, options = {}) {
     const uid = await resolveCrewUserId(report.currentHandlerId, options);
     if (uid) handlerUserIds = [uid];
   } else {
-    handlerUserIds = await resolveShipUserIdsByRole(report.shipId, report.currentHandlerRole, options);
+    handlerUserIds = report.voyageId
+      ? await resolveVoyageUserIdsByRole(report.voyageId, report.currentHandlerRole, options)
+      : await resolveShipUserIdsByRole(report.shipId, report.currentHandlerRole, options);
   }
   const recipients = [creatorUserId, ...handlerUserIds].filter((uid) => uid && uid !== actorUserId);
   return bulkNotifyUsers(
