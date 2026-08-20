@@ -1,6 +1,6 @@
 const express = require('express');
 const { Op } = require('sequelize');
-const { sequelize, Ship, ShipCapacity, Engine, EngineParameter, CargoHold, Equipment, Voyage, VoyageCrew } = require('../models');
+const { sequelize, Ship, ShipCapacity, Engine, EngineParameter, CargoHold, Equipment, Voyage, VoyageCrew, Attendance } = require('../models');
 const authMiddleware = require('../middlewares/authMiddleware');
 const requireRole = require('../middlewares/roleMiddleware');
 const {
@@ -32,6 +32,25 @@ const {
 } = require('../utils/voyageRole');
 
 const router = express.Router();
+const MAX_NAME_LENGTH = 255;
+const MAX_EQUIPMENT_QUANTITY = 999999;
+const MAX_CAPACITY_VALUE = 999999999;
+const REQUIRED_ENGINE_PARAMS = [
+  'Áp suất dầu nhiên liệu (kg/cm²)',
+  'Nhiệt độ khí xả XL2 (°C)',
+  'Nhiệt độ nước làm mát (°C)',
+];
+const hasRequiredEngineParams = (parameters) => {
+  const map = new Map(
+    (parameters || [])
+      .filter((p) => p?.name)
+      .map((p) => [normalizeEngineParameterName(p.name), p]),
+  );
+  return REQUIRED_ENGINE_PARAMS.every((name) => {
+    const p = map.get(name);
+    return p && p.maxValue !== '' && p.maxValue !== null && p.maxValue !== undefined;
+  });
+};
 
 // GET /api/vessels - Lấy danh sách toàn bộ tàu
 router.get('/', async (req, res) => {
@@ -101,13 +120,16 @@ router.post('/', authMiddleware, requireRole('Admin'), async (req, res) => {
     }
     const invalidEquipment = equipmentList.some((equipment) => {
       const quantity = Number(equipment?.quantity);
-      return !String(equipment?.equipmentName || '').trim()
+      const equipmentName = String(equipment?.equipmentName || '').trim();
+      return !equipmentName
+        || equipmentName.length > MAX_NAME_LENGTH
         || !Number.isInteger(quantity)
-        || quantity <= 0;
+        || quantity <= 0
+        || quantity > MAX_EQUIPMENT_QUANTITY;
     });
     if (invalidEquipment) {
       return res.status(400).json({
-        message: 'Tên thiết bị là bắt buộc và số lượng phải là số nguyên dương.',
+        message: `Tên thiết bị tối đa ${MAX_NAME_LENGTH} ký tự và số lượng phải là số nguyên từ 1 đến ${MAX_EQUIPMENT_QUANTITY}.`,
       });
     }
     const duplicateEquipment = findDuplicateEquipment(equipmentList, true);
@@ -133,15 +155,49 @@ router.post('/', authMiddleware, requireRole('Admin'), async (req, res) => {
       });
     }
 
-    if (!holds || holds.length === 0) {
+    const shipMaxWeight = Number(capacity?.maxWeight);
+    const shipMaxVolume = Number(capacity?.maxVolume);
+    if (!Number.isFinite(shipMaxWeight) || shipMaxWeight <= 0 || shipMaxWeight > MAX_CAPACITY_VALUE
+      || !Number.isFinite(shipMaxVolume) || shipMaxVolume <= 0 || shipMaxVolume > MAX_CAPACITY_VALUE) {
+      return res.status(400).json({ message: `Tải trọng tối đa và thể tích tối đa phải từ 0,01 đến ${MAX_CAPACITY_VALUE}.` });
+    }
+
+    if (!Array.isArray(holds) || holds.length === 0) {
       return res.status(400).json({ message: 'Tàu phải có ít nhất một khoang chứa hàng.' });
     }
+    const invalidHold = holds.find((hold) => {
+      const holdCapacity = Number(hold?.capacity);
+      const holdName = String(hold?.name || '').trim();
+      return !holdName
+        || holdName.length > MAX_NAME_LENGTH
+        || !Number.isInteger(holdCapacity)
+        || holdCapacity <= 0
+        || holdCapacity > MAX_CAPACITY_VALUE;
+    });
+    if (invalidHold) {
+      return res.status(400).json({ message: `Tên khoang tối đa ${MAX_NAME_LENGTH} ký tự và sức chứa phải là số nguyên từ 1 đến ${MAX_CAPACITY_VALUE} m³.` });
+    }
     const totalHoldsCapacity = holds.reduce((sum, h) => sum + Number(h.capacity || 0), 0);
-    const shipMaxVolume = Number(capacity?.maxVolume || 0);
     if (totalHoldsCapacity > shipMaxVolume) {
       return res.status(400).json({ message: `Tổng sức chứa của các khoang (${totalHoldsCapacity}) không được vượt quá thể tích của tàu (${shipMaxVolume}).` });
     }
 
+    if (!mainEngine?.engineName?.trim()) {
+      return res.status(400).json({ message: 'Vui lòng nhập Tên động cơ cho Máy chính.' });
+    }
+    if (!hasRequiredEngineParams(mainEngine.parameters)) {
+      return res.status(400).json({ message: 'Vui lòng nhập đủ các hạn mức chỉ số an toàn bắt buộc cho Máy chính.' });
+    }
+    if (Array.isArray(generatorEngines) && generatorEngines.length > 0) {
+      for (const gen of generatorEngines) {
+        if (!gen?.engineName?.trim()) {
+          return res.status(400).json({ message: 'Vui lòng nhập Tên máy cho các máy đèn.' });
+        }
+        if (!hasRequiredEngineParams(gen.parameters)) {
+          return res.status(400).json({ message: `Vui lòng nhập đủ các hạn mức chỉ số an toàn bắt buộc cho máy phụ (${String(gen.engineName || 'chưa có tên').trim()}).` });
+        }
+      }
+    }
     if (mainEngine?.engineName && parseEngineStatus(mainEngine.status) !== ENGINE_STATUS.OPERATIONAL) {
       return res.status(400).json({ message: 'Máy chính mới bắt buộc phải ở trạng thái Hoạt động.' });
     }
@@ -263,6 +319,20 @@ router.put('/:id', async (req, res) => {
     const { basicInfo, capacity, mainEngine, generatorEngines, holds, equipmentList } = req.body;
 
     if (Array.isArray(equipmentList)) {
+      const invalidEquipment = equipmentList.some((equipment) => {
+        const equipmentName = String(equipment?.equipmentName || '').trim();
+        const quantity = Number(equipment?.quantity);
+        return !equipmentName
+          || equipmentName.length > MAX_NAME_LENGTH
+          || !Number.isInteger(quantity)
+          || quantity <= 0
+          || quantity > MAX_EQUIPMENT_QUANTITY;
+      });
+      if (invalidEquipment) {
+        return res.status(400).json({
+          message: `Tên thiết bị tối đa ${MAX_NAME_LENGTH} ký tự và số lượng phải là số nguyên từ 1 đến ${MAX_EQUIPMENT_QUANTITY}.`,
+        });
+      }
       const invalidExpiryEquipment = equipmentList.find(
         (equipment) => normalizeEquipmentExpiryDate(equipment?.expiryNote) === undefined,
       );
@@ -281,11 +351,29 @@ router.put('/:id', async (req, res) => {
       }
     }
 
-    if (!holds || holds.length === 0) {
+    const shipMaxWeight = Number(capacity?.maxWeight);
+    const shipMaxVolume = Number(capacity?.maxVolume);
+    if (!Number.isFinite(shipMaxWeight) || shipMaxWeight <= 0 || shipMaxWeight > MAX_CAPACITY_VALUE
+      || !Number.isFinite(shipMaxVolume) || shipMaxVolume <= 0 || shipMaxVolume > MAX_CAPACITY_VALUE) {
+      return res.status(400).json({ message: `Tải trọng tối đa và thể tích tối đa phải từ 0,01 đến ${MAX_CAPACITY_VALUE}.` });
+    }
+
+    if (!Array.isArray(holds) || holds.length === 0) {
       return res.status(400).json({ message: 'Tàu phải có ít nhất một khoang chứa hàng.' });
     }
+    const invalidHold = holds.find((hold) => {
+      const holdCapacity = Number(hold?.capacity);
+      const holdName = String(hold?.name || '').trim();
+      return !holdName
+        || holdName.length > MAX_NAME_LENGTH
+        || !Number.isInteger(holdCapacity)
+        || holdCapacity <= 0
+        || holdCapacity > MAX_CAPACITY_VALUE;
+    });
+    if (invalidHold) {
+      return res.status(400).json({ message: `Tên khoang tối đa ${MAX_NAME_LENGTH} ký tự và sức chứa phải là số nguyên từ 1 đến ${MAX_CAPACITY_VALUE} m³.` });
+    }
     const totalHoldsCapacity = holds.reduce((sum, h) => sum + Number(h.capacity || 0), 0);
-    const shipMaxVolume = Number(capacity?.maxVolume || 0);
     if (totalHoldsCapacity > shipMaxVolume) {
       return res.status(400).json({ message: `Tổng sức chứa của các khoang (${totalHoldsCapacity}) không được vượt quá thể tích của tàu (${shipMaxVolume}).` });
     }
@@ -293,6 +381,23 @@ router.put('/:id', async (req, res) => {
     const newMainEngine = mainEngine && !mainEngine.id && mainEngine.engineName ? mainEngine : null;
     if (newMainEngine && parseEngineStatus(newMainEngine.status) !== ENGINE_STATUS.OPERATIONAL) {
       return res.status(400).json({ message: 'Máy chính mới bắt buộc phải ở trạng thái Hoạt động.' });
+    }
+    // Validate: tên máy chính + 3 hạn mức an toàn bắt buộc (áp dụng cho cả máy cũ và mới trên form update)
+    if (!mainEngine?.engineName?.trim()) {
+      return res.status(400).json({ message: 'Vui lòng nhập Tên động cơ cho Máy chính.' });
+    }
+    if (!hasRequiredEngineParams(mainEngine.parameters)) {
+      return res.status(400).json({ message: 'Vui lòng nhập đủ các hạn mức chỉ số an toàn bắt buộc cho Máy chính.' });
+    }
+    if (Array.isArray(generatorEngines) && generatorEngines.length > 0) {
+      for (const gen of generatorEngines) {
+        if (!gen?.engineName?.trim()) {
+          return res.status(400).json({ message: 'Vui lòng nhập Tên máy cho các máy đèn.' });
+        }
+        if (!hasRequiredEngineParams(gen.parameters)) {
+          return res.status(400).json({ message: `Vui lòng nhập đủ các hạn mức chỉ số an toàn bắt buộc cho máy phụ (${String(gen.engineName || 'chưa có tên').trim()}).` });
+        }
+      }
     }
     const newAuxiliaryEngines = (generatorEngines || [])
       .filter((engine) => !engine.id && engine.engineName);
@@ -310,7 +415,7 @@ router.put('/:id', async (req, res) => {
         message: 'Máy phụ mới chỉ được khai báo ở trạng thái Hoạt động hoặc Dự phòng.',
       });
     }
-    
+
     const vessel = await Ship.findByPk(vesselId);
     if (!vessel) return res.status(404).json({ message: 'Không tìm thấy tàu' });
 
@@ -539,7 +644,7 @@ router.patch('/engines/:engineId/status', async (req, res) => {
       : await Voyage.findOne({
         where: {
           shipId: engine.shipId,
-          status: { [Op.in]: ['Underway', 'Anchored'] },
+          status: { [Op.in]: ['Underway', 'Anchored', 'At Anchor', 'Homeward Bounding'] },
         },
       });
     if (voyage && voyage.shipId != null && Number(voyage.shipId) !== Number(engine.shipId)) {
@@ -548,9 +653,9 @@ router.patch('/engines/:engineId/status', async (req, res) => {
     if (!voyage) {
       return res.status(400).json({ message: 'Không tìm thấy hải trình đang hoạt động của tàu.' });
     }
-    if (!['Underway', 'Anchored'].includes(voyage.status)) {
+    if (!['Underway', 'Anchored', 'At Anchor', 'Homeward Bounding'].includes(voyage.status)) {
       return res.status(400).json({
-        message: 'Chỉ được đổi trạng thái máy khi hải trình đang di chuyển hoặc đang neo đậu.',
+        message: 'Chỉ được đổi trạng thái máy khi hải trình đang di chuyển, neo đậu hoặc quay về cảng xuất phát.',
       });
     }
 
@@ -573,15 +678,19 @@ router.patch('/engines/:engineId/status', async (req, res) => {
 
     if (mainEngine && voyage && !['Completed', 'Cancelled'].includes(voyage.status)) {
       // Máy chính ngừng chạy: hải trình sang Anchored
-      if (normalizedStatus !== ENGINE_STATUS.OPERATIONAL && voyage.status !== 'Anchored') {
+      if (normalizedStatus !== ENGINE_STATUS.OPERATIONAL && !['Anchored', 'At Anchor'].includes(voyage.status)) {
         await voyage.update({ status: 'Anchored' });
         newVoyageStatus = 'Anchored';
         voyageUpdated = true;
       }
-      // Máy chính → hoạt động trở lại: hải trình sang Underway
-      if (normalizedStatus === ENGINE_STATUS.OPERATIONAL && voyage.status === 'Anchored') {
-        await voyage.update({ status: 'Underway' });
-        newVoyageStatus = 'Underway';
+      // Máy chính → hoạt động trở lại: khôi phục về Homeward Bounding nếu đang lượt về, hoặc Underway nếu đang lượt đi
+      if (normalizedStatus === ENGINE_STATUS.OPERATIONAL && ['Anchored', 'At Anchor'].includes(voyage.status)) {
+        const postDischargeAttendanceCount = await Attendance.count({
+          where: { voyageId: voyage.id, attendanceType: 'PostDischarge' }
+        });
+        const targetStatus = postDischargeAttendanceCount > 0 ? 'Homeward Bounding' : 'Underway';
+        await voyage.update({ status: targetStatus });
+        newVoyageStatus = targetStatus;
         voyageUpdated = true;
       }
     }
@@ -629,13 +738,16 @@ router.post('/:id/equipments', authMiddleware, async (req, res) => {
 
     const invalid = equipmentList.filter((equipment) => {
       const quantity = Number(equipment?.quantity);
-      return !String(equipment?.equipmentName || '').trim()
+      const equipmentName = String(equipment?.equipmentName || '').trim();
+      return !equipmentName
+        || equipmentName.length > MAX_NAME_LENGTH
         || !Number.isInteger(quantity)
-        || quantity <= 0;
+        || quantity <= 0
+        || quantity > MAX_EQUIPMENT_QUANTITY;
     });
     if (invalid.length > 0) {
       return res.status(400).json({
-        message: 'Tên thiết bị là bắt buộc và số lượng phải là số nguyên dương',
+        message: `Tên thiết bị tối đa ${MAX_NAME_LENGTH} ký tự và số lượng phải là số nguyên từ 1 đến ${MAX_EQUIPMENT_QUANTITY}`,
       });
     }
 
@@ -719,8 +831,8 @@ router.patch('/equipments/:equipmentId/broken-count', authMiddleware, async (req
     if (!voyage) {
       return res.status(400).json({ message: 'Chỉ được cập nhật thiết bị khi tàu đang trong hải trình.' });
     }
-    if (voyage.status !== 'Underway') {
-      return res.status(400).json({ message: 'Chỉ được cập nhật thiết bị khi hải trình đang di chuyển.' });
+    if (!['Underway', 'At Anchor', 'Homeward Bounding'].includes(voyage.status)) {
+      return res.status(400).json({ message: 'Chỉ được cập nhật thiết bị khi hải trình đang di chuyển, neo đậu hoặc quay về cảng xuất phát.' });
     }
 
     const currentBrokenCount = Number(equipment.brokenCount) || 0;

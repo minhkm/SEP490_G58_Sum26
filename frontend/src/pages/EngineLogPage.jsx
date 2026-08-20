@@ -1,14 +1,16 @@
 import { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Select, Input, InputNumber, Button, Table, Card, Tag, Spin, Empty, Typography, Space, Row, Col, Alert, DatePicker, Upload, Modal, Image, Timeline } from 'antd';
-import { DashboardOutlined, SaveOutlined, ClockCircleOutlined, CompassOutlined, CalendarOutlined, UploadOutlined, EditOutlined, HistoryOutlined, PictureOutlined } from '@ant-design/icons';
+import { DashboardOutlined, SaveOutlined, ClockCircleOutlined, CompassOutlined, CalendarOutlined, UploadOutlined, EditOutlined, HistoryOutlined, PictureOutlined, QuestionCircleOutlined } from '@ant-design/icons';
 import MasterLayout from '../components/MasterLayout';
 import { engineLogService, vesselService } from '../services/api';
 import { PageHeader, notifyWarning, notifySuccess, notifyError } from '../components/common';
 import dayjs from 'dayjs';
 import { SHIFT_SLOTS, slotFromStart } from '../config/shifts';
 import {
+  engineParameterDescription,
   engineParameterLabel,
+  engineParameterTypicalMax,
   engineNameLabel,
   engineTypeLabel,
   isOperationalEngineStatus,
@@ -26,6 +28,18 @@ const REQUIRED_PARAMETER_NAMES = new Set([
   'Nhiệt độ nước làm mát (°C)',
 ]);
 const isRequiredParameter = (name) => REQUIRED_PARAMETER_NAMES.has(engineParameterLabel(name));
+const ENGINE_GUIDE_PARAMETERS = [
+  ...REQUIRED_PARAMETER_NAMES,
+  'Vòng quay máy chính (vòng/phút)',
+  'Áp suất khí quét (kg/cm²)',
+  'Áp suất khí nén (kg/cm²)',
+  'Áp suất khí khởi động (kg/cm²)',
+  'Nhiệt độ dầu bôi trơn (°C)',
+  'Nhiệt độ khí xả XL3 (°C)',
+  'Nhiệt độ khí xả XL4 (°C)',
+  'Nhiệt độ khí xả XL5 (°C)',
+  'Nhiệt độ khí xả XL6 (°C)',
+];
 const voyageStatusLabel = (status) => ({
   Planning: 'Đang lập kế hoạch',
   Loading: 'Đang làm hàng',
@@ -69,6 +83,7 @@ export default function EngineLogPage() {
   const [history, setHistory] = useState([]);
   const [loading, setLoading] = useState(true);
   const [fileList, setFileList] = useState([]);
+  const [guideModalOpen, setGuideModalOpen] = useState(false);
   // Edit modal
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [editingLog, setEditingLog] = useState(null);
@@ -424,6 +439,11 @@ export default function EngineLogPage() {
     <MasterLayout>
       <div style={{ padding: 'clamp(12px, 4vw, 32px)' }}>
         <PageHeader icon={<DashboardOutlined />} breadcrumb="Nhật ký máy" title="Nhật ký Kiểm tra Máy" />
+        <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 16 }}>
+          <Button icon={<QuestionCircleOutlined />} onClick={() => setGuideModalOpen(true)}>
+            Xem hướng dẫn thông số máy
+          </Button>
+        </div>
 
         {/* Chọn Hải trình, Ngày, Ca trực */}
         <Card style={{ marginBottom: 16 }}>
@@ -528,7 +548,6 @@ export default function EngineLogPage() {
                       max={param.maxValue ? param.maxValue * 2 : undefined}
                       value={paramValues[param.id] === '' ? null : paramValues[param.id]}
                       onChange={value => handleParamChange(param.id, value === null ? '' : value)} />
-                    <Text type="secondary" style={{ fontSize: 12 }}>{param.maxValue != null && `Tối đa: ${param.maxValue}`}</Text>
                   </Col>
                 );
               })}
@@ -573,6 +592,44 @@ export default function EngineLogPage() {
           </Card>
         )}
       </div>
+
+      <Modal
+        title={<Space><QuestionCircleOutlined style={{ color: '#1677ff' }} />Hướng dẫn ghi thông số máy</Space>}
+        open={guideModalOpen}
+        onCancel={() => setGuideModalOpen(false)}
+        footer={<Button type="primary" onClick={() => setGuideModalOpen(false)}>Đã hiểu</Button>}
+        width={920}
+      >
+        <Alert
+          message="Cách ghi"
+          description="Nhập số đọc thực tế trên đồng hồ theo đúng đơn vị. Dấu * là thông số chính bắt buộc. Mức tham khảo chỉ hỗ trợ người mới; hạn mức chính thức phải lấy từ tài liệu kỹ thuật của máy. Màu cam báo gần giới hạn, màu đỏ báo vượt giới hạn; khi phát hiện bất thường hãy ghi rõ hiện tượng và báo Máy trưởng."
+          type="info"
+          showIcon
+          style={{ marginBottom: 16 }}
+        />
+        <div style={{ overflowX: 'auto', maxHeight: '60vh' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 760 }}>
+            <thead>
+              <tr style={{ background: '#e6f4ff' }}>
+                <th style={{ padding: 10, border: '1px solid #d9d9d9', textAlign: 'left' }}>Thông số</th>
+                <th style={{ padding: 10, border: '1px solid #d9d9d9', textAlign: 'left' }}>Ý nghĩa</th>
+                <th style={{ padding: 10, border: '1px solid #d9d9d9', textAlign: 'left', width: 180 }}>Mức tối đa tham khảo</th>
+              </tr>
+            </thead>
+            <tbody>
+              {ENGINE_GUIDE_PARAMETERS.map((parameterName) => (
+                <tr key={parameterName}>
+                  <td style={{ padding: 10, border: '1px solid #d9d9d9', fontWeight: 600 }}>
+                    {parameterName} {isRequiredParameter(parameterName) && <Tag color="red">Bắt buộc</Tag>}
+                  </td>
+                  <td style={{ padding: 10, border: '1px solid #d9d9d9' }}>{engineParameterDescription(parameterName)}</td>
+                  <td style={{ padding: 10, border: '1px solid #d9d9d9' }}>{engineParameterTypicalMax(parameterName)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </Modal>
 
       {/* Modal chỉnh sửa */}
       <Modal title="Chỉnh sửa Nhật ký" open={editModalOpen} onCancel={() => setEditModalOpen(false)} onOk={handleUpdate}

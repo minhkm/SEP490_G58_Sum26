@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Select, Input, InputNumber, Button, Table, Card, Spin, Empty, Typography, Space, Alert, DatePicker, Upload, Modal, Image, Timeline, Tag } from 'antd';
-import { FileTextOutlined, SaveOutlined, ClockCircleOutlined, CompassOutlined, CalendarOutlined, UploadOutlined, EditOutlined, HistoryOutlined, PictureOutlined } from '@ant-design/icons';
+import { FileTextOutlined, SaveOutlined, ClockCircleOutlined, CompassOutlined, CalendarOutlined, UploadOutlined, EditOutlined, HistoryOutlined, PictureOutlined, QuestionCircleOutlined } from '@ant-design/icons';
 import MasterLayout from '../components/MasterLayout';
 import { deckLogService } from '../services/api';
 import { PageHeader, notifyWarning, notifySuccess, notifyError } from '../components/common';
@@ -78,13 +78,13 @@ const ENTRY_FIELDS = [
   { key: 'gyroError', label: 'Sai số LBCQ', short: 'SS LBCQ', type: 'number', min: -10, max: 10 },
   { key: 'courseMagnetic', label: 'LB Từ', short: 'LB Từ', type: 'number', max: 360 },
   { key: 'speed', label: 'Tốc độ (hải lý/giờ)', short: 'Tốc độ', type: 'number', min: 0, max: 60 },
-  { key: 'rpm', label: 'Vòng quay/phút', short: 'Vòng/phút', type: 'number', min: -1000, max: 1500 },
-  { key: 'windDirection', label: 'Hướng gió', short: 'H.Gió', type: 'select', options: WIND_DIRECTION_OPTIONS },
-  { key: 'windForce', label: 'Cấp gió', short: 'S.Gió', type: 'number', max: 12 },
-  { key: 'weather', label: 'Thời tiết', short: 'T.Tiết', type: 'select', options: WEATHER_OPTIONS },
+  { key: 'rpm', label: 'Vòng quay/phút', short: 'Vòng/phút', type: 'number', min: 0, max: 1500 },
+  { key: 'windDirection', label: 'Hướng gió', short: 'H.Gió', type: 'select', options: WIND_DIRECTION_OPTIONS, columnWidth: 110 },
+  { key: 'windForce', label: 'Sức gió', short: 'S.Gió', type: 'number', max: 12, integer: true },
+  { key: 'weather', label: 'Thời tiết', short: 'T.Tiết', type: 'select', options: WEATHER_OPTIONS, columnWidth: 180 },
   { key: 'barometer', label: 'Khí áp (hPa)', short: 'Khí áp', type: 'number', min: 850, max: 1100 },
-  { key: 'seaState', label: 'Biển', short: 'Biển', type: 'number', max: 9 },
-  { key: 'visibility', label: 'Tầm nhìn (mã WMO 0–9)', short: 'Tầm nhìn', type: 'number', max: 9 },
+  { key: 'seaState', label: 'Biển', short: 'Biển', type: 'number', max: 9, integer: true },
+  { key: 'visibility', label: 'Tầm nhìn', short: 'Tầm nhìn', type: 'number', max: 9, integer: true },
   { key: 'airTemp', label: 'Nhiệt độ không khí (°C)', short: 'Nhiệt độ KK', type: 'number', min: -100, max: 100 },
   { key: 'seaTemp', label: 'Nhiệt độ biển (°C)', short: 'Nhiệt độ biển', type: 'number', min: -100, max: 100 },
 ];
@@ -92,6 +92,77 @@ const ENTRY_FIELDS = [
 // Nhóm field theo vị trí ca trực
 const HELMSMAN_FIELDS = ['courseTrue', 'courseGyro', 'courseSteer', 'gyroError', 'courseMagnetic', 'speed', 'rpm'];
 const LOOKOUT_FIELDS = ['windDirection', 'windForce', 'weather', 'barometer', 'seaState', 'visibility', 'airTemp', 'seaTemp'];
+
+const DECK_PARAMETER_GUIDE = {
+  courseTrue: ['Hướng chuyển động thực tế của tàu so với Bắc thật.', '0–360°'],
+  courseGyro: ['Hướng chỉ trên la bàn con quay (LBCQ).', '0–360°'],
+  courseSteer: ['Hướng mà người lái tàu phải giữ (LB Lái).', '0–360°'],
+  gyroError: ['Độ chênh giữa la bàn con quay và hướng chuẩn.', '-10 đến 10°'],
+  courseMagnetic: ['Hướng chỉ trên la bàn từ (LB Từ).', '0–360°'],
+  speed: ['Tốc độ thực tế của tàu.', '0–60 hải lý/giờ'],
+  rpm: ['Số vòng quay của chân vịt hoặc máy trong một phút.', '0–1.500 vòng/phút'],
+  windDirection: ['Hướng gió quan sát được; chọn hướng tương ứng hoặc Lặng gió.', 'Danh sách hướng gió'],
+  windForce: ['Cường độ gió theo thang Beaufort.', '0–12'],
+  weather: ['Hiện tượng thời tiết tại thời điểm quan sát.', 'Chọn trong danh sách'],
+  barometer: ['Áp suất khí quyển đọc trên khí áp kế.', '850–1.100 hPa'],
+  seaState: ['Mức độ sóng và trạng thái mặt biển.', '0–9'],
+  visibility: ['Mức tầm nhìn được chọn theo khoảng cách xa nhất có thể quan sát rõ mục tiêu.', '0–9'],
+  airTemp: ['Nhiệt độ không khí tại thời điểm ghi.', '-100 đến 100 °C'],
+  seaTemp: ['Nhiệt độ nước biển tại thời điểm ghi.', '-100 đến 100 °C'],
+};
+
+const BEAUFORT_SCALE = [
+  ['0', 'Lặng gió', 'Dưới 1 km/h', 'Khói bay thẳng; mặt biển phẳng như gương.'],
+  ['1', 'Gió rất nhẹ', '1–5 km/h', 'Khói hơi lệch; mặt biển gợn nhẹ.'],
+  ['2', 'Gió nhẹ', '6–11 km/h', 'Cảm thấy gió trên mặt; sóng nhỏ, chưa có bọt trắng.'],
+  ['3', 'Gió nhẹ vừa', '12–19 km/h', 'Cờ lay nhẹ; sóng nhỏ bắt đầu có bọt trắng.'],
+  ['4', 'Gió vừa', '20–28 km/h', 'Bụi và giấy bị cuốn; sóng dài hơn, nhiều bọt trắng.'],
+  ['5', 'Gió khá mạnh', '29–38 km/h', 'Cây nhỏ lay động; mặt biển xuất hiện nhiều đầu sóng bạc.'],
+  ['6', 'Gió mạnh', '39–49 km/h', 'Cành lớn rung chuyển; sóng lớn và bọt nước rõ.'],
+  ['7', 'Gió rất mạnh', '50–61 km/h', 'Khó đi ngược gió; biển động mạnh, bọt bị cuốn thành vệt.'],
+  ['8', 'Gió lớn', '62–74 km/h', 'Cành cây có thể gãy; sóng cao, bọt nước bay thành dải.'],
+  ['9', 'Gió rất lớn', '75–88 km/h', 'Có thể gây hư hại nhẹ; sóng rất cao, tầm nhìn giảm do bụi nước.'],
+  ['10', 'Bão', '89–102 km/h', 'Có thể làm bật gốc cây; biển trắng xóa vì bọt, sóng cực cao.'],
+  ['11', 'Bão dữ dội', '103–117 km/h', 'Thiệt hại diện rộng; mặt biển bị phủ kín bởi các dải bọt.'],
+  ['12', 'Cuồng phong', 'Từ 118 km/h', 'Tàn phá nghiêm trọng; không khí đầy bụi nước, gần như mất tầm nhìn.'],
+];
+
+const SEA_STATE_SCALE = [
+  ['0', 'Lặng như gương', '0 m', 'Mặt biển phẳng lặng tuyệt đối.'],
+  ['1', 'Gợn sóng nhỏ', '0–0,1 m', 'Mặt biển có gợn lăn tăn.'],
+  ['2', 'Sóng nhẹ / Hơi phẳng', '0,1–0,5 m', 'Sóng nhỏ và ngắn.'],
+  ['3', 'Sóng vừa', '0,5–1,25 m', 'Sóng bắt đầu có chỏm nhẹ.'],
+  ['4', 'Biển động nhẹ', '1,25–2,5 m', 'Sóng dài hơn, bắt đầu xuất hiện bọt trắng.'],
+  ['5', 'Biển động', '2,5–4 m', 'Sóng trung bình đến lớn, nhiều bọt trắng.'],
+  ['6', 'Biển động mạnh', '4–6 m', 'Sóng lớn; bọt nước bắt đầu bị gió cuốn.'],
+  ['7', 'Biển rất động', '6–9 m', 'Sóng cao dữ dội; bọt biển tạo thành dải.'],
+  ['8', 'Biển cực mạnh', '9–14 m', 'Sóng rất cao; bọt và bụi nước làm giảm tầm nhìn.'],
+  ['9', 'Biển cuồng phong', 'Trên 14 m', 'Mặt biển hỗn loạn hoàn toàn.'],
+];
+
+const VISIBILITY_SCALE = [
+  ['0', 'Rất hạn chế', 'Dưới 50 m', 'Sương mù đặc; việc quan sát và điều động đặc biệt nguy hiểm.'],
+  ['1', 'Hạn chế nghiêm trọng', '50–200 m', 'Chỉ quan sát được mục tiêu ở khoảng cách rất gần.'],
+  ['2', 'Hạn chế', '200–500 m', 'Tầm quan sát ngắn; cần tăng cường cảnh giới.'],
+  ['3', 'Khá hạn chế', '500 m–1 km', 'Mục tiêu ở xa khó nhận biết rõ.'],
+  ['4', 'Tầm nhìn kém', '1–2 km', 'Có thể quan sát mục tiêu gần nhưng vẫn cần thận trọng.'],
+  ['5', 'Tầm nhìn trung bình thấp', '2–4 km', 'Quan sát được mục tiêu trong phạm vi trung bình.'],
+  ['6', 'Tầm nhìn trung bình', '4–10 km', 'Điều kiện quan sát tương đối thuận lợi.'],
+  ['7', 'Tầm nhìn tốt', '10–20 km', 'Quan sát rõ phần lớn mục tiêu hàng hải.'],
+  ['8', 'Tầm nhìn rất tốt', '20–50 km', 'Có thể quan sát rõ mục tiêu ở khoảng cách xa.'],
+  ['9', 'Tầm nhìn xuất sắc', 'Trên 50 km', 'Trời rất trong, điều kiện quan sát lý tưởng.'],
+];
+
+const ScaleGuide = ({ rows, valueLabel, levelLabel = 'Cấp' }) => (
+  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(390px, 1fr))', gap: '6px 16px' }}>
+    {rows.map(([level, name, value, observation]) => (
+      <div key={level} style={{ lineHeight: 1.5 }}>
+        <Text strong>{levelLabel} {level} — {name}:</Text>{' '}
+        <Text>{valueLabel} {value}; {observation}</Text>
+      </div>
+    ))}
+  </div>
+);
 
 // Tính các giờ thuộc ca trực (VD: ca 08:00-12:00 → giờ 8,9,10,11)
 const getShiftHours = (shift) => {
@@ -125,6 +196,7 @@ export default function DeckLogPage() {
   const [history, setHistory] = useState([]);
   const [loading, setLoading] = useState(true);
   const [fileList, setFileList] = useState([]);
+  const [guideModalOpen, setGuideModalOpen] = useState(false);
   // Edit modal
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [editingLog, setEditingLog] = useState(null);
@@ -383,6 +455,7 @@ export default function DeckLogPage() {
     if (field.type === 'select') {
       return (
         <Select size="small" style={{ width: '100%', background: disabled ? '#f5f5f5' : undefined }} allowClear placeholder="—"
+          popupMatchSelectWidth={field.columnWidth || true}
           disabled={disabled}
           value={entry[field.key] || undefined}
           onChange={val => onChange(entry.hour, field.key, val || null)}
@@ -394,6 +467,8 @@ export default function DeckLogPage() {
         disabled={disabled}
         min={field.min !== undefined ? field.min : (field.key === 'gyroError' ? undefined : 0)}
         max={field.max}
+        step={field.integer ? 1 : undefined}
+        precision={field.integer ? 0 : undefined}
         value={entry[field.key]}
         onChange={val => onChange(entry.hour, field.key, val)} />
     );
@@ -493,6 +568,12 @@ export default function DeckLogPage() {
       <div style={{ padding: 'clamp(12px, 4vw, 32px)' }}>
         <PageHeader icon={<FileTextOutlined />} breadcrumb="Nhật ký boong" title="Nhật ký Trực boong" />
 
+        <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 16 }}>
+          <Button icon={<QuestionCircleOutlined />} onClick={() => setGuideModalOpen(true)}>
+            Xem hướng dẫn thông số hàng hải
+          </Button>
+        </div>
+
         {/* Chọn Hải trình, Ngày, Ca trực */}
         <Card style={{ marginBottom: 16 }}>
           <Space size={16} wrap align="start" style={{ overflowX: 'auto', width: '100%' }}>
@@ -553,7 +634,7 @@ export default function DeckLogPage() {
                     <th style={{ padding: '8px 6px', border: '1px solid #d9d9d9', textAlign: 'center', fontWeight: 600, minWidth: 50 }}>Giờ</th>
                     {ENTRY_FIELDS.map(f => (
                       <th key={f.key} style={{
-                        padding: '8px 4px', border: '1px solid #d9d9d9', textAlign: 'center', fontSize: 12, fontWeight: 600, minWidth: 70, whiteSpace: 'nowrap',
+                        padding: '8px 4px', border: '1px solid #d9d9d9', textAlign: 'center', fontSize: 12, fontWeight: 600, minWidth: f.columnWidth || 70, whiteSpace: 'nowrap',
                         background: isFieldAllowed(f.key) ? '#e6f4ff' : '#f0f0f0',
                         color: isFieldAllowed(f.key) ? undefined : '#999',
                       }}>
@@ -571,7 +652,7 @@ export default function DeckLogPage() {
                         {entry.hour}
                       </td>
                       {ENTRY_FIELDS.map(f => (
-                        <td key={f.key} style={{ padding: '2px 2px', border: '1px solid #d9d9d9' }}>
+                        <td key={f.key} style={{ padding: '2px 2px', border: '1px solid #d9d9d9', minWidth: f.columnWidth || 70 }}>
                           {renderInputCell(entry, f, handleEntryChange, hourDisabled)}
                         </td>
                       ))}
@@ -629,6 +710,71 @@ export default function DeckLogPage() {
         )}
       </div>
 
+      <Modal
+        title={<Space><QuestionCircleOutlined style={{ color: '#1677ff' }} />Hướng dẫn ghi thông số hàng hải</Space>}
+        open={guideModalOpen}
+        onCancel={() => setGuideModalOpen(false)}
+        footer={<Button type="primary" onClick={() => setGuideModalOpen(false)}>Đã hiểu</Button>}
+        width={980}
+      >
+        <Alert
+          message="Ghi đúng theo vị trí trực"
+          description="Ca Lái tàu nhập nhóm thông số điều hướng; ca Canh boong nhập nhóm quan sát thời tiết và mặt biển. Các ô bị làm mờ không thuộc trách nhiệm của vị trí trực đang chọn."
+          type="info"
+          showIcon
+          style={{ marginBottom: 16 }}
+        />
+        <div style={{ overflowX: 'auto', maxHeight: '52vh' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 800 }}>
+            <thead>
+              <tr style={{ background: '#e6f4ff' }}>
+                <th style={{ padding: 10, border: '1px solid #d9d9d9', textAlign: 'left' }}>Nhóm trực</th>
+                <th style={{ padding: 10, border: '1px solid #d9d9d9', textAlign: 'left' }}>Thông số</th>
+                <th style={{ padding: 10, border: '1px solid #d9d9d9', textAlign: 'left' }}>Ý nghĩa</th>
+                <th style={{ padding: 10, border: '1px solid #d9d9d9', textAlign: 'left', width: 170 }}>Khoảng nhập</th>
+              </tr>
+            </thead>
+            <tbody>
+              {ENTRY_FIELDS.map((field) => {
+                const [description, range] = DECK_PARAMETER_GUIDE[field.key];
+                return (
+                  <tr key={field.key}>
+                    <td style={{ padding: 10, border: '1px solid #d9d9d9' }}>
+                      <Tag color={HELMSMAN_FIELDS.includes(field.key) ? 'blue' : 'green'}>
+                        {HELMSMAN_FIELDS.includes(field.key) ? 'Lái tàu' : 'Canh boong'}
+                      </Tag>
+                    </td>
+                    <td style={{ padding: 10, border: '1px solid #d9d9d9', fontWeight: 600 }}>{field.label}</td>
+                    <td style={{ padding: 10, border: '1px solid #d9d9d9' }}>{description}</td>
+                    <td style={{ padding: 10, border: '1px solid #d9d9d9' }}>{range}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+        <div style={{ display: 'grid', gap: 12, marginTop: 16 }}>
+          <Alert
+            message="Thang sức gió Beaufort 0–12"
+            description={<ScaleGuide rows={BEAUFORT_SCALE} valueLabel="Tốc độ" />}
+            type="info"
+            showIcon
+          />
+          <Alert
+            message="Thang trạng thái biển 0–9"
+            description={<ScaleGuide rows={SEA_STATE_SCALE} valueLabel="Chiều cao sóng" />}
+            type="info"
+            showIcon
+          />
+          <Alert
+            message="Quy đổi tầm nhìn"
+            description={<ScaleGuide rows={VISIBILITY_SCALE} valueLabel="Khoảng cách" levelLabel="Mức" />}
+            type="info"
+            showIcon
+          />
+        </div>
+      </Modal>
+
       {/* ===== MODAL CHỈNH SỬA ===== */}
       <Modal title="Chỉnh sửa Nhật ký Boong" open={editModalOpen} onCancel={() => setEditModalOpen(false)} onOk={handleUpdate}
         okText="Lưu chỉnh sửa" cancelText="Hủy" width={1000}>
@@ -653,7 +799,7 @@ export default function DeckLogPage() {
                   <th style={{ padding: '6px', border: '1px solid #d9d9d9', textAlign: 'center', minWidth: 40 }}>Giờ</th>
                   {ENTRY_FIELDS.map(f => (
                     <th key={f.key} style={{
-                      padding: '4px', border: '1px solid #d9d9d9', textAlign: 'center', fontSize: 11, minWidth: 60, whiteSpace: 'nowrap',
+                      padding: '4px', border: '1px solid #d9d9d9', textAlign: 'center', fontSize: 11, minWidth: f.columnWidth || 60, whiteSpace: 'nowrap',
                       background: isFieldAllowed(f.key) ? '#e6f4ff' : '#f0f0f0',
                       color: isFieldAllowed(f.key) ? undefined : '#999',
                     }}>
@@ -667,7 +813,7 @@ export default function DeckLogPage() {
                   <tr key={entry.hour}>
                     <td style={{ padding: '4px', border: '1px solid #d9d9d9', textAlign: 'center', fontWeight: 700, background: '#fafafa' }}>{entry.hour}</td>
                     {ENTRY_FIELDS.map(f => (
-                      <td key={f.key} style={{ padding: '2px', border: '1px solid #d9d9d9' }}>
+                      <td key={f.key} style={{ padding: '2px', border: '1px solid #d9d9d9', minWidth: f.columnWidth || 60 }}>
                         {renderInputCell(entry, f, handleEditEntryChange)}
                       </td>
                     ))}

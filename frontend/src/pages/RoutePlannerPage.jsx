@@ -92,6 +92,11 @@ function LocationMarkers({ waypoints, setWaypoints, isReadOnly, unsafeSegments, 
 
   const handleDragEnd = (index, e) => {
     if (isReadOnly) return;
+    if (index === 0 || index === waypoints.length - 1) {
+      message.error('Không thể di chuyển điểm cảng xuất phát hoặc cảng đích!');
+      setWaypoints([...waypoints]);
+      return;
+    }
     const newLat = parseFloat(e.target.getLatLng().lat.toFixed(4));
     const newLng = parseFloat(e.target.getLatLng().lng.toFixed(4));
     setWaypoints((prev) => {
@@ -364,15 +369,13 @@ export default function RoutePlannerPage() {
   // Hoàn tác điểm vừa thêm
   const handleUndo = () => {
     setWaypoints((prev) => {
-      if (prev.length > 2) {
-        const newPts = [...prev];
-        newPts.splice(newPts.length - 2, 1);
-        return newPts;
-      } else if (prev.length === 2) {
+      if (prev.length <= 2) {
         message.info('Chỉ còn 2 điểm cảng xuất phát và cảng đích');
         return prev;
       }
-      return prev.slice(0, -1);
+      const newPts = [...prev];
+      newPts.splice(newPts.length - 2, 1);
+      return newPts;
     });
   };
 
@@ -556,10 +559,10 @@ export default function RoutePlannerPage() {
                     >
                       🚀 Tự động vẽ Luồng Hàng hải
                     </Button>
-                    <Button icon={<UndoOutlined />} onClick={handleUndo} disabled={waypoints.length === 0}>
+                    <Button icon={<UndoOutlined />} onClick={handleUndo} disabled={waypoints.length <= 2}>
                       Hoàn tác
                     </Button>
-                    <Button icon={<ClearOutlined />} onClick={handleResetToPorts} disabled={waypoints.length === 0}>
+                    <Button icon={<ClearOutlined />} onClick={handleResetToPorts} disabled={waypoints.length <= 2}>
                       Xóa mốc trung gian
                     </Button>
                     <Button type="primary" icon={<SaveOutlined />} onClick={handleSave} loading={saving}>

@@ -294,7 +294,7 @@ function findNearestSeaNode(lat, lng) {
   Object.values(MARITIME_NODES).forEach((node) => {
     // Không kết nối trực tiếp nếu đoạn từ cảng đến node cắt đất liền
     const dist = calculateDistanceNM(lat, lng, node.lat, node.lng);
-    const crosses = checkSegmentCrossesLand({ lat, lng }, { lat: node.lat, lng: node.lng }, 8);
+    const crosses = checkSegmentCrossesLand({ lat, lng }, { lat: node.lat, lng: node.lng });
     const penalty = crosses ? 99999 : 0;
 
     if (dist + penalty < minDistance) {

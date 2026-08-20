@@ -48,6 +48,7 @@ import {
   ENGINE_STATUS_OPTIONS,
   engineNameLabel,
   engineParameterLabel,
+  engineParameterTypicalMax,
   findDuplicateEngine,
   isMainEngine,
   normalizeEngineStatus,
@@ -88,6 +89,10 @@ const PARAM_MAX_VALUE = {
   'Nhiệt độ khí xả XL6 (°C)': 600,
 };
 const getParamMax = (name) => PARAM_MAX_VALUE[name] ?? 9999;
+
+const MAX_NAME_LENGTH = 255;
+const MAX_EQUIPMENT_QUANTITY = 999999;
+const MAX_CAPACITY_VALUE = 999999999;
 
 const parseExcelExpiryDate = (value) => {
   if (value == null || String(value).trim() === '') return null;
@@ -483,8 +488,8 @@ export default function AddVesselPage() {
           const qty = Number(rawQty);
           let quantity = 1;
           if (rawQty !== '' && rawQty !== null) {
-            if (!Number.isFinite(qty) || qty <= 0 || !Number.isInteger(qty)) {
-              rowErrors.push(`Số lượng "${rawQty}" không hợp lệ (phải là số nguyên dương)`);
+            if (!Number.isFinite(qty) || qty <= 0 || !Number.isInteger(qty) || qty > MAX_EQUIPMENT_QUANTITY) {
+              rowErrors.push(`Số lượng "${rawQty}" không hợp lệ (phải là số nguyên từ 1 đến ${MAX_EQUIPMENT_QUANTITY.toLocaleString('vi-VN')})`);
             } else {
               quantity = qty;
             }
@@ -572,9 +577,12 @@ export default function AddVesselPage() {
       return;
     }
 
-    if (!capacity.maxWeight || !capacity.maxVolume) {
+    const maxWeight = Number(capacity.maxWeight);
+    const maxVolume = Number(capacity.maxVolume);
+    if (!Number.isFinite(maxWeight) || maxWeight <= 0 || maxWeight > MAX_CAPACITY_VALUE
+      || !Number.isFinite(maxVolume) || maxVolume <= 0 || maxVolume > MAX_CAPACITY_VALUE) {
       setActiveTab('capacity');
-      notifyWarning('Vui lòng nhập đầy đủ tải trọng tối đa và thể tích tối đa.');
+      notifyWarning(`Tải trọng tối đa và thể tích tối đa phải từ 0,01 đến ${MAX_CAPACITY_VALUE.toLocaleString('vi-VN')}.`);
       return;
     }
 
@@ -620,10 +628,17 @@ export default function AddVesselPage() {
       notifyWarning('Vui lòng thêm ít nhất một khoang chứa hàng cho tàu.');
       return;
     }
-    const invalidHolds = holds.filter(h => !h.name || !h.name.trim() || !h.capacity || parseFloat(h.capacity) <= 0);
+    const invalidHolds = holds.filter((hold) => {
+      const holdCapacity = Number(hold.capacity);
+      return !String(hold.name || '').trim()
+        || String(hold.name).trim().length > MAX_NAME_LENGTH
+        || !Number.isInteger(holdCapacity)
+        || holdCapacity <= 0
+        || holdCapacity > MAX_CAPACITY_VALUE;
+    });
     if (invalidHolds.length > 0) {
       setActiveTab('capacity');
-      notifyWarning('Vui lòng điền đầy đủ tên và sức chứa hợp lệ (> 0) cho tất cả các khoang hàng.');
+      notifyWarning(`Tên khoang không được vượt quá ${MAX_NAME_LENGTH} ký tự; sức chứa phải là số nguyên từ 1 đến ${MAX_CAPACITY_VALUE.toLocaleString('vi-VN')} m³.`);
       return;
     }
 
@@ -653,19 +668,22 @@ export default function AddVesselPage() {
       notifyWarning(`Hiện chỉ có ${shipEquipments.length} thiết bị. Nên bổ sung ít nhất 5 loại!`);
       return;
     }
-    const invalidEqs = shipEquipments.filter(e => !e.equipmentName || !e.equipmentName.trim());
+    const invalidEqs = shipEquipments.filter((equipment) => {
+      const name = String(equipment.equipmentName || '').trim();
+      return !name || name.length > MAX_NAME_LENGTH;
+    });
     if (invalidEqs.length > 0) {
       setActiveTab('equipment');
-      notifyWarning('Tất cả thiết bị phải có tên. Vui lòng kiểm tra lại!');
+      notifyWarning(`Tên thiết bị là bắt buộc và không được vượt quá ${MAX_NAME_LENGTH} ký tự.`);
       return;
     }
     const invalidQuantityEqs = shipEquipments.filter((equipment) => {
       const quantity = Number(equipment.quantity);
-      return !Number.isInteger(quantity) || quantity <= 0;
+      return !Number.isInteger(quantity) || quantity <= 0 || quantity > MAX_EQUIPMENT_QUANTITY;
     });
     if (invalidQuantityEqs.length > 0) {
       setActiveTab('equipment');
-      notifyWarning('Số lượng của tất cả thiết bị phải là số nguyên dương. Vui lòng kiểm tra lại!');
+      notifyWarning(`Số lượng thiết bị phải là số nguyên từ 1 đến ${MAX_EQUIPMENT_QUANTITY.toLocaleString('vi-VN')}.`);
       return;
     }
     const duplicateEquipment = findDuplicateEquipment(
@@ -698,7 +716,9 @@ export default function AddVesselPage() {
     }
 
     try {
+      // Truyền id vào để backend phân biệt record cần UPDATE vs CREATE mới
       const normalizedEquipments = shipEquipments.map(e => ({
+        ...(e.id ? { id: e.id } : {}),
         equipmentName: e.equipmentName.trim(),
         equipmentType: e.equipmentType || 'Khác',
         location: e.location || 'Boong',
@@ -716,20 +736,6 @@ export default function AddVesselPage() {
 
       if (isEditMode) {
         await vesselService.update(id, payload);
-        // Thiết bị đã có `id` đang tồn tại trong DB, không gửi lại vào API tạo mới
-        // để tránh nhân đôi toàn bộ danh sách mỗi lần cập nhật hồ sơ tàu.
-        const newEquipments = shipEquipments.filter(
-          e => !e.id && e.equipmentName && e.equipmentName.trim()
-        );
-        if (newEquipments.length > 0) {
-          await vesselService.createShipEquipments(id, newEquipments.map(e => ({
-            equipmentName: e.equipmentName,
-            equipmentType: e.equipmentType || 'Khác',
-            location: e.location || 'Boong',
-            quantity: Number(e.quantity),
-            expiryNote: normalizeEquipmentExpiryDate(e.expiryNote),
-          })));
-        }
         notifySuccess('Cập nhật thông tin tàu thành công!');
       } else {
         await vesselService.create(payload);
@@ -777,6 +783,9 @@ export default function AddVesselPage() {
     return (
       <div style={{ background: '#edf4fa', padding: 16, borderRadius: 8, border: '1px solid #b8cde2' }}>
         <Text strong>Hạn mức chỉ số an toàn (Bắt buộc)</Text>
+        <Text type="secondary" style={{ display: 'block', marginTop: 4 }}>
+          Mức bên dưới chỉ để tham khảo theo cấu hình mẫu; khi khai báo tàu thật, hãy dùng hạn mức trong tài liệu kỹ thuật của nhà sản xuất máy.
+        </Text>
         <Row gutter={12} style={{ marginTop: 8 }}>
           {fixedParams.map((param) => (
             <Col xs={24} sm={8} key={param._uid}>
@@ -789,6 +798,9 @@ export default function AddVesselPage() {
                 value={param.maxValue === '' ? null : param.maxValue}
                 onChange={(value) => onChange(param._uid, 'maxValue', value ?? '')}
               />
+              <Text type="secondary" style={{ display: 'block', fontSize: 12, marginTop: 4 }}>
+                Mức tối đa tham khảo: {engineParameterTypicalMax(param.name)}
+              </Text>
             </Col>
           ))}
         </Row>
@@ -830,6 +842,11 @@ export default function AddVesselPage() {
                 value={param.maxValue === '' ? null : param.maxValue}
                 onChange={(value) => onChange(param._uid, 'maxValue', value ?? '')}
               />
+              {param.name && (
+                <Text type="secondary" style={{ display: 'block', fontSize: 12, marginTop: 4 }}>
+                  Tham khảo: {engineParameterTypicalMax(param.name)}
+                </Text>
+              )}
             </Col>
             <Col>
               <Button type="text" danger icon={<DeleteOutlined />} onClick={() => onRemove(param._uid)} />
@@ -1081,6 +1098,8 @@ export default function AddVesselPage() {
                   <div style={{ marginBottom: 6, fontWeight: 600 }}>Tải trọng tối đa (Tấn) {requiredTag}</div>
                   <InputNumber
                     style={{ width: '100%' }}
+                    min={0.01}
+                    max={MAX_CAPACITY_VALUE}
                     placeholder="50000"
                     value={capacity.maxWeight === '' ? null : capacity.maxWeight}
                     onChange={(value) => setCapacity({ ...capacity, maxWeight: value ?? '' })}
@@ -1090,6 +1109,8 @@ export default function AddVesselPage() {
                   <div style={{ marginBottom: 6, fontWeight: 600 }}>Thể tích tối đa (m³) {requiredTag}</div>
                   <InputNumber
                     style={{ width: '100%' }}
+                    min={0.01}
+                    max={MAX_CAPACITY_VALUE}
                     placeholder="75000"
                     value={capacity.maxVolume === '' ? null : capacity.maxVolume}
                     onChange={(value) => setCapacity({ ...capacity, maxVolume: value ?? '' })}
@@ -1139,6 +1160,8 @@ export default function AddVesselPage() {
                         <Input
                           style={{ fontWeight: 600, marginBottom: 8 }}
                           placeholder="Tên khoang..."
+                          maxLength={MAX_NAME_LENGTH}
+                          showCount
                           value={hold.name}
                           onChange={(e) => handleHoldChange(hold.id, 'name', e.target.value)}
                         />
@@ -1146,6 +1169,10 @@ export default function AddVesselPage() {
                           <Text type="secondary">Sức chứa:</Text>
                           <InputNumber
                             style={{ width: 120 }}
+                            min={1}
+                            max={MAX_CAPACITY_VALUE}
+                            step={1}
+                            precision={0}
                             placeholder="10000"
                             value={hold.capacity === '' ? null : hold.capacity}
                             onChange={(value) => handleHoldChange(hold.id, 'capacity', value ?? '')}
@@ -1193,7 +1220,8 @@ export default function AddVesselPage() {
                   <div style={{ flex: '2 1 200px', minWidth: 150 }}>
                     <div style={{ fontSize: 11, color: '#64748b', marginBottom: 2 }}>Tên thiết bị <span style={{ color: 'red' }}>*</span></div>
                     <Input placeholder="VD: Áo phao cá nhân, ra-đa, bình chữa cháy..." value={eq.equipmentName}
-                      maxLength={255}
+                      maxLength={MAX_NAME_LENGTH}
+                      showCount
                       onChange={e => handleShipEquipChange(eq._uid, 'equipmentName', e.target.value)} />
                   </div>
                   <div style={{ flex: '1 1 130px', minWidth: 120 }}>
@@ -1210,7 +1238,7 @@ export default function AddVesselPage() {
                   </div>
                   <div style={{ flex: '0 1 90px', minWidth: 80 }}>
                     <div style={{ fontSize: 11, color: '#64748b', marginBottom: 2 }}>Số lượng <span style={{ color: 'red' }}>*</span></div>
-                    <InputNumber min={1} step={1} precision={0} style={{ width: '100%' }} value={eq.quantity || 1}
+                    <InputNumber min={1} max={MAX_EQUIPMENT_QUANTITY} step={1} precision={0} style={{ width: '100%' }} value={eq.quantity || 1}
                       onChange={v => handleShipEquipChange(eq._uid, 'quantity', v)} />
                   </div>
                   <div style={{ flex: '1 1 150px', minWidth: 120 }}>
