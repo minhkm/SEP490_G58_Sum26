@@ -220,7 +220,7 @@ export default function EngineLogPage() {
   const getValueStatus = (param, value) => {
     if (value === '' || value === null || value === undefined) return '';
     const numVal = parseFloat(value);
-    if (isNaN(numVal)) return '';
+    if (!Number.isFinite(numVal)) return '';
     if (param.maxValue && numVal > param.maxValue) return 'danger';
     if (param.maxValue && numVal > param.maxValue * 0.9) return 'warning';
     return 'ok';

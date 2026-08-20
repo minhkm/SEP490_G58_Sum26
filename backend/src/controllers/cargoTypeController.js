@@ -27,7 +27,7 @@ exports.createCargoType = async (req, res) => {
       name: name.trim(),
       category: category || "Bulk",
       defaultUnit: defaultUnit || "MT",
-      stowageFactor: stowageFactor !== undefined && stowageFactor !== null && !isNaN(Number(stowageFactor)) ? Number(stowageFactor) : 1.0,
+      stowageFactor: stowageFactor !== undefined && stowageFactor !== null && Number.isFinite(Number(stowageFactor)) ? Number(stowageFactor) : 1.0,
       description,
     });
     res.json({ success: true, message: "Thêm loại hàng thành công", data: newType });
@@ -59,7 +59,7 @@ exports.updateCargoType = async (req, res) => {
       name: name !== undefined ? name.trim() : cargoType.name,
       category: category !== undefined ? category : cargoType.category,
       defaultUnit: defaultUnit !== undefined ? defaultUnit : cargoType.defaultUnit,
-      stowageFactor: stowageFactor !== undefined && stowageFactor !== null && !isNaN(Number(stowageFactor))
+      stowageFactor: stowageFactor !== undefined && stowageFactor !== null && Number.isFinite(Number(stowageFactor))
         ? Number(stowageFactor)
         : cargoType.stowageFactor,
       description: description !== undefined ? description : cargoType.description,

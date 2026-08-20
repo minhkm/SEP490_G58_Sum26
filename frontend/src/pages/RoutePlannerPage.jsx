@@ -396,7 +396,7 @@ export default function RoutePlannerPage() {
   const handleAddWaypoint = () => {
     const lat = parseFloat(inputLat);
     const lng = parseFloat(inputLng);
-    if (isNaN(lat) || isNaN(lng)) {
+    if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
       return message.error('Vui lòng nhập toạ độ hợp lệ (số thực)');
     }
     if (lat < -90 || lat > 90) {
