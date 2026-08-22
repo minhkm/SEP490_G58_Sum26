@@ -553,7 +553,7 @@ export default function SewageLogPage() {
 
               <div style={{ height: 250, width: '100%', marginTop: 16, marginBottom: 8, border: '1px solid #d9d9d9', borderRadius: 6, overflow: 'hidden' }}>
                 <MapContainer center={[16.0, 108.0]} zoom={5} style={{ height: '100%', width: '100%' }}>
-                  <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+                  <TileLayer url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png" />
                   <LocationMapPicker setLat={setSelectedLat} setLng={setSelectedLng} />
                   <MapUpdater lat={selectedLat} lng={selectedLng} />
                   <Marker position={[selectedLat, selectedLng]}>
@@ -610,7 +610,7 @@ export default function SewageLogPage() {
           {viewMapLocation && (
             <div style={{ height: 400, width: '100%', borderRadius: 6, overflow: 'hidden' }}>
               <MapContainer center={[viewMapLocation.lat, viewMapLocation.lng]} zoom={8} style={{ height: '100%', width: '100%' }}>
-                <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+                <TileLayer url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png" />
                 <Marker position={[viewMapLocation.lat, viewMapLocation.lng]}>
                   <Popup>Vị trí xả thải: {viewMapLocation.lat}, {viewMapLocation.lng}</Popup>
                 </Marker>
