@@ -1,0 +1,631 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<style>
+  body { font-family: Arial, sans-serif; line-height: 1.6; color: #000; background-color: #fff; max-width: 800px; margin: 0 auto; padding: 20px; }
+  h1 { font-size: 24px; font-weight: bold; margin-top: 24px; margin-bottom: 16px; }
+  h2 { font-size: 20px; font-weight: bold; margin-top: 24px; margin-bottom: 16px; border-bottom: 1px solid #eee; padding-bottom: 5px; }
+  h3 { font-size: 16px; font-weight: bold; margin-top: 20px; margin-bottom: 12px; }
+  p { margin-bottom: 16px; }
+  table { border-collapse: collapse; width: 100%; margin-bottom: 16px; }
+  th, td { border: 1px solid #ccc; padding: 8px 12px; text-align: left; }
+  th { background-color: #f5f5f5; font-weight: bold; }
+  ul { margin-bottom: 16px; padding-left: 20px; }
+  li { margin-bottom: 4px; }
+  blockquote { border-left: 4px solid #ddd; padding-left: 16px; color: #555; margin: 0 0 16px 0; background: #f9f9f9; padding: 10px 16px; }
+</style>
+</head>
+<body>
+
+<h1>User Guide: CargoOps (Vessel Voyage and Cargo Operations Management System - VVCOMS)</h1>
+
+<p>CargoOps is a centralized maritime operations platform that unifies vessel operations, voyage planning, cargo handling, crew coordination and incident reporting into a single system - replacing the fragmented use of paper records, spreadsheets and e-mail.</p>
+
+<p>The system serves 8 user roles across 3 dashboards:</p>
+<ul>
+  <li><strong>Agency Dashboard</strong> (Admin, Agency) for shore-based fleet administration.</li>
+  <li><strong>Master Dashboard</strong> (Master, ChiefOfficer) for voyage command.</li>
+  <li><strong>Crew Dashboard</strong> (DeckOfficer, Sailor, EngineOfficer, EngineCrew) for day-to-day watch operations.</li>
+</ul>
+
+<p>After signing in, each user is automatically routed to the dashboard that matches their role.</p>
+
+<p>The guide below covers representative workflows in detail. All illustrate the system's core interaction pattern - a subordinate role creates/submits a request, and the responsible senior role reviews, approves, rejects, or escalates it - a pattern that recurs across the other features not covered in detail here.</p>
+
+<p><em>[Insert screenshot: Figure 0 - Overview diagram of the system's feature groups / roles (a swimlane diagram, if available, can be reused here)]</em></p>
+
+<h2>3.2 Workflow 1 – Vessel Registration (Admin)</h2>
+
+<p>This workflow describes how the Admin registers a new vessel in the system before it can be assigned to any voyage.</p>
+<ul>
+  <li><strong>Admin</strong> – the only role that can create, edit or delete vessel records.</li>
+</ul>
+
+<p><strong>Workflow diagram</strong><br>
+<em>[Insert screenshot: Figure 19 - Vessel Registration workflow diagram]</em></p>
+
+<h3>Step-by-step guide</h3>
+
+<p><strong>Part A - Add a vessel</strong></p>
+<ul>
+  <li><strong>Step 1.</strong> Log in as Admin, go to <code>Quản lý tàu</code> → <code>Thêm tàu</code> (Vessel Management → Add Vessel).</li>
+  <li><strong>Step 2.</strong> Enter the vessel's basic information (name, IMO number, flag), capacity (deadweight/volume, minimum/maximum crew count), main engine, generator, and cargo holds.</li>
+  <li><strong>Step 3.</strong> Click “Lưu” (Save). The system confirms with “Tạo tàu thành công”.</li>
+</ul>
+
+<p><strong>Part B - Edit, delete and manage equipment</strong></p>
+<ul>
+  <li><strong>Step 4.</strong> Open a vessel record and click “Sửa” (Edit) to update any field, or “Xóa” (Delete) to remove the vessel.</li>
+  <li><strong>Step 5.</strong> To register onboard equipment, add one row per item with a name and a quantity of at least 1.</li>
+</ul>
+
+<h3>Common error messages</h3>
+
+<table>
+  <thead>
+    <tr>
+      <th>Message</th>
+      <th>Cause / Resolution</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code>Danh sách thiết bị không được để trống</code></td>
+      <td>At least one equipment item is required</td>
+    </tr>
+    <tr>
+      <td><code>Tên thiết bị và số lượng là bắt buộc</code></td>
+      <td>Enter both a name and a quantity ≥ 1 for every item</td>
+    </tr>
+  </tbody>
+</table>
+
+<h2>3.3 Workflow 2 – Voyage Lifecycle Management (Master / Chief Officer)</h2>
+
+<p>This workflow describes how the Master (with the Chief Officer handling attendance, cargo and route tasks) drives a voyage through its full lifecycle, subject to the system's stage-gate conditions. This is the central command flow that the Master Dashboard is built around.</p>
+<ul>
+  <li><strong>Master</strong> – owns overall voyage command and the Underway/Discharged/Completed transitions.</li>
+  <li><strong>Chief Officer</strong> – handles attendance, cargo loading/unloading and route submission that feed into these transitions.</li>
+</ul>
+
+<p><strong>Workflow diagram</strong><br>
+<em>[Insert screenshot: Figure 25 - Voyage lifecycle state diagram]</em></p>
+
+<p>The voyage moves through seven states in order: <code>Planning</code> → <code>Loading/Loaded</code> → <code>Underway</code> → <code>Arrived/Discharge</code> → <code>Discharged</code> → <code>Homeward Bounding</code> → <code>Completed</code>. Each transition is gated:</p>
+
+<table>
+  <thead>
+    <tr>
+      <th>Target state</th>
+      <th>Required beforehand</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><strong>Underway</strong></td>
+      <td>Full attendance taken + route Approved (Section 3.2) + cargo loading complete</td>
+    </tr>
+    <tr>
+      <td><strong>Discharged</strong></td>
+      <td>Every parcel unloaded</td>
+    </tr>
+    <tr>
+      <td><strong>Homeward Bounding</strong></td>
+      <td>Full “end of voyage” attendance taken</td>
+    </tr>
+    <tr>
+      <td><strong>Cancelled</strong></td>
+      <td>Only while still in Planning</td>
+    </tr>
+  </tbody>
+</table>
+
+<h3>Step-by-step guide</h3>
+
+<p><strong>Part A - Take attendance (precondition for Underway and for Homeward Bounding)</strong></p>
+<ul>
+  <li><strong>Step 1.</strong> Open the voyage and go to <code>Điểm danh</code> (Attendance).</li>
+  <li><strong>Step 2.</strong> Select the attendance type: <code>Trước khởi hành</code> (Pre-departure) / <code>Hằng ngày</code> (Daily, pick a date) / <code>Kết thúc chuyến</code> (End of voyage).</li>
+  <li><strong>Step 3.</strong> Mark each crew member <code>Có mặt</code> (Present) or <code>Vắng</code> (Absent), then click “Lưu”. The system confirms with “Lưu điểm danh thành công”.</li>
+</ul>
+
+<blockquote>A full “Pre-departure” attendance automatically raises the full-crew flag required to move the voyage to Underway.</blockquote>
+
+<p><strong>Part B - Load and unload cargo</strong></p>
+<ul>
+  <li><strong>Step 4.</strong> From the voyage's cargo section, assign each parcel to a hold and mark it “đã xếp” (loaded); the system updates hold capacity and logs a LOAD operation.</li>
+  <li><strong>Step 5.</strong> On arrival, mark each parcel “đã dỡ” (unloaded), logging an UNLOAD operation; once every parcel in a shipment is unloaded, the shipment status becomes “Đã giao thành công”.</li>
+</ul>
+
+<blockquote>Only the Master or Chief Officer can update unloading; other roles get “Chỉ Thuyền trưởng hoặc Đại phó được cập nhật dỡ hàng”.</blockquote>
+
+<p><strong>Part C - Advance the voyage status</strong></p>
+<ul>
+  <li><strong>Step 6.</strong> Once attendance, route approval and cargo loading are all satisfied, advance the voyage status to Underway.</li>
+  <li><strong>Step 7.</strong> Continue advancing through <code>Arrived/Discharge</code> → <code>Discharged</code> → <code>Homeward Bounding</code> → <code>Completed</code> as each stage's conditions are met.</li>
+</ul>
+
+<h3>Common error messages</h3>
+
+<table>
+  <thead>
+    <tr>
+      <th>Message</th>
+      <th>Cause / Resolution</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code>…chưa điểm danh hoặc nhân sự chưa đủ…</code></td>
+      <td>Complete a full pre-departure attendance first</td>
+    </tr>
+    <tr>
+      <td><code>Lộ trình chưa được phê duyệt…</code></td>
+      <td>Get the route approved first (Section 3.2)</td>
+    </tr>
+    <tr>
+      <td><code>Chưa bốc xếp hàng hóa xong…</code></td>
+      <td>Finish loading all cargo first</td>
+    </tr>
+    <tr>
+      <td><code>Chưa dỡ hết hàng hóa…</code></td>
+      <td>Every parcel must be unloaded before Discharged</td>
+    </tr>
+    <tr>
+      <td><code>Chưa hoàn thành điểm danh 'Kết thúc chuyến đi'…</code></td>
+      <td>Complete the end-of-voyage attendance first</td>
+    </tr>
+    <tr>
+      <td><code>Không thể hủy hải trình khi đã bắt đầu làm hàng hoặc di chuyển!</code></td>
+      <td>A voyage can only be cancelled while still Planning</td>
+    </tr>
+  </tbody>
+</table>
+
+<h2>3.4 Workflow 3 – Route Planning & Approval</h2>
+
+<p>This workflow describes how the Chief Officer drafts the route for a voyage that has finished loading, and how the Master approves the route before the voyage can move to Underway status.</p>
+<ul>
+  <li><strong>Chief Officer (ChiefOfficer)</strong> – drafts and submits the route for approval once the vessel status is Loaded.</li>
+  <li><strong>Master</strong> – reviews and approves the route; this is a mandatory precondition for moving the voyage to Underway.</li>
+</ul>
+
+<p><strong>Workflow diagram</strong><br>
+<em>[Insert screenshot: Figure 1 - Route Planning & Approval workflow diagram]</em></p>
+
+<h3>Step-by-step guide</h3>
+
+<p><strong>Part A - Chief Officer: draft and submit the route</strong></p>
+<ul>
+  <li><strong>Step 1.</strong> Log in as Chief Officer, open a voyage that is currently “Loaded”, and go to <code>Route Planner</code> (Lộ trình).</li>
+  <li><strong>Step 2.</strong> Draw the intended waypoints on the map.</li>
+  <li><strong>Step 3.</strong> Click “Gửi duyệt” (Submit for approval). The route status changes to “Pending” and the system e-mails the Master.</li>
+</ul>
+
+<blockquote>The route can only be edited/submitted while the vessel is Loaded and the route is still in draft; once submitted or approved, the system rejects further edits with “Đại phó chỉ được chỉnh sửa/gửi duyệt lộ trình khi trạng thái tàu là Loaded!”.</blockquote>
+
+<p><strong>Part B - Master: review and approve</strong></p>
+<ul>
+  <li><strong>Step 4.</strong> Log in as Master and open the pending route.</li>
+  <li><strong>Step 5.</strong> Click “Phê duyệt” (Approve). The route status becomes “Approved” - a mandatory precondition for moving the voyage to Underway.</li>
+</ul>
+
+<h3>Common error messages</h3>
+
+<table>
+  <thead>
+    <tr>
+      <th>Message</th>
+      <th>Cause / Resolution</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code>Đại phó chỉ được chỉnh sửa/gửi duyệt lộ trình khi trạng thái tàu là Loaded!</code></td>
+      <td>The route can only be drafted/submitted once cargo loading is complete</td>
+    </tr>
+    <tr>
+      <td><code>Lộ trình đã được gửi duyệt hoặc phê duyệt, không thể chỉnh sửa!</code></td>
+      <td>The route is locked once submitted; only a draft route can still be edited</td>
+    </tr>
+  </tbody>
+</table>
+
+<h2>3.5 Workflow 4 – Shift Scheduling (Deck Officer / Engine Officer)</h2>
+
+<p>This workflow describes how the Deck Officer and Engine Officer schedule watch shifts for crew members in their own department.</p>
+<ul>
+  <li><strong>Deck Officer (boong) / Engine Officer (máy)</strong> – each schedules shifts only for subordinate crew in their own department.</li>
+</ul>
+
+<p><strong>Workflow diagram</strong><br>
+<em>[Insert screenshot: Figure 33 - Shift scheduling workflow diagram]</em></p>
+
+<h3>Step-by-step guide</h3>
+
+<p><strong>Part A - Create shifts for a day</strong></p>
+<ul>
+  <li><strong>Step 1.</strong> Log in as Deck Officer or Engine Officer, go to <code>Quản lý ca trực</code> (Shift Management), and select a date.
+  <br><em>[Insert screenshot: Figure 34 - Shift management screen, date selected]</em></li>
+  <li><strong>Step 2.</strong> For each of the six 4-hour shifts, assign a subordinate sailor/mechanic from the same department and a watch position.
+  <br><em>[Insert screenshot: Figure 35 - Shift assignment form]</em></li>
+  <li><strong>Step 3.</strong> Click “Lưu”. The system confirms with “Đã tạo N ca trực.”
+  <br><em>[Insert screenshot: Figure 36 - Day's shift roster saved]</em></li>
+</ul>
+
+<p><strong>Part B - Edit or cancel a shift</strong></p>
+<ul>
+  <li><strong>Step 4.</strong> Open a shift that has not started yet and edit or cancel it as needed.
+  <br><em>[Insert screenshot: Figure 37 - Editing an upcoming shift]</em></li>
+</ul>
+
+<h3>Common error messages</h3>
+
+<table>
+  <thead>
+    <tr>
+      <th>Message</th>
+      <th>Cause / Resolution</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code>Chỉ sĩ quan boong/máy được tạo ca trực.</code></td>
+      <td>Requires the DeckOfficer/EngineOfficer role</td>
+    </tr>
+    <tr>
+      <td><code>Không thể tạo ca đã qua giờ (…)</code></td>
+      <td>Only future shifts can be scheduled</td>
+    </tr>
+    <tr>
+      <td><code>Chỉ được gán thủy thủ/thợ máy cấp dưới cùng bộ phận X.</code></td>
+      <td>The assignee must be a subordinate in the same department</td>
+    </tr>
+    <tr>
+      <td><code>&lt;tên&gt; đã có ca trùng giờ (…)</code></td>
+      <td>That person already has an overlapping shift</td>
+    </tr>
+    <tr>
+      <td><code>&lt;tên&gt; đã đủ 2 ca trong ngày.</code></td>
+      <td>Each crew member may have at most 2 shifts per day</td>
+    </tr>
+    <tr>
+      <td><code>Không thể sửa/hủy ca đã bắt đầu hoặc đã kết thúc.</code></td>
+      <td>Only a shift that has not started can be edited/cancelled</td>
+    </tr>
+  </tbody>
+</table>
+
+<h2>3.6 Workflow 5 – Shift Handover & Takeover (Watch-Standing Crew)</h2>
+
+<p>This workflow describes how a crew member finishing a watch hands it over, and how the next crew member takes it over, ensuring continuous coverage.</p>
+<ul>
+  <li><strong>Any crew member currently on a scheduled watch.</strong></li>
+</ul>
+
+<p><strong>Workflow diagram</strong><br>
+<em>[Insert screenshot: Figure 38 - Shift handover / takeover workflow diagram]</em></p>
+
+<h3>Step-by-step guide</h3>
+
+<p><strong>Part A - Hand over the shift (outgoing crew)</strong></p>
+<ul>
+  <li><strong>Step 1.</strong> Within 5 minutes of the shift's end time, open your current shift and click “Bàn giao” (Hand over).
+  <br><em>[Insert screenshot: Figure 39 - Hand-over screen]</em></li>
+  <li><strong>Step 2.</strong> Enter handover notes describing the current condition/status.
+  <br><em>[Insert screenshot: Figure 40 - Handover notes form]</em></li>
+</ul>
+
+<p><strong>Part B - Take over the shift (incoming crew)</strong></p>
+<ul>
+  <li><strong>Step 3.</strong> The crew member starting the next shift opens their own shift and clicks “Nhận ca” (Take over).
+  <br><em>[Insert screenshot: Figure 41 - Take-over confirmation]</em></li>
+</ul>
+
+<blockquote>A handover or takeover completed more than 30 minutes late is automatically flagged “trễ” (late).</blockquote>
+
+<h3>Common error messages</h3>
+
+<table>
+  <thead>
+    <tr>
+      <th>Message</th>
+      <th>Cause / Resolution</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code>Chưa có ca kế tiếp cùng vị trí để bàn giao.</code></td>
+      <td>A next shift at the same position must exist</td>
+    </tr>
+    <tr>
+      <td><code>Chưa tới giờ bàn giao/nhận ca…</code></td>
+      <td>This action is only available from 5 minutes before the shift</td>
+    </tr>
+    <tr>
+      <td><code>Ca trước chưa bàn giao, chưa thể nhận.</code></td>
+      <td>Wait for the outgoing crew to hand over first</td>
+    </tr>
+  </tbody>
+</table>
+
+<h2>3.7 Workflow 6 – MARPOL Waste-Discharge Approval</h2>
+
+<p>This workflow describes how the Chief Officer files a waste-discharge request while the vessel is Underway, and how the Master reviews and approves it based on MARPOL compliance.</p>
+<ul>
+  <li><strong>Chief Officer (ChiefOfficer)</strong> – files the discharge request while the vessel is Underway.</li>
+  <li><strong>Master</strong> – reviews and approves/rejects the request.</li>
+</ul>
+
+<p><strong>Workflow diagram</strong><br>
+<em>[Insert screenshot: Figure 7 - MARPOL Waste-Discharge Approval workflow diagram]</em></p>
+
+<h3>Step-by-step guide</h3>
+
+<p><strong>Part A - Chief Officer: create the request</strong></p>
+<ul>
+  <li><strong>Step 1.</strong> Log in as Chief Officer and go to <code>Nhật ký xả thải</code> (MARPOL) → <code>Tạo yêu cầu</code> (Waste Discharge Log → Create request).</li>
+  <li><strong>Step 2.</strong> Select the discharge type - <code>Đã xử lý</code> (Treated) / <code>Nghiền</code> (Comminuted) / <code>Thô</code> (Untreated) - and fill in distance from shore, vessel speed, volume, position, planned date and supporting photos.</li>
+  <li><strong>Step 3.</strong> Click “Gửi” (Submit). The system automatically evaluates compliance against the MARPOL thresholds below and e-mails the Master.</li>
+</ul>
+
+<p><strong>MARPOL compliance thresholds</strong></p>
+<table>
+  <thead>
+    <tr>
+      <th>Discharge type</th>
+      <th>Minimum distance from shore</th>
+      <th>Minimum speed</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><strong>Thô (Untreated)</strong></td>
+      <td>≥ 12 nautical miles</td>
+      <td>≥ 4 knots</td>
+    </tr>
+    <tr>
+      <td><strong>Nghiền (Comminuted)</strong></td>
+      <td>≥ 3 nautical miles</td>
+      <td>≥ 4 knots</td>
+    </tr>
+    <tr>
+      <td><strong>Đã xử lý (Treated_STP)</strong></td>
+      <td>Always compliant</td>
+      <td>—</td>
+    </tr>
+  </tbody>
+</table>
+
+<blockquote>A request that falls short of these thresholds can still be submitted - the system only flags it as non-compliant rather than blocking it - but non-compliant requests should be avoided.</blockquote>
+
+<p><strong>Part B - Master: approve or reject</strong></p>
+<ul>
+  <li><strong>Step 4.</strong> Open the pending request.</li>
+  <li><strong>Step 5.</strong> Click “Phê duyệt” (Approve) or “Từ chối” (Reject).</li>
+</ul>
+
+<h3>Common error messages</h3>
+
+<table>
+  <thead>
+    <tr>
+      <th>Message</th>
+      <th>Cause / Resolution</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code>Tàu chưa chạy (Status không phải Underway)…</code></td>
+      <td>Requests can only be filed while the vessel is Underway</td>
+    </tr>
+    <tr>
+      <td><code>Chỉ Đại phó (ChiefOfficer) mới được tạo yêu cầu xả thải…</code></td>
+      <td>Only the Chief Officer role may create a request</td>
+    </tr>
+    <tr>
+      <td><code>Chỉ Thuyền trưởng mới được phê duyệt/từ chối…</code></td>
+      <td>Only the Master role may approve or reject</td>
+    </tr>
+  </tbody>
+</table>
+
+<h2>3.8 Workflow 7 – Incident Report Escalation</h2>
+
+<p>This workflow applies to every crew member on board (except the Master). A report is created and routed through a fixed escalation chain per department:</p>
+<ul>
+  <li><strong>Deck:</strong> Sailor → Deck Officer → Chief Officer → Master.</li>
+  <li><strong>Engine:</strong> Engine Crew/Sailor → Engine Officer → Master.</li>
+</ul>
+
+<p>The Master only receives and processes reports - never creates them - and sits at the top of both the Deck and Engine chains.</p>
+
+<p><strong>Workflow diagram</strong><br>
+<em>[Insert screenshot: Figure 12 - Incident report escalation diagram]</em></p>
+
+<h3>Step-by-step guide</h3>
+
+<p><strong>Part A - Create a report</strong></p>
+<ul>
+  <li><strong>Step 1.</strong> Log in with any role (except Master) and go to <code>Báo cáo</code> → <code>Tạo báo cáo</code> (Reports → Create report).</li>
+  <li><strong>Step 2.</strong> Choose the report type (<code>Thường nhật</code>/Daily or <code>Sự cố</code>/Incident), department (<code>Boong</code>/Deck or <code>Máy</code>/Engine), priority level, and fill in the title and content. A report can optionally be created directly from the reporter's current watch, attaching that shift's logged info.</li>
+  <li><strong>Step 3.</strong> Click “Gửi” (Submit). The report is automatically routed to the next rank up.</li>
+</ul>
+
+<p><strong>Part B - Process the report (the rank currently holding it)</strong></p>
+<ul>
+  <li><strong>Step 4.</strong> Open the report and add a <code>Phản hồi</code> (Response). If the report is still Open and this is the handler's first response, the report automatically moves to “Đang xử lý” (In progress).</li>
+  <li><strong>Step 5.</strong> From In progress, the handler can: 
+    <ul>
+      <li><code>Đẩy cấp</code> (Escalate) - forward to the next rank up, unavailable once the report reaches the Master;</li>
+      <li><code>Đã xử lý</code> (Resolve);</li>
+      <li>or <code>Từ chối</code> (Reject) - a reason is required.</li>
+    </ul>
+  </li>
+  <li><strong>Step 6.</strong> From Resolved, the report can be <code>Đóng</code> (Closed) to end it, or <code>Mở lại</code> (Reopened) back to In progress if further action is needed - a reason is required to reopen.</li>
+</ul>
+
+<h3>Common error messages</h3>
+
+<table>
+  <thead>
+    <tr>
+      <th>Message</th>
+      <th>Meaning</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code>Thuyền trưởng không tạo báo cáo, chỉ tiếp nhận xử lý.</code></td>
+      <td>The Master role only processes reports, never creates them</td>
+    </tr>
+    <tr>
+      <td><code>Chỉ &lt;cấp&gt; (cấp đang giữ báo cáo) mới có quyền thao tác.</code></td>
+      <td>It is not yet your role's turn to act on the report</td>
+    </tr>
+    <tr>
+      <td><code>Vui lòng nhập lý do.</code></td>
+      <td>A reason is required when rejecting or reopening a report</td>
+    </tr>
+  </tbody>
+</table>
+
+<h2>3.9 Workflow 8 – Master Data Management (Ports & Cargo Types)</h2>
+
+<p>This workflow describes how the Admin sets up the foundational data—specifically Ports (for voyage routes) and Cargo Types (for cargo handling)—before operations can begin.</p>
+<ul>
+  <li><strong>Admin</strong> – the only role authorized to manage master data.</li>
+</ul>
+
+<p><strong>Workflow diagram</strong><br>
+<em>[Insert screenshot: Figure 42 - Master Data Management workflow]</em></p>
+
+<h3>Step-by-step guide</h3>
+
+<p><strong>Part A - Manage Ports</strong></p>
+<ul>
+  <li><strong>Step 1.</strong> Log in as Admin and go to <code>Cấu hình</code> → <code>Quản lý Cảng</code> (Settings → Port Management).</li>
+  <li><strong>Step 2.</strong> Click <code>Thêm cảng mới</code> (Add new port), enter the port name, country, and coordinates.</li>
+  <li><strong>Step 3.</strong> Click “Lưu” to save. The port is now available for route planning.</li>
+</ul>
+
+<p><strong>Part B - Manage Cargo Types</strong></p>
+<ul>
+  <li><strong>Step 4.</strong> Go to <code>Quản lý Loại hàng hóa</code> (Cargo Type Management).</li>
+  <li><strong>Step 5.</strong> Click <code>Thêm loại hàng</code> (Add cargo type). Enter the type name, unit (e.g., MT, CBM), and special handling requirements (if any).</li>
+  <li><strong>Step 6.</strong> Click “Lưu” to save. The cargo type can now be assigned during cargo loading.</li>
+</ul>
+
+<h3>Common error messages</h3>
+
+<table>
+  <thead>
+    <tr>
+      <th>Message</th>
+      <th>Cause / Resolution</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code>Tên cảng/loại hàng đã tồn tại.</code></td>
+      <td>You are trying to create a duplicate record. Use a unique name.</td>
+    </tr>
+  </tbody>
+</table>
+
+<h2>3.10 Workflow 9 – Crew Management (Admin / Agency)</h2>
+
+<p>This workflow outlines how shore-based roles manage onboard personnel, including adding new crew members and viewing their profiles.</p>
+<ul>
+  <li><strong>Admin / Agency</strong> – roles that can create and manage user accounts and profiles.</li>
+</ul>
+
+<p><strong>Workflow diagram</strong><br>
+<em>[Insert screenshot: Figure 43 - Crew Management workflow]</em></p>
+
+<h3>Step-by-step guide</h3>
+
+<p><strong>Part A - Add New Crew Member</strong></p>
+<ul>
+  <li><strong>Step 1.</strong> Log in as Admin/Agency and go to <code>Quản lý Thủy thủ</code> (Crew Management) → <code>Thêm mới</code> (Add Crew).</li>
+  <li><strong>Step 2.</strong> Fill in the crew member's personal information, contact details, and assign a specific system role (e.g., <code>DeckOfficer</code>, <code>Sailor</code>, <code>EngineOfficer</code>).</li>
+  <li><strong>Step 3.</strong> Input certification details and expiration dates.</li>
+  <li><strong>Step 4.</strong> Click “Lưu” to create the account.</li>
+</ul>
+
+<p><strong>Part B - View & Manage Profiles</strong></p>
+<ul>
+  <li><strong>Step 5.</strong> On the <code>Crew Management</code> page, click on any crew member to view their <code>Hồ sơ cá nhân</code> (Crew Profile).</li>
+  <li><strong>Step 6.</strong> Admins can update roles or deactivate accounts if the crew member leaves the fleet.</li>
+</ul>
+
+<blockquote>The "Status" field of a crew member (e.g., Onboard, On Leave) is managed automatically by the system based on Voyage Attendance and cannot be edited manually.</blockquote>
+
+<h2>3.11 Workflow 10 – Operations Logbooks (Deck & Engine Logs)</h2>
+
+<p>This workflow describes how the Deck and Engine Officers maintain the official ship logs during their watch. This is a crucial compliance requirement.</p>
+<ul>
+  <li><strong>Deck Officer</strong> – logs deck and navigational data.</li>
+  <li><strong>Engine Officer</strong> – logs machinery and fuel data.</li>
+</ul>
+
+<p><strong>Workflow diagram</strong><br>
+<em>[Insert screenshot: Figure 44 - Operations Logbooks workflow]</em></p>
+
+<h3>Step-by-step guide</h3>
+
+<p><strong>Part A - Deck Logbook (Deck Officer)</strong></p>
+<ul>
+  <li><strong>Step 1.</strong> During or at the end of a shift, the Deck Officer goes to <code>Nhật ký Boong</code> (Deck Logbook).</li>
+  <li><strong>Step 2.</strong> Click <code>Thêm bản ghi</code> (Add log entry) and input current coordinates, weather conditions, heading, speed, and any navigational remarks.</li>
+  <li><strong>Step 3.</strong> Submit the log.</li>
+</ul>
+
+<p><strong>Part B - Engine Logbook (Engine Officer)</strong></p>
+<ul>
+  <li><strong>Step 4.</strong> The Engine Officer goes to <code>Nhật ký Máy</code> (Engine Logbook).</li>
+  <li><strong>Step 5.</strong> Input engine parameters, RPM, temperatures, and fuel consumption for the watch period.</li>
+  <li><strong>Step 6.</strong> In <code>Quản lý trạng thái máy</code> (Engine Management), the officer can also update the operational status of key machinery.</li>
+</ul>
+
+<h3>Common error messages</h3>
+
+<table>
+  <thead>
+    <tr>
+      <th>Message</th>
+      <th>Cause / Resolution</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code>Chỉ sĩ quan boong/máy mới được ghi nhật ký.</code></td>
+      <td>You must hold the correct role for the respective logbook.</td>
+    </tr>
+  </tbody>
+</table>
+
+<h2>3.12 Workflow 11 – Dashboards & Personal Info</h2>
+
+<p>This section covers how different users interact with their respective dashboards for a high-level overview and how they manage their personal settings.</p>
+
+<h3>Step-by-step guide</h3>
+
+<p><strong>Part A - Dashboards</strong></p>
+<ul>
+  <li><strong>Step 1 (Admin/Agency):</strong> The <strong>Admin Dashboard</strong> displays fleet-wide statistics, active vessels, total crew count, and high-level alerts.</li>
+  <li><strong>Step 2 (Master/Chief Officer):</strong> The <strong>Master Dashboard</strong> focuses on the current active voyage, showing route progress, cargo status, and pending approvals (like MARPOL or Routes).</li>
+  <li><strong>Step 3 (Crew/Officers):</strong> The <strong>Crew Dashboard</strong> displays the user's upcoming shifts, recent incidents, and a quick link to <code>Chuyến đi của tôi</code> (My Voyages).</li>
+</ul>
+
+<p><strong>Part B - Settings and Profile</strong></p>
+<ul>
+  <li><strong>Step 4.</strong> Any user can click on their avatar/name and select <code>Cài đặt</code> (Settings).</li>
+  <li><strong>Step 5.</strong> Here, users can change their password or update personal contact information.</li>
+</ul>
+
+<blockquote>Always check your Dashboard first upon login, as it highlights pending tasks (like approvals or upcoming shifts) that require your immediate attention.</blockquote>
+
+</body>
+</html>
