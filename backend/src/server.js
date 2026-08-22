@@ -41,8 +41,15 @@ async function start() {
     console.log("✅ Kết nối MySQL thành công");
 
     await sequelize.query("SET SESSION sql_mode=''");
-    await sequelize.sync({ alter: true }); // Tạm thời dùng alter: true để fix lỗi db trên Railway
-    console.log("✅ Đồng bộ models xong");
+    // Mặc định KHÔNG alter mỗi lần chạy (alter lặp lại làm MySQL tích tụ foreign key trùng
+    // -> diagram đầy đường lặp). Chỉ alter khi cần đổi schema: chạy `DB_SYNC=alter npm run dev`.
+    if (process.env.DB_SYNC === "alter") {
+      await sequelize.sync({ alter: true });
+      console.log("✅ Đồng bộ models (alter) xong");
+    } else {
+      await sequelize.sync(); // chỉ tạo bảng còn thiếu, không đụng khóa ngoại hiện có
+      console.log("✅ Đồng bộ models xong");
+    }
 
 
     app.listen(PORT, "0.0.0.0", () => console.log(`🚀 Server: http://0.0.0.0:${PORT}`));

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Table, Button, Input, Card, Space, Typography, Tooltip, Modal, Select, DatePicker, message } from 'antd';
+import { Table, Button, Input, Card, Space, Typography, Tooltip, Modal, Select, DatePicker, message, Grid } from 'antd';
 import { PlusOutlined, ReloadOutlined, TeamOutlined, ArrowRightOutlined, CompassOutlined, FileExcelOutlined } from '@ant-design/icons';
 import MasterLayout from '../components/MasterLayout';
 import AdminLayout from '../components/AdminLayout';
@@ -30,6 +30,7 @@ const formatDate = (date) => {
 export default function VoyageListPage() {
   const navigate = useNavigate();
   const [voyages, setVoyages] = useState([]);
+  const screens = Grid.useBreakpoint();
   const [searchTerm, setSearchTerm] = useState('');
   const [loading, setLoading] = useState(true);
   const [selectedVoyage, setSelectedVoyage] = useState(null);
@@ -265,6 +266,7 @@ export default function VoyageListPage() {
             columns={columns}
             dataSource={filteredVoyages}
             loading={loading}
+            scroll={screens.lg ? undefined : { x: 'max-content' }}
             pagination={{ pageSize: 10, hideOnSinglePage: true }}
             locale={{ emptyText: searchTerm ? 'Không tìm thấy hải trình phù hợp' : 'Chưa có hải trình nào' }}
           />

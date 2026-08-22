@@ -9,9 +9,12 @@ import '../AppTopbar.css';
  *
  * <AppTopbar name={displayName} role={displayRole} />
  */
-export default function AppTopbar({ name = 'Người dùng', role = '' }) {
+export default function AppTopbar({ name = 'Người dùng', role = '', leftSlot = null }) {
   return (
     <div className="app-topbar">
+      {leftSlot && (
+        <div style={{ marginRight: 'auto', display: 'flex', alignItems: 'center' }}>{leftSlot}</div>
+      )}
       <NotificationBell />
       <HelpButton />
       <div className="app-topbar-user">

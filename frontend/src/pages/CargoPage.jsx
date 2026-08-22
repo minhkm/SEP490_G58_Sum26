@@ -19,6 +19,7 @@ import {
   Spin,
   message,
   Alert,
+  Grid,
 } from 'antd';
 import {
   AppstoreOutlined,
@@ -296,6 +297,7 @@ export default function CargoPage() {
   const navigate = useNavigate();
   const [cargos, setCargos] = useState([]);
   const [loading, setLoading] = useState(true);
+  const screens = Grid.useBreakpoint();
   const [searchTerm, setSearchTerm] = useState('');
 
   // Voyage states
@@ -974,6 +976,7 @@ export default function CargoPage() {
               columns={columns}
               dataSource={filteredCargos}
               loading={loading}
+              scroll={screens.lg ? undefined : { x: 'max-content' }}
               onRow={(cargo) => ({
                 onClick: () => navigate(`/cargos/view/${cargo.id}`),
                 style: { cursor: 'pointer' },

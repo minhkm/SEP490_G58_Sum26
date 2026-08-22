@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Table, Button, Row, Col } from 'antd';
+import { Table, Button, Row, Col, Grid } from 'antd';
 import { PlusOutlined, DatabaseOutlined, CompassOutlined, CheckCircleOutlined } from '@ant-design/icons';
 import AdminLayout from '../components/AdminLayout';
 import { vesselService } from '../services/api';
@@ -9,6 +9,7 @@ import { PageHeader, PageContainer, StatCard, StatusTag, RowActions, confirmDele
 export default function VesselListPage() {
   const navigate = useNavigate();
   const [vessels, setVessels] = useState([]);
+  const screens = Grid.useBreakpoint();
   const [loading, setLoading] = useState(true);
 
   const fetchVessels = async () => {
@@ -129,6 +130,7 @@ export default function VesselListPage() {
           columns={columns}
           dataSource={vessels}
           loading={loading}
+          scroll={screens.lg ? undefined : { x: 'max-content' }}
           pagination={{ pageSize: 10, hideOnSinglePage: true }}
           locale={{ emptyText: 'Chưa có tàu nào trong hệ thống. Hãy thêm tàu mới!' }}
         />
