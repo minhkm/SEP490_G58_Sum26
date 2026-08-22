@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Row, Col, Card, Table, Button, Input, Space, Typography, Steps, Tag, Empty, Tooltip } from 'antd';
+import { Row, Col, Card, Table, Button, Input, Space, Typography, Steps, Tag, Empty, Tooltip, Grid } from 'antd';
 import {
   CalendarOutlined,
   PlusOutlined,
@@ -44,6 +44,7 @@ export default function AdminDashboard() {
 
   const [loading, setLoading] = useState(true);
   const [searchVoyage, setSearchVoyage] = useState('');
+  const screens = Grid.useBreakpoint(); // để chỉ cho bảng cuộn ngang trên mobile
 
   // --- Joyride State ---
   const [runTour, setRunTour] = useState(true);
@@ -461,6 +462,7 @@ export default function AdminDashboard() {
               columns={voyageColumns}
               dataSource={filteredVoyages}
               loading={loading}
+              scroll={screens.lg ? undefined : { x: 'max-content' }}
               pagination={{
                 defaultPageSize: 5,
                 showSizeChanger: true,
