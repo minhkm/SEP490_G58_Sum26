@@ -64,6 +64,10 @@ router.post('/change-first-password', async (req, res) => {
   try {
     const { email, newPassword } = req.body;
 
+    if (typeof newPassword !== 'string' || newPassword.length < 6) {
+      return res.status(400).json({ message: 'Mật khẩu mới phải có ít nhất 6 ký tự.' });
+    }
+
     const user = await User.findOne({ where: { username: email } });
     if (!user) {
       return res.status(400).json({ message: 'Tài khoản không tồn tại.' });
