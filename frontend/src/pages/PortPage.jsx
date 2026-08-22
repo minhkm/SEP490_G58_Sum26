@@ -496,8 +496,8 @@ export default function PortPage() {
             <div style={{ height: 250, width: '100%', borderRadius: 8, overflow: 'hidden', border: '1px solid #d9d9d9' }}>
               <MapContainer center={[14.0, 108.5]} zoom={4} style={{ height: '100%', width: '100%' }}>
                 <TileLayer
-                  attribution='&copy; OpenStreetMap'
-                  url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                  attribution='&copy; <a href="https://carto.com/">CartoDB</a> contributors'
+                  url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
                 />
                 <MapSelector form={addForm} />
               </MapContainer>
@@ -597,8 +597,8 @@ export default function PortPage() {
             <div style={{ height: 250, width: '100%', borderRadius: 8, overflow: 'hidden', border: '1px solid #d9d9d9' }}>
               <MapContainer center={[14.0, 108.5]} zoom={4} style={{ height: '100%', width: '100%' }}>
                 <TileLayer
-                  attribution='&copy; OpenStreetMap'
-                  url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                  attribution='&copy; <a href="https://carto.com/">CartoDB</a> contributors'
+                  url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
                 />
                 <MapSelector form={editForm} />
               </MapContainer>

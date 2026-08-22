@@ -1,6 +1,7 @@
 const cloudinary = require('cloudinary').v2;
 const { CloudinaryStorage } = require('multer-storage-cloudinary');
 const multer = require('multer');
+const path = require('path');
 
 // Cấu hình Cloudinary từ .env
 cloudinary.config({
@@ -21,8 +22,22 @@ const storage = new CloudinaryStorage({
 });
 
 const fileFilter = (req, file, cb) => {
-  const allowed = ['image/jpeg', 'image/png', 'image/webp'];
-  if (allowed.includes(file.mimetype)) {
+  const allowedMimeTypes = [
+    'image/jpeg',
+    'image/jpg',
+    'image/png',
+    'image/x-png',
+    'image/webp',
+  ];
+  const allowedExtensions = ['.jpg', '.jpeg', '.jfif', '.png', '.webp'];
+  const extension = path.extname(file.originalname || '').toLowerCase();
+
+  const isKnownImageMime = allowedMimeTypes.includes(file.mimetype);
+  const isPostmanImage =
+    file.mimetype === 'application/octet-stream'
+    && allowedExtensions.includes(extension);
+
+  if (isKnownImageMime || isPostmanImage) {
     cb(null, true);
   } else {
     cb(new Error('Chỉ chấp nhận file ảnh JPEG, PNG hoặc WebP'), false);
