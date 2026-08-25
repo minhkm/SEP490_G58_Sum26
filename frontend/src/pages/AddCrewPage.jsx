@@ -111,35 +111,7 @@ export default function AddCrewPage() {
         const response = await crewService.create(values);
         const tempPass = response?.temporaryPassword || response?.data?.temporaryPassword;
         const emailSent = response?.emailSent ?? response?.data?.emailSent;
-        if (tempPass) {
-          notification.success({
-            message: emailSent
-              ? 'Thêm thủy thủ và gửi email thành công!'
-              : 'Thêm thủy thủ thành công nhưng email chưa gửi được!',
-            description: (
-              <div>
-                <p style={{ marginBottom: 8, color: emailSent ? '#389e0d' : '#cf1322' }}>
-                  {emailSent
-                    ? `Gmail API đã gửi email tới ${values.email}.`
-                    : 'Hãy kiểm tra Railway Logs và các biến GMAIL_CLIENT_ID / GMAIL_CLIENT_SECRET / GMAIL_REFRESH_TOKEN.'}
-                </p>
-                <p style={{ marginBottom: 4 }}>Mật khẩu tạm thời của thủy thủ là:</p>
-                <Typography.Text copyable style={{ fontSize: '18px', fontWeight: 'bold', color: '#1677ff' }}>
-                  {tempPass}
-                </Typography.Text>
-                {!emailSent && (
-                  <p style={{ color: '#cf1322', marginTop: 8, fontSize: '13px' }}>
-                    Vui lòng sao chép mật khẩu để gửi thủ công nếu cần.
-                  </p>
-                )}
-              </div>
-            ),
-            duration: 0, // Không bao giờ tự động đóng
-            placement: 'topRight'
-          });
-        } else {
-          notifySuccess('Thêm thủy thủ mới thành công!');
-        }
+        notifySuccess('Thêm thủy thủ mới thành công!');
       }
       navigate('/crews');
     } catch (error) {
