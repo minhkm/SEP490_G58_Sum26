@@ -496,10 +496,18 @@ export default function CargoPage() {
 
   const handleCargoDischargeClick = (cargo) => {
     setDischargingCargo(cargo);
-    setDischargeValues({
-      actualQuantity: cargo.isDischarged ? (cargo.dischargedQuantity ?? '') : (cargo.quantity || ''),
-      actualWeight: cargo.isDischarged ? (cargo.dischargedWeight ?? '') : (cargo.weight || '')
+    const initialDischargeValues = (cargo.allocations || []).map(a => {
+      const hold = holds.find(h => String(h.id) === String(a.holdId));
+      return {
+        holdId: a.holdId,
+        holdName: hold ? hold.holdName : `Khoang ${a.holdId}`,
+        allocatedWeight: a.weight || 0,
+        allocatedQuantity: cargo.quantity && cargo.weight > 0 ? Math.round((Number(a.weight || 0) / cargo.weight) * cargo.quantity) : 0,
+        actualWeight: a.dischargedWeight !== undefined ? a.dischargedWeight : '',
+        actualQuantity: a.dischargedQuantity !== undefined ? a.dischargedQuantity : ''
+      };
     });
+    setDischargeValues(initialDischargeValues);
     setDischargeModalOpen(true);
   };
 
@@ -508,8 +516,11 @@ export default function CargoPage() {
       setLoading(true);
       await voyageService.dischargeCargoItem(activeVoyageId, dischargingCargo.itemId, {
         isDischarged: true,
-        actualQuantity: Number(dischargeValues.actualQuantity) || undefined,
-        actualWeight: Number(dischargeValues.actualWeight) || undefined
+        allocationsDischarge: dischargeValues.map(v => ({
+          holdId: v.holdId,
+          actualWeight: Number(v.actualWeight) || 0,
+          actualQuantity: Number(v.actualQuantity) || 0
+        }))
       });
       message.success('Đã dỡ hàng thành công!');
       setDischargeModalOpen(false);
@@ -1002,62 +1013,96 @@ export default function CargoPage() {
         />
       )}
       <Modal
-        title="Tiến hành dỡ hàng"
+        title="Tiến hành dỡ hàng theo khoang"
         open={dischargeModalOpen}
         onOk={submitDischarge}
         onCancel={() => setDischargeModalOpen(false)}
         okText="Xác nhận dỡ"
         cancelText="Hủy"
         confirmLoading={loading}
+        width={720}
       >
         <Alert
-          message="Vui lòng nhập số lượng và khối lượng hàng hóa thực tế đã dỡ xuống để đối chiếu."
+          message="Vui lòng nhập số lượng và khối lượng hàng hóa thực tế đã dỡ xuống cho từng khoang để đối chiếu."
           type="info"
           showIcon
           style={{ marginBottom: 16 }}
         />
         <div style={{ marginBottom: 16 }}>
-          <Text strong>Lô hàng:</Text> {dischargingCargo?.itemName}
+          <Text strong>Lô hàng:</Text> {dischargingCargo?.itemName} 
+          <Text type="secondary" style={{ marginLeft: 8 }}>(Tổng khối lượng: {dischargingCargo?.weight?.toLocaleString()} MT)</Text>
         </div>
-        <Row gutter={16}>
-          {!(dischargingCargo?.unit === 'MT' && Number(dischargingCargo?.quantity) === Number(dischargingCargo?.weight)) && (
-            <Col span={12}>
-              <div style={{ marginBottom: 8 }}>
-                <Text type="secondary">SL bốc lên:</Text>{' '}
-                <Text strong>
-                  {dischargingCargo?.quantity?.toLocaleString()} {dischargingCargo?.unit === 'MT' ? '' : dischargingCargo?.unit}
-                </Text>
-              </div>
-              <div style={{ marginBottom: 4 }}>Số lượng dỡ thực tế:</div>
-              <Input
-                type="number"
-                min="0"
-                value={dischargeValues.actualQuantity}
-                onChange={(e) => setDischargeValues({ ...dischargeValues, actualQuantity: e.target.value })}
-                suffix={dischargingCargo?.unit === 'MT' ? undefined : dischargingCargo?.unit}
-              />
-            </Col>
-          )}
-          <Col span={dischargingCargo?.unit === 'MT' && Number(dischargingCargo?.quantity) === Number(dischargingCargo?.weight) ? 24 : 12}>
-            <div style={{ marginBottom: 8 }}><Text type="secondary">KL bốc lên:</Text> <Text strong>{dischargingCargo?.weight?.toLocaleString()} MT</Text></div>
-            <div style={{ marginBottom: 4 }}>Khối lượng dỡ thực tế:</div>
-            <Input
-              type="number"
-              min="0"
-              value={dischargeValues.actualWeight}
-              onChange={(e) => {
-                const w = e.target.value;
-                const isBulk = dischargingCargo?.unit === 'MT' && Number(dischargingCargo?.quantity) === Number(dischargingCargo?.weight);
-                setDischargeValues(prev => ({
-                  ...prev,
-                  actualWeight: w,
-                  ...(isBulk ? { actualQuantity: w } : {})
-                }));
-              }}
-              suffix="MT"
-            />
-          </Col>
-        </Row>
+        <Table 
+          dataSource={Array.isArray(dischargeValues) ? dischargeValues : []}
+          pagination={false}
+          rowKey="holdId"
+          size="small"
+          bordered
+          columns={[
+            {
+              title: 'Khoang',
+              dataIndex: 'holdName',
+              width: '20%',
+              render: text => <Text strong>{text}</Text>
+            },
+            {
+              title: 'Phân bổ ban đầu',
+              width: '25%',
+              render: (_, record) => (
+                <div>
+                  <Text strong>{record.allocatedWeight.toLocaleString()} MT</Text>
+                  {dischargingCargo?.quantity && dischargingCargo?.unit !== 'MT' && (
+                    <div style={{ fontSize: 12, color: '#64748b' }}>
+                      ~ {record.allocatedQuantity.toLocaleString()} {dischargingCargo.unit}
+                    </div>
+                  )}
+                </div>
+              )
+            },
+            {
+              title: 'Khối lượng dỡ (MT)',
+              width: '25%',
+              render: (_, record, idx) => (
+                <Input
+                  type="number"
+                  min="0"
+                  value={record.actualWeight}
+                  onChange={(e) => {
+                    const newVals = [...dischargeValues];
+                    newVals[idx].actualWeight = e.target.value;
+                    const isBulk = dischargingCargo?.unit === 'MT' && Number(dischargingCargo?.quantity) === Number(dischargingCargo?.weight);
+                    if (isBulk) newVals[idx].actualQuantity = e.target.value;
+                    setDischargeValues(newVals);
+                  }}
+                  placeholder="0 MT"
+                />
+              )
+            },
+            ...(dischargingCargo?.unit !== 'MT' || Number(dischargingCargo?.quantity) !== Number(dischargingCargo?.weight) ? [{
+              title: `SL dỡ (${dischargingCargo?.unit || ''})`,
+              width: '30%',
+              render: (_, record, idx) => (
+                <Input
+                  type="number"
+                  min="0"
+                  value={record.actualQuantity}
+                  onChange={(e) => {
+                    const newVals = [...dischargeValues];
+                    newVals[idx].actualQuantity = e.target.value;
+                    setDischargeValues(newVals);
+                  }}
+                  placeholder="0"
+                />
+              )
+            }] : [])
+          ]}
+        />
+        <div style={{ marginTop: 16, textAlign: 'right' }}>
+          <Text strong>Tổng khối lượng dỡ: </Text>
+          <Text style={{ color: '#2563eb', fontSize: 16, fontWeight: 'bold' }}>
+            {Array.isArray(dischargeValues) ? dischargeValues.reduce((sum, v) => sum + (Number(v.actualWeight) || 0), 0).toLocaleString() : 0} MT
+          </Text>
+        </div>
       </Modal>
     </Layout>
   );
