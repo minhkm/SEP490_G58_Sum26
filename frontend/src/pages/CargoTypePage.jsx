@@ -17,6 +17,7 @@ import {
   Tooltip,
   Space,
   Typography,
+  Grid,
 } from 'antd';
 import {
   TagsOutlined,
@@ -50,6 +51,7 @@ export default function CargoTypePage() {
   const canEdit = user.role === 'Admin';
 
   const [cargoTypes, setCargoTypes] = useState([]);
+  const screens = Grid.useBreakpoint();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
@@ -343,6 +345,7 @@ export default function CargoTypePage() {
             columns={columns}
             dataSource={filteredData}
             loading={loading}
+            scroll={screens.lg ? undefined : { x: 'max-content' }}
             pagination={{
               defaultPageSize: 10,
               showSizeChanger: true,

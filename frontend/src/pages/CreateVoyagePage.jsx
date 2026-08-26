@@ -414,6 +414,87 @@ export default function CreateVoyagePage() {
     return false; // ngăn antd upload tự post
   };
 
+  // ===== Nhập Excel thủy thủ =====
+  const downloadCrewTemplate = () => {
+    const rows = [
+      ['Email', 'Họ tên (tham khảo)', 'Chức vụ (tham khảo)'],
+      ['bdvinh@vinhquang.vn', 'Bạch Đình Vinh', 'Thủy thủ'],
+      ['dvtai@vinhquang.vn', 'Dương Văn Tài', 'Thợ máy'],
+    ];
+    const ws = XLSX.utils.aoa_to_sheet(rows);
+    ws['!cols'] = [{ wch: 28 }, { wch: 22 }, { wch: 18 }];
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'ThuyenVien');
+    XLSX.writeFile(wb, 'mau-thuyen-vien.xlsx');
+  };
+
+  const handleImportCrewExcel = (file) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const wb = XLSX.read(e.target.result, { type: 'array' });
+        const ws = wb.Sheets[wb.SheetNames[0]];
+        const rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
+        // Bỏ dòng tiêu đề, giữ dòng có cột A (email) không rỗng
+        const nonEmptyRows = rows.slice(1).filter(r => String(r[0] || '').trim());
+        if (nonEmptyRows.length === 0) {
+          message.warning('Tệp không có dữ liệu hoặc sai định dạng!');
+          return;
+        }
+
+        const errors = [];
+        const imported = [];
+        const startId = crewList.length > 0 ? Math.max(...crewList.map(c => c.id)) + 1 : 1;
+        // Tra thủy thủ khả dụng theo email
+        const byEmail = new Map(availableCrews.map(c => [String(c.email || '').trim().toLowerCase(), c]));
+        const seenCrewIds = new Set(crewList.filter(c => c.crewId).map(c => c.crewId));
+
+        nonEmptyRows.forEach((r, i) => {
+          const rowNum = i + 2;
+          const rowErrors = [];
+          const rawEmail = String(r[0] || '').trim();
+          const crew = byEmail.get(rawEmail.toLowerCase());
+          if (!rawEmail) rowErrors.push('Email không được để trống');
+          else if (!crew) rowErrors.push(`Email "${rawEmail}" không có trong danh sách thủy thủ khả dụng`);
+          else if (seenCrewIds.has(crew.id)) rowErrors.push(`Thủy thủ "${crew.fullName}" đã được thêm (trùng)`);
+
+          if (rowErrors.length > 0) {
+            errors.push({ rowNum, rowErrors });
+          } else {
+            seenCrewIds.add(crew.id);
+            imported.push({ id: startId + imported.length, crewId: crew.id, role: mapPositionToRole(crew.position, crew.department) });
+          }
+        });
+
+        if (errors.length > 0) {
+          const errorMessages = errors.map(({ rowNum, rowErrors }) => `Dòng ${rowNum}: ${rowErrors.join('; ')}`);
+          Modal.warning({
+            title: `Tệp nhập có ${errors.length} dòng lỗi — đã bỏ qua`,
+            width: 600,
+            content: (
+              <div style={{ maxHeight: 300, overflowY: 'auto' }}>
+                {errorMessages.map((msg, idx) => (
+                  <div key={idx} style={{ marginBottom: 4, fontSize: 13 }}>⚠️ {msg}</div>
+                ))}
+              </div>
+            ),
+          });
+        }
+
+        if (imported.length > 0) {
+          setCrewList(prev => [...prev, ...imported]);
+          message.success(`Đã nhập ${imported.length} nhân sự hợp lệ${errors.length > 0 ? `, bỏ qua ${errors.length} dòng lỗi` : ''}!`);
+        } else {
+          message.error('Không có dòng nào hợp lệ để nhập. Vui lòng kiểm tra lại tệp!');
+        }
+      } catch {
+        message.error('Không đọc được tệp. Hãy kiểm tra đúng định dạng xlsx/xls.');
+      }
+    };
+    reader.readAsArrayBuffer(file);
+    return false; // ngăn antd upload tự post
+  };
+
   // Equipment handlers
   const addEquipment = () => {
     const newId = equipmentList.length > 0 ? Math.max(...equipmentList.map((e) => e.id)) + 1 : 1;
@@ -950,9 +1031,19 @@ export default function CreateVoyagePage() {
                     <Card
                       title="Danh sách Nhân sự được phân công"
                       extra={
-                        <Button type="primary" ghost icon={<PlusOutlined />} onClick={addCrew}>
-                          Thêm Nhân sự
-                        </Button>
+                        <Space size="small">
+                          <Tooltip title="Tải tệp Excel mẫu về, điền email thủy thủ rồi nhập lên">
+                            <Button size="small" icon={<DownloadOutlined />} onClick={downloadCrewTemplate}>
+                              Tải mẫu
+                            </Button>
+                          </Tooltip>
+                          <Upload accept=".xlsx,.xls" showUploadList={false} beforeUpload={handleImportCrewExcel}>
+                            <Button size="small" icon={<UploadOutlined />}>Nhập từ Excel</Button>
+                          </Upload>
+                          <Button type="primary" ghost icon={<PlusOutlined />} onClick={addCrew}>
+                            Thêm Nhân sự
+                          </Button>
+                        </Space>
                       }
                     >
                       {crewList.length === 0 ? (

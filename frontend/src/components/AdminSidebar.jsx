@@ -13,9 +13,11 @@ import { CARGO_ROLES } from '../config/roles';
 
 const { Sider } = Layout;
 
-export default function AdminSidebar() {
+export default function AdminSidebar({ variant = 'sider', onNavigate }) {
   const navigate = useNavigate();
   const location = useLocation();
+  // Sau khi điều hướng (dùng ở drawer mobile) thì đóng drawer
+  const go = (key) => { navigate(key); if (onNavigate) onNavigate(); };
 
   const user = JSON.parse(localStorage.getItem('user') || '{}');
   const role = user.role || 'Admin';
@@ -41,13 +43,15 @@ export default function AdminSidebar() {
     localStorage.removeItem('user');
     localStorage.removeItem('activeVoyageId');
     localStorage.removeItem('activeVoyageRole');
+    if (onNavigate) onNavigate();
     navigate('/login');
   };
 
-  return (
-    <Sider theme="dark" width={260} breakpoint="md" collapsedWidth={0} style={{ display: 'flex', flexDirection: 'column', height: '100vh' }}>
+  // Nội dung dùng chung cho cả Sider (desktop) lẫn Drawer (mobile)
+  const content = (
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', background: '#001529' }}>
       <div
-        onClick={() => navigate('/admin-dashboard')}
+        onClick={() => go('/admin-dashboard')}
         style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '20px 16px', cursor: 'pointer', color: '#fff' }}
       >
         <img src="/favicon.svg" alt="CargoOps" width={32} height={32} style={{ display: 'block', borderRadius: 7 }} />
@@ -62,7 +66,7 @@ export default function AdminSidebar() {
         mode="inline"
         selectedKeys={[selectedKey]}
         items={items}
-        onClick={({ key }) => navigate(key)}
+        onClick={({ key }) => go(key)}
         style={{ flex: 1, borderInlineEnd: 0 }}
       />
 
@@ -71,6 +75,15 @@ export default function AdminSidebar() {
           Đăng xuất
         </Button>
       </div>
+    </div>
+  );
+
+  // Trên mobile: render nội dung trần để nhét vào Drawer
+  if (variant === 'drawer') return content;
+
+  return (
+    <Sider theme="dark" width={260} style={{ height: '100vh' }}>
+      {content}
     </Sider>
   );
 }

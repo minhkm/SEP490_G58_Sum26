@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Table, Button, Tag, Input, Card, Avatar, Space, Typography, Tooltip, Row, Col } from 'antd';
+import { Table, Button, Tag, Input, Card, Avatar, Space, Typography, Tooltip, Row, Col, Grid } from 'antd';
 import {
   TeamOutlined,
   PlusOutlined,
@@ -27,6 +27,7 @@ const getInitials = (name) => {
 export default function CrewListPage() {
   const navigate = useNavigate();
   const [crews, setCrews] = useState([]);
+  const screens = Grid.useBreakpoint();
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
 
@@ -200,6 +201,7 @@ export default function CrewListPage() {
             columns={columns}
             dataSource={filteredCrews}
             loading={loading}
+            scroll={screens.lg ? undefined : { x: 'max-content' }}
             pagination={{
               defaultPageSize: 10,
               showSizeChanger: true,
