@@ -687,7 +687,7 @@ router.put('/:id', authMiddleware, async (req, res) => {
       for (const cargo of cargosInVoyage) {
         if (cargo.CargoItems && cargo.CargoItems.length > 0) {
           for (const item of cargo.CargoItems) {
-            if (!item.isDischarged) {
+            if (!item.isDischargeCompleted) {
               allDischarged = false;
               break;
             }
@@ -696,7 +696,7 @@ router.put('/:id', authMiddleware, async (req, res) => {
       }
 
       if (!allDischarged) {
-        return res.status(400).json({ message: 'Chưa dỡ hết hàng hóa, không thể chuyển sang trạng thái đã dỡ hàng xong!' });
+        return res.status(400).json({ message: 'Chưa dỡ hết toàn bộ khối lượng hàng hóa, không thể chuyển sang trạng thái đã dỡ hàng xong!' });
       }
     }
 
@@ -858,8 +858,8 @@ router.put('/:id', authMiddleware, async (req, res) => {
                  if (!item.isLoaded) allLoaded = false;
                  if (item.isLoaded) anyLoaded = true;
 
-                 if (!item.isDischarged) allDischarged = false;
-                 if (item.isDischarged) anyDischarged = true;
+                 if (!item.isDischargeCompleted) allDischarged = false;
+                 if (item.isDischarged || Number(item.dischargedWeight || 0) > 0) anyDischarged = true;
                  
                  if (item.isLoaded && item.allocations && item.allocations.length > 0) {
                     item.allocations.forEach(a => {
@@ -1214,7 +1214,7 @@ router.patch('/equipments/:equipmentId/broken-count', authMiddleware, async (req
 router.put('/:id/cargo/:itemId/discharge', authMiddleware, async (req, res) => {
   try {
     const { id, itemId } = req.params;
-    const { isDischarged, actualQuantity, actualWeight, allocationsDischarge, unit, port, startedAt, completedAt, note } = req.body;
+    const { isDischarged, isDischargeCompleted, actualQuantity, actualWeight, allocationsDischarge, unit, port, startedAt, completedAt, note } = req.body;
 
     const voyage = await Voyage.findByPk(id);
     if (!voyage) return res.status(404).json({ message: 'Không tìm thấy chuyến đi' });
@@ -1260,15 +1260,20 @@ router.put('/:id/cargo/:itemId/discharge', authMiddleware, async (req, res) => {
           const allocIndex = newAllocations.findIndex(a => String(a.holdId) === String(holdId));
           if (allocIndex !== -1) {
             const a = newAllocations[allocIndex];
+            
+            if (newDWeight > Number(a.weight || 0)) {
+              return res.status(400).json({ message: `Khối lượng dỡ không được vượt quá khối lượng đã xếp (${a.weight} MT)` });
+            }
+
             const oldDWeight = a.dischargedWeight ? Number(a.dischargedWeight) : 0;
             const weightDiff = newDWeight - oldDWeight;
 
             if (weightDiff !== 0) {
               const h = await CargoHold.findByPk(holdId);
               if (h) {
-                // weightDiff > 0 means we discharged more, so we subtract from currentUsage
-                const volumeToAdd = -weightDiff * sf;
-                h.currentUsage += volumeToAdd;
+                const allocVol = a.volume ? Number(a.volume) : (Number(a.weight || 0) * sf);
+                const volumeDiff = Number(a.weight) > 0 ? (weightDiff / Number(a.weight)) * allocVol : (weightDiff * sf);
+                h.currentUsage -= volumeDiff;
                 if (h.currentUsage < 0) h.currentUsage = 0;
                 await h.save();
               }
@@ -1308,37 +1313,45 @@ router.put('/:id/cargo/:itemId/discharge', authMiddleware, async (req, res) => {
       }
     }
 
-    const wasDischarged = Boolean(cargoItem.isDischarged);
+    const oldTotalDischargedWeight = cargoItem.isDischarged ? Number(cargoItem.dischargedWeight || 0) : 0;
+    const oldTotalDischargedQuantity = cargoItem.isDischarged ? Number(cargoItem.dischargedQuantity || 0) : 0;
+    
     cargoItem.isDischarged = isDischarged;
     if (isDischarged) {
       cargoItem.dischargedQuantity = totalDischargedQuantity;
       cargoItem.dischargedWeight = totalDischargedWeight;
+      cargoItem.isDischargeCompleted = isDischargeCompleted || (totalDischargedWeight >= cargoItem.weight);
     } else {
       cargoItem.dischargedQuantity = 0;
       cargoItem.dischargedWeight = 0;
+      cargoItem.isDischargeCompleted = false;
       if (cargoItem.allocations) {
         cargoItem.allocations = cargoItem.allocations.map(a => ({ ...a, dischargedWeight: 0, dischargedQuantity: 0 }));
       }
     }
+    cargoItem.changed('allocations', true);
     await cargoItem.save();
 
-    if (!wasDischarged && isDischarged) {
+    const weightDiff = totalDischargedWeight - oldTotalDischargedWeight;
+    const quantityDiff = totalDischargedQuantity - oldTotalDischargedQuantity;
+    
+    if (isDischarged && weightDiff > 0) {
       await CargoOperation.create({
         voyageId: voyage.id,
         cargoId: cargoItem.cargoId,
         cargoItemId: cargoItem.id,
         operationType: 'UNLOAD',
         plannedQuantity: cargoItem.quantity,
-        actualQuantity: totalDischargedQuantity !== undefined ? totalDischargedQuantity : cargoItem.quantity,
+        actualQuantity: quantityDiff > 0 ? quantityDiff : cargoItem.quantity,
         plannedWeight: cargoItem.weight,
-        actualWeight: totalDischargedWeight !== undefined ? totalDischargedWeight : cargoItem.weight,
+        actualWeight: weightDiff,
         unit: unit || 'ton',
         port: port || voyage.destinationPort,
         startedAt: startedAt || null,
         completedAt: completedAt || new Date(),
         status: 'Completed',
         confirmedBy: req.user.profileId,
-        note: note || null
+        note: note || 'Dỡ hàng'
       });
     }
 
@@ -1351,8 +1364,8 @@ router.put('/:id/cargo/:itemId/discharge', authMiddleware, async (req, res) => {
       let allDischarged = true;
       let anyDischarged = false;
       updatedParentCargo.CargoItems.forEach(item => {
-        if (!item.isDischarged) allDischarged = false;
-        if (item.isDischarged) anyDischarged = true;
+        if (!item.isDischargeCompleted) allDischarged = false;
+        if (item.isDischarged || Number(item.dischargedWeight || 0) > 0) anyDischarged = true;
       });
 
       if (allDischarged) {

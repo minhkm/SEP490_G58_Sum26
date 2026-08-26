@@ -253,10 +253,10 @@ export default function RoutePlannerPage() {
             const arrPort = loadedPorts.find((p) => p.value === firstVoyage.destinationPort);
             const initialWaypoints = [];
             if (depPort?.lat && depPort?.lng) {
-              initialWaypoints.push({ lat: depPort.lat, lng: depPort.lng, name: `Cảng đi: ${depPort.label}` });
+              initialWaypoints.push({ lat: depPort.lat, lng: depPort.lng, name: depPort.label });
             }
             if (arrPort?.lat && arrPort?.lng) {
-              initialWaypoints.push({ lat: arrPort.lat, lng: arrPort.lng, name: `Cảng đến: ${arrPort.label}` });
+              initialWaypoints.push({ lat: arrPort.lat, lng: arrPort.lng, name: arrPort.label });
             }
             setWaypoints(initialWaypoints);
           }
@@ -286,10 +286,10 @@ export default function RoutePlannerPage() {
       const arrPort = portList.find((p) => p.value === voyage.destinationPort);
       const initialWaypoints = [];
       if (depPort?.lat && depPort?.lng) {
-        initialWaypoints.push({ lat: depPort.lat, lng: depPort.lng, name: `Cảng đi: ${depPort.label}` });
+        initialWaypoints.push({ lat: depPort.lat, lng: depPort.lng, name: depPort.label });
       }
       if (arrPort?.lat && arrPort?.lng) {
-        initialWaypoints.push({ lat: arrPort.lat, lng: arrPort.lng, name: `Cảng đến: ${arrPort.label}` });
+        initialWaypoints.push({ lat: arrPort.lat, lng: arrPort.lng, name: arrPort.label });
       }
       setWaypoints(initialWaypoints);
     } else {
@@ -747,8 +747,8 @@ export default function RoutePlannerPage() {
               style={{ height: '100%', width: '100%' }}
             >
               <TileLayer
-                attribution='&copy; <a href="https://carto.com/">CartoDB</a> contributors'
-                url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
+                attribution='&copy; <a href="https://maps.google.com/">Google Maps</a>'
+                url="https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}"
               />
               <LocationMarkers
                 waypoints={waypoints}
