@@ -496,8 +496,8 @@ export default function PortPage() {
             <div style={{ height: 250, width: '100%', borderRadius: 8, overflow: 'hidden', border: '1px solid #d9d9d9' }}>
               <MapContainer center={[14.0, 108.5]} zoom={4} style={{ height: '100%', width: '100%' }}>
                 <TileLayer
-                  attribution='&copy; <a href="https://carto.com/">CartoDB</a> contributors'
-                  url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
+                  attribution='&copy; <a href="https://maps.google.com/">Google Maps</a>'
+                  url="https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}"
                 />
                 <MapSelector form={addForm} />
               </MapContainer>
@@ -597,8 +597,8 @@ export default function PortPage() {
             <div style={{ height: 250, width: '100%', borderRadius: 8, overflow: 'hidden', border: '1px solid #d9d9d9' }}>
               <MapContainer center={[14.0, 108.5]} zoom={4} style={{ height: '100%', width: '100%' }}>
                 <TileLayer
-                  attribution='&copy; <a href="https://carto.com/">CartoDB</a> contributors'
-                  url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
+                  attribution='&copy; <a href="https://maps.google.com/">Google Maps</a>'
+                  url="https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}"
                 />
                 <MapSelector form={editForm} />
               </MapContainer>

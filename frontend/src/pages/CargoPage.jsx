@@ -309,6 +309,7 @@ export default function CargoPage() {
   const [allocatingCargoItem, setAllocatingCargoItem] = useState(null);
   const [savingConfig, setSavingConfig] = useState(false);
   const [dischargeModalOpen, setDischargeModalOpen] = useState(false);
+  const [isDischargeCompleted, setIsDischargeCompleted] = useState(false);
   const [dischargingCargo, setDischargingCargo] = useState(null);
   const [dischargeValues, setDischargeValues] = useState({ actualQuantity: '', actualWeight: '' });
 
@@ -498,6 +499,7 @@ export default function CargoPage() {
 
   const handleCargoDischargeClick = (cargo) => {
     setDischargingCargo(cargo);
+    setIsDischargeCompleted(cargo.isDischargeCompleted || false);
     const initialDischargeValues = (cargo.allocations || []).map(a => {
       const hold = holds.find(h => String(h.id) === String(a.holdId));
       return {
@@ -518,6 +520,7 @@ export default function CargoPage() {
       setLoading(true);
       await voyageService.dischargeCargoItem(activeVoyageId, dischargingCargo.itemId, {
         isDischarged: true,
+        isDischargeCompleted: isDischargeCompleted,
         allocationsDischarge: dischargeValues.map(v => ({
           holdId: v.holdId,
           actualWeight: Number(v.actualWeight) || 0,
@@ -747,11 +750,14 @@ export default function CargoPage() {
         align: 'center',
         width: 150,
         render: (_, cargo) => {
-          if (cargo.isDischarged) {
+          if (cargo.isDischarged || cargo.dischargedWeight > 0) {
+            const isPartial = !cargo.isDischargeCompleted;
             const isDiff = cargo.dischargedQuantity !== cargo.quantity || cargo.dischargedWeight !== cargo.weight;
             return (
               <div style={{ textAlign: 'center' }}>
-                <Tag color={isDiff ? 'warning' : 'success'} style={{ marginBottom: 4 }}>Đã dỡ xong</Tag>
+                <Tag color={isPartial ? 'processing' : (isDiff ? 'warning' : 'success')} style={{ marginBottom: 4 }}>
+                  {isPartial ? 'Đang dỡ' : (isDiff ? 'Hoàn thành (có hao hụt)' : 'Đã dỡ xong')}
+                </Tag>
                 <div style={{ fontSize: 11, color: isDiff ? '#d97706' : '#64748b' }}>
                   SL: {cargo.dischargedQuantity?.toLocaleString()} / {cargo.quantity?.toLocaleString()}
                 </div>
@@ -901,10 +907,10 @@ export default function CargoPage() {
 
                       cargoList.forEach((c) => {
                         const sf = Number(c.stowageFactor || 1.0);
-                        if (c.isLoaded && !c.isDischarged) {
+                        if (c.isLoaded) {
                           const alloc = (c.allocations || []).find((a) => String(a.holdId) === String(hold.id));
                           if (alloc) {
-                            const allocWeight = Number(alloc.weight || 0);
+                            const allocWeight = Math.max(0, Number(alloc.weight || 0) - Number(alloc.dischargedWeight || 0));
                             simulatedUsageWeight += allocWeight;
                             simulatedUsageVolume += allocWeight * sf;
                           }
@@ -1066,19 +1072,28 @@ export default function CargoPage() {
               title: 'Khối lượng dỡ (MT)',
               width: '25%',
               render: (_, record, idx) => (
-                <Input
-                  type="number"
-                  min="0"
-                  value={record.actualWeight}
-                  onChange={(e) => {
-                    const newVals = [...dischargeValues];
-                    newVals[idx].actualWeight = e.target.value;
-                    const isBulk = dischargingCargo?.unit === 'MT' && Number(dischargingCargo?.quantity) === Number(dischargingCargo?.weight);
-                    if (isBulk) newVals[idx].actualQuantity = e.target.value;
-                    setDischargeValues(newVals);
-                  }}
-                  placeholder="0 MT"
-                />
+                <>
+                  <Input
+                    type="number"
+                    min="0"
+                    max={record.allocatedWeight}
+                    value={record.actualWeight}
+                    status={Number(record.actualWeight) > record.allocatedWeight ? 'error' : ''}
+                    onChange={(e) => {
+                      const newVals = [...dischargeValues];
+                      newVals[idx].actualWeight = e.target.value;
+                      const isBulk = dischargingCargo?.unit === 'MT' && Number(dischargingCargo?.quantity) === Number(dischargingCargo?.weight);
+                      if (isBulk) newVals[idx].actualQuantity = e.target.value;
+                      setDischargeValues(newVals);
+                    }}
+                    placeholder="0 MT"
+                  />
+                  {Number(record.actualWeight) > record.allocatedWeight && (
+                    <div style={{ color: '#ff4d4f', fontSize: 11, marginTop: 4 }}>
+                      Vượt quá phân bổ
+                    </div>
+                  )}
+                </>
               )
             },
             ...(dischargingCargo?.unit !== 'MT' || Number(dischargingCargo?.quantity) !== Number(dischargingCargo?.weight) ? [{
@@ -1105,6 +1120,11 @@ export default function CargoPage() {
           <Text style={{ color: '#2563eb', fontSize: 16, fontWeight: 'bold' }}>
             {Array.isArray(dischargeValues) ? dischargeValues.reduce((sum, v) => sum + (Number(v.actualWeight) || 0), 0).toLocaleString() : 0} MT
           </Text>
+        </div>
+        <div style={{ marginTop: 16, borderTop: '1px solid #e2e8f0', paddingTop: 16 }}>
+          <Checkbox checked={isDischargeCompleted} onChange={(e) => setIsDischargeCompleted(e.target.checked)}>
+            <Text strong>Khai báo chốt sổ (Kết thúc dỡ hàng dù có hao hụt)</Text>
+          </Checkbox>
         </div>
       </Modal>
     </Layout>
