@@ -60,12 +60,12 @@ function LocationMarkers({ waypoints, setWaypoints, isReadOnly, unsafeSegments, 
       const lat = parseFloat(e.latlng.lat.toFixed(4));
       const lng = parseFloat(e.latlng.lng.toFixed(4));
 
-      // Kiểm tra tọa độ trên biển hay đất liền ngay lập tức
-      const isWater = isWaterCoordinate(lat, lng);
-      if (!isWater) {
-        message.warning('Không thể đặt điểm trên đất liền! Vui lòng click vào vùng biển.');
-        return;
-      }
+      // Kiểm tra tọa độ trên biển hay đất liền ngay lập tức (Tạm tắt để demo)
+      // const isWater = isWaterCoordinate(lat, lng);
+      // if (!isWater) {
+      //   message.warning('Không thể đặt điểm trên đất liền! Vui lòng click vào vùng biển.');
+      //   return;
+      // }
 
       setWaypoints((prev) => {
         if (prev.length >= 2) {
@@ -310,7 +310,9 @@ export default function RoutePlannerPage() {
 
   // Kiểm tra an toàn luồng hải trình
   const routeSafety = useMemo(() => {
-    return validateRouteSafety(waypoints);
+    // Tạm thời bỏ validate theo yêu cầu demo
+    // return validateRouteSafety(waypoints);
+    return { isSafe: true, unsafeSegments: [] };
   }, [waypoints]);
 
   // Tính tổng khoảng cách hải trình
@@ -409,10 +411,11 @@ export default function RoutePlannerPage() {
       return message.error('Kinh độ (Longitude) phải từ -180 đến 180');
     }
 
-    const isWater = isWaterCoordinate(lat, lng);
-    if (!isWater) {
-      return message.warning('Tọa độ này nằm trên đất liền! Vui lòng chọn tọa độ ngoài biển.');
-    }
+    // Tạm tắt kiểm tra trên đất liền để demo
+    // const isWater = isWaterCoordinate(lat, lng);
+    // if (!isWater) {
+    //   return message.warning('Tọa độ này nằm trên đất liền! Vui lòng chọn tọa độ ngoài biển.');
+    // }
 
     setWaypoints((prev) => {
       if (prev.length >= 2) {
