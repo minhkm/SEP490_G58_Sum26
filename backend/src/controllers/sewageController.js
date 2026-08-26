@@ -1,4 +1,4 @@
-const { SewageLog, Voyage, User } = require('../models');
+const { SewageLog, Voyage, User, VoyageCrew } = require('../models');
 const { sendSewageApprovalEmail } = require('../services/emailService');
 
 exports.getLogsByVoyage = async (req, res) => {
@@ -20,13 +20,18 @@ exports.getLogsByVoyage = async (req, res) => {
 
 exports.createRequest = async (req, res) => {
   try {
-    const activeVoyageRole = req.headers['x-active-voyage-role'] || req.user.role;
-    // Both ChiefOfficer and DeckOfficer could technically record, but strictly ChiefOfficer requested by user
-    if (activeVoyageRole !== 'ChiefOfficer' && activeVoyageRole !== 'Admin' && req.user.role !== 'ChiefOfficer' && req.user.role !== 'Admin') {
-      return res.status(403).json({ message: `Chỉ Đại phó (ChiefOfficer) mới được tạo yêu cầu xả thải. Vai trò hiện tại của bạn: ${activeVoyageRole} / ${req.user.role}` });
+    const { voyageId, dischargeType, distanceFromLand, shipSpeed, volume, plannedDischargeDate, startLat, startLng, remarks } = req.body;
+
+    // Securely fetch role from DB instead of trusting the client header
+    let activeVoyageRole = null;
+    if (req.user.profileId && voyageId) {
+      const vc = await VoyageCrew.findOne({ where: { voyageId, crewId: req.user.profileId } });
+      if (vc) activeVoyageRole = vc.role;
     }
 
-    const { voyageId, dischargeType, distanceFromLand, shipSpeed, volume, plannedDischargeDate, startLat, startLng, remarks } = req.body;
+    if (activeVoyageRole !== 'ChiefOfficer' && req.user.role !== 'ChiefOfficer' && req.user.role !== 'Admin') {
+      return res.status(403).json({ message: `Chỉ Đại phó (ChiefOfficer) mới được tạo yêu cầu xả thải. Vai trò hiện tại của bạn: ${activeVoyageRole || req.user.role}` });
+    }
 
     if (!dischargeType || !plannedDischargeDate || distanceFromLand === undefined || shipSpeed === undefined || volume === undefined || startLat === undefined || startLng === undefined) {
       return res.status(400).json({ message: 'Vui lòng điền đầy đủ các thông tin bắt buộc (loại xả thải, thời gian, khoảng cách, tốc độ, thể tích, tọa độ).' });
@@ -103,13 +108,19 @@ exports.createRequest = async (req, res) => {
 
 exports.approveRequest = async (req, res) => {
   try {
-    const activeVoyageRole = req.headers['x-active-voyage-role'] || req.user.role;
-    if (activeVoyageRole !== 'Master' && activeVoyageRole !== 'Admin' && req.user.role !== 'Master' && req.user.role !== 'Admin') {
-      return res.status(403).json({ message: `Chỉ Thuyền trưởng mới được phê duyệt. Vai trò hiện tại của bạn: ${activeVoyageRole}` });
-    }
-
     const log = await SewageLog.findByPk(req.params.id);
     if (!log) return res.status(404).json({ message: 'Không tìm thấy yêu cầu.' });
+
+    // Securely fetch role from DB
+    let activeVoyageRole = null;
+    if (req.user.profileId && log.voyageId) {
+      const vc = await VoyageCrew.findOne({ where: { voyageId: log.voyageId, crewId: req.user.profileId } });
+      if (vc) activeVoyageRole = vc.role;
+    }
+
+    if (activeVoyageRole !== 'Master' && req.user.role !== 'Master' && req.user.role !== 'Admin') {
+      return res.status(403).json({ message: `Chỉ Thuyền trưởng mới được phê duyệt. Vai trò hiện tại của bạn: ${activeVoyageRole || req.user.role}` });
+    }
 
     log.status = 'Approved';
     log.approvedBy = req.user.id;
@@ -124,13 +135,19 @@ exports.approveRequest = async (req, res) => {
 
 exports.rejectRequest = async (req, res) => {
   try {
-    const activeVoyageRole = req.headers['x-active-voyage-role'] || req.user.role;
-    if (activeVoyageRole !== 'Master' && activeVoyageRole !== 'Admin' && req.user.role !== 'Master' && req.user.role !== 'Admin') {
-      return res.status(403).json({ message: `Chỉ Thuyền trưởng mới được từ chối. Vai trò hiện tại của bạn: ${activeVoyageRole}` });
-    }
-
     const log = await SewageLog.findByPk(req.params.id);
     if (!log) return res.status(404).json({ message: 'Không tìm thấy yêu cầu.' });
+
+    // Securely fetch role from DB
+    let activeVoyageRole = null;
+    if (req.user.profileId && log.voyageId) {
+      const vc = await VoyageCrew.findOne({ where: { voyageId: log.voyageId, crewId: req.user.profileId } });
+      if (vc) activeVoyageRole = vc.role;
+    }
+
+    if (activeVoyageRole !== 'Master' && req.user.role !== 'Master' && req.user.role !== 'Admin') {
+      return res.status(403).json({ message: `Chỉ Thuyền trưởng mới được từ chối. Vai trò hiện tại của bạn: ${activeVoyageRole || req.user.role}` });
+    }
 
     log.status = 'Rejected';
     log.approvedBy = req.user.id;

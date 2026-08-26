@@ -10,7 +10,6 @@ import {
   Tooltip,
   Modal,
   Checkbox,
-  Popconfirm,
   Tag,
   Row,
   Col,
@@ -1080,10 +1079,23 @@ export default function CargoPage() {
                     value={record.actualWeight}
                     status={Number(record.actualWeight) > record.allocatedWeight ? 'error' : ''}
                     onChange={(e) => {
+                      const val = e.target.value;
                       const newVals = [...dischargeValues];
-                      newVals[idx].actualWeight = e.target.value;
-                      const isBulk = dischargingCargo?.unit === 'MT' && Number(dischargingCargo?.quantity) === Number(dischargingCargo?.weight);
-                      if (isBulk) newVals[idx].actualQuantity = e.target.value;
+                      newVals[idx].actualWeight = val;
+                      
+                      const q = Number(dischargingCargo?.quantity) || 0;
+                      const w = Number(dischargingCargo?.weight) || 0;
+                      
+                      const isBulk = dischargingCargo?.unit === 'MT' && q === w;
+                      if (isBulk) {
+                        newVals[idx].actualQuantity = val;
+                      } else if (q > 0 && w > 0 && val !== '') {
+                        const unitWeight = w / q;
+                        newVals[idx].actualQuantity = Math.round(Number(val) / unitWeight);
+                      } else if (val === '') {
+                        newVals[idx].actualQuantity = '';
+                      }
+                      
                       setDischargeValues(newVals);
                     }}
                     placeholder="0 MT"
@@ -1104,11 +1116,8 @@ export default function CargoPage() {
                   type="number"
                   min="0"
                   value={record.actualQuantity}
-                  onChange={(e) => {
-                    const newVals = [...dischargeValues];
-                    newVals[idx].actualQuantity = e.target.value;
-                    setDischargeValues(newVals);
-                  }}
+                  disabled
+                  style={{ backgroundColor: '#f1f5f9', color: '#64748b', cursor: 'not-allowed' }}
                   placeholder="0"
                 />
               )
